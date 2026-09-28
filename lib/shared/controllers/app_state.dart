@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:access_mobile/shared/models/member_review_status.dart';
+import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
+import 'package:access_mobile/shared/models/event_gallery.dart';
+import 'package:access_mobile/shared/models/request_status.dart';
+import 'package:access_mobile/shared/models/reschedule_models.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
 // ── Models ────────────────────────────────────────────────────────────────────
@@ -58,7 +63,17 @@ class Evaluation {
   final double score;
   final List<Uint8List> images;
   final String? imageUrl;
-  final PipelineResult? pipeline; // full pipeline result
+  final PipelineResult? pipeline;
+  final List<CriterionScore> criteria;
+  final String? qualityLevel;
+  final String? mediaType;
+  final MediaEvaluationFeedback? geminiFeedback;
+  final String? recommendation;
+  final String? scoringModel;
+  final PhotoEvaluationResult? parsedEvaluation;
+  final String? reviewStatus;
+  final String? adminRemarks;
+  final DateTime? evaluatedAt;
   Evaluation({
     required this.id,
     required this.title,
@@ -71,25 +86,117 @@ class Evaluation {
     this.images = const [],
     this.imageUrl,
     this.pipeline,
+    this.criteria = const [],
+    this.qualityLevel,
+    this.mediaType,
+    this.geminiFeedback,
+    this.recommendation,
+    this.scoringModel,
+    this.parsedEvaluation,
+    this.reviewStatus,
+    this.adminRemarks,
+    this.evaluatedAt,
   });
 
   bool get isPending => score == 0;
+
+  bool get hasAdminReviewDecision {
+    return MemberReviewStatus.isFinalAdminDecision(reviewStatus);
+  }
+
+  bool get isUnderAdminReview {
+    final status = reviewStatus?.toLowerCase();
+    return status == 'pending_review' || status == 'needs_further_review';
+  }
+
+  /// DB stores 0–1; older payloads may store 1–5 in criteria_json only.
+  double get displayScore => score <= 1.0 ? score : (score / 5).clamp(0.0, 1.0);
+
+  int get displayPercent => (displayScore * 100).round();
+
+  bool get hasAiCriteria => criteria.isNotEmpty;
+
+  bool get isEfficientNetEvaluation =>
+      scoringModel?.contains('efficientnet') == true || hasAiCriteria;
+
+  List<CriterionScore> get previewCriteria {
+    if (criteria.isEmpty) return const [];
+    const priority = [
+      'Sharpness',
+      'Blur',
+      'Noise',
+      'Brightness',
+      'Contrast',
+      'Blocking Artifacts',
+      'Ringing Artifacts',
+      'Flickering',
+      'Motion Stability',
+    ];
+    final sorted = [...criteria];
+    sorted.sort((a, b) {
+      final ai = priority.indexOf(a.name);
+      final bi = priority.indexOf(b.name);
+      final ar = ai < 0 ? 999 : ai;
+      final br = bi < 0 ? 999 : bi;
+      if (ar != br) return ar.compareTo(br);
+      return a.name.compareTo(b.name);
+    });
+    return sorted.take(3).toList();
+  }
+
   String get feedbackStatus =>
       feedback.trim().isEmpty ? 'Pending' : (isPending ? 'Awaiting review' : 'Ready');
 }
 
 class CalendarEvent {
-  final String tag, title, date, description;
+  final int? id;
+  final String tag;
+  final String title;
+  final String date;
+  final String description;
   String status;
   final Color statusColor;
+  final int? requestId;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final String? timeLabel;
+  final String location;
+  final String? requestStatus;
+  final String? assignedMemberName;
+  final List<String> documentationTeam;
+
   CalendarEvent({
+    this.id,
     required this.tag,
     required this.title,
     required this.date,
     required this.status,
     required this.statusColor,
     required this.description,
+    required this.startDate,
+    this.endDate,
+    this.requestId,
+    this.timeLabel,
+    this.location = '',
+    this.requestStatus,
+    this.assignedMemberName,
+    this.documentationTeam = const [],
   });
+
+  bool get isPast {
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final day = DateTime(startDate.year, startDate.month, startDate.day);
+    return day.isBefore(today);
+  }
+
+  bool get isApproved {
+    final req = (requestStatus ?? '').toLowerCase();
+    if (req.isNotEmpty) return req == 'approved';
+    final s = status.toLowerCase();
+    return s != 'cancelled' && s != 'canceled';
+  }
+
+  bool get isUpcoming => !isPast && isApproved;
 }
 
 class Challenge {
@@ -99,6 +206,11 @@ class Challenge {
   final int xp;
   bool completed;
   String status;
+  final String? taskRole;
+  final String? venue;
+  final String? eventDate;
+  final String? eventTime;
+  final String? eventTimeRange;
   Challenge({
     this.assignmentId,
     this.requestId,
@@ -107,6 +219,11 @@ class Challenge {
     required this.xp,
     this.completed = false,
     this.status = 'assigned',
+    this.taskRole,
+    this.venue,
+    this.eventDate,
+    this.eventTime,
+    this.eventTimeRange,
   });
 }
 
@@ -123,6 +240,8 @@ class GalleryItem {
   final bool aiDetected; // flagged as AI-generated
   final int? mediaId;
   final int? requestId;
+  final double? overallScore;
+  final String? feedback;
   GalleryItem({
     required this.title,
     required this.category,
@@ -136,42 +255,118 @@ class GalleryItem {
     this.aiDetected = false,
     this.mediaId,
     this.requestId,
+    this.overallScore,
+    this.feedback,
   });
 
   bool get isVideo => mediaType == MediaType.video;
+
+  String get evalStatus {
+    if (aiDetected) return 'Needs review';
+    if (overallScore != null && overallScore! > 0) return 'Evaluated';
+    if (feedback != null && feedback!.trim().isNotEmpty) return 'Evaluated';
+    return 'Pending';
+  }
+
+  String? get scoreLabel {
+    final s = overallScore;
+    if (s == null || s <= 0) return null;
+    final pct = s <= 1 ? (s * 100).round() : s.round();
+    return '$pct%';
+  }
 }
 
 class AppNotification {
+  final int id;
   final String title, body;
   final IconData icon;
   final Color color;
+  final String category;
+  final String? actionType;
+  final int? actionRefId;
   bool read;
+  final String? createdAt;
+  final DateTime? createdAtDt;
   AppNotification({
+    this.id = 0,
     required this.title,
     required this.body,
     required this.icon,
     required this.color,
+    this.category = 'system_alert',
+    this.actionType,
+    this.actionRefId,
     this.read = false,
+    this.createdAt,
+    this.createdAtDt,
   });
 }
 
+class Announcement {
+  final int id;
+  final String title;
+  final String content;
+  final String date;
+  final String? postedByName;
+
+  const Announcement({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.date,
+    this.postedByName,
+  });
+
+  String get preview {
+    final cleaned = content.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (cleaned.length <= 140) return cleaned;
+    return '${cleaned.substring(0, 137)}…';
+  }
+}
+
 class Member {
+  final int? userId;
   final String name, rank, initials;
   final int uploads;          // total uploads
-  final int goodEvaluations;  // evaluations with score ≥ 0.70 — drives ranking & badge
+  final int goodEvaluations;  // total XP / points from member_rankings
+  final int monthlyPoints;    // XP earned this calendar month
+  final int evaluationCount;  // scored practice evaluations
+  final int? rankPosition;
   final double avgMediaScore;
   final Color avatarColor;
+  final String? profileImageUrl;
   Member({
+    this.userId,
     required this.name,
     required this.rank,
     required this.initials,
     required this.uploads,
     required this.goodEvaluations,
+    this.monthlyPoints = 0,
+    this.evaluationCount = 0,
+    this.rankPosition,
     this.avgMediaScore = 0,
     required this.avatarColor,
+    this.profileImageUrl,
   });
 
+  /// XP used for leaderboard display (all-time or monthly).
+  int xpForPeriod({required bool monthly}) =>
+      monthly ? monthlyPoints : goodEvaluations;
+
   BadgeInfo get badge => memberBadge(goodEvaluations);
+
+  /// Photographer title earned from evaluation quality (3+ evaluations required).
+  String? get achievedTitle {
+    if (evaluationCount < 3) return null;
+    final avg = avgMediaScore <= 1.0
+        ? avgMediaScore
+        : (avgMediaScore / 5.0).clamp(0.0, 1.0);
+    return computeTitle(avg, evaluationCount);
+  }
+
+  /// Subtitle under member name on rankings (title if earned, else competency level).
+  String get rankingsRoleLabel => achievedTitle ?? rank;
 }
 
 class EventFeedback {
@@ -246,18 +441,64 @@ BadgeInfo memberBadge(int goodEvals) {
 }
 
 class ServiceRequest {
-  final String id, type, details, date, requesterName;
-  String status; // Pending, In Review, Approved, Rejected
+  final String id;
   final int? requestId;
+  final String eventName;
+  final String? description;
+  final DateTime eventDate;
+  final String? startTime;
+  final String? endTime;
+  final String? location;
+  final String? requirements;
+  final DateTime? submissionDate;
+  final DateTime? updatedAt;
+  final String requesterName;
+  final String requestType;
+  String status;
+  final String? rejectionReason;
+  final DateTime? originalEventDate;
+  final DateTime? lastRescheduledAt;
+  final List<RescheduleHistoryEntry> rescheduleHistory;
+
   ServiceRequest({
     required this.id,
-    required this.type,
-    required this.details,
-    required this.date,
+    required this.eventName,
+    required this.eventDate,
     required this.requesterName,
-    this.status = 'Pending',
     this.requestId,
+    this.description,
+    this.startTime,
+    this.endTime,
+    this.location,
+    this.requirements,
+    this.submissionDate,
+    this.updatedAt,
+    this.requestType = 'Documentation',
+    this.status = 'Pending',
+    this.rejectionReason,
+    this.originalEventDate,
+    this.lastRescheduledAt,
+    this.rescheduleHistory = const [],
   });
+
+  /// Legacy alias used by older requestor UI code.
+  String get type => requestType;
+
+  /// Legacy alias — event description text.
+  String get details => description ?? '';
+
+  /// Legacy alias — formatted event date.
+  String get date => _legacyFormatDate(eventDate);
+
+  RequestStatus get requestStatus => RequestStatus.fromLegacyLabel(status);
+
+  static String _legacyFormatDate(DateTime dt) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
 }
 
 // ── Pending registration ──────────────────────────────────────────────────────
@@ -309,8 +550,12 @@ class AppState extends ChangeNotifier {
   final List<Evaluation> evaluations = [];
   final List<CalendarEvent> events = [];
   final List<Challenge> challenges = [];
+  /// Member AI evaluation uploads (EfficientNet-B0). Not event gallery media.
   final List<GalleryItem> gallery = [];
+  /// Approved ACCESS event/documentation media from GET /api/gallery.
+  final List<EventGalleryMedia> eventGallery = [];
   final List<AppNotification> notifications = [];
+  final List<Announcement> announcements = [];
 
   int get unreadCount => notifications.where((n) => !n.read).length;
 
@@ -399,15 +644,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Returns how many evaluations were saved today (by date string match).
-  int get evaluationsTodayCount {
-    final now = DateTime.now();
-    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final todayStr = '${months[now.month - 1]} ${now.day}, ${now.year}';
-    return evaluations.where((e) => e.date == todayStr).length;
-  }
+  /// Practice evaluations used today (from GET /member/participation).
+  int evaluationsTodayCount = 0;
 
-  static const int dailyEvaluationLimit = 5;
+  /// Daily cap for practice evaluations (from system settings via API).
+  int dailyEvaluationLimit = 5;
+
+  /// Max file size for practice evaluation videos (from GET /member/participation).
+  int evaluationMaxUploadMb = 350;
+
+  /// Max length for practice evaluation videos (minutes).
+  int evaluationMaxVideoMinutes = 3;
+
+  int get evaluationsRemainingToday =>
+      (dailyEvaluationLimit - evaluationsTodayCount).clamp(0, dailyEvaluationLimit);
 
   final List<EventFeedback> feedbacks = [];
 
@@ -459,11 +709,12 @@ class AppState extends ChangeNotifier {
 
   void addServiceRequest(String type, String details, String requesterName) {
     final now = DateTime.now();
-    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     serviceRequests.insert(0, ServiceRequest(
       id: 'REQ-${_reqCounter.toString().padLeft(3, '0')}',
-      type: type, details: details,
-      date: '${months[now.month - 1]} ${now.day}, ${now.year}',
+      eventName: type,
+      description: details,
+      eventDate: now,
+      submissionDate: now,
       requesterName: requesterName,
     ));
     _reqCounter++;
@@ -493,6 +744,39 @@ class AppState extends ChangeNotifier {
   String? profileSkillLevel;
   int profilePoints = 0;
   int? profileRankPosition;
+  int profileAssignmentsCompleted = 0;
+  double profileAverageScore = 0;
+  int profileEvaluationsCount = 0;
+  String? profileAdminRemarks;
+
+  /// Clears cached member profile (e.g. on logout) so the next user never sees stale data.
+  void clearMemberProfile() {
+    notifications.clear();
+    profileName = '';
+    profileInitials = '';
+    profileEmail = '';
+    profileContactNumber = null;
+    profileStudentId = null;
+    profileImageUrl = null;
+    profileAccountRole = 'Member';
+    profileStatus = 'approved';
+    profileYear = 'ACCESS Member';
+    profileUploads = 0;
+    profileSkillLevel = null;
+    profilePoints = 0;
+    profileRankPosition = null;
+    profileAssignmentsCompleted = 0;
+    profileAverageScore = 0;
+    profileEvaluationsCount = 0;
+    profileAdminRemarks = null;
+    evaluationsTodayCount = 0;
+    dailyEvaluationLimit = 5;
+    evaluationMaxUploadMb = 350;
+    evaluationMaxVideoMinutes = 3;
+    notifyListeners();
+  }
+
+  static const Object _profileImageUnset = Object();
 
   void applyProfile({
     required String name,
@@ -503,7 +787,7 @@ class AppState extends ChangeNotifier {
     int? rankPosition,
     String? contactNumber,
     String? studentId,
-    String? profileImage,
+    Object? profileImage = _profileImageUnset,
     String? role,
     String? status,
   }) {
@@ -511,9 +795,12 @@ class AppState extends ChangeNotifier {
     profileEmail = email;
     profileContactNumber = contactNumber;
     profileStudentId = studentId;
-    if (profileImage != null) profileImageUrl = profileImage;
-    if (role != null) profileAccountRole = role;
-    if (status != null) profileStatus = status;
+    if (profileImage != _profileImageUnset) {
+      final url = profileImage is String ? profileImage.trim() : '';
+      profileImageUrl = url.isNotEmpty ? url : null;
+    }
+    profileAccountRole = role?.trim() ?? '';
+    profileStatus = status?.trim() ?? '';
     final parts = name.trim().split(RegExp(r'\s+'));
     profileInitials = parts.length >= 2
         ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
@@ -523,6 +810,33 @@ class AppState extends ChangeNotifier {
     if (points != null) profilePoints = points;
     profileRankPosition = rankPosition;
     profileYear = skillLevel != null ? 'Skill: $skillLevel' : 'ACCESS Member';
+    notifyListeners();
+  }
+
+  void applyParticipation({
+    int? assignmentsCompleted,
+    double? averageScore,
+    int? uploadsCount,
+    int? totalPoints,
+    int? evaluationsCount,
+    int? evaluationsToday,
+    int? dailyEvaluationLimit,
+    int? evaluationMaxUploadMb,
+    int? evaluationMaxVideoMinutes,
+  }) {
+    if (assignmentsCompleted != null) {
+      profileAssignmentsCompleted = assignmentsCompleted;
+    }
+    if (averageScore != null) profileAverageScore = averageScore;
+    if (uploadsCount != null) profileUploads = uploadsCount;
+    if (totalPoints != null) profilePoints = totalPoints;
+    if (evaluationsCount != null) profileEvaluationsCount = evaluationsCount;
+    if (evaluationsToday != null) evaluationsTodayCount = evaluationsToday;
+    if (dailyEvaluationLimit != null) this.dailyEvaluationLimit = dailyEvaluationLimit;
+    if (evaluationMaxUploadMb != null) this.evaluationMaxUploadMb = evaluationMaxUploadMb;
+    if (evaluationMaxVideoMinutes != null) {
+      this.evaluationMaxVideoMinutes = evaluationMaxVideoMinutes;
+    }
     notifyListeners();
   }
 
@@ -549,9 +863,22 @@ class AppState extends ChangeNotifier {
   BadgeInfo get profileBadge => memberBadge(profileGoodEvaluations);
 
   int get profileRank {
+    if (profileRankPosition != null && profileRankPosition! > 0) {
+      return profileRankPosition!;
+    }
     final sorted = [...members]..sort((a, b) => b.goodEvaluations.compareTo(a.goodEvaluations));
     final i = sorted.indexWhere((m) => m.name == profileName);
     return i < 0 ? sorted.length + 1 : i + 1;
+  }
+
+  /// Rank within the current monthly XP leaderboard.
+  int profileMonthlyRank(List<Member> monthlySorted, {int? userId}) {
+    if (userId != null) {
+      final i = monthlySorted.indexWhere((m) => m.userId == userId);
+      if (i >= 0) return i + 1;
+    }
+    final i = monthlySorted.indexWhere((m) => m.name == profileName);
+    return i < 0 ? monthlySorted.length + 1 : i + 1;
   }
 
   final List<Achievement> achievements = [];

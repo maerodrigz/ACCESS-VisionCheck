@@ -1,0 +1,21 @@
+filepath,ground_truth,list,probe_probability,rank,raw_univfd_probability,source
+C:\Users\Dell\Desktop\fresh_validation\real\verified_external\IMG_20251105_180615_240@663703576.jpg,REAL,REAL_highest_PROBE,0.6105008721351624,1,0.9111884832382202,verified_external
+C:\Users\Dell\Desktop\fresh_validation\real\own_new_photos\IMG_20231003_131525_270.jpg,REAL,REAL_highest_PROBE,0.5629454851150513,2,0.039780065417289734,own_new_photos
+C:\Users\Dell\Desktop\fresh_validation\real\own_new_photos\IMG_20231221_145928_738~3.jpg,REAL,REAL_highest_PROBE,0.5218818187713623,3,0.987122654914856,own_new_photos
+C:\Users\Dell\Desktop\fresh_validation\real\own_new_photos\IMG_20240914_215759_895.jpg,REAL,REAL_highest_PROBE,0.448794960975647,4,0.9578043818473816,own_new_photos
+C:\Users\Dell\Desktop\fresh_validation\real\own_new_photos\IMG_20230612_174649_147.jpg,REAL,REAL_highest_PROBE,0.43915724754333496,5,0.8792148232460022,own_new_photos
+C:\Users\Dell\Desktop\fresh_validation\real\verified_external\IMG_20251002_191059_472@-933298281.jpg,REAL,REAL_highest_PROBE,0.34044143557548523,6,0.7316992282867432,verified_external
+C:\Users\Dell\Desktop\fresh_validation\real\own_new_photos\IMG_20230902_143409_560.jpg,REAL,REAL_highest_PROBE,0.33089479804039,7,0.981652021408081,own_new_photos
+C:\Users\Dell\Desktop\fresh_validation\real\verified_external\IMG_20251004_202755_522@268083.jpg,REAL,REAL_highest_PROBE,0.31575334072113037,8,0.609268844127655,verified_external
+C:\Users\Dell\Desktop\fresh_validation\real\own_new_photos\IMG_20260925_195124_437.jpg,REAL,REAL_highest_PROBE,0.26953303813934326,9,0.012895672582089901,own_new_photos
+C:\Users\Dell\Desktop\fresh_validation\real\verified_external\IMG_20251105_175223_679@-1326934283.jpg,REAL,REAL_highest_PROBE,0.26550835371017456,10,0.5332537293434143,verified_external
+C:\Users\Dell\Desktop\fresh_validation\ai\gemini\e1e19a80-d7c6-4a54-a354-97aeef47fc18.jpeg,AI,AI_lowest_PROBE,0.0009169560507871211,1,7.926591206341982e-05,gemini
+C:\Users\Dell\Desktop\fresh_validation\ai\gemini\5a29fcb4-7e99-470b-8ffd-0c0baab8636c.jpeg,AI,AI_lowest_PROBE,0.0009997864253818989,2,6.692999886581674e-05,gemini
+C:\Users\Dell\Desktop\fresh_validation\ai\gemini\ea0f2e4e-8d2f-4418-a2d7-484bdcb13749.jpeg,AI,AI_lowest_PROBE,0.0012614225270226598,3,5.114095620228909e-05,gemini
+C:\Users\Dell\Desktop\fresh_validation\ai\gemini\115bd514-0af2-443a-85b6-4d319c2d8a8d.jpeg,AI,AI_lowest_PROBE,0.003711284603923559,4,1.0517810551391449e-05,gemini
+C:\Users\Dell\Desktop\fresh_validation\ai\pixlr\pixlr-image-6ab7c540ec8f4dc9e4d25c3c.png,AI,AI_lowest_PROBE,0.004240572452545166,5,0.0032291754614561796,pixlr
+C:\Users\Dell\Desktop\fresh_validation\ai\gemini\69c7233c-e3a9-4bbe-b2b7-81b4bee5cc15.jpeg,AI,AI_lowest_PROBE,0.008168629370629787,6,3.613862645579502e-05,gemini
+C:\Users\Dell\Desktop\fresh_validation\ai\pixlr\pixlr-image-6ab7c522064f9dae3ed0e8df.png,AI,AI_lowest_PROBE,0.01859337091445923,7,0.015654506161808968,pixlr
+"C:\Users\Dell\Desktop\fresh_validation\ai\canva\Canva AI Image Sep 26, 2026, 7_54_39 PM_20260926_195506_0000.jpg",AI,AI_lowest_PROBE,0.025052107870578766,8,0.07649882882833481,canva
+"C:\Users\Dell\Desktop\fresh_validation\ai\canva\Canva AI Image Sep 26, 2026, 8_02_01 PM_20260926_200227_0000.jpg",AI,AI_lowest_PROBE,0.03584061563014984,9,0.0184192918241024,canva
+C:\Users\Dell\Desktop\fresh_validation\ai\pixlr\pixlr-image-6ab7c5a5121bdc0a48e4fad7.png,AI,AI_lowest_PROBE,0.048661161214113235,10,0.7295137643814087,pixlr

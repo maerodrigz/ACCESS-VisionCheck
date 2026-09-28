@@ -103,13 +103,14 @@ class _SubmitAssessmentSheetState extends State<SubmitAssessmentSheet> {
       feedback:
           'Your submission is under review. Results will be available soon.',
       date: dateStr,
+      evaluatedAt: now,
       images: _images.map((i) => i.bytes).toList(),
     ));
 
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content:
-            Text('${_images.length} image(s) submitted — check Assessments tab'),
+            Text('${_images.length} image(s) submitted. Check the Assessments tab.'),
         backgroundColor: kGreen));
   }
 

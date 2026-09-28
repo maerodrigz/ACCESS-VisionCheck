@@ -3,6 +3,7 @@ import 'package:access_mobile/shared/api/admin_api_service.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/widgets/access_branded_loading.dart';
 import 'package:access_mobile/shared/widgets/access_logo.dart';
+import 'package:access_mobile/web_admin/layout/page_header.dart';
 import 'package:access_mobile/web_admin/theme/admin_theme.dart';
 import 'package:access_mobile/web_admin/widgets/admin_shell_scaffold.dart';
 
@@ -45,7 +46,7 @@ class _AdminSystemMonitorScreenState extends State<AdminSystemMonitorScreen> {
     return AdminShellScaffold(
       title: 'System Monitor',
       subtitle: 'API health, PostgreSQL, table counts, audit_logs.',
-      actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))],
+      actions: [PageHeaderRefreshButton(onPressed: _load, enabled: !_loading)],
       child: _loading
           ? const AccessBrandedLoading(message: 'Loading system status…', logoSize: 64)
           : SingleChildScrollView(

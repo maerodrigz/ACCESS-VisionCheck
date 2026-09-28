@@ -43,3 +43,31 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+
+# React admin web
+admin-web/node_modules
+admin-web/dist
+admin-web/.env
+
+# Secrets (use .env.example templates only)
+.env
+**/.env
+!**/.env.example
+
+# Local backend uploads (member media, not source code)
+access_backend/uploads/**
+!access_backend/uploads/.gitkeep
+
+# Python
+.venv/
+access_backend/venv/
+**/__pycache__/
+access_backend/.pytest_cache/
+
+# Large ML caches (document download in README; use Git LFS if you must version weights)
+access_backend/experiments/probe/modelscope_cache/
+access_backend/experiments/probe/vendor_lib/
+
+# UnivFD backbone exceeds GitHub 100 MB file limit (use local ml/univfd/ or docs)
+access_backend/ml/univfd/ViT-L-14.pt

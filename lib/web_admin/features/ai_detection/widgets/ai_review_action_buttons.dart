@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/web_admin/features/ai_detection/ai_detection_models.dart';
 
-typedef AiReviewAction = Future<void> Function(ReviewStatus status, String remarks);
+typedef AiReviewQuickPick = void Function(ReviewStatus status, String exampleRemarks, String actionLabel);
 
 class AiReviewActionButtons extends StatelessWidget {
   const AiReviewActionButtons({
     super.key,
-    required this.row,
-    required this.onAction,
+    required this.onQuickPick,
     required this.onConfirm,
     this.compact = false,
   });
 
-  final AiDetectionRow row;
-  final AiReviewAction onAction;
+  final AiReviewQuickPick onQuickPick;
   final Future<bool?> Function(String title, String message, {IconData icon}) onConfirm;
   final bool compact;
 
@@ -108,13 +106,12 @@ class AiReviewActionButtons extends StatelessWidget {
     if (spec.needsConfirm) {
       final ok = await onConfirm(
         spec.confirmTitle!,
-        spec.confirmMessage!,
+        '${spec.confirmMessage!} You may add optional feedback, then tap Save review. This dialog stays open until then.',
         icon: spec.status == ReviewStatus.rejected ? Icons.block : Icons.warning_amber_outlined,
       );
       if (ok != true) return;
     }
-    final remarks = row.adminRemarks?.isNotEmpty == true ? row.adminRemarks! : spec.remarks;
-    await onAction(spec.status, remarks);
+    onQuickPick(spec.status, spec.remarks, spec.label);
   }
 }
 

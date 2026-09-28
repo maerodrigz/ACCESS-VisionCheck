@@ -31,7 +31,7 @@ void showFacebookShareSnackBar(BuildContext context, {required bool opened}) {
       content: Text(
         opened
             ? 'Facebook opened — finish your post there. '
-                'Org page: Nono gaming'
+                'Org page: ACCESS'
             : 'Could not open Facebook. Allow pop-ups for this site.',
       ),
       backgroundColor: opened ? Colors.green : Colors.red,

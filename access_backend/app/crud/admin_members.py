@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.crud import member_profile as profile_crud
+from app.models.audit_log import AuditLog
 from app.models.login_history import LoginHistory
 from app.models.media_evaluation import MediaEvaluation
 from app.models.media_file import MediaFile
@@ -108,9 +109,102 @@ def list_admin_members(db: Session) -> list[dict]:
                 "media_eval_score": _avg_media_score(db, u.id),
                 "last_active": _last_active(db, u.id, u.created_at),
                 "primary_task_role": _primary_task_role(db, u.id),
+                "profile_image": u.profile_image,
                 "good_evaluations": ranking.total_points if ranking else 0,
                 "avg_score": _avg_media_score(db, u.id),
                 "created_at": u.created_at,
             }
         )
     return rows
+
+
+def get_admin_member(db: Session, user_id: int) -> dict | None:
+    u = db.scalar(
+        select(User)
+        .options(
+            joinedload(User.role),
+            joinedload(User.skill_level),
+            joinedload(User.member_ranking),
+        )
+        .where(User.id == user_id)
+    )
+    if not u:
+        return None
+    remover_name = None
+    if u.removed_by:
+        remover = db.get(User, u.removed_by)
+        remover_name = remover.fullname if remover else None
+    assigned = profile_crud.assignments_total(db, u.id)
+    completed = profile_crud.assignments_completed(db, u.id)
+    ranking = u.member_ranking
+    return {
+        "user_id": u.id,
+        "name": u.fullname,
+        "email": u.email,
+        "role": u.role.role_name if u.role else "Member",
+        "status": u.status,
+        "is_active": u.is_active,
+        "removed_at": u.removed_at,
+        "removed_by": u.removed_by,
+        "removed_by_name": remover_name,
+        "student_id": u.student_id,
+        "contact_number": u.contact_number,
+        "adviser_name": u.adviser_name,
+        "rejection_reason": u.rejection_reason,
+        "approved_at": u.approved_at,
+        "skill_level": u.skill_level.level_name if u.skill_level else None,
+        "assigned_tasks": assigned,
+        "completed_tasks": completed,
+        "media_eval_score": _avg_media_score(db, u.id),
+        "last_active": _last_active(db, u.id, u.created_at),
+        "primary_task_role": _primary_task_role(db, u.id),
+        "profile_image": u.profile_image,
+        "good_evaluations": ranking.total_points if ranking else 0,
+        "avg_score": _avg_media_score(db, u.id),
+        "created_at": u.created_at,
+    }
+
+
+def list_user_recent_activity(db: Session, user_id: int, limit: int = 10) -> list[dict]:
+    """Login history and audit entries for a user, merged newest first."""
+    logins = list(
+        db.scalars(
+            select(LoginHistory)
+            .where(LoginHistory.user_id == user_id)
+            .order_by(LoginHistory.login_time.desc())
+            .limit(limit)
+        )
+    )
+    audits = list(
+        db.scalars(
+            select(AuditLog)
+            .where(AuditLog.user_id == user_id)
+            .order_by(AuditLog.created_at.desc())
+            .limit(limit)
+        )
+    )
+    items: list[dict] = []
+    for row in logins:
+        detail_parts = [p for p in (row.ip_address, row.device_info) if p]
+        items.append(
+            {
+                "kind": "login",
+                "label": "Signed in",
+                "detail": " · ".join(detail_parts) if detail_parts else None,
+                "occurred_at": row.login_time,
+            }
+        )
+    for row in audits:
+        items.append(
+            {
+                "kind": "audit",
+                "label": row.action.replace("_", " ").title(),
+                "detail": row.description,
+                "occurred_at": row.created_at,
+            }
+        )
+    items.sort(
+        key=lambda x: x["occurred_at"].timestamp() if x["occurred_at"] is not None else 0,
+        reverse=True,
+    )
+    return items[:limit]

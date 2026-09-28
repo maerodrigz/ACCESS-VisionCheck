@@ -96,6 +96,7 @@ class _MediaEvaluationDetailsDialogState extends State<MediaEvaluationDetailsDia
                 const SizedBox(height: 16),
                 _detailRow('Media name', row.mediaName),
                 _detailRow('Member name', row.memberName),
+                _detailRow('Source', row.sourceLabel),
                 if (row.fileUrl.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ClipRRect(

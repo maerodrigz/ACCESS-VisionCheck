@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
-import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/mobile_app/widgets/shared_widgets.dart';
 import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 
@@ -33,17 +32,7 @@ void showChallengesSheet(BuildContext context) {
               itemBuilder: (_, i) {
                 final c = appState.challenges[i];
                 return GestureDetector(
-                  onTap: () async {
-                    if (c.assignmentId != null && !c.completed) {
-                      try {
-                        await memberDataController.completeTask(c.assignmentId!);
-                      } catch (_) {
-                        appState.toggleChallenge(i);
-                      }
-                    } else {
-                      appState.toggleChallenge(i);
-                    }
-                  },
+                  onTap: () => appState.toggleChallenge(i),
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -54,7 +43,7 @@ void showChallengesSheet(BuildContext context) {
                       Container(width: 22, height: 22,
                         decoration: BoxDecoration(
                           gradient: c.completed ? const LinearGradient(
-                            colors: [kCyan, kPurple]) : null,
+                            colors: [kCyan, kAccent]) : null,
                           color: c.completed ? null : Colors.transparent,
                           shape: BoxShape.circle,
                           border: Border.all(color: c.completed ? kCyan : kBorder)),

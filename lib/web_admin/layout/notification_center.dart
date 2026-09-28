@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/web_admin/features/notifications/notification_models.dart';
 import 'package:access_mobile/web_admin/navigation/admin_navigation_scope.dart';
 import 'package:access_mobile/web_admin/navigation/admin_routes.dart';
+import 'package:access_mobile/web_admin/layout/page_header.dart';
 import 'package:access_mobile/web_admin/theme/admin_theme.dart';
 import 'package:access_mobile/shared/widgets/access_branding.dart';
 
@@ -155,10 +156,9 @@ class _NotificationCenterPanelState extends State<NotificationCenterPanel> {
               ],
             ),
           ),
-          IconButton(
-            onPressed: widget.loading ? null : () => widget.onRefresh(),
-            icon: const Icon(Icons.refresh, size: 20),
-            tooltip: 'Refresh',
+          PageHeaderRefreshButton(
+            onPressed: () => widget.onRefresh(),
+            enabled: !widget.loading,
           ),
           IconButton(
             onPressed: widget.onClose,
@@ -228,24 +228,34 @@ class _NotificationCenterPanelState extends State<NotificationCenterPanel> {
 
   Widget _footer() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextButton(
-            onPressed: _unreadCount == 0 ? null : () => widget.onMarkAllRead(),
-            child: const Text('Mark all read', style: TextStyle(fontSize: 12)),
+          Row(
+            children: [
+              TextButton(
+                onPressed: _unreadCount == 0 ? null : () => widget.onMarkAllRead(),
+                child: const Text('Mark all read', style: TextStyle(fontSize: 12)),
+              ),
+              TextButton(
+                onPressed: () => widget.onClearRead(),
+                child: const Text('Clear read', style: TextStyle(fontSize: 12)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => widget.onClearRead(),
-            child: const Text('Clear read', style: TextStyle(fontSize: 12)),
-          ),
-          const Spacer(),
-          TextButton(
+          const SizedBox(height: 4),
+          FilledButton(
             onPressed: () {
               widget.onClose();
               AdminNavigationScope.go(context, AdminRoute.notifications);
             },
-            child: const Text('View all', style: TextStyle(fontWeight: FontWeight.w700, color: AdminTheme.accentBlue)),
+            style: FilledButton.styleFrom(
+              backgroundColor: AdminTheme.accentBlue,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('View All Notifications', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -399,6 +409,44 @@ class _NotificationCardState extends State<_NotificationCard> {
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+    );
+  }
+}
+
+/// Calendar shortcut — matches [NotificationBell] styling in the top bar.
+class EventCalendarButton extends StatelessWidget {
+  const EventCalendarButton({
+    super.key,
+    required this.onOpen,
+    this.active = false,
+  });
+
+  final VoidCallback onOpen;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Event Calendar',
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: active ? AdminTheme.accentBlue.withValues(alpha: 0.08) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: active ? AdminTheme.accentBlue.withValues(alpha: 0.35) : AdminTheme.border,
+            ),
+          ),
+          child: Icon(
+            Icons.calendar_month_outlined,
+            color: active ? AdminTheme.accentBlue : AdminTheme.textPrimary,
+            size: 22,
+          ),
+        ),
+      ),
     );
   }
 }

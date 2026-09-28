@@ -28,8 +28,9 @@ def record_login(
     return row
 
 
-def create_session(db: Session, user_id: int, token: str) -> UserSession:
-    expires = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
+def create_session(db: Session, user_id: int, token: str, *, expire_minutes: int | None = None) -> UserSession:
+    minutes = expire_minutes if expire_minutes is not None else settings.jwt_expire_minutes
+    expires = datetime.now(timezone.utc) + timedelta(minutes=minutes)
     row = UserSession(user_id=user_id, token=token, expires_at=expires)
     db.add(row)
     db.commit()

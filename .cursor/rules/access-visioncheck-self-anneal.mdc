@@ -90,6 +90,17 @@ Add a short bullet to this file (or `docs/SELF_ANNEALING.md`) under **Incident l
 - **2026-05:** Mobile dashboard empty on Android — `api_config.dart` defaulted to a hardcoded LAN IP. Fixed by defaulting Android to the emulator alias `10.0.2.2` and requiring `--dart-define=API_PUBLIC_HOST=<PC LAN IPv4>` for physical phones. Added structured request logging (`developer.log(name: 'ACCESS.api')`) and a tappable mobile offline banner with diagnostics.
 - **2026-05:** Login screen leaked demo credentials (admin@access.edu / admin123 etc.) — block removed from `lib/shared/screens/vision_login_screen.dart`. The screen is shared across web admin and mobile, so the credentials were visible to end users on both platforms. Email/password `TextEditingController`s are intentionally not prefilled.
 - **2026-05:** Mobile bottom-nav showed "Profile" label with the analytics icon — `_navItems` had 9 entries but `_screen` only mapped 0..6, so slot 6 displayed `_navItems[6].icon` (Analytics) under the "Profile" label. Fixed by trimming `_navItems` to exactly the 7 screens in order (Home, Evaluations, Calendar, Gallery, Feedback, Rankings, Profile) and deleting the dead `_Sidebar` widget.
+- **2026-08:** Every member practice eval pinged all admins — `media_pipeline.run_pipeline` called `notify_media_uploaded` on every upload and `notify_ai_detection_alert` when `ai_prob >= 0.18` (human scans store prob up to 0.35). Admins now alert only when detection is `suspicious` or `ai_generated` above `ai_confidence_threshold`, gated by `auto_generate_review_alerts`.
+- **2026-08:** Admin competency override lost on next member eval — `recalculate_skill_level` ignored `member_rankings.competency_level_override`. Fixed via `resolve_member_skill_level()`; rankings `skill_level` now returns effective tier; React + Flutter admin read/write override via API only.
+- **2026-09:** Facebook bulk publish error (#3) on `POST /{page-id}/albums` — Meta blocks creating Page albums via API for most apps. Bulk publish now uploads into an **existing** Page album (auto-detects "Photos" or set `FACEBOOK_PAGE_ALBUM_ID` in `.env`). Falls back to individual posts if album upload is also blocked.
+- **2026-09:** Mobile app opened wrong Facebook Page (`61590008614900` Nono gaming) while admin Graph API posts to ACCESS Page (`1202339146306816`). Keep `FacebookConfig.defaultPageId`, `admin-web/facebookShare.ts`, and `.env FACEBOOK_PAGE_ID` in sync.
+- **2026-08:** Every practice eval pinged the member with "Media evaluation completed". Removed; members see score in-app. Member notifications only for AI/suspicious flags + admin review outcomes (verify, reject, policy violation, reupload).
+
+## 10. User-facing copy — plain punctuation
+
+- Do **not** use em dashes (`—`) in strings shown to members or admins. Use commas, periods, or colons instead.
+- Missing table/stat values: use `N/A` or `-`, not `—`.
+- Number ranges keep en dash (`75–89`) — that is normal typography, not prose style.
 
 ## 9. Design tokens — do NOT regress
 
@@ -99,7 +110,8 @@ These tokens live in `lib/shared/themes/theme.dart` and define the entire mobile
 |----|----|----|
 | `kBg` | `0xFFF8FAFC` | Page background |
 | `kSurface` | `0xFFFFFFFF` | Card surface |
-| `kAccent` | `0xFF2563EB` | Primary icon color — ALL stat/feature card icons + active bottom-nav |
+| `kAccent` | `0xFF0052D4` | Primary icon color — ALL stat/feature card icons + active bottom-nav |
+| `kCyan` | `0xFF00C4E8` | ACCESS logo cyan — branding accents, eval heroes |
 | `kIconInactive` | `0xFF94A3B8` | Inactive bottom-nav icons + label |
 | `kTextPrimary` | `0xFF1E293B` | Main text |
 | `kTextSecondary` | `0xFF64748B` | Secondary text |

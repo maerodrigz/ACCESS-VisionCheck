@@ -24,6 +24,7 @@ class AiDetectionResult(TimestampMixin, Base):
     )
     admin_remarks: Mapped[str | None] = mapped_column(Text)
     detection_remarks: Mapped[str | None] = mapped_column(Text)
+    exif_metadata: Mapped[str | None] = mapped_column(Text)
     reviewed_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

@@ -314,7 +314,7 @@ class _RegistrationApprovalsPageState extends State<RegistrationApprovalsPage>
           label: 'Member Management',
           onPressed: () => AdminNavigationScope.go(context, AdminRoute.members),
         ),
-        PageHeaderIconButton(icon: Icons.refresh, onPressed: _load, tooltip: 'Refresh'),
+        PageHeaderRefreshButton(onPressed: _load),
       ],
       filter: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

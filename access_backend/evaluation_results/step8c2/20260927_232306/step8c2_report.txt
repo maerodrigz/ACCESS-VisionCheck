@@ -1,0 +1,7 @@
+STEP 8C.2 STATUS: COMPLETE
+max_long_edge=1344
+capped_ROC_AUC=0.9060000000000001
+spearman_full_vs_cap=0.8483408340834084
+total_wall_s=3738.7
+PRODUCTION BEHAVIOR CHANGED: NO
+Output: C:\Users\Dell\Desktop\access_mobile\access_backend\evaluation_results\step8c2\20260927_232306

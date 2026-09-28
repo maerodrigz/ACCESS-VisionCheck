@@ -15,8 +15,10 @@ from app.models.media_evaluation import MediaEvaluation
 from app.models.ai_detection_result import AiDetectionResult
 from app.models.ai_review_history import AiReviewHistory
 from app.models.feedback import Feedback
+from app.models.assignment_member_feedback import AssignmentMemberFeedback
 from app.models.member_ranking import MemberRanking
 from app.models.notification import Notification
+from app.models.member_notification_preference import MemberNotificationPreference
 from app.models.analytics_report import AnalyticsReport
 from app.models.archive import Archive
 from app.models.facebook_post import FacebookPost
@@ -27,6 +29,7 @@ from app.models.user_session import UserSession
 from app.models.media_comment import MediaComment
 from app.models.announcement import Announcement
 from app.models.system_branding import SystemBranding
+from app.models.system_settings import SystemSettings
 
 __all__ = [
     "Role",
@@ -40,8 +43,10 @@ __all__ = [
     "AiDetectionResult",
     "AiReviewHistory",
     "Feedback",
+    "AssignmentMemberFeedback",
     "MemberRanking",
     "Notification",
+    "MemberNotificationPreference",
     "AnalyticsReport",
     "Archive",
     "FacebookPost",
@@ -52,4 +57,5 @@ __all__ = [
     "MediaComment",
     "Announcement",
     "SystemBranding",
+    "SystemSettings",
 ]

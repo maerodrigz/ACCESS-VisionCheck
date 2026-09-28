@@ -250,7 +250,7 @@ class ImageEvaluationService {
       4 => 'Good documentation value with minor polish opportunities.',
       3 => 'Fair for internal use; may need improvement before public release.',
       2 => 'Still usable for documentation, but retaking would improve officer review.',
-      _ => 'Very low quality, but still evaluated — officers will review carefully.',
+      _ => 'Very low quality, but still evaluated. Officers will review carefully.',
     };
     final suggestion = score >= 4
         ? 'Submit this style of photo for similar future events.'

@@ -12,4 +12,5 @@ router = APIRouter(prefix="/events", tags=["Events"])
 
 @router.get("", response_model=list[EventOut])
 def list_events(db: Session = Depends(get_db), _: User = Depends(require_approved)):
-    return event_crud.list_events(db)
+    rows = event_crud.list_member_events(db)
+    return [EventOut(**event_crud.event_to_json(e)) for e in rows]

@@ -4,7 +4,6 @@ import 'package:access_mobile/web_admin/layout/breadcrumbs.dart';
 
 import 'package:access_mobile/web_admin/layout/last_updated_text.dart';
 
-import 'package:access_mobile/web_admin/layout/admin_breakpoints.dart';
 import 'package:access_mobile/web_admin/theme/admin_theme.dart';
 
 
@@ -51,7 +50,8 @@ class PageHeader extends StatelessWidget {
 
       builder: (context, c) {
 
-        final compact = c.maxWidth < AdminBreakpoints.tablet;
+        // Stack title/actions only on narrow content — not at tablet viewport (sidebar reduces width).
+        final compact = c.maxWidth < 560;
         final titleSize = c.maxWidth < 430 ? 22.0 : (compact ? 24.0 : 26.0);
 
 
@@ -136,7 +136,13 @@ class PageHeader extends StatelessWidget {
 
                 const SizedBox(height: 14),
 
-                Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.end, children: actions),
+                Align(
+
+                  alignment: Alignment.centerRight,
+
+                  child: Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.end, children: actions),
+
+                ),
 
               ],
 
@@ -160,7 +166,19 @@ class PageHeader extends StatelessWidget {
 
               const SizedBox(width: 16),
 
-              Wrap(spacing: 8, runSpacing: 8, children: actions),
+              Wrap(
+
+                spacing: 8,
+
+                runSpacing: 8,
+
+                alignment: WrapAlignment.end,
+
+                crossAxisAlignment: WrapCrossAlignment.center,
+
+                children: actions,
+
+              ),
 
             ],
 
@@ -248,6 +266,58 @@ class PageHeaderButton extends StatelessWidget {
 
     );
 
+  }
+
+}
+
+
+
+/// Compact pill refresh — pairs with export toolbar buttons on page headers.
+
+class PageHeaderRefreshButton extends StatelessWidget {
+
+  const PageHeaderRefreshButton({
+
+    super.key,
+
+    required this.onPressed,
+
+    this.enabled = true,
+
+  });
+
+
+
+  final VoidCallback? onPressed;
+
+  final bool enabled;
+
+
+
+  static ButtonStyle get _style => OutlinedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF334155),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        visualDensity: VisualDensity.compact,
+        minimumSize: const Size(88, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: enabled ? onPressed : null,
+      style: _style,
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.refresh, size: 16),
+          SizedBox(width: 6),
+          Text('Refresh', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
   }
 
 }

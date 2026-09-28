@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.ai_detection_result import AiDetectionResult
+from app.models.media_constants import MEDIA_CATEGORY_EVALUATION
 from app.models.media_evaluation import MediaEvaluation
 from app.models.media_file import MediaFile
 
@@ -12,6 +13,7 @@ def list_all(db: Session) -> list[MediaEvaluation]:
             select(MediaEvaluation)
             .options(
                 joinedload(MediaEvaluation.media).joinedload(MediaFile.uploader),
+                joinedload(MediaEvaluation.media).joinedload(MediaFile.request),
             )
             .order_by(MediaEvaluation.evaluated_at.desc())
         )
@@ -36,7 +38,10 @@ def list_for_user(db: Session, user_id: int) -> list[MediaEvaluation]:
             select(MediaEvaluation)
             .join(MediaFile, MediaEvaluation.media_id == MediaFile.id)
             .options(joinedload(MediaEvaluation.media))
-            .where(MediaFile.uploaded_by == user_id)
+            .where(
+                MediaFile.uploaded_by == user_id,
+                MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
+            )
             .order_by(MediaEvaluation.evaluated_at.desc())
         )
     )
@@ -55,6 +60,7 @@ def get_by_id(db: Session, evaluation_id: int) -> MediaEvaluation | None:
         select(MediaEvaluation)
         .options(
             joinedload(MediaEvaluation.media).joinedload(MediaFile.uploader),
+            joinedload(MediaEvaluation.media).joinedload(MediaFile.request),
         )
         .where(MediaEvaluation.id == evaluation_id)
     )
@@ -154,9 +160,13 @@ def ai_detection_summary(db: Session) -> dict:
     human = 0
     ai_gen = 0
     suspicious = 0
+    pending_review = 0
     for row in rows:
         label = row.detection_result or ""
         prob = row.ai_probability
+        status = (row.review_status or "pending_review").lower()
+        if status in ("pending_review", "needs_further_review"):
+            pending_review += 1
         if "ai" in label.lower() or "generated" in label.lower():
             ai_gen += 1
         elif prob >= 0.18:
@@ -168,6 +178,7 @@ def ai_detection_summary(db: Session) -> dict:
         "human_count": human,
         "ai_generated_count": ai_gen,
         "suspicious_count": suspicious,
+        "pending_review_count": pending_review,
     }
 
 

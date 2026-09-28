@@ -109,6 +109,22 @@ class _WebAdminShellState extends State<WebAdminShell> {
   Map<String, dynamic>? _intentParams;
 
   void _onRouteSelected(AdminRoute route, {Map<String, dynamic>? params}) {
+    if (route == AdminRoute.requestStatus || route == AdminRoute.taskAssignments) {
+      final merged = {...?params};
+      if (route == AdminRoute.requestStatus) {
+        merged.putIfAbsent('docMgmtTab', () => 'requestStatus');
+      } else {
+        merged['docMgmtTab'] =
+            merged['taskStatusTab'] == 'assignments' || merged['docMgmtTab'] == 'taskStatus'
+                ? 'taskStatus'
+                : 'requestStatus';
+      }
+      route = AdminRoute.docRequests;
+      params = merged;
+    }
+    if (route == AdminRoute.participationReports) {
+      params = {...?params, 'analyticsTab': 'participation'};
+    }
     setState(() {
       _route = route;
       _intentRoute = params != null && params.isNotEmpty ? route : null;
@@ -145,8 +161,7 @@ class _WebAdminShellState extends State<WebAdminShell> {
   Widget build(BuildContext context) {
     final width = AdminBreakpoints.widthOf(context);
     final useDrawer = AdminBreakpoints.useDrawer(context);
-    final isTablet = AdminBreakpoints.isTablet(context);
-    final sidebarCompact = isTablet && _sidebarCollapsed;
+    final sidebarCompact = _sidebarCollapsed && !useDrawer;
     final sidebarWidth = useDrawer
         ? 0.0
         : AdminBreakpoints.sidebarWidth(context, collapsed: _sidebarCollapsed);
@@ -162,9 +177,9 @@ class _WebAdminShellState extends State<WebAdminShell> {
           drawer: useDrawer
               ? Drawer(
                   width: AdminBreakpoints.drawerWidth,
-                  backgroundColor: AdminTheme.sidebarBg,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
                   child: AdminSidebar(
-                    user: widget.user,
                     selectedRoute: _route,
                     onRouteSelected: _onRouteSelected,
                     onCloseDrawer: () => Navigator.of(context).pop(),
@@ -180,7 +195,7 @@ class _WebAdminShellState extends State<WebAdminShell> {
                   width: sidebarWidth,
                   child: _SidebarHost(
                     compact: sidebarCompact,
-                    showCollapseToggle: isTablet,
+                    showCollapseToggle: true,
                     collapsed: _sidebarCollapsed,
                     onToggleCollapse: _toggleSidebarCollapsed,
                   ),
@@ -193,6 +208,8 @@ class _WebAdminShellState extends State<WebAdminShell> {
                         user: widget.user,
                         notificationCount: _notificationCount,
                         onOpenNotifications: _openNotificationCenter,
+                        onOpenEventCalendar: () => _onRouteSelected(AdminRoute.eventCalendar),
+                        activeRoute: _route,
                         onRefresh: _refreshCurrentView,
                         lastRefreshed: _lastRefreshed,
                         isRefreshing: _refreshing,
@@ -203,6 +220,8 @@ class _WebAdminShellState extends State<WebAdminShell> {
                       user: widget.user,
                       notificationCount: _notificationCount,
                       onOpenNotifications: _openNotificationCenter,
+                      onOpenEventCalendar: () => _onRouteSelected(AdminRoute.eventCalendar),
+                      activeRoute: _route,
                       onRefresh: _refreshCurrentView,
                       isRefreshing: _refreshing,
                     ),
@@ -247,7 +266,6 @@ class _SidebarHost extends StatelessWidget {
   Widget build(BuildContext context) {
     final shell = context.findAncestorStateOfType<_WebAdminShellState>()!;
     return AdminSidebar(
-      user: shell.widget.user,
       selectedRoute: shell._route,
       onRouteSelected: shell._onRouteSelected,
       compact: compact,
@@ -264,6 +282,8 @@ class _MobileHeader extends StatelessWidget {
     required this.user,
     required this.notificationCount,
     required this.onOpenNotifications,
+    required this.onOpenEventCalendar,
+    required this.activeRoute,
     required this.onRefresh,
     required this.isRefreshing,
   });
@@ -272,6 +292,8 @@ class _MobileHeader extends StatelessWidget {
   final AuthUser user;
   final int notificationCount;
   final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenEventCalendar;
+  final AdminRoute activeRoute;
   final VoidCallback onRefresh;
   final bool isRefreshing;
 
@@ -294,14 +316,29 @@ class _MobileHeader extends StatelessWidget {
               Expanded(
                 child: AccessHeaderBrand(logoSize: narrow ? 34 : 40, theme: AccessBrandTheme.light),
               ),
-              IconButton(
+              OutlinedButton.icon(
                 onPressed: isRefreshing ? null : onRefresh,
                 icon: isRefreshing
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.refresh, size: 22),
-                tooltip: 'Refresh',
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF8FAFC),
+                  foregroundColor: AdminTheme.textSecondary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  visualDensity: VisualDensity.compact,
+                ),
               ),
               NotificationBell(unreadCount: notificationCount, onOpen: onOpenNotifications),
+              const SizedBox(width: 4),
+              EventCalendarButton(
+                onOpen: onOpenEventCalendar,
+                active: activeRoute == AdminRoute.eventCalendar,
+              ),
               ProfileDropdown(user: user, iconOnly: narrow),
               const SizedBox(width: 4),
             ],

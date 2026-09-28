@@ -1,0 +1,135 @@
+{
+  "step8c1_status": "COMPLETE",
+  "production_behavior_changed": false,
+  "test_images": [
+    {
+      "filename": "IMG_20230512_103539_795.jpg",
+      "role": "A_outlier_63patch"
+    },
+    {
+      "filename": "IMG_20230612_173018_154.jpg",
+      "role": "B_outlier_130patch"
+    },
+    {
+      "filename": "IMG_20260824_192434_311@-1182336623.jpg",
+      "role": "C_normal_72patch_median_peer"
+    },
+    {
+      "filename": "IMG_20231119_112124_234.jpg",
+      "role": "D_normal_130patch_median_peer"
+    }
+  ],
+  "selection_notes": {
+    "C_substitution": "Step 8B has exactly one REAL image with 63 patches (image A). No separate normal 63-patch peer exists. Control C is the REAL image with 72 patches whose Step 8B wall time was closest to the median of the 51-75 patch REAL group (excluding A)."
+  },
+  "environment": {
+    "device": "cpu",
+    "python": "3.12.10",
+    "torch": "2.13.0+cpu",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "power_note": "Win32_Battery.BatteryStatus=2 (AC_power)",
+    "patch_batch_size": 8,
+    "checkpoint": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\experiments\\probe\\modelscope_cache\\models\\shuinishaojiu--PROBE-AIGI-Detection\\snapshots\\master\\DINOv2_best_model_step_34999.pth",
+    "model_load_wall_seconds": 12.856986800004961
+  },
+  "results": [
+    {
+      "role": "A_outlier_63patch",
+      "filename": "IMG_20230512_103539_795.jpg",
+      "filepath": "C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\own_new_photos\\IMG_20230512_103539_795.jpg",
+      "image_width": 3264,
+      "image_height": 2448,
+      "patch_count": 63,
+      "wall_seconds": 212.10112259999732,
+      "cpu_seconds": 819.703125,
+      "wall_seconds_per_patch": 3.3666844857142433,
+      "cpu_seconds_per_patch": 13.011160714285714,
+      "probe_probability": 0.00675064604729414,
+      "probe_mean_logit": -4.9913434982299805,
+      "step8b_wall_seconds": 33656.8079074,
+      "step8b_patch_count": 63,
+      "step8b_probe_probability": 0.00675064604729414,
+      "wall_seconds_delta_vs_step8b": -33444.7067848,
+      "probe_probability_delta_vs_step8b": 0.0,
+      "patch_count_matches_step8b": true
+    },
+    {
+      "role": "B_outlier_130patch",
+      "filename": "IMG_20230612_173018_154.jpg",
+      "filepath": "C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\own_new_photos\\IMG_20230612_173018_154.jpg",
+      "image_width": 4608,
+      "image_height": 3456,
+      "patch_count": 130,
+      "wall_seconds": 461.0944320999988,
+      "cpu_seconds": 1775.953125,
+      "wall_seconds_per_patch": 3.5468802469230676,
+      "cpu_seconds_per_patch": 13.661177884615384,
+      "probe_probability": 0.01068386435508728,
+      "probe_mean_logit": -4.5282793045043945,
+      "step8b_wall_seconds": 11125.2785745,
+      "step8b_patch_count": 130,
+      "step8b_probe_probability": 0.01068386435508728,
+      "wall_seconds_delta_vs_step8b": -10664.184142400001,
+      "probe_probability_delta_vs_step8b": 0.0,
+      "patch_count_matches_step8b": true
+    },
+    {
+      "role": "C_normal_72patch_median_peer",
+      "filename": "IMG_20260824_192434_311@-1182336623.jpg",
+      "filepath": "C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\verified_external\\IMG_20260824_192434_311@-1182336623.jpg",
+      "image_width": 2304,
+      "image_height": 4096,
+      "patch_count": 72,
+      "wall_seconds": 297.2144288999989,
+      "cpu_seconds": 1026.125,
+      "wall_seconds_per_patch": 4.127978179166651,
+      "cpu_seconds_per_patch": 14.25173611111111,
+      "probe_probability": 0.009114580228924751,
+      "probe_mean_logit": -4.688723564147949,
+      "step8b_wall_seconds": 246.79948570000124,
+      "step8b_patch_count": 72,
+      "step8b_probe_probability": 0.009114580228924751,
+      "wall_seconds_delta_vs_step8b": 50.41494319999765,
+      "probe_probability_delta_vs_step8b": 0.0,
+      "patch_count_matches_step8b": true
+    },
+    {
+      "role": "D_normal_130patch_median_peer",
+      "filename": "IMG_20231119_112124_234.jpg",
+      "filepath": "C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\own_new_photos\\IMG_20231119_112124_234.jpg",
+      "image_width": 4608,
+      "image_height": 3456,
+      "patch_count": 130,
+      "wall_seconds": 469.5204636999988,
+      "cpu_seconds": 1817.328125,
+      "wall_seconds_per_patch": 3.6116958746153753,
+      "cpu_seconds_per_patch": 13.979447115384616,
+      "probe_probability": 0.23960228264331818,
+      "probe_mean_logit": -1.1548612117767334,
+      "step8b_wall_seconds": 552.2759325999941,
+      "step8b_patch_count": 130,
+      "step8b_probe_probability": 0.23960228264331818,
+      "wall_seconds_delta_vs_step8b": -82.75546889999532,
+      "probe_probability_delta_vs_step8b": 0.0,
+      "patch_count_matches_step8b": true
+    }
+  ],
+  "probability_reproducible_within_1e-5": true,
+  "outlier_wall_reproduction": [
+    {
+      "filename": "IMG_20230512_103539_795.jpg",
+      "step8b_wall": 33656.8079074,
+      "controlled_wall": 212.10112259999732,
+      "step8b_to_controlled_ratio": 158.68283719965763
+    },
+    {
+      "filename": "IMG_20230612_173018_154.jpg",
+      "step8b_wall": 11125.2785745,
+      "controlled_wall": 461.0944320999988,
+      "step8b_to_controlled_ratio": 24.12798290326618
+    }
+  ],
+  "interpretation_hint": "If Step 8B multi-hour wall times shrink to minutes in this run while CPU time tracks wall time and peers scale with patch count, classify Step 8B extremes as environmental idle-time artifacts, not normal PROBE compute.",
+  "step8b_csv": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step8b\\20260927_040610\\step8b_probe_results.csv",
+  "output_dir": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step8c1\\20260927_231208"
+}

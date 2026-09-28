@@ -1,8 +1,9 @@
 """Event documentation requests submitted by organizations or members."""
 
-from datetime import date
+import json
+from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -20,8 +21,23 @@ class DocumentationRequest(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text)
     event_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     venue: Mapped[str | None] = mapped_column(String(200))
+    start_time: Mapped[str | None] = mapped_column(String(20))
+    end_time: Mapped[str | None] = mapped_column(String(20))
+    requirements: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending", index=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text)
+    original_event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_rescheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reschedule_history: Mapped[str | None] = mapped_column(Text)
+
+    def reschedule_history_list(self) -> list[dict]:
+        if not self.reschedule_history:
+            return []
+        try:
+            data = json.loads(self.reschedule_history)
+            return data if isinstance(data, list) else []
+        except json.JSONDecodeError:
+            return []
 
     requestor = relationship("User", back_populates="documentation_requests", foreign_keys=[requestor_id])
     assignments = relationship(

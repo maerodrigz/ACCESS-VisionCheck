@@ -21,18 +21,12 @@ double aiAuthenticityPercent(int humanVerified, int totalChecked) {
   return _pct(humanVerified.toDouble(), totalChecked.toDouble());
 }
 
+/// Skill level uses evaluation quality + media integrity only (mirrors backend).
 double computeSkillScore({
   required double mediaQualityScore,
-  required double approvedUploadsScore,
-  required double taskParticipationScore,
-  required double adminEvaluationScore,
   required double aiAuthenticityScore,
 }) {
-  return mediaQualityScore * 0.40 +
-      approvedUploadsScore * 0.25 +
-      taskParticipationScore * 0.20 +
-      adminEvaluationScore * 0.10 +
-      aiAuthenticityScore * 0.05;
+  return mediaQualityScore * 0.70 + aiAuthenticityScore * 0.30;
 }
 
 String skillLevelFromScore(double skillScore) {
@@ -59,9 +53,6 @@ Map<String, dynamic> buildSkillPayload({
   final aiQ = aiAuthenticityPercent(humanVerifiedUploads, totalCheckedUploads);
   final skillScore = computeSkillScore(
     mediaQualityScore: mediaQ,
-    approvedUploadsScore: approvedQ,
-    taskParticipationScore: taskQ,
-    adminEvaluationScore: adminQ,
     aiAuthenticityScore: aiQ,
   );
   return {

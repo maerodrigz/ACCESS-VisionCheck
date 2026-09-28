@@ -18,6 +18,8 @@ class MediaEvaluationRow {
     this.qualityLevel,
     this.recommendation,
     this.criteria = const [],
+    this.isStandalone = true,
+    this.sourceLabel = 'Practice evaluation',
   });
 
   final int id;
@@ -35,6 +37,8 @@ class MediaEvaluationRow {
   final String? qualityLevel;
   final String? recommendation;
   final List<EvaluationCriterionRow> criteria;
+  final bool isStandalone;
+  final String sourceLabel;
 
   factory MediaEvaluationRow.fromMap(Map<String, dynamic> m) {
     final criteria = _parseCriteria(m['criteria_json']);
@@ -54,6 +58,11 @@ class MediaEvaluationRow {
       qualityLevel: m['quality_level'] as String?,
       recommendation: m['recommendation'] as String?,
       criteria: criteria,
+      isStandalone: m['is_standalone'] as bool? ?? m['request_id'] == null,
+      sourceLabel: m['source_label'] as String? ??
+          ((m['is_standalone'] as bool? ?? m['request_id'] == null)
+              ? 'Practice evaluation'
+              : (m['event_title'] as String? ?? 'Event coverage')),
     );
   }
 
@@ -118,6 +127,8 @@ class MediaEvaluationRow {
         qualityLevel: qualityLevel,
         recommendation: recommendation,
         criteria: criteria,
+        isStandalone: isStandalone,
+        sourceLabel: sourceLabel,
       );
 }
 

@@ -39,19 +39,19 @@ class ImageValidationService {
   static List<String> _advisoryWarnings(ImageQualityMetrics m) {
     final warnings = <String>[];
     if (m.width < 320 || m.height < 240) {
-      warnings.add('Low resolution — a higher-resolution photo may score better.');
+      warnings.add('Low resolution. A higher-resolution photo may score better.');
     }
     if (m.blurScore < 0.22) {
-      warnings.add('Some blur detected — try holding the camera steadier.');
+      warnings.add('Some blur detected. Try holding the camera steadier.');
     }
     if (m.brightness < 0.18) {
-      warnings.add('Photo is quite dark — more light would improve detail.');
+      warnings.add('Photo is quite dark. More light would improve detail.');
     }
     if (m.brightness > 0.88) {
-      warnings.add('Photo may be overexposed — highlights could be washed out.');
+      warnings.add('Photo may be overexposed. Highlights could be washed out.');
     }
     if (m.contrast < 0.12) {
-      warnings.add('Low contrast — subject may look flat.');
+      warnings.add('Low contrast. Subject may look flat.');
     }
     return warnings;
   }

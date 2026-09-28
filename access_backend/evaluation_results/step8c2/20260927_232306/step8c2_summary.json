@@ -1,0 +1,142 @@
+{
+  "step8c2_status": "COMPLETE",
+  "max_long_edge": 1344,
+  "production_behavior_changed": false,
+  "dataset_integrity": {
+    "ok": true,
+    "total": 100,
+    "unique_sha256": 100,
+    "real": 50,
+    "ai": 50,
+    "label_conflicts": 0
+  },
+  "environment": {
+    "python": "3.12.10",
+    "torch": "2.13.0+cpu",
+    "device": "cpu",
+    "max_long_edge": 1344,
+    "checkpoint_sha256": "c8caa9bad54c029e4d22e1909c4673e46a239d8419a986e0ab461d423a450156",
+    "checkpoint_bytes": 1217679947,
+    "backbone": "facebook/dinov2-with-registers-large"
+  },
+  "step8b_baseline_dir": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step8b\\20260927_040610",
+  "capped_1344_probe": {
+    "ROC_AUC": 0.9060000000000001,
+    "REAL": {
+      "n": 50,
+      "mean": 0.029639899014437105,
+      "median": 0.0021566133946180344,
+      "min": 0.00012856490502599627,
+      "max": 0.4212939441204071
+    },
+    "AI": {
+      "n": 50,
+      "mean": 0.46999973567551934,
+      "median": 0.3506944477558136,
+      "min": 0.0009169560507871211,
+      "max": 0.9998496770858765
+    },
+    "spearman_fullres_vs_capped": 0.8483408340834084
+  },
+  "step8b_fullres_baseline_reference": {
+    "ROC_AUC": 0.733,
+    "REAL_mean": 0.141,
+    "REAL_median": 0.084,
+    "AI_mean": 0.552,
+    "AI_median": 0.763,
+    "author_0_5": {
+      "TP": 26,
+      "TN": 47,
+      "FP": 3,
+      "FN": 24,
+      "accuracy": 0.73,
+      "precision": 0.897,
+      "recall": 0.52,
+      "F1": 0.658,
+      "specificity": 0.94,
+      "FPR": 0.06,
+      "FNR": 0.48
+    }
+  },
+  "author_0_5_diagnostic_only_capped_1344": {
+    "TP": 23,
+    "TN": 50,
+    "FP": 0,
+    "FN": 27,
+    "accuracy": 0.73,
+    "precision": 1.0,
+    "recall": 0.46,
+    "F1": 0.6301369863013699,
+    "specificity": 1.0,
+    "FPR": 0.0,
+    "FNR": 0.54
+  },
+  "author_0_5_diagnostic_only_step8b_reference": {
+    "TP": 26,
+    "TN": 47,
+    "FP": 3,
+    "FN": 24,
+    "accuracy": 0.73,
+    "precision": 0.897,
+    "recall": 0.52,
+    "F1": 0.658,
+    "specificity": 0.94,
+    "FPR": 0.06,
+    "FNR": 0.48
+  },
+  "performance": {
+    "total_wall_seconds": 3738.681915299996,
+    "total_process_cpu_seconds": 14271.09375,
+    "median_wall_seconds_per_image": 33.737090949995036,
+    "median_cpu_seconds_per_image": 127.5078125,
+    "p90_wall_seconds": 57.65251741000393,
+    "p95_wall_seconds": 58.72168660499519,
+    "max_wall_seconds": 59.46551480000198,
+    "median_capped_patch_count": 9.0,
+    "max_capped_patch_count": 16,
+    "median_fullres_patch_count_step8b": 13.5,
+    "max_fullres_patch_count_step8b": 130,
+    "step8b_total_wall_seconds_reference": 66067.7646267,
+    "step8b_median_wall_seconds_reference": 71.32841639999606
+  },
+  "generator_breakdown": [
+    {
+      "generator": "chatgpt",
+      "n": 20,
+      "fullres_mean": 0.8976984903216362,
+      "capped_1344_mean": 0.6934335947036743,
+      "fullres_median": 0.9855565428733826,
+      "capped_1344_median": 0.8333531320095062,
+      "mean_probability_delta": -0.20426489561796188
+    },
+    {
+      "generator": "gemini",
+      "n": 10,
+      "fullres_mean": 0.23762343089911156,
+      "capped_1344_mean": 0.2375321046623867,
+      "fullres_median": 0.02933303778991103,
+      "capped_1344_median": 0.02933303778991103,
+      "mean_probability_delta": -9.132623672485352e-05
+    },
+    {
+      "generator": "canva",
+      "n": 10,
+      "fullres_mean": 0.38236709758639337,
+      "capped_1344_mean": 0.38236709758639337,
+      "fullres_median": 0.30240797996520996,
+      "capped_1344_median": 0.30240797996520996,
+      "mean_probability_delta": 0.0
+    },
+    {
+      "generator": "pixlr",
+      "n": 10,
+      "fullres_mean": 0.343232286721468,
+      "capped_1344_mean": 0.343232286721468,
+      "fullres_median": 0.1437465213239193,
+      "capped_1344_median": 0.1437465213239193,
+      "mean_probability_delta": 0.0
+    }
+  ],
+  "real_grayzone_count": 10,
+  "output_dir": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step8c2\\20260927_232306"
+}

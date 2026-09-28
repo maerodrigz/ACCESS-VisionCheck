@@ -128,6 +128,79 @@ def list_users(db: Session) -> list[User]:
     )
 
 
+def set_password(db: Session, user: User, new_password: str) -> User:
+    user.password = hash_password(new_password)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_user_by_admin(
+    db: Session,
+    user: User,
+    *,
+    name: str,
+    email: str,
+    role: str,
+    skill_level: str | None,
+    status: str,
+    approved_by: int | None = None,
+) -> User:
+    """Admin update of profile, role, skill tier, and account status."""
+    other = get_by_email(db, email)
+    if other and other.id != user.id:
+        raise ValueError("Email already registered")
+
+    user.fullname = name.strip()
+    user.email = email.lower().strip()
+    user.role_id = _role_id_for_name(db, role)
+    skill_id = _skill_level_id_for_name(db, skill_level)
+    if skill_id:
+        user.skill_level_id = skill_id
+
+    normalized = status.strip().lower()
+    user.status = normalized
+    if normalized == UserStatus.APPROVED:
+        user.rejection_reason = None
+        user.approved_by = approved_by
+        user.approved_at = datetime.now(timezone.utc)
+        user.is_active = True
+        user.removed_at = None
+        user.removed_by = None
+        user.removal_reason = None
+    elif normalized == UserStatus.REJECTED:
+        user.rejection_reason = "Updated by administrator"
+        user.approved_by = None
+        user.approved_at = None
+    else:
+        user.rejection_reason = None
+        user.approved_by = None
+        user.approved_at = None
+
+    db.commit()
+    db.refresh(user)
+    refreshed = get_by_id(db, user.id)
+    return refreshed  # type: ignore[return-value]
+
+
+def count_active_admins(db: Session) -> int:
+    from sqlalchemy import func, select
+
+    return (
+        db.scalar(
+            select(func.count())
+            .select_from(User)
+            .join(Role)
+            .where(
+                Role.role_name == RoleName.ADMIN,
+                User.is_active.is_(True),
+                User.status == UserStatus.APPROVED,
+            )
+        )
+        or 0
+    )
+
+
 def update_status(
     db: Session,
     user: User,
@@ -156,13 +229,23 @@ def update_status(
 
 
 def update_skill_from_evaluation(db: Session, user: User, score: float) -> None:
-    """Assign skill_level_id from overall_score using skill_levels ranges."""
-    levels = db.scalars(select(SkillLevel).order_by(SkillLevel.min_score.asc())).all()
-    for level in levels:
-        if level.min_score <= score <= level.max_score:
-            user.skill_level_id = level.id
-            break
+    """Deprecated — kept for compatibility. Use [recalculate_skill_level] instead."""
+    recalculate_skill_level(db, user)
+
+
+def recalculate_skill_level(db: Session, user: User) -> str:
+    """Recompute skill tier from average quality + integrity (not the latest upload alone).
+
+    Respects admin competency overrides until cleared in Competency Management.
+    """
+    from app.crud.rankings_admin import resolve_member_skill_level
+
+    effective, _, _ = resolve_member_skill_level(db, user.id)
+    skill_id = _skill_level_id_for_name(db, effective)
+    if skill_id:
+        user.skill_level_id = skill_id
     db.commit()
+    return effective
 
 
 def rankings(db: Session) -> list[dict]:

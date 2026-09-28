@@ -1,6 +1,6 @@
-import 'package:access_mobile/web_admin/features/member_rankings/member_rankings_page.dart';
+import 'package:access_mobile/web_admin/features/competency_management/competency_management_page.dart';
 
-/// Routes to the Member Rankings feature module.
-class AdminRankingsScreen extends MemberRankingsPage {
+/// Competency Management Dashboard (formerly Skill Classification / Member Rankings).
+class AdminRankingsScreen extends CompetencyManagementPage {
   const AdminRankingsScreen({super.key});
 }

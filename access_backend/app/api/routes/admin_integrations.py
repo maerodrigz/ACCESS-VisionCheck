@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
@@ -12,6 +12,7 @@ from app.config import settings
 from app.crud import announcement as announcement_crud
 from app.crud import audit_log as audit_crud
 from app.crud import notification as notification_crud
+from app.crud import system_settings as settings_crud
 from app.database import get_db, engine
 from app.models.ai_detection_result import AiDetectionResult
 from app.models.documentation_request import DocumentationRequest
@@ -58,6 +59,37 @@ def list_all_notifications(
     ]
 
 
+@router.patch("/notifications/{notification_id}/read")
+def admin_mark_notification_read(
+    notification_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    row = notification_crud.get_by_id(db, notification_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    updated = notification_crud.mark_read(db, row)
+    return notification_crud.notification_to_dict(updated)
+
+
+@router.post("/notifications/read-all", response_model=MessageResponse)
+def admin_mark_all_notifications_read(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    count = notification_crud.mark_all_read_all(db)
+    return MessageResponse(message=f"Marked {count} notifications as read")
+
+
+@router.delete("/notifications/read", response_model=MessageResponse)
+def admin_clear_read_notifications(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    count = notification_crud.delete_all_read(db)
+    return MessageResponse(message=f"Cleared {count} read notifications")
+
+
 @router.post("/notifications/broadcast", response_model=MessageResponse)
 def broadcast_notifications(
     body: BroadcastBody,
@@ -73,13 +105,23 @@ def broadcast_notifications(
     elif audience == "admin":
         q = q.where(User.role.has(Role.role_name == RoleName.ADMIN))
     user_ids = list(db.scalars(q))
-    count = notification_crud.broadcast(db, user_ids, body.title, body.message)
-    announcement_crud.create(
+    count = 0
+    announcement = announcement_crud.create(
         db,
         title=body.title,
         content=body.message,
         posted_by=admin.id,
     )
+    if settings_crud.is_notification_enabled(db, "notify_new_announcement"):
+        count = notification_crud.broadcast(
+            db,
+            user_ids,
+            body.title,
+            body.message,
+            category="announcement",
+            action_type="view_announcement",
+            action_ref_id=announcement.id,
+        )
     audit_crud.create(
         db,
         user_id=admin.id,

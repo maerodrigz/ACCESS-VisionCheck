@@ -1,0 +1,2 @@
+filepath,sha256,ground_truth,source,original_width,original_height,inference_width,inference_height,original_step8b_patch_count,capped_patch_count,fullres_step8b_probability,capped_probability,probability_delta,wall_seconds,process_cpu_seconds,error
+"C:\Users\Dell\Desktop\fresh_validation\ai\canva\Canva AI Image Sep 26, 2026, 7_54_39 PM_20260926_195506_0000.jpg",eaa95128a3ecfc189a0848ac775f8d707d5ca621184d9cdd46d70bc3c8625c77,AI,canva,1264,1264,1264,1264,9,9,0.025052107870578766,0.025052107870578766,0.0,59.3637682999979,188.875,

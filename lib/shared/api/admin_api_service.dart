@@ -1,5 +1,7 @@
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/constants/api_config.dart';
+import 'package:access_mobile/shared/controllers/auth_controller.dart';
+import 'package:access_mobile/shared/services/media_upload_service.dart';
 
 class AdminApiService {
   AdminApiService(this._api);
@@ -42,6 +44,21 @@ class AdminApiService {
 
   Future<void> setUserRole(int userId, String role) async {
     await _api.patch('/users/$userId/role', {'role': role});
+  }
+
+  Future<Map<String, dynamic>> createUser({
+    required String name,
+    required String email,
+    required String password,
+    required String role,
+  }) async {
+    final data = await _api.post('/users', {
+      'name': name,
+      'email': email,
+      'password': password,
+      'role': role,
+    });
+    return Map<String, dynamic>.from(data as Map);
   }
 
   /// Soft-remove a member (blocks login, hides from active list).
@@ -91,8 +108,31 @@ class AdminApiService {
     return [];
   }
 
-  Future<void> setRequestStatus(int requestId, String status) async {
-    await _api.patch('/service-requests/$requestId', {'status': status});
+  Future<void> setRequestStatus(
+    int requestId,
+    String status, {
+    String? rejectionReason,
+  }) async {
+    await _api.patch('/service-requests/$requestId', {
+      'status': status,
+      if (rejectionReason != null && rejectionReason.isNotEmpty)
+        'rejection_reason': rejectionReason,
+    });
+  }
+
+  /// Assign an approved member to a documentation request (creates task + calendar event).
+  Future<Map<String, dynamic>> assignMemberToRequest(
+    int requestId, {
+    required int memberId,
+    required String taskRole,
+    String? adminNotes,
+  }) async {
+    final data = await _api.post('/admin/service-requests/$requestId/assign', {
+      'member_id': memberId,
+      'task_role': taskRole,
+      if (adminNotes != null && adminNotes.isNotEmpty) 'admin_notes': adminNotes,
+    });
+    return Map<String, dynamic>.from(data as Map);
   }
 
   Future<List<Map<String, dynamic>>> allMedia() async {
@@ -205,6 +245,16 @@ class AdminApiService {
     await _api.patch('/rankings/$userId/remarks', {'admin_remarks': remarks});
   }
 
+  Future<Map<String, dynamic>> updateCompetencyLevel(
+    int userId, {
+    String? competencyLevel,
+  }) async {
+    final data = await _api.patch('/rankings/$userId/competency-level', {
+      'competency_level': competencyLevel,
+    });
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<List<Map<String, dynamic>>> myNotifications() async {
     final data = await _api.get('/notifications');
     if (data is List) return data.cast<Map<String, dynamic>>();
@@ -311,16 +361,40 @@ class AdminApiService {
     required int requestId,
     String? displayName,
   }) async {
-    final data = await _api.postMultipart(
-      '/media/upload',
-      fileBytes: bytes,
+    final row = await MediaUploadService.uploadMedia(
+      client: _api,
+      bytes: bytes,
       fileName: fileName,
-      fields: {
-        'request_id': '$requestId',
-        if (displayName != null) 'file_name': displayName,
-      },
+      requestId: requestId,
+      displayName: displayName,
+      userId: authController.user?.id,
     );
-    return Map<String, dynamic>.from(data as Map);
+    row['file_url'] = mediaUrl(row['file_url'] as String?);
+    return row;
+  }
+
+  Future<String?> fetchGeminiDailySummary({
+    required int pendingRequests,
+    required int todayEvents,
+    required int mediaPending,
+    required int unreadNotifications,
+    required int pendingMembers,
+  }) async {
+    try {
+      final data = await _api.post('/ai/admin-daily-summary', {
+        'pending_requests': pendingRequests,
+        'today_events': todayEvents,
+        'media_pending': mediaPending,
+        'unread_notifications': unreadNotifications,
+        'pending_members': pendingMembers,
+      });
+      if (data is! Map) return null;
+      final summary = data['summary'];
+      if (summary is String && summary.trim().isNotEmpty) return summary.trim();
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 }
 

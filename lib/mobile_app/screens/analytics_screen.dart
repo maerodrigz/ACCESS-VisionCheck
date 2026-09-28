@@ -54,7 +54,7 @@ class AnalyticsScreen extends StatelessWidget {
             ]),
             const SizedBox(height: 12),
             Row(children: [
-              _KpiCard(icon: Icons.photo_library_outlined, color: kPurple,
+              _KpiCard(icon: Icons.photo_library_outlined, color: kCyan,
                 value: '$totalMedia', label: 'Media Files'),
               const SizedBox(width: 12),
               _KpiCard(icon: Icons.smart_toy_outlined, color: kRed,
@@ -76,7 +76,7 @@ class AnalyticsScreen extends StatelessWidget {
               child: Row(children: [
                 SizedBox(width: 90, height: 90,
                   child: ScoreRing(score: avgScore,
-                    label: scored.isEmpty ? '—' : '${(avgScore * 100).round()}%')),
+                    label: scored.isEmpty ? 'N/A' : '${(avgScore * 100).round()}%')),
                 const SizedBox(width: 20),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Average Quality Score', style: TextStyle(
@@ -106,7 +106,7 @@ class AnalyticsScreen extends StatelessWidget {
               _RepoCard(icon: Icons.smart_toy_outlined, color: kRed,
                 value: '$aiDetected', label: 'AI Detected'),
               const SizedBox(width: 12),
-              _RepoCard(icon: Icons.videocam_outlined, color: kPurple,
+              _RepoCard(icon: Icons.videocam_outlined, color: kAccent,
                 value: '$totalVideos', label: 'Videos'),
             ]),
             const SizedBox(height: 28),
@@ -144,7 +144,7 @@ class AnalyticsScreen extends StatelessWidget {
                 border: Border.all(color: kBorder)),
               child: Column(children: [
                 for (final entry in [
-                  ('Master',       kPurple,              '15+ good evals'),
+                  ('Master',       kAccent,              '15+ good evals'),
                   ('Expert',       kBlue,                '10–14 good evals'),
                   ('Advanced',     kGreen,               '6–9 good evals'),
                   ('Intermediate', kYellow,              '3–5 good evals'),

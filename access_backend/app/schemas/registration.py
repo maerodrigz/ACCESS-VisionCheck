@@ -21,6 +21,7 @@ class OrganizationRegistrationOut(BaseModel):
     user_id: int
     organization_name: str
     organization_email: str
+    requestor_type: str | None = None
     adviser_name: str | None = None
     contact_number: str | None = None
     status: str

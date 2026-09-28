@@ -33,20 +33,26 @@ def ai_authenticity_percent(human_verified: int, total_checked: int) -> float:
     return round(_pct(float(human_verified), float(total_checked)), 2)
 
 
+# Skill level is driven only by evaluation quality and media integrity.
+_MEDIA_QUALITY_WEIGHT = 0.70
+_INTEGRITY_WEIGHT = 0.30
+
+# Members need sustained evaluations before higher tiers unlock (not one lucky upload).
+MIN_EVALUATIONS_FOR_INTERMEDIATE = 3
+MIN_EVALUATIONS_FOR_ADVANCED = 6
+MIN_EVALUATIONS_FOR_EXPERT = 10
+
+_SKILL_TIER_ORDER = ("Beginner", "Intermediate", "Advanced", "Expert")
+
+
 def compute_skill_score(
     *,
     media_quality_score: float,
-    approved_uploads_score: float,
-    task_participation_score: float,
-    admin_evaluation_score: float,
     ai_authenticity_score: float,
 ) -> float:
     return round(
-        media_quality_score * 0.40
-        + approved_uploads_score * 0.25
-        + task_participation_score * 0.20
-        + admin_evaluation_score * 0.10
-        + ai_authenticity_score * 0.05,
+        media_quality_score * _MEDIA_QUALITY_WEIGHT
+        + ai_authenticity_score * _INTEGRITY_WEIGHT,
         2,
     )
 
@@ -54,6 +60,34 @@ def compute_skill_score(
 def skill_level_from_score(skill_score: float) -> str:
     if skill_score >= 90:
         return "Expert"
+    if skill_score >= 75:
+        return "Advanced"
+    if skill_score >= 60:
+        return "Intermediate"
+    return "Beginner"
+
+
+def _max_tier_for_evaluation_count(evaluation_count: int) -> str:
+    if evaluation_count < MIN_EVALUATIONS_FOR_INTERMEDIATE:
+        return "Beginner"
+    if evaluation_count < MIN_EVALUATIONS_FOR_ADVANCED:
+        return "Intermediate"
+    if evaluation_count < MIN_EVALUATIONS_FOR_EXPERT:
+        return "Advanced"
+    return "Expert"
+
+
+def effective_skill_level(skill_score: float, evaluation_count: int) -> str:
+    """Apply score-based tier, capped by how many evaluations the member has completed."""
+    computed = skill_level_from_score(skill_score)
+    cap = _max_tier_for_evaluation_count(evaluation_count)
+    if _SKILL_TIER_ORDER.index(computed) > _SKILL_TIER_ORDER.index(cap):
+        return cap
+    return computed
+
+
+def competency_level_from_skill_score(skill_score: float) -> str:
+    """Admin competency management tiers (Beginner / Intermediate / Advanced)."""
     if skill_score >= 75:
         return "Advanced"
     if skill_score >= 60:
@@ -79,9 +113,6 @@ def build_skill_payload(
     ai_q = ai_authenticity_percent(human_verified_uploads, total_checked_uploads)
     skill_score = compute_skill_score(
         media_quality_score=media_q,
-        approved_uploads_score=approved_q,
-        task_participation_score=task_q,
-        admin_evaluation_score=admin_q,
         ai_authenticity_score=ai_q,
     )
     return {

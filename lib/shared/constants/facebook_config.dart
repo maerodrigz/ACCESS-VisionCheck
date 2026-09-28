@@ -12,9 +12,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class FacebookConfig {
   FacebookConfig._();
 
-  /// USTP org Facebook Page (admin → Facebook Integration).
-  /// Nono gaming — https://www.facebook.com/profile.php?id=61590008614900
-  static const String defaultPageId = '61590008614900';
+  /// ACCESS org Facebook Page (must match access_backend/.env FACEBOOK_PAGE_ID).
+  /// https://www.facebook.com/profile.php?id=1202339146306816
+  static const String defaultPageId = '1202339146306816';
 
   /// Paste your Meta App ID here for web admin (Chrome). Leave empty to use --dart-define only.
   static const String webAppId = '';

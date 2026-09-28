@@ -224,6 +224,35 @@ def legacy_scores_from_payload(payload: dict[str, Any]) -> dict[str, float]:
             "noise_score": float(legacy.get("noise_score", 0.4)),
             "overall_score": float(legacy.get("overall_score", 0.6)),
         }
+    criteria = payload.get("criteria")
+    if isinstance(criteria, list):
+        by_name = {
+            c.get("name"): int(c.get("score", 3))
+            for c in criteria
+            if isinstance(c, dict) and c.get("name")
+        }
+
+        def s(primary: str, fallback: str | None = None) -> int:
+            if primary in by_name:
+                return by_name[primary]
+            if fallback and fallback in by_name:
+                return by_name[fallback]
+            return 3
+
+        sharpness = s("Sharpness", "Focus and Sharpness")
+        blur = s("Blur", "Focus and Sharpness")
+        noise = s("Noise", "Technical Quality")
+        brightness = s("Brightness", "Lighting and Exposure")
+        contrast = s("Contrast", "Color and White Balance")
+        overall = float(payload.get("overall_score", 3)) / 5.0
+        return {
+            "sharpness_score": round(sharpness / 5, 3),
+            "brightness_score": round(brightness / 5, 3),
+            "contrast_score": round(contrast / 5, 3),
+            "blur_score": round(blur / 5, 3),
+            "noise_score": round(1 - noise / 5, 3),
+            "overall_score": round(overall, 3),
+        }
     overall = float(payload.get("overall_score", 3)) / 5.0
     return {
         "sharpness_score": float(payload.get("focus_score", 3)) / 5.0,

@@ -1,0 +1,169 @@
+{
+  "status": "COMPLETE",
+  "timestamp_utc": "20260927_210733",
+  "preflight": {
+    "checkpoint_exists": true,
+    "sha256_match": true,
+    "probe_max_long_edge": 1344,
+    "probe_low_risk_threshold": 0.3,
+    "probe_high_risk_threshold": 0.45,
+    "max_media_evaluation_workers": 1,
+    "code_default_backend": "univfd",
+    "real_image_exists": true,
+    "video_exists": true
+  },
+  "video_asset": {
+    "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step8b\\assets\\step8b_real_phone_smoke.mp4",
+    "known_label": "REAL (derived from phone photo slideshow, 5s smoke clip)",
+    "ffprobe": {
+      "duration_sec": 5.0,
+      "file_size_bytes": 339116,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "user_id": 2,
+  "xp_image": {
+    "XP_BEFORE": 194,
+    "media_id": 114,
+    "raw_probe_p_fake": 0.0,
+    "risk_level": "low",
+    "xp_eligible": true,
+    "xp_pending": false,
+    "expected_award": 74,
+    "XP_AFTER": 268,
+    "XP_DELTA": 74,
+    "match": true,
+    "duplicate_refresh": {
+      "xp_start": 268,
+      "xp_end": 268,
+      "xp_duplicate_delta": 0,
+      "counts_start": {
+        "media_evaluations": 1,
+        "ai_detection_results": 1,
+        "admin_ai_alerts": 0
+      },
+      "counts_end": {
+        "media_evaluations": 1,
+        "ai_detection_results": 1,
+        "admin_ai_alerts": 0
+      },
+      "counts_unchanged": true
+    }
+  },
+  "video_preview": {
+    "latency_sec": 3.523,
+    "quality_success": true,
+    "analysis_status": "deferred",
+    "is_final": false,
+    "verdict": null,
+    "probability": null,
+    "raw_detector_probability": null,
+    "frames_analyzed": 6,
+    "probe_invoked_heuristic": false
+  },
+  "video_save": {
+    "media_id": 115,
+    "upload_response_latency_sec": 0.079,
+    "processing_latency_sec": 157.413,
+    "admin_alert": false,
+    "policy": {
+      "p": 0.0,
+      "expected_band": "low",
+      "risk_level": "low",
+      "requires_review": false,
+      "review_status": "automated_low_ai_risk",
+      "expect_review": "automated_low_ai_risk",
+      "policy_ok": true
+    },
+    "quality_frames": 6,
+    "authenticity_frames": 5,
+    "raw_frame_probabilities": null,
+    "final_raw_probability": 0.0,
+    "risk_level": "low",
+    "requires_review": false,
+    "review_status": "automated_low_ai_risk",
+    "XP_eligible": true,
+    "XP_pending": false,
+    "expected_xp_award": 80,
+    "XP_BEFORE": 268,
+    "XP_AFTER": 348,
+    "XP_awarded_delta": 80,
+    "overall_quality_score": 0.8,
+    "detector_backend": "probe",
+    "health_checks": [
+      {
+        "poll": 5,
+        "status": 200,
+        "latency_sec": 0.008
+      },
+      {
+        "poll": 10,
+        "status": 200,
+        "latency_sec": 0.009
+      },
+      {
+        "poll": 15,
+        "status": 200,
+        "latency_sec": 0.009
+      },
+      {
+        "poll": 20,
+        "status": 200,
+        "latency_sec": 0.007
+      },
+      {
+        "poll": 25,
+        "status": 200,
+        "latency_sec": 0.012
+      },
+      {
+        "poll": 30,
+        "status": 200,
+        "latency_sec": 0.009
+      },
+      {
+        "poll": 35,
+        "status": 200,
+        "latency_sec": 0.01
+      },
+      {
+        "poll": 40,
+        "status": 200,
+        "latency_sec": 0.009
+      },
+      {
+        "poll": 45,
+        "status": 200,
+        "latency_sec": 0.008
+      },
+      {
+        "poll": 50,
+        "status": 200,
+        "latency_sec": 0.009
+      }
+    ],
+    "errors": [],
+    "idempotency": {
+      "xp_start": 348,
+      "xp_end": 348,
+      "xp_duplicate_delta": 0,
+      "counts_start": {
+        "media_evaluations": 1,
+        "ai_detection_results": 1,
+        "admin_ai_alerts": 0
+      },
+      "counts_end": {
+        "media_evaluations": 1,
+        "ai_detection_results": 1,
+        "admin_ai_alerts": 0
+      },
+      "counts_unchanged": true
+    },
+    "db_counts": {
+      "media_evaluations": 1,
+      "ai_detection_results": 1,
+      "admin_ai_alerts": 0
+    }
+  }
+}

@@ -1,0 +1,5 @@
+B_ai_generated,B_authentic,B_flagged,B_strict_detected,B_suspicious,D1_ai_generated,D1_authentic,D1_flagged,D1_strict_detected,D1_suspicious,E_ai_generated,E_authentic,E_flagged,E_strict_detected,E_suspicious,generator,n,raw_univfd
+6,7,13,6,7,4,11,9,4,5,0,10,10,0,10,chatgpt,20,"{'mean': 0.020458550750413453, 'median': 0.003939607995562255, 'min': 5.849723038409138e-06, 'max': 0.24209994077682495}"
+0,6,4,0,4,0,8,2,0,2,0,8,2,0,2,gemini,10,"{'mean': 0.0016887756964706568, 'median': 4.6171920985216275e-05, 'min': 2.694114982659812e-06, 'max': 0.015910938382148743}"
+0,6,4,0,4,0,10,0,0,0,0,10,0,0,0,canva,10,"{'mean': 0.03295167993342148, 'median': 0.01644143322482705, 'min': 2.098858658428071e-06, 'max': 0.13275742530822754}"
+1,8,2,1,1,1,8,2,1,1,0,9,1,0,1,pixlr,10,"{'mean': 0.08717021847485285, 'median': 0.012229429557919502, 'min': 2.9552825253631454e-07, 'max': 0.7295137643814087}"

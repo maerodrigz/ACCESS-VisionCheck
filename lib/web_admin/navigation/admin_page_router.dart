@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:access_mobile/web_admin/navigation/admin_routes.dart';
+import 'package:access_mobile/web_admin/theme/admin_theme.dart';
 
 import 'package:access_mobile/web_admin/screens/admin_ai_detection_screen.dart';
 
@@ -10,11 +11,9 @@ import 'package:access_mobile/web_admin/screens/admin_evaluations_screen.dart';
 
 import 'package:access_mobile/web_admin/screens/admin_events_screen.dart';
 
-import 'package:access_mobile/web_admin/screens/admin_analytics_dashboard_screen.dart';
+import 'package:access_mobile/web_admin/screens/admin_analytics_screen.dart';
+import 'package:access_mobile/web_admin/screens/admin_requester_feedback_screen.dart';
 import 'package:access_mobile/web_admin/screens/admin_feature_screen.dart';
-import 'package:access_mobile/web_admin/screens/admin_participation_reports_screen.dart';
-
-import 'package:access_mobile/web_admin/screens/admin_feedback_screen.dart';
 import 'package:access_mobile/web_admin/screens/admin_notifications_screen.dart';
 import 'package:access_mobile/web_admin/screens/admin_system_monitor_screen.dart';
 import 'package:access_mobile/web_admin/screens/admin_branding_screen.dart';
@@ -28,8 +27,6 @@ import 'package:access_mobile/web_admin/screens/admin_rankings_screen.dart';
 import 'package:access_mobile/web_admin/screens/admin_roles_screen.dart';
 
 import 'package:access_mobile/web_admin/screens/admin_requests_screen.dart';
-
-import 'package:access_mobile/web_admin/screens/admin_tasks_screen.dart';
 
 /// Maps [AdminRoute] to the page widget for the main content area.
 
@@ -46,22 +43,12 @@ class AdminPageRouter {
 
 
       case AdminRoute.docRequests:
-
       case AdminRoute.requestStatus:
-
+      case AdminRoute.taskAssignments:
         return const AdminRequestsScreen();
 
-
-
       case AdminRoute.eventCalendar:
-
         return const AdminEventsScreen();
-
-
-
-      case AdminRoute.taskAssignments:
-
-        return const AdminTasksScreen();
 
 
 
@@ -102,20 +89,11 @@ class AdminPageRouter {
 
 
       case AdminRoute.analyticsDashboard:
-
-        return const AdminAnalyticsDashboardScreen();
-
-
-
       case AdminRoute.participationReports:
-
-        return const AdminParticipationReportsScreen();
-
-
+        return const AdminAnalyticsScreen();
 
       case AdminRoute.feedbackReports:
-
-        return const AdminFeedbackScreen();
+        return const AdminRequesterFeedbackScreen();
 
 
 
@@ -179,29 +157,29 @@ const _placeholders = <AdminRoute, _Meta>{
 
   AdminRoute.roles: (
 
-    'Roles & Permissions',
+    'Account Management',
 
-    'Manage Admin, Member, and Organization roles.',
+    'Manage user accounts, authentication, and platform access.',
 
-    Icons.admin_panel_settings,
+    Icons.manage_accounts_outlined,
 
-    Color(0xFF7C3AED),
+    AdminTheme.accentBlue,
 
-    ['Role definitions', 'Permission matrix', 'RBAC policies', 'Access audit'],
+    ['Activate / deactivate accounts', 'Reset passwords', 'Login activity', 'Role assignment'],
 
   ),
 
   AdminRoute.skillClassification: (
 
-    'Skill Classification',
+    'Competency Management',
 
-    'View automatic skill tiers based on media quality, uploads, tasks, and AI checks.',
+    'Evaluate photographer and videographer competency for documentation assignments.',
 
-    Icons.military_tech,
+    Icons.workspace_premium_outlined,
 
-    Color(0xFFD97706),
+    AdminTheme.accentBlue,
 
-    ['Open Member Rankings from the sidebar'],
+    ['System recommendations with transparent criteria', 'Administrator override support'],
 
   ),
 

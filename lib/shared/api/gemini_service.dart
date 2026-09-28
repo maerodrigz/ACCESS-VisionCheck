@@ -1,57 +1,60 @@
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:access_mobile/shared/api/admin_api_service.dart';
+import 'package:access_mobile/shared/api/member_api_service.dart';
+import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 
+/// Gemini narrative generation via the ACCESS backend (no client API key).
 class GeminiService {
-  // Replace with your actual Gemini API key
-  // In production, load from environment or secure storage
-  static const _apiKey = 'YOUR_GEMINI_API_KEY';
-
-  static GenerativeModel? _model;
-
-  static GenerativeModel get _instance {
-    _model ??= GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: _apiKey,
-    );
-    return _model!;
+  static Future<MediaEvaluationFeedback?> generateMediaEvaluationFeedback({
+    required PhotoEvaluationResult scoresOnly,
+  }) async {
+    try {
+      final raw = await memberApiService.fetchGeminiMediaFeedback(scoresOnly.toJson());
+      if (raw == null) return null;
+      final feedback = MediaEvaluationFeedback.fromJson(raw);
+      return feedback.copyWithEnergeticTone();
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Generates photography feedback from Gemini based on rubric scores.
-  /// Returns null if the API key is not set or the call fails (falls back to local feedback).
+  /// Generates photography feedback based on rubric scores.
+  /// Returns null if the backend is unavailable (falls back to local feedback).
   static Future<String?> generateFeedback({
     required Map<String, int> scores,
     required String title,
     required int totalScore,
     required int maxScore,
   }) async {
-    if (_apiKey == 'YOUR_GEMINI_API_KEY') return null; // not configured
-
     try {
-      final scoreLines = scores.entries
-          .map((e) => '- ${e.key}: ${e.value}/5')
-          .join('\n');
-
-      final prompt = '''
-You are an expert photography coach for ACCESS, a student documentation and photography organization at USTP Oroquieta.
-
-A student submitted event photos titled "$title" and received the following rubric scores (1–5 scale):
-$scoreLines
-
-Overall score: $totalScore / $maxScore
-
-Write a concise, encouraging, and actionable feedback paragraph (3–5 sentences) for this student. 
-Focus on:
-1. What they did well based on their highest scores
-2. Specific, practical advice for their lowest-scoring areas
-3. A motivating closing sentence
-
-Keep the tone professional but warm. Do not use bullet points — write in flowing prose.
-''';
-
-      final response = await _instance.generateContent([Content.text(prompt)]);
-      final text = response.text?.trim();
-      return (text != null && text.isNotEmpty) ? text : null;
+      return await memberApiService.fetchGeminiRubricFeedback(
+        scores: scores,
+        title: title,
+        totalScore: totalScore,
+        maxScore: maxScore,
+      );
     } catch (_) {
-      return null; // fall back to local feedback on any error
+      return null;
+    }
+  }
+
+  /// Short operational summary for the admin home dashboard.
+  static Future<String?> generateDailySummary({
+    required int pendingRequests,
+    required int todayEvents,
+    required int mediaPending,
+    required int unreadNotifications,
+    required int pendingMembers,
+  }) async {
+    try {
+      return await adminApi.fetchGeminiDailySummary(
+        pendingRequests: pendingRequests,
+        todayEvents: todayEvents,
+        mediaPending: mediaPending,
+        unreadNotifications: unreadNotifications,
+        pendingMembers: pendingMembers,
+      );
+    } catch (_) {
+      return null;
     }
   }
 }

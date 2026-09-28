@@ -1,5 +1,8 @@
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/constants/api_config.dart';
+import 'package:access_mobile/shared/controllers/auth_controller.dart';
+import 'package:access_mobile/shared/models/reschedule_models.dart';
+import 'package:access_mobile/shared/services/media_upload_service.dart';
 
 class MemberApiService {
   String mediaUrl(String? path) => ApiConfig.mediaUrl(path);
@@ -16,17 +19,26 @@ class MemberApiService {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  /// Requestor ratings and comments received by the logged-in member.
+  Future<Map<String, dynamic>> getReceivedRequestorRatings({int limit = 20}) async {
+    final data = await apiClient.get('/member/requester-ratings?limit=$limit');
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   /// Updates the logged-in user's profile. Returns the updated profile JSON.
   Future<Map<String, dynamic>> updateProfile({
     String? name,
     String? email,
     String? contactNumber,
+    String? currentPassword,
     String? newPassword,
   }) async {
     final body = <String, dynamic>{
       if (name != null) 'name': name,
       if (email != null) 'email': email.trim().toLowerCase(),
       if (contactNumber != null) 'contact_number': contactNumber,
+      if (currentPassword != null && currentPassword.isNotEmpty)
+        'current_password': currentPassword,
       if (newPassword != null && newPassword.isNotEmpty) 'new_password': newPassword,
     };
     final data = await apiClient.patch('/profile', body);
@@ -37,13 +49,16 @@ class MemberApiService {
     required List<int> bytes,
     required String fileName,
   }) async {
-    final data = await apiClient.postMultipart(
-      '/profile/avatar',
-      fileBytes: bytes,
+    final userId = authController.user?.id;
+    if (userId == null) {
+      throw const ApiException('Not signed in.');
+    }
+    return MediaUploadService.uploadProfileAvatar(
+      client: apiClient,
+      bytes: bytes,
       fileName: fileName,
-      fields: const {},
+      userId: userId,
     );
-    return Map<String, dynamic>.from(data as Map);
   }
 
   Future<List<Map<String, dynamic>>> getTasks() async {
@@ -56,6 +71,20 @@ class MemberApiService {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  Future<Map<String, dynamic>> respondToAssignment(
+    int assignmentId, {
+    required String action,
+    String? declineReasonCode,
+    String? declineReason,
+  }) async {
+    final data = await apiClient.post('/tasks/$assignmentId/respond', {
+      'action': action,
+      if (declineReasonCode != null) 'decline_reason_code': declineReasonCode,
+      if (declineReason != null) 'decline_reason': declineReason,
+    });
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<List<Map<String, dynamic>>> getEvents() async {
     final data = await apiClient.get('/events');
     return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -63,6 +92,30 @@ class MemberApiService {
 
   Future<List<Map<String, dynamic>>> getNotifications() async {
     final data = await apiClient.get('/notifications');
+    return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> getNotificationPreferences() async {
+    final data = await apiClient.get('/notifications/preferences');
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> updateNotificationPreferences({
+    bool? evaluationFeedback,
+    bool? eventCalendar,
+    bool? systemAnnouncements,
+  }) async {
+    final body = <String, dynamic>{
+      if (evaluationFeedback != null) 'evaluation_feedback': evaluationFeedback,
+      if (eventCalendar != null) 'event_calendar': eventCalendar,
+      if (systemAnnouncements != null) 'system_announcements': systemAnnouncements,
+    };
+    final data = await apiClient.patch('/notifications/preferences', body);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> getAnnouncements() async {
+    final data = await apiClient.get('/announcements');
     return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
@@ -78,8 +131,59 @@ class MemberApiService {
     await apiClient.delete('/notifications/read');
   }
 
-  Future<List<Map<String, dynamic>>> getMedia({bool mine = true, String? search}) async {
-    final query = <String, String>{if (mine) 'mine': 'true', if (search != null) 'search': search};
+  Future<List<Map<String, dynamic>>> getEventGallery({
+    String? search,
+    String? fileType,
+    int? limit,
+    int? offset,
+  }) async {
+    final params = <String, String>{
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (fileType != null) 'file_type': fileType,
+      if (limit != null) 'limit': '$limit',
+      if (offset != null) 'offset': '$offset',
+    };
+    final path = params.isEmpty ? '/gallery' : '/gallery?${Uri(queryParameters: params).query}';
+    final data = await apiClient.get(path);
+    return (data as List).map((e) {
+      final m = Map<String, dynamic>.from(e as Map);
+      m['file_url'] = _mediaUrl(m['file_url'] as String? ?? '');
+      return m;
+    }).toList();
+  }
+
+  Future<Map<String, dynamic>?> getMediaById(int mediaId) async {
+    if (mediaId <= 0) return null;
+    final data = await apiClient.get('/media/$mediaId');
+    if (data is! Map) return null;
+    final m = Map<String, dynamic>.from(data);
+    m['file_url'] = _mediaUrl(m['file_url'] as String? ?? '');
+    return m;
+  }
+
+  /// Full evaluation row (includes criteria_json) after deferred pipeline completes.
+  Future<Map<String, dynamic>?> getEvaluationRowForMedia(int mediaId) async {
+    if (mediaId <= 0) return null;
+    final rows = await getEvaluations();
+    for (final row in rows) {
+      if ((row['media_id'] as num?)?.toInt() == mediaId) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> getMedia({
+    bool mine = true,
+    String? search,
+    String? mediaCategory,
+  }) async {
+    final query = <String, String>{
+      if (mine) 'mine': 'true',
+      if (search != null) 'search': search,
+      if (mediaCategory != null && mediaCategory.isNotEmpty)
+        'media_category': mediaCategory,
+    };
     final path = query.isEmpty ? '/media' : '/media?${Uri(queryParameters: query).query}';
     final data = await apiClient.get(path);
     return (data as List).map((e) {
@@ -105,26 +209,78 @@ class MemberApiService {
     }).toList();
   }
 
+  Future<Map<String, dynamic>> evaluateMedia({
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    final data = await apiClient.postMultipart(
+      '/media/evaluate',
+      fileBytes: bytes,
+      fileName: fileName,
+      fields: const {},
+      timeout: ApiClient.mediaUploadTimeout(byteLength: bytes.length, fileName: fileName),
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Server-proxied Gemini mentor feedback for practice evaluation scores.
+  Future<Map<String, dynamic>?> fetchGeminiMediaFeedback(
+    Map<String, dynamic> evaluation,
+  ) async {
+    try {
+      final data = await apiClient.post(
+        '/ai/media-evaluation-feedback',
+        {'evaluation': evaluation},
+      );
+      if (data is! Map) return null;
+      final feedback = data['feedback'];
+      if (feedback is Map) {
+        return Map<String, dynamic>.from(feedback);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> fetchGeminiRubricFeedback({
+    required Map<String, int> scores,
+    required String title,
+    required int totalScore,
+    required int maxScore,
+  }) async {
+    try {
+      final data = await apiClient.post('/ai/rubric-feedback', {
+        'scores': scores,
+        'title': title,
+        'total_score': totalScore,
+        'max_score': maxScore,
+      });
+      if (data is! Map) return null;
+      final text = data['text'];
+      if (text is String && text.trim().isNotEmpty) return text.trim();
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> uploadMedia({
     required List<int> bytes,
     required String fileName,
-    required int requestId,
+    int? requestId,
     String? displayName,
     String? evaluationMetadata,
   }) async {
-    final data = await apiClient.postMultipart(
-      '/media/upload',
-      fileBytes: bytes,
+    return MediaUploadService.uploadMedia(
+      client: apiClient,
+      bytes: bytes,
       fileName: fileName,
-      fields: {
-        'request_id': '$requestId',
-        if (displayName != null) 'file_name': displayName,
-        if (evaluationMetadata != null) 'evaluation_metadata': evaluationMetadata,
-      },
+      requestId: requestId,
+      displayName: displayName,
+      evaluationMetadata: evaluationMetadata,
+      userId: authController.user?.id,
     );
-    final m = Map<String, dynamic>.from(data as Map);
-    m['file_url'] = _mediaUrl(m['file_url'] as String? ?? '');
-    return m;
   }
 
   Future<List<Map<String, dynamic>>> getEvaluations() async {
@@ -158,6 +314,30 @@ class MemberApiService {
     return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
+  /// Assigned photographers/videographers the requestor can rate for an event.
+  Future<List<Map<String, dynamic>>> getAssignmentRatingTargets(int requestId) async {
+    final data = await apiClient.get('/feedback/member-ratings/assignments?request_id=$requestId');
+    return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> submitMemberRatings({
+    required int requestId,
+    required List<Map<String, dynamic>> ratings,
+  }) async {
+    await apiClient.post('/feedback/member-ratings', {
+      'request_id': requestId,
+      'ratings': ratings,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getMemberRatings({int? requestId}) async {
+    final path = requestId != null
+        ? '/feedback/member-ratings?request_id=$requestId'
+        : '/feedback/member-ratings';
+    final data = await apiClient.get(path);
+    return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
   Future<void> logFacebookShareOpened({
     required int mediaId,
     String? message,
@@ -170,6 +350,11 @@ class MemberApiService {
     });
   }
 
+  Future<Map<String, dynamic>> getServiceRequest(int id) async {
+    final data = await apiClient.get('/service-requests/$id');
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<List<Map<String, dynamic>>> getServiceRequests() async {
     final data = await apiClient.get('/service-requests');
     return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -177,6 +362,55 @@ class MemberApiService {
 
   Future<Map<String, dynamic>> createServiceRequest(Map<String, dynamic> body) async {
     final data = await apiClient.post('/service-requests', body);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<List<CoverageDay>> getCoverageAvailability({
+    required int year,
+    required int month,
+    int? excludeRequestId,
+  }) async {
+    final data = await apiClient.get(
+      '/service-requests/coverage-availability',
+      queryParameters: {
+        'year': year,
+        'month': month,
+        if (excludeRequestId != null) 'exclude_request_id': excludeRequestId,
+      },
+    );
+    return (data as List)
+        .map((e) => CoverageDay.fromApi(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<List<CoverageTimeSlot>> getCoverageSlots({
+    required DateTime date,
+    int? excludeRequestId,
+  }) async {
+    final iso = date.toIso8601String().split('T').first;
+    final data = await apiClient.get(
+      '/service-requests/coverage-availability/slots',
+      queryParameters: {
+        'date': iso,
+        if (excludeRequestId != null) 'exclude_request_id': excludeRequestId,
+      },
+    );
+    return (data as List)
+        .map((e) => CoverageTimeSlot.fromApi(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> rescheduleServiceRequest(
+    int requestId, {
+    required DateTime eventDate,
+    String? startTime,
+    String? endTime,
+  }) async {
+    final data = await apiClient.post('/service-requests/$requestId/reschedule', {
+      'event_date': eventDate.toIso8601String().split('T').first,
+      if (startTime != null && startTime.isNotEmpty) 'start_time': startTime,
+      if (endTime != null && endTime.isNotEmpty) 'end_time': endTime,
+    });
     return Map<String, dynamic>.from(data as Map);
   }
 }

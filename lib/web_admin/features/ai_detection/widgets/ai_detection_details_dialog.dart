@@ -9,6 +9,7 @@ import 'package:access_mobile/web_admin/features/ai_detection/widgets/confidence
 import 'package:access_mobile/web_admin/features/ai_detection/widgets/review_history_timeline.dart';
 import 'package:access_mobile/web_admin/layout/confirm_dialog.dart';
 import 'package:access_mobile/web_admin/theme/admin_theme.dart';
+import 'package:access_mobile/web_admin/widgets/admin_media_lightbox.dart';
 
 /// Full AI review details dialog with actions, remarks, and history.
 class AiReviewDetailsDialog extends StatefulWidget {
@@ -57,6 +58,9 @@ typedef AiDetectionDetailsDialog = AiReviewDetailsDialog;
 class _AiReviewDetailsDialogState extends State<AiReviewDetailsDialog> {
   late ReviewStatus _status;
   late final TextEditingController _remarks;
+  final FocusNode _remarksFocus = FocusNode();
+  String? _remarksExample;
+  String? _selectedActionLabel;
   bool _saving = false;
   bool _loadingHistory = true;
   List<AiReviewHistoryEntry> _history = [];
@@ -88,17 +92,28 @@ class _AiReviewDetailsDialogState extends State<AiReviewDetailsDialog> {
   @override
   void dispose() {
     _remarks.dispose();
+    _remarksFocus.dispose();
     super.dispose();
   }
 
   Future<void> _save([ReviewStatus? status]) async {
+    final remarks = _remarks.text.trim();
     setState(() => _saving = true);
     try {
-      await widget.onSave(status ?? _status, _remarks.text.trim());
+      await widget.onSave(status ?? _status, remarks);
       if (mounted) Navigator.pop(context);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _onQuickPick(ReviewStatus status, String exampleRemarks, String actionLabel) {
+    setState(() {
+      _status = status;
+      _remarksExample = exampleRemarks;
+      _selectedActionLabel = actionLabel;
+    });
+    _remarksFocus.requestFocus();
   }
 
   Future<bool?> _confirm(String title, String message, {IconData icon = Icons.help_outline}) {
@@ -135,9 +150,56 @@ class _AiReviewDetailsDialogState extends State<AiReviewDetailsDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (url.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(url, height: 160, width: double.infinity, fit: BoxFit.cover),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => showAdminMediaLightbox(
+                              context,
+                              url: url,
+                              title: row.mediaName,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    url,
+                                    height: 160,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 10,
+                                  bottom: 10,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.62),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.zoom_in_rounded, size: 14, color: Colors.white),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Inspect',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         )
                       else
                         Container(
@@ -183,17 +245,30 @@ class _AiReviewDetailsDialogState extends State<AiReviewDetailsDialog> {
                         onChanged: (v) => setState(() => _status = v ?? _status),
                       ),
                       const SizedBox(height: 16),
-                      AdminRemarksBox(controller: _remarks),
+                      AdminRemarksBox(
+                        controller: _remarks,
+                        focusNode: _remarksFocus,
+                        hintText: _remarksExample != null
+                            ? 'Explain this decision to the member. Example (do not copy blindly): $_remarksExample'
+                            : 'Optional note for the member about this review.',
+                      ),
+                      if (_selectedActionLabel != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Quick action "$_selectedActionLabel" selected. Optionally add a note, then Save review.',
+                          style: const TextStyle(fontSize: 12, color: AdminTheme.textSecondary),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       const Text('Quick review actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Sets review status only. Does not save or close until you tap Save review.',
+                        style: TextStyle(fontSize: 11, color: AdminTheme.textSecondary),
+                      ),
                       const SizedBox(height: 8),
                       AiReviewActionButtons(
-                        row: row,
-                        onAction: (status, remarks) async {
-                          _remarks.text = remarks;
-                          setState(() => _status = status);
-                          await _save(status);
-                        },
+                        onQuickPick: _onQuickPick,
                         onConfirm: _confirm,
                       ),
                       const SizedBox(height: 16),

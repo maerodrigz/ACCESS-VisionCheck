@@ -1,0 +1,487 @@
+{
+  "run_metadata": {
+    "timestamp_utc": "2026-09-26T09:21:24.483825+00:00",
+    "dataset_root": "C:\\Users\\Dell\\Desktop",
+    "model": "UniversalFakeDetect CLIP:ViT-L/14",
+    "clip_backbone": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\univfd\\ViT-L-14.pt",
+    "classifier_checkpoint": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\univfd\\fc_weights.pth",
+    "preprocessing": "RGB -> CenterCrop(224) -> ToTensor -> CLIP normalize (UnivFD validate.py)",
+    "python_version": "3.12.10",
+    "device": "CPU",
+    "production_thresholds": {
+      "AI_GENERATED_THRESHOLD": 0.58,
+      "SUSPICIOUS_THRESHOLD": 0.36
+    },
+    "discovery_notes": {
+      "missing_dirs": [],
+      "empty_dirs": []
+    }
+  },
+  "dataset": {
+    "discovered_total": 224,
+    "main_benchmark_labeled": 190,
+    "labeled_REAL_main": 100,
+    "labeled_AI_main": 90,
+    "uncertain_count": 9,
+    "failed_main": 0,
+    "successful_all": 224,
+    "failed_all": 0
+  },
+  "raw_univfd": {
+    "real_distribution": {
+      "count": 100,
+      "mean": 0.24151675271385556,
+      "median": 0.012477254495024681,
+      "min": 6.2219437495514285e-06,
+      "max": 0.9972871541976929,
+      "stdev": 0.3509545781317879
+    },
+    "ai_distribution": {
+      "count": 90,
+      "mean": 0.36230557940345737,
+      "median": 0.1380782350897789,
+      "min": 1.1300096957711503e-05,
+      "max": 0.998350977897644,
+      "stdev": 0.3933006382052787
+    },
+    "overlap": {
+      "real_range": [
+        6.2219437495514285e-06,
+        0.9972871541976929
+      ],
+      "ai_range": [
+        1.1300096957711503e-05,
+        0.998350977897644
+      ],
+      "shared_range_low": 1.1300096957711503e-05,
+      "shared_range_high": 0.9972871541976929,
+      "pct_real_at_or_above_ai_median": 0.36,
+      "pct_ai_at_or_below_real_median": 0.3
+    },
+    "ROC_AUC": 0.6336666666666672,
+    "note": "No standalone raw UnivFD production threshold in code; no default binary CM for raw."
+  },
+  "production_fusion": {
+    "verdict_distribution": {
+      "authentic": 87,
+      "suspicious": 74,
+      "ai_generated": 29,
+      "other": 0
+    },
+    "binary_rule_strict_verdict": "positive iff final_verdict == ai_generated",
+    "binary_rule_flagged_verdict": "positive iff final_verdict in (suspicious, ai_generated)",
+    "binary_rule_prob_strict": "positive iff fused_probability >= 0.58",
+    "metrics_strict_verdict": {
+      "TP": 9,
+      "TN": 80,
+      "FP": 20,
+      "FN": 81,
+      "accuracy": 0.46842105263157896,
+      "precision": 0.3103448275862069,
+      "recall": 0.1,
+      "f1": 0.15126050420168066,
+      "specificity": 0.8,
+      "false_positive_rate": 0.2,
+      "false_negative_rate": 0.9
+    },
+    "metrics_flagged_verdict": {
+      "TP": 49,
+      "TN": 46,
+      "FP": 54,
+      "FN": 41,
+      "accuracy": 0.5,
+      "precision": 0.47572815533980584,
+      "recall": 0.5444444444444444,
+      "f1": 0.5077720207253885,
+      "specificity": 0.46,
+      "false_positive_rate": 0.54,
+      "false_negative_rate": 0.45555555555555555
+    },
+    "metrics_prob_gte_ai_threshold": {
+      "TP": 9,
+      "TN": 80,
+      "FP": 20,
+      "FN": 81,
+      "accuracy": 0.46842105263157896,
+      "precision": 0.3103448275862069,
+      "recall": 0.1,
+      "f1": 0.15126050420168066,
+      "specificity": 0.8,
+      "false_positive_rate": 0.2,
+      "false_negative_rate": 0.9
+    }
+  },
+  "source_breakdown": {
+    "subset_fake_real_data": {
+      "count": 75,
+      "AI_count": 25,
+      "REAL_count": 50,
+      "raw_univfd": {
+        "count": 75,
+        "mean": 0.3445093644847596,
+        "median": 0.1408202052116394,
+        "min": 6.2219437495514285e-06,
+        "max": 0.9972871541976929,
+        "stdev": 0.3803087840031078
+      },
+      "verdict_distribution": {
+        "authentic": 31,
+        "suspicious": 33,
+        "ai_generated": 11,
+        "other": 0
+      }
+    },
+    "rhythmghai": {
+      "count": 100,
+      "AI_count": 50,
+      "REAL_count": 50,
+      "raw_univfd": {
+        "count": 100,
+        "mean": 0.3036740459212979,
+        "median": 0.0704520158469677,
+        "min": 8.095797966234386e-06,
+        "max": 0.998350977897644,
+        "stdev": 0.3844127341613307
+      },
+      "verdict_distribution": {
+        "authentic": 46,
+        "suspicious": 36,
+        "ai_generated": 18,
+        "other": 0
+      }
+    },
+    "canva": {
+      "count": 5,
+      "AI_count": 5,
+      "REAL_count": 0,
+      "raw_univfd": {
+        "count": 5,
+        "mean": 0.02422407267149538,
+        "median": 0.01260726060718298,
+        "min": 0.0016348938224837184,
+        "max": 0.0767519623041153,
+        "stdev": 0.030076975025700413
+      },
+      "verdict_distribution": {
+        "authentic": 4,
+        "suspicious": 1,
+        "ai_generated": 0,
+        "other": 0
+      },
+      "note": "single-class source; binary accuracy not computed"
+    },
+    "chatgpt": {
+      "count": 5,
+      "AI_count": 5,
+      "REAL_count": 0,
+      "raw_univfd": {
+        "count": 5,
+        "mean": 0.08565936703234911,
+        "median": 0.006633915938436985,
+        "min": 0.0008354356978088617,
+        "max": 0.37904325127601624,
+        "stdev": 0.1647715444159194
+      },
+      "verdict_distribution": {
+        "authentic": 3,
+        "suspicious": 2,
+        "ai_generated": 0,
+        "other": 0
+      },
+      "note": "single-class source; binary accuracy not computed"
+    },
+    "google.gemini": {
+      "count": 5,
+      "AI_count": 5,
+      "REAL_count": 0,
+      "raw_univfd": {
+        "count": 5,
+        "mean": 0.0008306581381475553,
+        "median": 0.0003042536845896393,
+        "min": 1.1300096957711503e-05,
+        "max": 0.00223407126031816,
+        "stdev": 0.0010034734860551904
+      },
+      "verdict_distribution": {
+        "authentic": 3,
+        "suspicious": 2,
+        "ai_generated": 0,
+        "other": 0
+      },
+      "note": "single-class source; binary accuracy not computed"
+    }
+  },
+  "category_breakdown_rhythmghai": {
+    "animals": {
+      "count": 20,
+      "mean": 0.3479049359033525,
+      "median": 0.08439275994896889,
+      "min": 1.6189294910873286e-05,
+      "max": 0.9918246865272522,
+      "stdev": 0.4153028733717534,
+      "verdict_distribution": {
+        "authentic": 8,
+        "suspicious": 8,
+        "ai_generated": 4,
+        "other": 0
+      }
+    },
+    "city": {
+      "count": 20,
+      "mean": 0.3686489100789913,
+      "median": 0.038495591608807445,
+      "min": 2.6197434635832906e-05,
+      "max": 0.998350977897644,
+      "stdev": 0.4308873658509121,
+      "verdict_distribution": {
+        "authentic": 13,
+        "suspicious": 7,
+        "ai_generated": 0,
+        "other": 0
+      }
+    },
+    "food": {
+      "count": 20,
+      "mean": 0.23885807439946802,
+      "median": 0.11274126172065735,
+      "min": 0.0001319150032941252,
+      "max": 0.8380067944526672,
+      "stdev": 0.2987465071318255,
+      "verdict_distribution": {
+        "authentic": 13,
+        "suspicious": 1,
+        "ai_generated": 6,
+        "other": 0
+      }
+    },
+    "nature": {
+      "count": 20,
+      "mean": 0.3345665899280448,
+      "median": 0.0197087824344635,
+      "min": 8.793927008809987e-06,
+      "max": 0.9974996447563171,
+      "stdev": 0.42070532542500094,
+      "verdict_distribution": {
+        "authentic": 6,
+        "suspicious": 9,
+        "ai_generated": 5,
+        "other": 0
+      }
+    },
+    "people": {
+      "count": 20,
+      "mean": 0.2283917192966328,
+      "median": 0.037677932530641556,
+      "min": 8.095797966234386e-06,
+      "max": 0.9898597598075867,
+      "stdev": 0.35734753522126855,
+      "verdict_distribution": {
+        "authentic": 6,
+        "suspicious": 11,
+        "ai_generated": 3,
+        "other": 0
+      }
+    }
+  },
+  "own_photos": {
+    "count": 25,
+    "raw_univfd": {
+      "count": 25,
+      "mean": 0.5372416169429198,
+      "median": 0.5912818312644958,
+      "min": 0.001640606322325766,
+      "max": 0.992190420627594,
+      "stdev": 0.3777338901269933
+    },
+    "verdict_distribution": {
+      "authentic": 9,
+      "suspicious": 13,
+      "ai_generated": 3,
+      "other": 0
+    }
+  },
+  "saved_from_sources_exploratory": {
+    "count": 9,
+    "ground_truth": "uncertain (excluded from main metrics)",
+    "by_generator": {
+      "Telegram": {
+        "count": 3,
+        "raw_univfd": {
+          "count": 3,
+          "mean": 0.02845381204194079,
+          "median": 0.004414430353790522,
+          "min": 0.0010620817774906754,
+          "max": 0.07988492399454117,
+          "stdev": 0.044572177619619846
+        },
+        "verdict_distribution": {
+          "authentic": 1,
+          "suspicious": 2,
+          "ai_generated": 0,
+          "other": 0
+        }
+      },
+      "from_google": {
+        "count": 3,
+        "raw_univfd": {
+          "count": 3,
+          "mean": 0.0006522064092375027,
+          "median": 0.00030100351432338357,
+          "min": 1.6424768546130508e-05,
+          "max": 0.0016391909448429942,
+          "stdev": 0.0008665160822398678
+        },
+        "verdict_distribution": {
+          "authentic": 2,
+          "suspicious": 1,
+          "ai_generated": 0,
+          "other": 0
+        }
+      },
+      "from_pinterest": {
+        "count": 3,
+        "raw_univfd": {
+          "count": 3,
+          "mean": 0.03556265822165491,
+          "median": 0.0004076654149685055,
+          "min": 0.00014813720190431923,
+          "max": 0.10613217204809189,
+          "stdev": 0.061115129468881146
+        },
+        "verdict_distribution": {
+          "authentic": 1,
+          "suspicious": 1,
+          "ai_generated": 1,
+          "other": 0
+        }
+      }
+    }
+  },
+  "outliers": {
+    "high_raw_on_REAL": [
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\9.jpg",
+        "raw": 0.9972871541976929,
+        "fused": 0.475,
+        "verdict": "suspicious"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20250627_140320_386.jpg",
+        "raw": 0.992190420627594,
+        "fused": 0.661,
+        "verdict": "ai_generated"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\2zhdbyfin76a1.jpg",
+        "raw": 0.9893015027046204,
+        "fused": 0.637,
+        "verdict": "ai_generated"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260407_130652_160.jpg",
+        "raw": 0.9882062077522278,
+        "fused": 0.491,
+        "verdict": "suspicious"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20251206_214302_376.jpg",
+        "raw": 0.9852321147918701,
+        "fused": 0.658,
+        "verdict": "ai_generated"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20250718_213454_589.jpg",
+        "raw": 0.9623384475708008,
+        "fused": 0.534,
+        "verdict": "suspicious"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\241c27530c6a1.jpg",
+        "raw": 0.9571831822395325,
+        "fused": 0.787,
+        "verdict": "ai_generated"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260326_170744_002.jpg",
+        "raw": 0.9341293573379517,
+        "fused": 0.456,
+        "verdict": "suspicious"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\8h9dgecjy46a1.jpg",
+        "raw": 0.9321553707122803,
+        "fused": 0.828,
+        "verdict": "ai_generated"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260526_163632_533.jpg",
+        "raw": 0.8838338851928711,
+        "fused": 0.468,
+        "verdict": "suspicious"
+      }
+    ],
+    "low_raw_on_AI": [
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\google.gemini\\4a54eb3b-bb36-4995-8e76-0b643a6bfa12.jpeg",
+        "raw": 1.1300096957711503e-05,
+        "fused": 0.157,
+        "verdict": "authentic"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\google.gemini\\07276994-7e80-4aad-afec-999166291725.jpeg",
+        "raw": 5.746842725784518e-05,
+        "fused": 0.157,
+        "verdict": "authentic"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\fake-v2\\1618.jpg",
+        "raw": 0.00011008042929461226,
+        "fused": 0.544,
+        "verdict": "suspicious"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\fake-v2\\18126.png",
+        "raw": 0.0002988945343531668,
+        "fused": 0.14,
+        "verdict": "authentic"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\google.gemini\\2945cb4c-9f0f-41c5-82ee-6e024e5d4cc3.jpeg",
+        "raw": 0.0003042536845896393,
+        "fused": 0.405,
+        "verdict": "suspicious"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\fake-v2\\24127.png",
+        "raw": 0.0004269271739758551,
+        "fused": 0.525,
+        "verdict": "suspicious"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\fake-v2\\11152.jpg",
+        "raw": 0.0004605749563779682,
+        "fused": 0.157,
+        "verdict": "authentic"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\fake-v2\\21579.png",
+        "raw": 0.0006634816527366638,
+        "fused": 0.525,
+        "verdict": "suspicious"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\chatgpt\\feb0cc5b-63c1-4543-a76d-17d4f7f1b70a.png",
+        "raw": 0.0008354356978088617,
+        "fused": 0.19,
+        "verdict": "authentic"
+      },
+      {
+        "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\fake-v2\\14013.png",
+        "raw": 0.0008645208436064422,
+        "fused": 0.14,
+        "verdict": "authentic"
+      }
+    ]
+  },
+  "errors": []
+}

@@ -1,0 +1,12 @@
+STEP 4 run: 20260926_170227
+Results CSV: C:\Users\Dell\Desktop\access_mobile\access_backend\evaluation_results\step4\20260926_170227\univfd_step4_results.csv
+Discovered: 224
+Main REAL (ok): 100
+Main AI (ok): 90
+Uncertain: 9
+Failed: 0
+Raw REAL mean: 0.24151675271385556
+Raw AI mean: 0.36230557940345737
+Raw ROC-AUC: 0.6336666666666672
+Fusion strict verdict F1: 0.15126050420168066
+Fusion flagged verdict F1: 0.5077720207253885

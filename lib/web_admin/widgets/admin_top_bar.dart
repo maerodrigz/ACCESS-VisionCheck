@@ -6,6 +6,7 @@ import 'package:access_mobile/web_admin/layout/admin_breakpoints.dart';
 import 'package:access_mobile/web_admin/layout/last_updated_text.dart';
 import 'package:access_mobile/web_admin/layout/notification_center.dart';
 import 'package:access_mobile/shared/widgets/access_branding.dart';
+import 'package:access_mobile/web_admin/navigation/admin_routes.dart';
 import 'package:access_mobile/web_admin/theme/admin_theme.dart';
 
 import 'package:access_mobile/web_admin/widgets/profile_dropdown.dart';
@@ -17,6 +18,8 @@ class AdminTopBar extends StatelessWidget {
     this.onSearch,
     this.notificationCount = 0,
     this.onOpenNotifications,
+    this.onOpenEventCalendar,
+    this.activeRoute,
     this.onRefresh,
     this.lastRefreshed,
     this.isRefreshing = false,
@@ -27,6 +30,8 @@ class AdminTopBar extends StatelessWidget {
   final ValueChanged<String>? onSearch;
   final int notificationCount;
   final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenEventCalendar;
+  final AdminRoute? activeRoute;
   final VoidCallback? onRefresh;
   final DateTime? lastRefreshed;
   final bool isRefreshing;
@@ -36,15 +41,15 @@ class AdminTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = AdminBreakpoints.widthOf(context);
     final hideSearch = width < 900;
-    final hideLastUpdated = width < 1100;
+    final hideLastUpdated = width < 1280;
     final profileIconOnly = width < 960;
 
     return Material(
       elevation: 0,
       color: AdminTheme.surface,
       child: Container(
-        height: compact ? 60 : 68,
-        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 24),
+        height: compact ? 52 : 56,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
         decoration: const BoxDecoration(
           color: AdminTheme.surface,
           border: Border(bottom: BorderSide(color: AdminTheme.border)),
@@ -102,21 +107,21 @@ class AdminTopBar extends StatelessWidget {
               const Spacer(),
             if (onRefresh != null) ...[
               const SizedBox(width: 8),
-              Tooltip(
-                message: 'Refresh current view',
-                child: IconButton(
-                  onPressed: isRefreshing ? null : onRefresh,
-                  icon: isRefreshing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh, size: 22),
-                  style: IconButton.styleFrom(
-                    foregroundColor: AdminTheme.textSecondary,
-                    backgroundColor: const Color(0xFFF8FAFC),
-                  ),
+              OutlinedButton.icon(
+                onPressed: isRefreshing ? null : onRefresh,
+                icon: isRefreshing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF8FAFC),
+                  foregroundColor: AdminTheme.textSecondary,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
             ],
@@ -128,6 +133,11 @@ class AdminTopBar extends StatelessWidget {
             NotificationBell(
               unreadCount: notificationCount,
               onOpen: onOpenNotifications ?? () {},
+            ),
+            const SizedBox(width: 8),
+            EventCalendarButton(
+              onOpen: onOpenEventCalendar ?? () {},
+              active: activeRoute == AdminRoute.eventCalendar,
             ),
             const SizedBox(width: 8),
             if (!profileIconOnly) ...[

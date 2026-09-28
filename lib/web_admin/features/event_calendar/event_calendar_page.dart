@@ -5,7 +5,7 @@ import 'package:access_mobile/shared/api/admin_api_service.dart';
 import 'package:access_mobile/web_admin/features/event_calendar/event_calendar_models.dart';
 import 'package:access_mobile/web_admin/features/event_calendar/widgets/calendar_view_card.dart';
 import 'package:access_mobile/web_admin/features/event_calendar/widgets/create_event_dialog.dart';
-import 'package:access_mobile/web_admin/features/event_calendar/widgets/event_details_dialog.dart';
+import 'package:access_mobile/web_admin/features/event_calendar/widgets/event_view_dialog.dart';
 import 'package:access_mobile/web_admin/features/event_calendar/widgets/event_filter_bar.dart';
 import 'package:access_mobile/web_admin/features/event_calendar/widgets/upcoming_event_list.dart';
 import 'package:access_mobile/web_admin/layout/admin_feature_page.dart';
@@ -13,7 +13,6 @@ import 'package:access_mobile/web_admin/layout/admin_route_breadcrumbs.dart';
 import 'package:access_mobile/web_admin/layout/page_header.dart';
 import 'package:access_mobile/web_admin/layout/search_filter_card.dart';
 import 'package:access_mobile/web_admin/navigation/admin_routes.dart';
-import 'package:access_mobile/web_admin/theme/admin_theme.dart';
 import 'package:access_mobile/web_admin/widgets/admin_empty_state.dart';
 
 /// Professional real-time event calendar for admin documentation scheduling.
@@ -131,31 +130,13 @@ class _EventCalendarPageState extends State<EventCalendarPage> {
     _snack('Event created');
   }
 
-  Future<void> _updateEvent(CalendarEventItem item) async {
-    await adminApi.updateEvent(item.id, item.toApiBody());
-    await _load(silent: true);
-    _snack('Event updated');
-  }
-
-  Future<void> _deleteEvent(CalendarEventItem item) async {
-    await adminApi.deleteEvent(item.id);
-    await _load(silent: true);
-    _snack('Event deleted');
-  }
-
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void _openDetails(CalendarEventItem event) {
-    EventDetailsDialog.show(
-      context,
-      event: event,
-      members: _members,
-      onUpdate: _updateEvent,
-      onDelete: _deleteEvent,
-    );
+    EventViewDialog.show(context, event: event);
   }
 
   @override
@@ -184,11 +165,7 @@ class _EventCalendarPageState extends State<EventCalendarPage> {
           icon: Icons.add,
           onPressed: () => CreateEventDialog.show(context, onCreate: _createEvent, members: _members),
         ),
-        PageHeaderIconButton(
-          icon: Icons.refresh,
-          onPressed: () => _load(silent: false),
-          tooltip: 'Refresh',
-        ),
+        PageHeaderRefreshButton(onPressed: () => _load(silent: false)),
       ],
       filter: SearchFilterCard(
         child: EventFilterBar(
@@ -258,23 +235,4 @@ class _EventCalendarPageState extends State<EventCalendarPage> {
             ),
     );
   }
-}
-
-extension on CalendarEventItem {
-  CalendarEventItem copyWithId(int id) => CalendarEventItem(
-        id: id,
-        title: title,
-        eventDate: eventDate,
-        endDate: endDate,
-        startTime: startTime,
-        endTime: endTime,
-        location: location,
-        description: description,
-        status: status,
-        assignedMemberId: assignedMemberId,
-        assignedMemberName: assignedMemberName,
-        documentationRequestId: documentationRequestId,
-        requestStatus: requestStatus,
-        adminRemarks: adminRemarks,
-      );
 }

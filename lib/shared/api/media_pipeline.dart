@@ -161,8 +161,8 @@ class MediaPipeline {
     if (q.resolution < 0.6)  lines.add('Resolution is below standard — shoot at the highest quality setting available.');
 
     // AI detection
-    if (ai.isAiGenerated)    lines.add('⚠️ AI-generated content detected (${(ai.confidence * 100).round()}% confidence). Submission flagged for admin review.');
-    else                     lines.add('✓ Authenticity verified — no AI-generated content detected.');
+    if (ai.isAiGenerated)    lines.add('⚠️ High AI authenticity risk (${(ai.confidence * 100).round()}% P(fake)). Flagged for officer review.');
+    else                     lines.add('✓ Low AI authenticity risk from automated scan. Not proof of human origin.');
 
     // Category tip
     if (category == 'Coverage') lines.add('For event coverage, prioritize wide-angle establishing shots alongside close-up details.');

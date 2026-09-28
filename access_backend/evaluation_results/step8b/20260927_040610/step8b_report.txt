@@ -1,0 +1,7 @@
+STEP 8B STATUS: COMPLETE
+Checkpoint: DINOv2_best_model_step_34999.pth sha256=c8caa9bad54c029e...
+Dataset n=100 probe_AUC=0.7328000000000001 univfd_AUC=0.061599999999999995
+PROBE REAL mean=0.1414 AI mean=0.5517
+Load 34.8s total 66067.8s mean/img 660.67s
+PRODUCTION BEHAVIOR CHANGED: NO
+Output: C:\Users\Dell\Desktop\access_mobile\access_backend\evaluation_results\step8b\20260927_040610

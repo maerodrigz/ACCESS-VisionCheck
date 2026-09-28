@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
+import 'package:access_mobile/shared/widgets/access_visioncheck_mark.dart';
 
 /// Bundled fallback when no custom logo is configured on the server.
-/// Same asset path for web admin and mobile app.
 const String kAccessLogoAsset = 'assets/images/access_logo.png';
+
+/// Ribbon A mark (React admin-web default).
+const String kAccessBrandMarkAsset = 'assets/images/access-brand-a.png';
 
 /// Official ACCESS logo — server custom image or bundled [kAccessLogoAsset].
 class AccessLogoImage extends StatelessWidget {
@@ -88,13 +91,15 @@ class AccessLogoImage extends StatelessWidget {
 
   Widget _assetImage() {
     return Image.asset(
-      kAccessLogoAsset,
+      kAccessBrandMarkAsset,
       width: size,
       height: size,
       fit: _fit,
       filterQuality: FilterQuality.high,
-      gaplessPlayback: true,
-      errorBuilder: (_, __, ___) => AccessLogoFallback(size: size, circular: circular),
+      errorBuilder: (_, __, ___) => AccessVisionCheckMark(
+        size: size,
+        showBubbles: false,
+      ),
     );
   }
 }
@@ -112,11 +117,7 @@ class AccessLogoFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = Icon(
-      Icons.account_balance_outlined,
-      size: size * 0.45,
-      color: const Color(0xFF64748B),
-    );
+    final child = AccessVisionCheckMark(size: size, showBubbles: !circular);
 
     if (circular) {
       return SizedBox(

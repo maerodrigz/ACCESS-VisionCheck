@@ -1,0 +1,848 @@
+{
+  "step5_status": "COMPLETE",
+  "input": {
+    "step4_run_directory": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step4\\20260926_170227",
+    "step4_csv": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step4\\20260926_170227\\univfd_step4_results.csv",
+    "timestamp_utc": "2026-09-26T10:17:13.202502+00:00"
+  },
+  "main_benchmark": {
+    "REAL": 100,
+    "AI": 90,
+    "excluded_uncertain_in_csv": 9
+  },
+  "raw_univfd_outliers": {
+    "HIGH_REAL_ge_0.80": 15,
+    "HIGH_REAL_ge_0.90": 9,
+    "HIGH_REAL_ge_0.95": 7,
+    "LOW_AI_le_0.20": 49,
+    "LOW_AI_le_0.10": 42,
+    "LOW_AI_le_0.05": 38,
+    "BORDERLINE_0.40_to_0.60": 12
+  },
+  "production_fusion_errors": {
+    "STRICT_FALSE_NEGATIVE": 81,
+    "FLAGGED_FALSE_NEGATIVE": 41,
+    "FLAGGED_FALSE_POSITIVE": 54,
+    "STRICT_FALSE_POSITIVE": 20
+  },
+  "ranked_lists_file": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step5\\20260926_181649\\step5_ranked_lists.json",
+  "own_photos": {
+    "count": 25,
+    "distribution": {
+      "count": 25,
+      "mean": 0.5372416169429198,
+      "median": 0.5912818312644958,
+      "stdev": 0.3777338901269933,
+      "min": 0.001640606322325766,
+      "max": 0.992190420627594,
+      "P10": 0.010018170531839139,
+      "P25": 0.14997301995754242,
+      "P50": 0.5912818312644958,
+      "P75": 0.8801447749137878,
+      "P90": 0.9760746479034424
+    },
+    "buckets": {
+      ">=0.90": 5,
+      "0.80-0.8999": 5,
+      "0.60-0.7999": 2,
+      "0.40-0.5999": 3,
+      "<0.40": 10
+    },
+    "main_REAL_benchmark_raw": {
+      "count": 100,
+      "mean": 0.24151675271385556,
+      "median": 0.012477254495024681,
+      "stdev": 0.3509545781317879,
+      "min": 6.2219437495514285e-06,
+      "max": 0.9972871541976929,
+      "P10": 3.535168689268176e-05,
+      "P25": 0.0003950582176912576,
+      "P50": 0.012477254495024681,
+      "P75": 0.5163306444883347,
+      "P90": 0.8805136859416962
+    },
+    "images": [
+      {
+        "filename": "IMG_20250627_140320_386.jpg",
+        "raw": 0.992190420627594,
+        "fused": 0.661,
+        "verdict": "ai_generated"
+      },
+      {
+        "filename": "IMG_20260407_130652_160.jpg",
+        "raw": 0.9882062077522278,
+        "fused": 0.491,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20251206_214302_376.jpg",
+        "raw": 0.9852321147918701,
+        "fused": 0.658,
+        "verdict": "ai_generated"
+      },
+      {
+        "filename": "IMG_20250718_213454_589.jpg",
+        "raw": 0.9623384475708008,
+        "fused": 0.534,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20260326_170744_002.jpg",
+        "raw": 0.9341293573379517,
+        "fused": 0.456,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20260526_163632_533.jpg",
+        "raw": 0.8838338851928711,
+        "fused": 0.468,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20250623_122120_557.jpg",
+        "raw": 0.8801447749137878,
+        "fused": 0.373,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20260326_173117_490.jpg",
+        "raw": 0.8558667898178101,
+        "fused": 0.503,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20251011_173252_422.jpg",
+        "raw": 0.8492271304130554,
+        "fused": 0.594,
+        "verdict": "ai_generated"
+      },
+      {
+        "filename": "IMG_20260718_181542_338.jpg",
+        "raw": 0.8199864625930786,
+        "fused": 0.579,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20251206_212827_475.jpg",
+        "raw": 0.7744428515434265,
+        "fused": 0.555,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20251103_135141_371.jpg",
+        "raw": 0.6359913945198059,
+        "fused": 0.374,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20260422_164548_042.jpg",
+        "raw": 0.5912818312644958,
+        "fused": 0.278,
+        "verdict": "authentic"
+      },
+      {
+        "filename": "image.jpg",
+        "raw": 0.5715557336807251,
+        "fused": 0.355,
+        "verdict": "authentic"
+      },
+      {
+        "filename": "IMG_20251026_150108_363.jpg",
+        "raw": 0.5257662534713745,
+        "fused": 0.312,
+        "verdict": "authentic"
+      },
+      {
+        "filename": "IMG_20260424_203939_746.jpg",
+        "raw": 0.35821062326431274,
+        "fused": 0.245,
+        "verdict": "authentic"
+      },
+      {
+        "filename": "IMG_20260525_162741_639.jpg",
+        "raw": 0.23151931166648865,
+        "fused": 0.393,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20250715_124017_768.jpg",
+        "raw": 0.21191395819187164,
+        "fused": 0.132,
+        "verdict": "authentic"
+      },
+      {
+        "filename": "IMG_20251206_214357_721.jpg",
+        "raw": 0.14997301995754242,
+        "fused": 0.439,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20260114_213731_052.jpg",
+        "raw": 0.12006553262472153,
+        "fused": 0.459,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20260130_171049_162.jpg",
+        "raw": 0.08177737891674042,
+        "fused": 0.449,
+        "verdict": "suspicious"
+      },
+      {
+        "filename": "IMG_20260216_210519_885.jpg",
+        "raw": 0.02110809087753296,
+        "fused": 0.154,
+        "verdict": "authentic"
+      },
+      {
+        "filename": "IMG_20250623_120050_743.jpg",
+        "raw": 0.002624890301376581,
+        "fused": 0.077,
+        "verdict": "authentic"
+      },
+      {
+        "filename": "IMG_20250915_115214_075.jpg",
+        "raw": 0.0020133559592068195,
+        "fused": 0.184,
+        "verdict": "authentic"
+      },
+      {
+        "filename": "image0001.jpg",
+        "raw": 0.001640606322325766,
+        "fused": 0.141,
+        "verdict": "authentic"
+      }
+    ]
+  },
+  "self_generated_ai": {
+    "canva": {
+      "stats": {
+        "count": 5,
+        "AI": 5,
+        "REAL": 0,
+        "raw_univfd": {
+          "count": 5,
+          "mean": 0.02422407267149538,
+          "median": 0.01260726060718298,
+          "stdev": 0.030076975025700413,
+          "min": 0.0016348938224837184,
+          "max": 0.0767519623041153,
+          "P10": 0.005082622100599111,
+          "P25": 0.010254214517772198,
+          "P50": 0.01260726060718298,
+          "P75": 0.0198720321059227,
+          "P90": 0.053999990224838264
+        },
+        "fused": {
+          "count": 5,
+          "mean": 0.2242,
+          "median": 0.137,
+          "stdev": 0.12089127346504377,
+          "min": 0.135,
+          "max": 0.364,
+          "P10": 0.13540000000000002,
+          "P25": 0.136,
+          "P50": 0.137,
+          "P75": 0.349,
+          "P90": 0.358
+        },
+        "verdicts": {
+          "authentic": 4,
+          "suspicious": 1,
+          "ai_generated": 0
+        }
+      },
+      "images": [
+        {
+          "filename": "Canva AI Image Sep 26, 2026, 1_26_44 PM_20260926_132704_0000.jpg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\canva\\Canva AI Image Sep 26, 2026, 1_26_44 PM_20260926_132704_0000.jpg",
+          "raw": 0.0767519623041153,
+          "fused": 0.364,
+          "verdict": "suspicious"
+        },
+        {
+          "filename": "Canva AI Image Sep 26, 2026, 1_28_00 PM_20260926_132842_0000.jpg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\canva\\Canva AI Image Sep 26, 2026, 1_28_00 PM_20260926_132842_0000.jpg",
+          "raw": 0.01260726060718298,
+          "fused": 0.136,
+          "verdict": "authentic"
+        },
+        {
+          "filename": "Canva AI Image Sep 26, 2026, 1_29_04 PM_20260926_132928_0000.jpg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\canva\\Canva AI Image Sep 26, 2026, 1_29_04 PM_20260926_132928_0000.jpg",
+          "raw": 0.010254214517772198,
+          "fused": 0.135,
+          "verdict": "authentic"
+        },
+        {
+          "filename": "Canva AI Image Sep 26, 2026, 1_29_50 PM_20260926_133011_0000.jpg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\canva\\Canva AI Image Sep 26, 2026, 1_29_50 PM_20260926_133011_0000.jpg",
+          "raw": 0.0016348938224837184,
+          "fused": 0.349,
+          "verdict": "authentic"
+        },
+        {
+          "filename": "Canva AI Image Sep 26, 2026, 1_30_27 PM_20260926_133045_0000.jpg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\canva\\Canva AI Image Sep 26, 2026, 1_30_27 PM_20260926_133045_0000.jpg",
+          "raw": 0.0198720321059227,
+          "fused": 0.137,
+          "verdict": "authentic"
+        }
+      ]
+    },
+    "chatgpt": {
+      "stats": {
+        "count": 5,
+        "AI": 5,
+        "REAL": 0,
+        "raw_univfd": {
+          "count": 5,
+          "mean": 0.08565936703234911,
+          "median": 0.006633915938436985,
+          "stdev": 0.1647715444159194,
+          "min": 0.0008354356978088617,
+          "max": 0.37904325127601624,
+          "P10": 0.0014024842996150256,
+          "P25": 0.002253057202324271,
+          "P50": 0.006633915938436985,
+          "P75": 0.039531175047159195,
+          "P90": 0.24323842078447344
+        },
+        "fused": {
+          "count": 5,
+          "mean": 0.3386,
+          "median": 0.35,
+          "stdev": 0.16972860689936745,
+          "min": 0.148,
+          "max": 0.541,
+          "P10": 0.1648,
+          "P25": 0.19,
+          "P50": 0.35,
+          "P75": 0.464,
+          "P90": 0.5102
+        },
+        "verdicts": {
+          "authentic": 3,
+          "suspicious": 2,
+          "ai_generated": 0
+        }
+      },
+      "images": [
+        {
+          "filename": "35c2c11a-7cee-4acc-a070-1870ec47b69a.png",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\chatgpt\\35c2c11a-7cee-4acc-a070-1870ec47b69a.png",
+          "raw": 0.002253057202324271,
+          "fused": 0.35,
+          "verdict": "authentic"
+        },
+        {
+          "filename": "c22b8536-87b0-4472-ae05-0c19c722614d.png",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\chatgpt\\c22b8536-87b0-4472-ae05-0c19c722614d.png",
+          "raw": 0.039531175047159195,
+          "fused": 0.148,
+          "verdict": "authentic"
+        },
+        {
+          "filename": "e2024bf2-f97f-4f3d-b10b-2a94ac7d9e00.png",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\chatgpt\\e2024bf2-f97f-4f3d-b10b-2a94ac7d9e00.png",
+          "raw": 0.37904325127601624,
+          "fused": 0.464,
+          "verdict": "suspicious"
+        },
+        {
+          "filename": "f76d668e-e9aa-47b8-becc-8edbf4f9279c.png",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\chatgpt\\f76d668e-e9aa-47b8-becc-8edbf4f9279c.png",
+          "raw": 0.006633915938436985,
+          "fused": 0.541,
+          "verdict": "suspicious"
+        },
+        {
+          "filename": "feb0cc5b-63c1-4543-a76d-17d4f7f1b70a.png",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\chatgpt\\feb0cc5b-63c1-4543-a76d-17d4f7f1b70a.png",
+          "raw": 0.0008354356978088617,
+          "fused": 0.19,
+          "verdict": "authentic"
+        }
+      ]
+    },
+    "google.gemini": {
+      "stats": {
+        "count": 5,
+        "AI": 5,
+        "REAL": 0,
+        "raw_univfd": {
+          "count": 5,
+          "mean": 0.0008306581381475553,
+          "median": 0.0003042536845896393,
+          "stdev": 0.0010034734860551904,
+          "min": 1.1300096957711503e-05,
+          "max": 0.00223407126031816,
+          "P10": 2.9767429077764975e-05,
+          "P25": 5.746842725784518e-05,
+          "P50": 0.0003042536845896393,
+          "P75": 0.0015461972216144204,
+          "P90": 0.0019589216448366643
+        },
+        "fused": {
+          "count": 5,
+          "mean": 0.2594,
+          "median": 0.206,
+          "stdev": 0.12010537040449108,
+          "min": 0.157,
+          "max": 0.405,
+          "P10": 0.157,
+          "P25": 0.157,
+          "P50": 0.206,
+          "P75": 0.372,
+          "P90": 0.39180000000000004
+        },
+        "verdicts": {
+          "authentic": 3,
+          "suspicious": 2,
+          "ai_generated": 0
+        }
+      },
+      "images": [
+        {
+          "filename": "07276994-7e80-4aad-afec-999166291725.jpeg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\google.gemini\\07276994-7e80-4aad-afec-999166291725.jpeg",
+          "raw": 5.746842725784518e-05,
+          "fused": 0.157,
+          "verdict": "authentic"
+        },
+        {
+          "filename": "0dbeb144-7f93-4cdf-b10c-fb90777959fb.jpeg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\google.gemini\\0dbeb144-7f93-4cdf-b10c-fb90777959fb.jpeg",
+          "raw": 0.00223407126031816,
+          "fused": 0.206,
+          "verdict": "authentic"
+        },
+        {
+          "filename": "2945cb4c-9f0f-41c5-82ee-6e024e5d4cc3.jpeg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\google.gemini\\2945cb4c-9f0f-41c5-82ee-6e024e5d4cc3.jpeg",
+          "raw": 0.0003042536845896393,
+          "fused": 0.405,
+          "verdict": "suspicious"
+        },
+        {
+          "filename": "4a54eb3b-bb36-4995-8e76-0b643a6bfa12.jpeg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\google.gemini\\4a54eb3b-bb36-4995-8e76-0b643a6bfa12.jpeg",
+          "raw": 1.1300096957711503e-05,
+          "fused": 0.157,
+          "verdict": "authentic"
+        },
+        {
+          "filename": "ca7a2f58-4d72-4d2f-a579-f867c445c775.jpeg",
+          "filepath": "C:\\Users\\Dell\\Desktop\\self_ai_generated\\google.gemini\\ca7a2f58-4d72-4d2f-a579-f867c445c775.jpeg",
+          "raw": 0.0015461972216144204,
+          "fused": 0.372,
+          "verdict": "suspicious"
+        }
+      ]
+    }
+  },
+  "rhythmghai_categories": [
+    {
+      "category": "animals",
+      "n": 20,
+      "REAL_count": 10,
+      "AI_count": 10,
+      "mean_REAL_raw": 0.07202927694743266,
+      "mean_AI_raw": 0.6237805948592723,
+      "median_REAL_raw": 0.0014541317068506032,
+      "median_AI_raw": 0.8503267765045166,
+      "max_REAL_raw": 0.33088648319244385,
+      "min_AI_raw": 0.005211374722421169
+    },
+    {
+      "category": "city",
+      "n": 20,
+      "REAL_count": 10,
+      "AI_count": 10,
+      "mean_REAL_raw": 0.008464923568681115,
+      "mean_AI_raw": 0.7288328965893015,
+      "median_REAL_raw": 0.00011165621617692523,
+      "median_AI_raw": 0.8512711226940155,
+      "max_REAL_raw": 0.07125601172447205,
+      "min_AI_raw": 0.0020466947462409735
+    },
+    {
+      "category": "food",
+      "n": 20,
+      "REAL_count": 10,
+      "AI_count": 10,
+      "mean_REAL_raw": 0.16006538587680552,
+      "mean_AI_raw": 0.3176507629221305,
+      "median_REAL_raw": 0.08726661652326584,
+      "median_AI_raw": 0.1259462870657444,
+      "max_REAL_raw": 0.8380067944526672,
+      "min_AI_raw": 0.003149486379697919
+    },
+    {
+      "category": "nature",
+      "n": 20,
+      "REAL_count": 10,
+      "AI_count": 10,
+      "mean_REAL_raw": 0.09561703396038865,
+      "mean_AI_raw": 0.5735161458957009,
+      "median_REAL_raw": 0.00028946902602910995,
+      "median_AI_raw": 0.7879122197628021,
+      "max_REAL_raw": 0.7453606128692627,
+      "min_AI_raw": 0.0009555580327287316
+    },
+    {
+      "category": "people",
+      "n": 20,
+      "REAL_count": 10,
+      "AI_count": 10,
+      "mean_REAL_raw": 0.005299069479224272,
+      "mean_AI_raw": 0.45148436911404133,
+      "median_REAL_raw": 0.0003173040458932519,
+      "median_AI_raw": 0.23623008280992508,
+      "max_REAL_raw": 0.041351474821567535,
+      "min_AI_raw": 0.034004390239715576
+    }
+  ],
+  "distribution_comparison": {
+    "REAL": {
+      "count": 100,
+      "mean": 0.24151675271385556,
+      "median": 0.012477254495024681,
+      "stdev": 0.3509545781317879,
+      "min": 6.2219437495514285e-06,
+      "max": 0.9972871541976929,
+      "P10": 3.535168689268176e-05,
+      "P25": 0.0003950582176912576,
+      "P50": 0.012477254495024681,
+      "P75": 0.5163306444883347,
+      "P90": 0.8805136859416962
+    },
+    "AI": {
+      "count": 90,
+      "mean": 0.36230557940345737,
+      "median": 0.1380782350897789,
+      "stdev": 0.3933006382052787,
+      "min": 1.1300096957711503e-05,
+      "max": 0.998350977897644,
+      "P10": 0.0008616123290266841,
+      "P25": 0.006178534124046564,
+      "P50": 0.1380782350897789,
+      "P75": 0.7731527239084244,
+      "P90": 0.9664532542228699
+    },
+    "mean_difference_REAL_minus_AI": -0.12078882668960181,
+    "median_difference_REAL_minus_AI": -0.12560098059475422
+  },
+  "fusion_documentation": {
+    "neural_transform": {
+      "if model_p >= 0.55": "signals['neural'] = clip((model_p - 0.5) * 2, 0, 1)",
+      "if model_p <= 0.38": "signals['neural_authentic'] = clip((0.5 - model_p) * 2, 0, 1)",
+      "else": "no neural or neural_authentic key"
+    },
+    "fuse_weights": {
+      "frequency": 0.18,
+      "noise_uniformity": 0.16,
+      "texture_entropy": 0.12,
+      "quality_paradox": 0.18,
+      "skin_smoothness": 0.16,
+      "neural": 0.28,
+      "metadata_meta_score": 0.28,
+      "filename": 0.3,
+      "neural_authentic_subtract": 0.12
+    },
+    "fuse_formula": "acc = sum(signal[k]*weight[k] for present k) + meta_score*0.28 if meta_score>0 + filename*0.30 if present - neural_authentic*0.12 if present; probability = clip(acc/total_w, 0, 0.98); if total_w<=0 return 0.12",
+    "post_fusion_boosts": [
+      "if quality_paradox>=0.48 and combined_meta>=0.32: prob += 0.16 (cap 0.98)",
+      "if skin_smoothness>=0.55 and quality_paradox>=0.45: prob += 0.12 (cap 0.98)",
+      "if noise_uniformity>=0.55 and quality_paradox>=0.55 and combined_meta>=0.32: prob += 0.10 (cap 0.98)"
+    ],
+    "combined_meta": "max(metadata_score, filename_score)",
+    "verdict_thresholds": {
+      "AI_GENERATED_THRESHOLD": 0.58,
+      "SUSPICIOUS_THRESHOLD": 0.36
+    }
+  },
+  "fusion_example_1618": {
+    "dataset_group": "main_benchmark",
+    "source": "subset_fake_real_data",
+    "generator": "",
+    "category": "",
+    "filename": "1618.jpg",
+    "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\fake-v2\\1618.jpg",
+    "ground_truth": "AI",
+    "raw_univfd_probability": "0.00011008042929461226",
+    "fused_probability": "0.544",
+    "final_verdict": "suspicious",
+    "final_confidence": "0.544",
+    "filename_signal": "",
+    "exif_signal": "0.42",
+    "opencv_signal": "0.62",
+    "neural_signal": "",
+    "error": "",
+    "_delta": 0.5438899195707054
+  },
+  "image_property_summary": {
+    "all_main_n": 190,
+    "high_real_outliers_n": 15,
+    "low_ai_outliers_n": 49,
+    "high_real_median_file_size_bytes": 3329173.0,
+    "all_REAL_median_file_size_bytes": 210321.5,
+    "high_real_median_width": 3456.0,
+    "high_real_exif_present_count": 15,
+    "high_real_total": 15
+  },
+  "nine_jpg_investigation": {
+    "expected_path": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\9.jpg",
+    "step4_row": {
+      "dataset_group": "main_benchmark",
+      "source": "subset_fake_real_data",
+      "generator": "",
+      "category": "",
+      "filename": "9.jpg",
+      "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\9.jpg",
+      "ground_truth": "REAL",
+      "raw_univfd_probability": "0.9972871541976929",
+      "fused_probability": "0.475",
+      "final_verdict": "suspicious",
+      "final_confidence": "0.475",
+      "filename_signal": "",
+      "exif_signal": "0.42",
+      "opencv_signal": "0.55",
+      "neural_signal": "0.995",
+      "error": "",
+      "_delta": -0.5222871541976929
+    },
+    "probe_and_live": {
+      "filepath": "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\9.jpg",
+      "exists": true,
+      "file_size_bytes": 14404,
+      "format_ext": ".jpg",
+      "width": 224,
+      "height": 224,
+      "mode": "RGB",
+      "pil_format": "JPEG",
+      "sha256": "c188ccb57609243a26f47d65402c9dda0bbde3e4b995c897acf973a5c00d6bca",
+      "exif_metadata": {
+        "has_exif": false,
+        "is_video": false,
+        "format": "JPEG",
+        "field_count": 0,
+        "fields": [],
+        "flags": [
+          {
+            "code": "jpeg_no_exif",
+            "label": "JPEG without camera EXIF metadata (typical of AI exports).",
+            "severity": "warning"
+          }
+        ],
+        "summary": "JPEG without camera EXIF metadata (typical of AI exports)."
+      },
+      "has_exif": true,
+      "live_detect": {
+        "raw_univfd_probability": 0.9972871541976929,
+        "fused_probability": 0.475,
+        "verdict": "suspicious",
+        "signals": {
+          "metadata": 0.42,
+          "frequency": 0.48,
+          "noise_uniformity": 0.15,
+          "texture_entropy": 0.2,
+          "quality_paradox": 0.15,
+          "skin_smoothness": 0.55,
+          "neural": 0.995
+        },
+        "exif_metadata": {
+          "has_exif": false,
+          "is_video": false,
+          "format": "JPEG",
+          "field_count": 0,
+          "fields": [],
+          "flags": [
+            {
+              "code": "jpeg_no_exif",
+              "label": "JPEG without camera EXIF metadata (typical of AI exports).",
+              "severity": "warning"
+            }
+          ],
+          "summary": "JPEG without camera EXIF metadata (typical of AI exports)."
+        }
+      }
+    }
+  },
+  "duplicate_analysis": {
+    "files_hashed": 224,
+    "unique_hashes": 199,
+    "duplicate_groups": 25,
+    "duplicate_file_count": 50,
+    "cross_ground_truth_duplicates": [],
+    "hash_errors": 0,
+    "duplicate_examples": [
+      {
+        "sha256": "2aacb1f4244ddbec3d552ef28ef1f181a8900a1abf0d25b64b8896ff25e70a9f",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\image.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\image.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "7cc2aaf5c60ebcaff0649c2bb7c143ca18955586784677747798a02ca90c0be2",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\image0001.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\image0001.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "4ec55c7bef0eace9e5615061ac4e825f3f116e4ef6d4a025952f924f66373ce6",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20250623_120050_743.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20250623_120050_743.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "67f3b6a9843603c98fb07c4ae7af01601bcbdfdd5e5bbb31ad7d7bbd1317f7f8",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20250623_122120_557.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20250623_122120_557.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "d4a0055d7fc1d33554b824dc9779b2edf933c4476988c04be56fb688e96fbafc",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20250627_140320_386.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20250627_140320_386.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "00c6f756118ecbdf7d5860e2989d0fd0f0bc4cb84782a1a14ffcf14634c649d5",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20250715_124017_768.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20250715_124017_768.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "75ea2e6ded62b93932023941bd41a2dfadd1ff1d9010237cb01d1dfef61697ea",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20250718_213454_589.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20250718_213454_589.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "b73d0765fccaf64c09fc3b43a9a25a479e8dc646663fe45279901779ba4d4ae8",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20250915_115214_075.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20250915_115214_075.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "cf06695e18dceff6c9f505fef76188079e19429179be13c259a668775c42a56f",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20251011_173252_422.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20251011_173252_422.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "f23019bc45d2609692cada2c59776c405c950a5ca90b9d23ec8eb768f9ea31ef",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20251026_150108_363.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20251026_150108_363.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "f24c13076bf0820e21973bf519cb4383e2b23b73e4a80bd2fc226c838a89f484",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20251103_135141_371.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20251103_135141_371.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "b1f30bd9776ef51f02855692161e44792845c136b9f1f74e545e960faa2a6ac1",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20251206_212827_475.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20251206_212827_475.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "113e8cab03872d69c0b5931522419d64ecf1d9ba93200a5b0723d879632f2749",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20251206_214302_376.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20251206_214302_376.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "82735eff8d3ee49cbd8ad48004d31e2804461bdf88fff860c94186e9eb5de863",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20251206_214357_721.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20251206_214357_721.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "1f17afb4e1968c55233083b9791a5d682dc9c825ccbf539d33be9260b6b6030b",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260114_213731_052.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20260114_213731_052.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "cf20e3551d452bfb1d0a6f9eb90611d02274bbc929f4cbbe9a34a322428b9781",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260130_171049_162.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20260130_171049_162.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "a28c8b3ee1ecd68f9363475de0b1ca20bec7442e77eca236048aa6ffcd4c6bed",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260216_210519_885.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20260216_210519_885.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "9dfb0e93e23b008d2be2ef198b8b1abffb4915026517fd31e6b17189a03698fd",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260326_170744_002.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20260326_170744_002.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "8953a48e2542a6d56ac3814eb2d487f255d33fa3ba2641923619f83770c4bf12",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260326_173117_490.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20260326_173117_490.jpg"
+        ],
+        "count": 2
+      },
+      {
+        "sha256": "ed7fc1893c2269622d6a1a5baed175f6cd1c882258c8705e520a9490b7ad91db",
+        "paths": [
+          "C:\\Users\\Dell\\Desktop\\subset_fake_real_data\\real\\own_photos\\IMG_20260407_130652_160.jpg",
+          "C:\\Users\\Dell\\Desktop\\own_photos\\IMG_20260407_130652_160.jpg"
+        ],
+        "count": 2
+      }
+    ]
+  },
+  "contact_sheet_notes": {},
+  "hypotheses_requiring_future_testing": [
+    "HYPOTHESIS: High raw scores on some REAL phone photos correlate with missing EXIF or specific dimensions; verify with controlled capture metadata.",
+    "HYPOTHESIS: Low raw scores on self-generated Canva/ChatGPT/Gemini images reflect domain gap vs UnivFD training data; needs larger per-generator sample.",
+    "HYPOTHESIS: Large fusion deltas when raw is low but OpenCV/metadata scores are ~0.42\u20130.62 reflect heuristic-dominated fusion; verify by recomputing _fuse_probability from stored signals."
+  ]
+}

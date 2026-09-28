@@ -1,6 +1,6 @@
-import 'package:access_mobile/web_admin/features/media_evaluation/media_evaluation_page.dart';
+import 'package:access_mobile/web_admin/features/media_review/media_integrity_page.dart';
 
-/// Routes to the Media Evaluation feature module.
-class AdminEvaluationsScreen extends MediaEvaluationPage {
+/// Media Integrity Dashboard (formerly Evaluations / Review Alerts).
+class AdminEvaluationsScreen extends MediaIntegrityPage {
   const AdminEvaluationsScreen({super.key});
 }

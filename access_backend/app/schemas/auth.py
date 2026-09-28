@@ -32,3 +32,13 @@ class LoginResponse(BaseModel):
     redirect_hint: str = Field(
         description="web_admin for Admin, mobile_app for Member/Organization"
     )
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+    temporary_password: str | None = None
+    reset: bool = False

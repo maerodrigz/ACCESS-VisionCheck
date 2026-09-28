@@ -3,14 +3,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/api/auth_service.dart';
-import 'package:access_mobile/shared/controllers/branding_controller.dart';
+import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/user_model.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController() {
-    _restoreSession();
+    _initialization = _restoreSession();
   }
+
+  late final Future<void> _initialization;
+
+  /// Completes when persisted session restore finishes (used by splash gate).
+  Future<void> waitForInitialization() => _initialization;
 
   AuthUser? _user;
   AuthUser? get user => _user;
@@ -91,16 +96,16 @@ class AuthController extends ChangeNotifier {
   Future<void> logout() async {
     authService.logout();
     _user = null;
+    appState.clearMemberProfile();
+    memberDataController.resetForLogout();
+    // Switch to login immediately. Persisted session is cleared right after.
+    notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sessionKey);
-    notifyListeners();
   }
 
-  /// After login, resolve API host then reload branding (logo) from same server as web.
-  Future<void> _syncMemberSession() async {
-    await memberDataController.refreshAll();
-    await brandingController.refresh();
-  }
+  /// Member/org shells load data on first paint; avoid blocking login with a full sync.
+  Future<void> _syncMemberSession() async {}
 
   Future<void> _persist() async {
     if (_user == null) return;

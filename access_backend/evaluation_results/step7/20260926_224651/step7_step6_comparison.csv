@@ -1,0 +1,7 @@
+REAL_FPR_vs_step6,configuration,mode,recall_vs_step6,step6_REAL_FP,step6_REAL_FPR,step6_recall,step7_REAL_FP,step7_REAL_FPR,step7_recall
+similar,B_production_fusion,strict,similar,20,0.2,0.1,10,0.2,0.14
+increased,B_production_fusion,flagged,decreased,54,0.54,0.5444444444444444,34,0.68,0.46
+similar,E_no_post_boosts,strict,similar,0,0.0,0.0,1,0.02,0.0
+increased,E_no_post_boosts,flagged,similar,22,0.22,0.25555555555555554,25,0.5,0.26
+similar,D1_heuristic_075,strict,similar,15,0.15,0.08888888888888889,9,0.18,0.1
+increased,D1_heuristic_075,flagged,decreased,46,0.46,0.4777777777777778,33,0.66,0.26

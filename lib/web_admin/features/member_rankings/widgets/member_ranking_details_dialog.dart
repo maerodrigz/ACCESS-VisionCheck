@@ -203,11 +203,8 @@ class _MemberRankingDetailsDialogState extends State<MemberRankingDetailsDialog>
             ],
           ),
           const SizedBox(height: 12),
-          _breakdownRow('Media Quality', '40%', r.mediaQualityScore),
-          _breakdownRow('Approved Uploads', '25%', r.approvedUploadsScore),
-          _breakdownRow('Task Participation', '20%', r.taskParticipationScore),
-          _breakdownRow('Admin Evaluation', '10%', r.adminEvaluationScore),
-          _breakdownRow('AI Authenticity', '5%', r.aiAuthenticityScore),
+          _breakdownRow('Media Quality', '70%', r.mediaQualityScore),
+          _breakdownRow('Media Integrity', '30%', r.aiAuthenticityScore),
         ],
       ),
     );

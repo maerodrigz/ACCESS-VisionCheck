@@ -1,0 +1,331 @@
+{
+  "status": "COMPLETE",
+  "timestamp_utc": "20260927_204940",
+  "environment": "local",
+  "preflight": {
+    "checkpoint_path": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\experiments\\probe\\modelscope_cache\\models\\shuinishaojiu--PROBE-AIGI-Detection\\snapshots\\master\\DINOv2_best_model_step_34999.pth",
+    "checkpoint_exists": true,
+    "sha256_match": true,
+    "sha256": "c8caa9bad54c029e4d22e1909c4673e46a239d8419a986e0ab461d423a450156",
+    "probe_max_long_edge": 1344,
+    "probe_low_risk_threshold": 0.3,
+    "probe_high_risk_threshold": 0.45,
+    "max_media_evaluation_workers": 1,
+    "code_default_backend": "univfd",
+    "process_env_backend": null,
+    "real_image_exists": true,
+    "ai_image_exists": true,
+    "probe_checkpoint_resolver": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\experiments\\probe\\modelscope_cache\\models\\shuinishaojiu--PROBE-AIGI-Detection\\snapshots\\master\\DINOv2_best_model_step_34999.pth"
+  },
+  "baseline_note": "Code default AI_DETECTOR_BACKEND=univfd; server must run with probe env for smoke.",
+  "backend_probe_check": {
+    "settings_ai_detector_backend": "probe",
+    "active_ai_detector_backend": "probe",
+    "note": "Server must be started with AI_DETECTOR_BACKEND=probe separately; confirm via save-path probe fields."
+  },
+  "preview": {
+    "latency_sec": 0.963,
+    "http_status": 200,
+    "quality_ok": true,
+    "analysis_status": "deferred",
+    "is_final": false,
+    "verdict": null,
+    "probability": null,
+    "raw_detector_probability": null,
+    "probe_invoked_heuristic": false
+  },
+  "real_image": {
+    "known_label": "REAL",
+    "source_path": "C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\own_new_photos\\IMG_20230512_103539_795.jpg",
+    "media_id": 112,
+    "upload_response_latency_sec": 0.093,
+    "initial_processing_status": "processing",
+    "initial_overall_score": null,
+    "polls": 23,
+    "processing_latency_sec": 69.428,
+    "final_media_get": {
+      "id": 112,
+      "uploaded_by": 2,
+      "request_id": null,
+      "file_name": "Step8A REAL",
+      "file_type": "photo",
+      "file_url": "/uploads/images/c1876250ea914bb6815fe5fd38cc5a8e.jpg",
+      "uploaded_at": "2026-09-28T04:49:45.579342+08:00",
+      "overall_score": 0.742,
+      "ai_detected": false,
+      "ai_probability": 0.0,
+      "feedback": "Overall quality: Good (3.71/5). Strengths: Sharpness, Blur, Noise, Brightness. Recommendation: Accepted.",
+      "processing_status": "completed"
+    },
+    "detail": {
+      "overall_score": 0.742,
+      "review_status": "automated_low_ai_risk",
+      "detection_result": "human",
+      "ai_probability": 0.0,
+      "criteria_ai_detection": {
+        "verdict": "authentic",
+        "confidence": 1.0,
+        "probability": 0.0,
+        "detail": "Low AI authenticity risk from PROBE (0% P(fake)). This is not proof of authenticity.",
+        "signals": {
+          "probe": 0.0,
+          "support_frequency": 0.48,
+          "support_noise_uniformity": 0.15,
+          "support_texture_entropy": 0.2,
+          "support_quality_paradox": 0.15,
+          "support_skin_smoothness": 0.18
+        },
+        "exif_metadata": {
+          "has_exif": true,
+          "is_video": false,
+          "format": "JPEG",
+          "field_count": 16,
+          "fields": [
+            {
+              "key": "Make",
+              "label": "Camera make",
+              "value": "INFINIX MOBILITY LIMITED\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+            },
+            {
+              "key": "Model",
+              "label": "Camera model",
+              "value": "Infinix X695\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+            },
+            {
+              "key": "Software",
+              "label": "Software",
+              "value": "MediaTek Camera Application\u0000\u0000\u0000\u0000"
+            },
+            {
+              "key": "DateTime",
+              "label": "File date",
+              "value": "2023:05:12 10:35:39"
+            },
+            {
+              "key": "Orientation",
+              "label": "Orientation",
+              "value": "Normal"
+            },
+            {
+              "key": "544",
+              "label": "544",
+              "value": "0"
+            },
+            {
+              "key": "545",
+              "label": "545",
+              "value": "0"
+            },
+            {
+              "key": "546",
+              "label": "546",
+              "value": "0"
+            },
+            {
+              "key": "547",
+              "label": "547",
+              "value": "0"
+            },
+            {
+              "key": "548",
+              "label": "548",
+              "value": "0"
+            },
+            {
+              "key": "549",
+              "label": "549",
+              "value": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+            },
+            {
+              "key": "ResolutionUnit",
+              "label": "ResolutionUnit",
+              "value": "2"
+            },
+            {
+              "key": "ImageDescription",
+              "label": "ImageDescription",
+              "value": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+            },
+            {
+              "key": "YCbCrPositioning",
+              "label": "YCbCrPositioning",
+              "value": "2"
+            },
+            {
+              "key": "XResolution",
+              "label": "XResolution",
+              "value": "72.0"
+            },
+            {
+              "key": "YResolution",
+              "label": "YResolution",
+              "value": "72.0"
+            }
+          ],
+          "flags": [
+            {
+              "code": "camera_metadata_present",
+              "label": "Camera metadata present (INFINIX MOBILITY LIMITED\u0000\u0000\u0000\u0000\u0000\u0000\u0000 Infinix X695\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000).",
+              "severity": "info"
+            }
+          ],
+          "summary": "Camera: INFINIX MOBILITY LIMITED\u0000\u0000\u0000\u0000\u0000\u0000\u0000 Infinix X695\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 \u00b7 Software: MediaTek Camera Application\u0000\u0000\u0000\u0000"
+        },
+        "detector_backend": "probe",
+        "risk_level": "low",
+        "raw_detector_probability": 0.0,
+        "requires_review": false
+      },
+      "xp_eligible": true,
+      "xp_pending": false
+    },
+    "xp_points_before": 194,
+    "xp_points_after": 194,
+    "xp_awarded_delta": 0,
+    "policy_consistency": {
+      "p": 0.0,
+      "expected_risk": "low",
+      "risk_level": "low",
+      "risk_match": true,
+      "requires_review": false,
+      "review_status": "automated_low_ai_risk",
+      "detection_result": "human",
+      "xp_eligible": true,
+      "xp_pending": false,
+      "review_expect": "automated_low_ai_risk",
+      "review_ok": true,
+      "requires_review_ok": true
+    }
+  },
+  "ai_image": {
+    "known_label": "AI",
+    "source_path": "C:\\Users\\Dell\\Desktop\\fresh_validation\\ai\\canva\\Canva AI Image Sep 26, 2026, 8_03_36 PM_20260926_200502_0000.jpg",
+    "media_id": 113,
+    "upload_response_latency_sec": 0.034,
+    "initial_processing_status": "processing",
+    "initial_overall_score": null,
+    "polls": 12,
+    "processing_latency_sec": 36.289,
+    "final_media_get": {
+      "id": 113,
+      "uploaded_by": 2,
+      "request_id": null,
+      "file_name": "Step8A AI",
+      "file_type": "photo",
+      "file_url": "/uploads/images/bcd2afaafa17426da7351f329e57f728.jpg",
+      "uploaded_at": "2026-09-28T04:50:58.648471+08:00",
+      "overall_score": 0.686,
+      "ai_detected": true,
+      "ai_probability": 0.853,
+      "feedback": "This upload was flagged as possible AI-generated content. Quality coaching is paused until an officer reviews your file. If verified as authentic, your scores and XP will be applied.",
+      "processing_status": "completed"
+    },
+    "detail": {
+      "overall_score": 0.686,
+      "review_status": "pending_review",
+      "detection_result": "ai_generated",
+      "ai_probability": 0.853,
+      "criteria_ai_detection": {
+        "verdict": "ai_generated",
+        "confidence": 0.853,
+        "probability": 0.853,
+        "detail": "High AI authenticity risk from PROBE (85% P(fake)). Requires officer review; not definitive proof of AI generation. Supporting context: JPEG lacks typical camera make/model EXIF.",
+        "signals": {
+          "probe": 0.853,
+          "support_metadata": 0.32,
+          "support_frequency": 0.48,
+          "support_noise_uniformity": 0.15,
+          "support_texture_entropy": 0.2,
+          "support_quality_paradox": 0.52,
+          "support_skin_smoothness": 0.18
+        },
+        "exif_metadata": {
+          "has_exif": true,
+          "is_video": false,
+          "format": "JPEG",
+          "field_count": 7,
+          "fields": [
+            {
+              "key": "Orientation",
+              "label": "Orientation",
+              "value": "Normal"
+            },
+            {
+              "key": "ImageWidth",
+              "label": "Width",
+              "value": "1264"
+            },
+            {
+              "key": "ImageLength",
+              "label": "ImageLength",
+              "value": "1264"
+            },
+            {
+              "key": "ResolutionUnit",
+              "label": "ResolutionUnit",
+              "value": "2"
+            },
+            {
+              "key": "YCbCrPositioning",
+              "label": "YCbCrPositioning",
+              "value": "1"
+            },
+            {
+              "key": "XResolution",
+              "label": "XResolution",
+              "value": "72.0"
+            },
+            {
+              "key": "YResolution",
+              "label": "YResolution",
+              "value": "72.0"
+            }
+          ],
+          "flags": [
+            {
+              "code": "missing_camera_make_model",
+              "label": "JPEG lacks typical camera make/model EXIF.",
+              "severity": "warning"
+            }
+          ],
+          "summary": "No camera make/model in EXIF"
+        },
+        "detector_backend": "probe",
+        "risk_level": "high",
+        "raw_detector_probability": 0.853,
+        "requires_review": true
+      },
+      "xp_eligible": false,
+      "xp_pending": true
+    },
+    "xp_points_before": 328,
+    "xp_points_after": 328,
+    "xp_awarded_delta": 0,
+    "policy_consistency": {
+      "p": 0.853,
+      "expected_risk": "high",
+      "risk_level": "high",
+      "risk_match": true,
+      "requires_review": true,
+      "review_status": "pending_review",
+      "detection_result": "ai_generated",
+      "xp_eligible": false,
+      "xp_pending": true,
+      "review_expect": "pending_review",
+      "review_ok": true,
+      "requires_review_ok": true
+    }
+  },
+  "real_raw_consistency": {
+    "ok": true,
+    "raw_detector_probability": 0.0,
+    "probability": 0.0,
+    "db_ai_probability": 0.0
+  },
+  "ai_raw_consistency": {
+    "ok": true,
+    "raw_detector_probability": 0.853,
+    "probability": 0.853,
+    "db_ai_probability": 0.853
+  }
+}

@@ -1,15 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import secrets
 
 from app.api.deps import require_admin
 from app.crud import admin_members as admin_members_crud
 from app.crud import user as user_crud
 from app.database import get_db
 from app.models.audit_log import AuditLog
+from app.models.enums import RoleName, UserStatus
 from app.models.user import User
-from app.schemas.admin_member import AdminMemberResponse, UserRoleUpdate, UserStatusUpdate
+from app.schemas.admin_member import AdminMemberResponse, AdminUserProfileResponse, UserRoleUpdate, UserStatusUpdate
 from app.schemas.common import MessageResponse
-from app.schemas.user import UserCreate, UserResponse
+from app.schemas.user import PasswordResetResponse, UserCreate, UserResponse, UserUpdate
+from app.services.security_policy import assert_password_meets_policy
 
 router = APIRouter(tags=["Users"])
 
@@ -23,13 +26,20 @@ def create_user(
     """Admin: create a new user account."""
     if user_crud.get_by_email(db, body.email):
         raise HTTPException(status_code=409, detail="Email already registered")
+    password = (body.password or "").strip() or secrets.token_urlsafe(12)
+    if body.password and body.password.strip():
+        assert_password_meets_policy(db, password)
+    status = (body.status or "").strip().lower() or None
+    if status and status not in ("approved", "pending", "rejected"):
+        raise HTTPException(status_code=400, detail="status must be approved, pending, or rejected")
     user = user_crud.create_user(
         db,
         body.name,
         body.email,
-        body.password,
+        password,
         body.role,
-        status="approved",
+        status=status,
+        skill_level=body.skill_level,
     )
     ranking = user.member_ranking
     return UserResponse(
@@ -48,6 +58,91 @@ def create_user(
 @router.get("/users", response_model=list[AdminMemberResponse])
 def list_users(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     return [AdminMemberResponse(**row) for row in admin_members_crud.list_admin_members(db)]
+
+
+def _ensure_admin_privilege_change_allowed(
+    db: Session,
+    target: User,
+    new_role: str,
+    new_status: str,
+) -> None:
+    """Block demotion or deactivation of the last active administrator."""
+    if target.role.role_name != RoleName.ADMIN:
+        return
+    demoting = new_role.strip() != RoleName.ADMIN
+    deactivating = new_status.strip().lower() != UserStatus.APPROVED
+    if not demoting and not deactivating:
+        return
+    if user_crud.count_active_admins(db) <= 1:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot modify privileges of the last administrator account.",
+        )
+
+
+@router.get("/users/{user_id}/profile", response_model=AdminUserProfileResponse)
+def get_user_profile(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Admin: full read-only profile with recent login/audit activity."""
+    row = admin_members_crud.get_admin_member(db, user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    activity = admin_members_crud.list_user_recent_activity(db, user_id, limit=10)
+    return AdminUserProfileResponse(
+        **row,
+        recent_activity=activity,
+    )
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: int,
+    body: UserUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admin: update user profile, role, skill level, and account status."""
+    user = user_crud.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    status = body.status.strip().lower()
+    if status not in (UserStatus.APPROVED, UserStatus.PENDING, UserStatus.REJECTED):
+        raise HTTPException(status_code=400, detail="status must be approved, pending, or rejected")
+
+    _ensure_admin_privilege_change_allowed(db, user, body.role, status)
+
+    try:
+        updated = user_crud.update_user_by_admin(
+            db,
+            user,
+            name=body.name,
+            email=str(body.email),
+            role=body.role,
+            skill_level=body.skill_level,
+            status=status,
+            approved_by=admin.id if status == UserStatus.APPROVED else None,
+        )
+    except ValueError as exc:
+        if "Email already" in str(exc):
+            raise HTTPException(status_code=409, detail="Email already registered") from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    ranking = updated.member_ranking
+    return UserResponse(
+        user_id=updated.id,
+        name=updated.fullname,
+        email=updated.email,
+        role=updated.role.role_name,
+        status=updated.status,
+        skill_level=updated.skill_level.level_name if updated.skill_level else None,
+        good_evaluations=ranking.total_points if ranking else 0,
+        avg_score=0.0,
+        created_at=updated.created_at,
+    )
 
 
 @router.patch("/users/{user_id}/status", response_model=MessageResponse)
@@ -92,6 +187,7 @@ def update_user_role(
     user = user_crud.get_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _ensure_admin_privilege_change_allowed(db, user, body.role, user.status)
     try:
         role_id = user_crud._role_id_for_name(db, body.role)
     except ValueError as e:
@@ -99,3 +195,21 @@ def update_user_role(
     user.role_id = role_id
     db.commit()
     return MessageResponse(message=f"Role updated to {body.role}")
+
+
+@router.post("/users/{user_id}/reset-password", response_model=PasswordResetResponse)
+def reset_user_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Admin: issue a new temporary password for the user."""
+    user = user_crud.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    temp_password = secrets.token_urlsafe(10)
+    user_crud.set_password(db, user, temp_password)
+    return PasswordResetResponse(
+        message="Temporary password generated. Share it securely with the user.",
+        temporary_password=temp_password,
+    )

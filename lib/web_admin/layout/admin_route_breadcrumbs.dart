@@ -4,14 +4,10 @@ import 'package:access_mobile/web_admin/navigation/admin_routes.dart';
 List<String> breadcrumbsForRoute(AdminRoute route) {
   if (route == AdminRoute.dashboard) return const ['Dashboard'];
 
-  final group = groupContainingRoute(route);
-  final leaf = group?.children.where((c) => c.route == route).firstOrNull;
+  final leaf = navLeafForRoute(route);
+  if (leaf != null) return ['Dashboard', leaf.label];
 
-  if (group == null || leaf == null) {
-    return ['Dashboard', _fallbackLabel(route)];
-  }
-
-  return ['Dashboard', group.label, leaf.label];
+  return ['Dashboard', _fallbackLabel(route)];
 }
 
 String _fallbackLabel(AdminRoute route) {

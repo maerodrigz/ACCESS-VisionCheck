@@ -1,6 +1,6 @@
 """Current-user profile API (alias for mobile/web clients)."""
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pathlib import Path
 import uuid
 
@@ -47,6 +47,7 @@ def patch_profile(
 @router.post("/avatar", response_model=ProfileOut)
 async def upload_avatar(
     file: UploadFile = File(...),
+    cloud_file_url: str | None = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_approved),
 ):
@@ -59,15 +60,35 @@ async def upload_avatar(
     if len(content) > max_bytes:
         raise HTTPException(status_code=400, detail="Image is too large")
 
-    upload_root = Path(settings.upload_dir)
-    upload_root.mkdir(parents=True, exist_ok=True)
-    sub = upload_root / "profiles"
-    sub.mkdir(parents=True, exist_ok=True)
-    filename = f"user_{current_user.id}_{uuid.uuid4().hex}{ext}"
-    rel_path = f"profiles/{filename}"
-    (upload_root / rel_path).write_bytes(content)
+    cloud = (cloud_file_url or "").strip()
+    profile_image: str | None = None
+
+    if cloud.startswith("https://"):
+        profile_image = cloud
+    else:
+        from app.services.firebase_storage import is_firebase_storage_configured, upload_media_bytes
+
+        if is_firebase_storage_configured():
+            fb_url = upload_media_bytes(
+                content,
+                file_name=file.filename or "avatar.jpg",
+                folder="profiles",
+                user_id=current_user.id,
+            )
+            if fb_url:
+                profile_image = fb_url
+
+    if not profile_image:
+        upload_root = Path(settings.upload_dir)
+        upload_root.mkdir(parents=True, exist_ok=True)
+        sub = upload_root / "profiles"
+        sub.mkdir(parents=True, exist_ok=True)
+        filename = f"user_{current_user.id}_{uuid.uuid4().hex}{ext}"
+        rel_path = f"profiles/{filename}"
+        (upload_root / rel_path).write_bytes(content)
+        profile_image = f"/uploads/{rel_path}"
 
     user = user_crud.get_by_id(db, current_user.id)
-    profile_crud.update_profile(db, user, profile_image=f"/uploads/{rel_path}")  # type: ignore[arg-type]
+    profile_crud.update_profile(db, user, profile_image=profile_image)  # type: ignore[arg-type]
     user = user_crud.get_by_id(db, current_user.id)
     return _profile_out(db, user)  # type: ignore[arg-type]

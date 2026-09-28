@@ -19,9 +19,29 @@ def list_feedbacks(
     return list(db.scalars(q))
 
 
+def get(db: Session, feedback_id: int) -> Feedback | None:
+    return db.get(Feedback, feedback_id)
+
+
 def create(db: Session, data: dict) -> Feedback:
     row = Feedback(**data)
     db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def update_admin_review(
+    db: Session,
+    row: Feedback,
+    *,
+    admin_response: str | None = None,
+    review_status: str | None = None,
+) -> Feedback:
+    if admin_response is not None:
+        row.admin_response = admin_response.strip() or None
+    if review_status is not None:
+        row.review_status = review_status
     db.commit()
     db.refresh(row)
     return row

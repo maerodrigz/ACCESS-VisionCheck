@@ -1,0 +1,19 @@
+STEP 5 STATUS: COMPLETE
+Step 4 input: C:\Users\Dell\Desktop\access_mobile\access_backend\evaluation_results\step4\20260926_170227
+Output: C:\Users\Dell\Desktop\access_mobile\access_backend\evaluation_results\step5\20260926_181649
+
+MAIN BENCHMARK REAL=100 AI=90
+Production errors: {'STRICT_FALSE_NEGATIVE': 81, 'FLAGGED_FALSE_NEGATIVE': 41, 'FLAGGED_FALSE_POSITIVE': 54, 'STRICT_FALSE_POSITIVE': 20}
+High REAL raw >=0.80: 15
+Low AI raw <=0.20: 49
+
+Top 3 REAL by raw:
+  1. 9.jpg raw=0.9973 fused=0.475 verdict=suspicious
+  2. IMG_20250627_140320_386.jpg raw=0.9922 fused=0.661 verdict=ai_generated
+  3. 2zhdbyfin76a1.jpg raw=0.9893 fused=0.637 verdict=ai_generated
+Top 3 AI by lowest raw:
+  1. 4a54eb3b-bb36-4995-8e76-0b643a6bfa12.jpeg raw=0.000011 fused=0.157 verdict=authentic
+  2. 07276994-7e80-4aad-afec-999166291725.jpeg raw=0.000057 fused=0.157 verdict=authentic
+  3. 1618.jpg raw=0.000110 fused=0.544 verdict=suspicious
+
+PRODUCTION BEHAVIOR CHANGED: NO

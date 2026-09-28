@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/web_admin/features/event_calendar/event_calendar_models.dart';
-import 'package:access_mobile/web_admin/features/event_calendar/widgets/event_status_badge.dart';
 import 'package:access_mobile/web_admin/theme/admin_theme.dart';
 
 class UpcomingEventList extends StatelessWidget {
@@ -17,14 +16,40 @@ class UpcomingEventList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final grouped = _groupByDate(events);
+
     return Container(
       decoration: AdminTheme.cardDecoration(),
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AdminTheme.accentBlue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.event_available_outlined, size: 18, color: AdminTheme.accentBlue),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    Text(
+                      '${events.length} scheduled',
+                      style: const TextStyle(fontSize: 12, color: AdminTheme.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           if (events.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -36,95 +61,172 @@ class UpcomingEventList extends StatelessWidget {
               ),
             )
           else
-            ...events.take(8).map((e) => _EventTile(event: e, onTap: () => onEventTap(e))),
+            ...grouped.entries.take(6).map(
+                  (entry) => _DateEventGroup(
+                    date: entry.key,
+                    events: entry.value,
+                    onEventTap: onEventTap,
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Map<DateTime, List<CalendarEventItem>> _groupByDate(List<CalendarEventItem> items) {
+    final map = <DateTime, List<CalendarEventItem>>{};
+    for (final e in items) {
+      final key = DateTime(e.eventDate.year, e.eventDate.month, e.eventDate.day);
+      map.putIfAbsent(key, () => []).add(e);
+    }
+    final keys = map.keys.toList()..sort();
+    return {for (final k in keys) k: map[k]!};
+  }
+}
+
+class _DateEventGroup extends StatelessWidget {
+  const _DateEventGroup({
+    required this.date,
+    required this.events,
+    required this.onEventTap,
+  });
+
+  final DateTime date;
+  final List<CalendarEventItem> events;
+  final ValueChanged<CalendarEventItem> onEventTap;
+
+  static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  @override
+  Widget build(BuildContext context) {
+    final weekday = _weekdays[date.weekday - 1];
+    final month = _months[date.month - 1];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AdminTheme.accentBlue.withValues(alpha: 0.1),
+                  border: Border.all(color: AdminTheme.accentBlue.withValues(alpha: 0.35)),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${date.day}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: AdminTheme.accentBlue,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$weekday, $month ${date.day}, ${date.year}',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AdminTheme.textPrimary),
+                  ),
+                  Text(
+                    '${events.length} event${events.length == 1 ? '' : 's'}',
+                    style: const TextStyle(fontSize: 11, color: AdminTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...events.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(left: 46, bottom: 6),
+              child: _EventTitleLink(event: e, onTap: () => onEventTap(e)),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _EventTile extends StatefulWidget {
-  const _EventTile({required this.event, required this.onTap});
+class _EventTitleLink extends StatefulWidget {
+  const _EventTitleLink({required this.event, required this.onTap});
+
   final CalendarEventItem event;
   final VoidCallback onTap;
 
   @override
-  State<_EventTile> createState() => _EventTileState();
+  State<_EventTitleLink> createState() => _EventTitleLinkState();
 }
 
-class _EventTileState extends State<_EventTile> {
+class _EventTitleLinkState extends State<_EventTitleLink> {
   bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final e = widget.event;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        cursor: SystemMouseCursors.click,
-        child: Material(
-          color: _hovered ? AdminTheme.contentBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _hovered ? AdminTheme.accentCyan.withValues(alpha: 0.45) : AdminTheme.border,
+    final color = eventStatusColor(widget.event.status);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: _hovered ? color.withValues(alpha: 0.06) : AdminTheme.contentBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _hovered ? color.withValues(alpha: 0.35) : AdminTheme.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          e.title,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                        ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.event.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: AdminTheme.textPrimary,
                       ),
-                      EventStatusBadge(status: e.status),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${e.dateLabel} · ${e.timeLabel}',
-                    style: const TextStyle(fontSize: 12, color: AdminTheme.textSecondary),
-                  ),
-                  if (e.location != null && e.location!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      e.location!,
-                      style: const TextStyle(fontSize: 12, color: AdminTheme.textPrimary),
                     ),
-                  ],
-                  if (e.assignedMemberName != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      'Team: ${e.assignedMemberName}',
+                      widget.event.timeLabel,
                       style: const TextStyle(fontSize: 11, color: AdminTheme.textSecondary),
                     ),
                   ],
-                  if (e.requestStatus != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Request: ${e.requestStatus}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AdminTheme.accentBlue.withValues(alpha: 0.9),
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 12,
+                color: _hovered ? color : AdminTheme.textSecondary.withValues(alpha: 0.5),
+              ),
+            ],
           ),
         ),
       ),

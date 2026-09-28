@@ -51,9 +51,9 @@ class AdminNotificationItem {
   String get categoryLabel => switch (category) {
         NotificationCategory.documentationRequest => 'Documentation Request',
         NotificationCategory.taskAssignment => 'Task Assignment',
-        NotificationCategory.mediaEvaluation => 'Media Evaluation',
+        NotificationCategory.mediaEvaluation => 'Media Integrity',
         NotificationCategory.aiDetection => 'AI Detection',
-        NotificationCategory.feedback => 'Feedback',
+        NotificationCategory.feedback => 'Requester Feedback',
         NotificationCategory.systemAlert => 'System Alert',
       };
 
@@ -69,7 +69,7 @@ class AdminNotificationItem {
   IconData get icon => switch (category) {
         NotificationCategory.documentationRequest => Icons.description_outlined,
         NotificationCategory.taskAssignment => Icons.assignment_outlined,
-        NotificationCategory.mediaEvaluation => Icons.high_quality_outlined,
+        NotificationCategory.mediaEvaluation => Icons.verified_user_outlined,
         NotificationCategory.aiDetection => Icons.smart_toy_outlined,
         NotificationCategory.feedback => Icons.rate_review_outlined,
         NotificationCategory.systemAlert => Icons.info_outline,
@@ -137,11 +137,11 @@ AdminRoute? routeForAction(String? actionType, String? category) {
     'view_request' => AdminRoute.docRequests,
     'review_media' => AdminRoute.aiDetection,
     'view_result' => AdminRoute.mediaEvaluation,
-    'view_task' => AdminRoute.taskAssignments,
+    'view_task' => AdminRoute.docRequests,
     'view_feedback' => AdminRoute.feedbackReports,
     _ => switch (categoryFromString(category)) {
         NotificationCategory.documentationRequest => AdminRoute.docRequests,
-        NotificationCategory.taskAssignment => AdminRoute.taskAssignments,
+        NotificationCategory.taskAssignment => AdminRoute.docRequests,
         NotificationCategory.mediaEvaluation => AdminRoute.mediaEvaluation,
         NotificationCategory.aiDetection => AdminRoute.aiDetection,
         NotificationCategory.feedback => AdminRoute.feedbackReports,

@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_approved
+from app.api.deps import require_admin, require_approved
 from app.crud import audit_log as audit_crud
 from app.crud import facebook_post as fb_crud
 from app.crud import media as media_crud
 from app.database import get_db
 from app.models.user import User
 from app.config import settings
+from app.models.media_constants import MEDIA_CATEGORY_EVENT
+from app.services.facebook_publish_guard import ensure_facebook_publishing_enabled
 from app.services import facebook_service
 from app.services.facebook_service import FacebookServiceError, resolve_image_source
 
@@ -39,6 +41,16 @@ def _post_out(row) -> dict:
     }
 
 
+def _ensure_event_publishable(media) -> None:
+    if getattr(media, "media_category", None) != MEDIA_CATEGORY_EVENT:
+        raise HTTPException(
+            status_code=403,
+            detail="Facebook publishing is only available for event documentation media.",
+        )
+    if media.approval_status == "rejected":
+        raise HTTPException(status_code=403, detail="Rejected event media cannot be published to Facebook.")
+
+
 def _share_media(
     db: Session,
     *,
@@ -49,6 +61,7 @@ def _share_media(
     media = media_crud.get(db, media_id)
     if not media:
         raise HTTPException(status_code=404, detail="Media not found")
+    _ensure_event_publishable(media)
 
     default_message = message or f"{media.file_name} — ACCESS VisionCheck"
     row = fb_crud.create_attempt(db, media_id=media_id, message=default_message)
@@ -95,6 +108,7 @@ def _share_via_browser(
     media = media_crud.get(db, media_id)
     if not media:
         raise HTTPException(status_code=404, detail="Media not found")
+    _ensure_event_publishable(media)
     default_message = message or f"{media.file_name} — ACCESS VisionCheck"
     row = fb_crud.create_attempt(db, media_id=media_id, message=default_message)
     row = fb_crud.mark_opened_in_browser(db, row)
@@ -125,6 +139,7 @@ def log_facebook_share_opened(
     current_user: User = Depends(require_approved),
 ):
     """Log that the user opened Facebook to share (no Graph API / token)."""
+    ensure_facebook_publishing_enabled(db)
     return _share_via_browser(
         db,
         media_id=body.media_id,
@@ -141,6 +156,7 @@ def share_to_facebook(
     current_user: User = Depends(require_approved),
 ):
     """Share media: default opens browser flow; use mode=api for server Graph API post."""
+    ensure_facebook_publishing_enabled(db)
     if body.mode.strip().lower() == "api":
         token = (settings.facebook_page_access_token or "").strip()
         if not token:

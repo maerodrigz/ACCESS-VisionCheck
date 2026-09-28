@@ -39,3 +39,36 @@ Future<List<({String name, Uint8List bytes})>> pickImagesFromWeb() async {
 
   return completer.future;
 }
+
+Future<({String name, Uint8List bytes})?> pickSingleMediaFromWeb({required bool isVideo}) async {
+  final completer = Completer<({String name, Uint8List bytes})?>();
+  final input = html.FileUploadInputElement()
+    ..accept = isVideo ? 'video/*' : 'image/*'
+    ..multiple = false;
+  input.click();
+
+  input.onChange.listen((_) async {
+    final files = input.files;
+    if (files == null || files.isEmpty) {
+      completer.complete(null);
+      return;
+    }
+    final file = files.first;
+    final reader = html.FileReader();
+    reader.readAsArrayBuffer(file);
+    reader.onLoad.listen((_) {
+      completer.complete((name: file.name, bytes: reader.result as Uint8List));
+    });
+  });
+
+  late void Function(html.Event) focusHandler;
+  focusHandler = (_) {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!completer.isCompleted) completer.complete(null);
+    });
+    html.window.removeEventListener('focus', focusHandler);
+  };
+  html.window.addEventListener('focus', focusHandler);
+
+  return completer.future;
+}

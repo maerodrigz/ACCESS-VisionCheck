@@ -14,6 +14,15 @@ router = APIRouter(prefix="/rankings", tags=["Rankings & Skills"])
 
 class RankingRemarksUpdate(BaseModel):
     admin_remarks: str | None = Field(None, max_length=2000)
+    notify_member: bool = False
+
+
+class CompetencyLevelUpdate(BaseModel):
+    competency_level: str | None = Field(
+        None,
+        max_length=40,
+        description="Beginner, Intermediate, or Advanced — omit or null to use system recommendation",
+    )
 
 
 @router.get("")
@@ -56,4 +65,28 @@ def update_ranking_remarks(
     _: User = Depends(require_admin),
 ):
     rankings_admin.update_admin_remarks(db, user_id, body.admin_remarks)
+    if body.notify_member and body.admin_remarks and body.admin_remarks.strip():
+        from app.services import notification_events as notify_events
+
+        notify_events.notify_member_admin_feedback(
+            db,
+            user_id,
+            remarks=body.admin_remarks.strip(),
+        )
+        return MessageResponse(message="Ranking remarks updated and sent to member")
     return MessageResponse(message="Ranking remarks updated")
+
+
+@router.patch("/{user_id}/competency-level")
+def update_competency_level(
+    user_id: int,
+    body: CompetencyLevelUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    try:
+        return rankings_admin.update_competency_level(db, user_id, body.competency_level)
+    except ValueError as exc:
+        if "not found" in str(exc).lower():
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

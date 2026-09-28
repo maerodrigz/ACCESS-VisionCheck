@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
 class SectionHeader extends StatelessWidget {
@@ -27,9 +28,8 @@ class SectionHeader extends StatelessWidget {
             onPressed: onAction,
             style: TextButton.styleFrom(
               foregroundColor: kAccent,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              minimumSize: const Size(0, 32),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              minimumSize: const Size(0, kMobileMinTouch),
             ),
             child: Text(
               action!,
@@ -79,9 +79,8 @@ class TextBtn extends StatelessWidget {
         onPressed: onTap,
         style: TextButton.styleFrom(
           foregroundColor: color,
-          padding: EdgeInsets.zero,
-          minimumSize: const Size(0, 32),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          minimumSize: const Size(0, kMobileMinTouch),
         ),
         child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
       );

@@ -31,6 +31,7 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     EventCalendar,
     FacebookPost,
     FacebookSetting,
+    AssignmentMemberFeedback,
     Feedback,
     LoginHistory,
     MediaComment,
@@ -38,12 +39,14 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     MediaFile,
     MemberRanking,
     Notification,
+    MemberNotificationPreference,
     RequestAssignment,
     Role,
     SkillLevel,
     User,
     UserSession,
     SystemBranding,
+    SystemSettings,
 )
 
 
@@ -201,10 +204,16 @@ def upgrade_facebook_posts_schema() -> None:
 
 
 def upgrade_member_rankings_schema() -> None:
-    """Admin remarks on member_rankings for leaderboard notes."""
+    """Admin remarks and competency overrides on member_rankings."""
     with engine.begin() as conn:
         conn.execute(
             text("ALTER TABLE member_rankings ADD COLUMN IF NOT EXISTS admin_remarks TEXT")
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE member_rankings ADD COLUMN IF NOT EXISTS "
+                "competency_level_override VARCHAR(40)"
+            )
         )
 
 
@@ -222,6 +231,9 @@ def upgrade_ai_detection_schema() -> None:
         )
         conn.execute(
             text("ALTER TABLE ai_detection_results ADD COLUMN IF NOT EXISTS detection_remarks TEXT")
+        )
+        conn.execute(
+            text("ALTER TABLE ai_detection_results ADD COLUMN IF NOT EXISTS exif_metadata TEXT")
         )
         conn.execute(
             text(
@@ -314,6 +326,105 @@ def upgrade_media_evaluation_schema() -> None:
             conn.execute(text(stmt))
 
 
+def upgrade_media_files_schema() -> None:
+    """Allow standalone practice uploads without a documentation request."""
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE media_files ALTER COLUMN request_id DROP NOT NULL"))
+
+
+def upgrade_media_files_classification_schema() -> None:
+    """Event documentation vs member evaluation + approval + Facebook publish tracking."""
+    with engine.begin() as conn:
+        for stmt in (
+            "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS media_category VARCHAR(30) NOT NULL DEFAULT 'member_evaluation'",
+            "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) NOT NULL DEFAULT 'not_applicable'",
+            "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS approval_rejection_reason TEXT",
+            "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS facebook_publish_status VARCHAR(20) NOT NULL DEFAULT 'not_published'",
+            "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS facebook_post_id VARCHAR(100)",
+            "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS facebook_published_at TIMESTAMPTZ",
+        ):
+            conn.execute(text(stmt))
+        conn.execute(
+            text(
+                "UPDATE media_files SET media_category = 'event_documentation' "
+                "WHERE request_id IS NOT NULL AND media_category = 'member_evaluation'"
+            )
+        )
+        conn.execute(
+            text(
+                "UPDATE media_files SET approval_status = 'approved' "
+                "WHERE media_category = 'event_documentation' AND approval_status = 'not_applicable'"
+            )
+        )
+        conn.execute(
+            text(
+                "UPDATE media_files SET approval_status = 'not_applicable' "
+                "WHERE media_category = 'member_evaluation'"
+            )
+        )
+
+
+def upgrade_event_media_skip_approval_workflow() -> None:
+    """Event uploads are visible immediately — no admin approval queue."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE media_files SET approval_status = 'not_applicable', approval_rejection_reason = NULL "
+                "WHERE media_category = 'event_documentation' "
+                "AND approval_status IN ('pending', 'approved')"
+            )
+        )
+
+
+def upgrade_feedback_admin_review_schema() -> None:
+    """Admin response and review status for requester feedback."""
+    with engine.begin() as conn:
+        for stmt in (
+            "ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS admin_response TEXT",
+            "ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS review_status VARCHAR(20) NOT NULL DEFAULT 'pending'",
+        ):
+            conn.execute(text(stmt))
+
+
+def upgrade_media_curation_schema() -> None:
+    """Server-side best picks and album grouping for event media."""
+    with engine.begin() as conn:
+        for stmt in (
+            "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS is_best_shot BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS album_name_override VARCHAR(255)",
+        ):
+            conn.execute(text(stmt))
+
+
+def upgrade_documentation_requests_schema() -> None:
+    """Extended requestor form fields (time, coverage requirements, reschedule history)."""
+    with engine.begin() as conn:
+        for stmt in (
+            "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS start_time VARCHAR(20)",
+            "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS end_time VARCHAR(20)",
+            "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS requirements TEXT",
+            "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS original_event_date DATE",
+            "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS last_rescheduled_at TIMESTAMPTZ",
+            "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS reschedule_history TEXT",
+        ):
+            conn.execute(text(stmt))
+
+
+def upgrade_request_assignments_schema() -> None:
+    """Assignment accept/decline workflow fields."""
+    with engine.begin() as conn:
+        for stmt in (
+            "ALTER TABLE request_assignments ADD COLUMN IF NOT EXISTS decline_reason TEXT",
+            "ALTER TABLE request_assignments ADD COLUMN IF NOT EXISTS decline_reason_code VARCHAR(40)",
+            "ALTER TABLE request_assignments ADD COLUMN IF NOT EXISTS replaces_assignment_id INTEGER REFERENCES request_assignments(id) ON DELETE SET NULL",
+            "ALTER TABLE request_assignments ADD COLUMN IF NOT EXISTS service_points_awarded INTEGER",
+            "ALTER TABLE request_assignments ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ DEFAULT NOW()",
+            "ALTER TABLE request_assignments ADD COLUMN IF NOT EXISTS responded_at TIMESTAMPTZ",
+            "ALTER TABLE request_assignments ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ",
+        ):
+            conn.execute(text(stmt))
+
+
 def upgrade_notification_schema() -> None:
     """Rich notification metadata for notification center UI."""
     with engine.begin() as conn:
@@ -350,10 +461,17 @@ def main() -> None:
     upgrade_event_calendar_schema()
     upgrade_member_rankings_schema()
     upgrade_timestamp_columns()
+    upgrade_documentation_requests_schema()
+    upgrade_request_assignments_schema()
     upgrade_users_registration_schema()
     upgrade_users_removal_schema()
     upgrade_notification_schema()
     upgrade_media_evaluation_schema()
+    upgrade_media_files_schema()
+    upgrade_media_files_classification_schema()
+    upgrade_event_media_skip_approval_workflow()
+    upgrade_feedback_admin_review_schema()
+    upgrade_media_curation_schema()
 
     db = SessionLocal()
     try:

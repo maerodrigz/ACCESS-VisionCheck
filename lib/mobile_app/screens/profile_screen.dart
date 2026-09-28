@@ -3,644 +3,790 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
-import 'package:access_mobile/shared/widgets/access_logo.dart';
-import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
-import 'package:access_mobile/mobile_app/widgets/stat_card.dart';
 import 'package:access_mobile/mobile_app/screens/edit_profile_screen.dart';
-import 'package:access_mobile/mobile_app/sheets/evaluation_detail_sheet.dart';
+import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
+import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
+import 'package:access_mobile/mobile_app/widgets/member_profile_evaluation_summary.dart';
+import 'package:access_mobile/mobile_app/widgets/member_profile_settings_section.dart';
+import 'package:access_mobile/mobile_app/widgets/member_profile_logout_section.dart';
+import 'package:access_mobile/mobile_app/widgets/member_profile_skeleton.dart';
+import 'package:access_mobile/mobile_app/widgets/member_profile_achievements.dart';
+import 'package:access_mobile/mobile_app/widgets/member_profile_requestor_feedback.dart';
+import 'package:access_mobile/mobile_app/screens/my_assignments_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+const _kProfileSectionGap = kMemberDashboardSectionGap;
+
+/// Member Profile screen — opened from the header avatar on any tab.
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({
+    super.key,
+    this.onViewRankings,
+    this.onViewEvaluations,
+    this.onNotificationsTap,
+  });
+
+  final VoidCallback? onViewRankings;
+  final VoidCallback? onViewEvaluations;
+  final VoidCallback? onNotificationsTap;
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _scrollController = ScrollController();
+
+  Future<void> _openEditProfile() async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+    );
+    if (saved == true && mounted) {
+      await memberDataController.refreshAll();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: appState,
-      builder: (_, __) {
-        final completedTasks = appState.challenges.where((c) => c.completed).length;
-        final submissions = appState.evaluations.length;
-        final avgScore = submissions == 0 ? 0.0
-            : appState.evaluations
-                .where((e) => e.score > 0)
-                .fold(0.0, (s, e) => s + e.score) /
-              appState.evaluations.where((e) => e.score > 0).length.clamp(1, 999);
+      listenable: Listenable.merge([appState, memberDataController]),
+      builder: (context, __) {
+        final compact = MediaQuery.sizeOf(context).width < 360;
+        final profileLoadFailed = memberDataController.profileLoadError != null &&
+            !memberDataController.isLoading &&
+            !memberDataController.profileLoaded;
+        final profileLoading = !memberDataController.profileLoaded &&
+            !profileLoadFailed &&
+            (memberDataController.isLoading ||
+                !memberDataController.profileLoadAttempted);
 
-        final skill = appState.profileBadge.label;
+        final pagePadding = mobilePagePaddingOf(context);
 
-        return RefreshIndicator(
-          color: kAccent,
-          onRefresh: () => memberDataController.refreshAll(),
-          child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(kMobilePagePadding, 8, kMobilePagePadding, 24),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const MobilePageTitle(
-              title: 'My Profile',
-              subtitle: 'Your role, performance, achievements, and account settings.',
+        return Scaffold(
+          backgroundColor: kMemberDashboardBg,
+          body: RefreshIndicator(
+            color: kAccent,
+            onRefresh: () => memberDataController.refreshAll(),
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: profileLoading
+                      ? const MemberProfileHeroSkeleton()
+                      : profileLoadFailed
+                          ? Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                pagePadding,
+                                12,
+                                pagePadding,
+                                0,
+                              ),
+                              child: MemberProfileLoadError(
+                                onRetry: memberDataController.refreshProfile,
+                              ),
+                            )
+                          : _ProfileMiniHero(
+                              onEdit: _openEditProfile,
+                              compact: compact,
+                              onNotificationsTap: widget.onNotificationsTap,
+                            ),
+                ),
+                if (profileLoading)
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: const [
+                          MemberProfileActionRowSkeleton(),
+                          SizedBox(height: _kProfileSectionGap),
+                          MemberProfileAchievementsSkeleton(),
+                        ],
+                      ),
+                    ),
+                  )
+                else if (!profileLoadFailed)
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                                _ProfileActionRow(
+                                  compact: compact,
+                                  onRankings: widget.onViewRankings,
+                                ),
+                          const SizedBox(height: _kProfileSectionGap),
+                          MemberProfileAchievementsSection(
+                            onViewRankings: widget.onViewRankings,
+                            onViewEvaluations: widget.onViewEvaluations,
+                          ),
+                          const SizedBox(height: _kProfileSectionGap),
+                          const MemberProfileRequestorFeedbackSection(),
+                        ],
+                      ),
+                    ),
+                  ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    pagePadding,
+                    _kProfileSectionGap,
+                    pagePadding,
+                    kMemberDashboardPagePadding,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const MemberProfileSettingsSection(),
+                        const SizedBox(height: 12),
+                        const MemberProfileLogoutSection(),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 4),
+                          child: Center(
+                            child: Text(
+                              '${brandingController.appName} · ${brandingController.organization}',
+                              textAlign: TextAlign.center,
+                              style: memberDashboardMetaStyle.copyWith(fontSize: 10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+String _formatXp(int value) {
+  final s = value.abs().toString();
+  if (s.length <= 3) return s;
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return buf.toString();
+}
+
+class _ProfileMiniHero extends StatelessWidget {
+  const _ProfileMiniHero({
+    required this.onEdit,
+    required this.compact,
+    this.onNotificationsTap,
+  });
+
+  final VoidCallback onEdit;
+  final bool compact;
+  final VoidCallback? onNotificationsTap;
+
+  static String _accountStatusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+      case 'active':
+        return 'Active Member';
+      case 'pending':
+        return 'Pending';
+      case 'rejected':
+        return 'Rejected';
+      case 'inactive':
+        return 'Inactive';
+      default:
+        if (status.trim().isEmpty) return '';
+        return status.trim()[0].toUpperCase() +
+            status.trim().substring(1).toLowerCase();
+    }
+  }
+
+  static bool _isActiveStatus(String status) {
+    final s = status.trim().toLowerCase();
+    return s == 'approved' || s == 'active';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final padding = mobilePagePaddingOf(context);
+    final snapshot = MemberCompetencySnapshot.fromAppState();
+    final rawStatus = appState.profileStatus.trim();
+    final statusLabel =
+        rawStatus.isNotEmpty ? _accountStatusLabel(rawStatus) : '';
+    final isActive = _isActiveStatus(rawStatus);
+    final isPending = rawStatus.toLowerCase() == 'pending';
+    final displayName = appState.profileName.trim();
+    final role = appState.profileRole;
+    final email = appState.profileEmail.trim();
+    final rank = appState.profileRank;
+    final skillLevel = memberDashboardCompetencyLevel();
+    final summary = MemberEvaluationSummaryData.fromAppState();
+
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: kMemberDarkHeroGradient,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(padding, 4, padding, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (Navigator.canPop(context))
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(context),
+                        customBorder: const CircleBorder(),
+                        child: SizedBox(
+                          width: kMobileMinTouch,
+                          height: kMobileMinTouch,
+                          child: Icon(
+                            Icons.arrow_back_rounded,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Text(
+                      'Your profile',
+                      style: dashText(TextStyle(
+                        color: Colors.white.withValues(alpha: 0.62),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.2,
+                      )),
+                    ),
+                  ),
+                  MemberDarkHeroNotificationButton(onTap: onNotificationsTap),
+                ],
+              ),
+              SizedBox(height: compact ? 10 : 12),
+              Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ProfileAvatarWithRank(rank: rank, compact: compact),
+                SizedBox(width: compact ? 12 : 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (displayName.isNotEmpty)
+                        Text(
+                          displayName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: dashText(const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            height: 1.15,
+                          )),
+                        ),
+                      if (role.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          role,
+                          style: dashText(TextStyle(
+                            color: Colors.white.withValues(alpha: 0.88),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          )),
+                        ),
+                      ],
+                      if (email.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: dashText(TextStyle(
+                            color: Colors.white.withValues(alpha: 0.62),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          )),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Material(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: onEdit,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.edit_rounded,
+                        size: compact ? 18 : 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _ProfileHeroChip(
+                  icon: Icons.workspace_premium_rounded,
+                  label: skillLevel,
+                  compact: compact,
+                ),
+                if (statusLabel.isNotEmpty)
+                  _ProfileHeroChip(
+                    icon: isActive
+                        ? Icons.check_circle_rounded
+                        : isPending
+                            ? Icons.schedule_rounded
+                            : Icons.info_outline_rounded,
+                    label: statusLabel,
+                    compact: compact,
+                    filled: isActive,
+                  ),
+              ],
             ),
             const SizedBox(height: 12),
-
-            // ── Hero card ──────────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [kAccent, const Color(0xFF1D4ED8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 8,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: Colors.white.withValues(alpha: 0.2)),
+                    FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: snapshot.progress.clamp(0.0, 1.0),
+                      child: const ColoredBox(color: Colors.white),
+                    ),
+                  ],
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: kAccent.withValues(alpha: 0.25),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (snapshot.isMaxLevel)
+              Text(
+                'Maximum skill tier reached',
+                style: dashText(TextStyle(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                )),
+              )
+            else
+              Text(
+                '${_formatXp(snapshot.points)} XP · ${_formatXp(snapshot.remainingPoints)} to ${snapshot.nextLevelName ?? 'next level'}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: dashText(TextStyle(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                )),
+              ),
+            const SizedBox(height: 14),
+            _ProfileHeroStatsRow(
+              compact: compact,
+              rank: rank,
+              xp: appState.profilePoints,
+              evaluationCount: summary.completedCount,
+              averageScore: summary.averageScorePercent,
+            ),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+}
+
+class _ProfileHeroStatsRow extends StatelessWidget {
+  const _ProfileHeroStatsRow({
+    required this.compact,
+    required this.rank,
+    required this.xp,
+    required this.evaluationCount,
+    required this.averageScore,
+  });
+
+  final bool compact;
+  final int rank;
+  final int xp;
+  final int evaluationCount;
+  final int? averageScore;
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = [
+      (rank > 0 ? '#$rank' : '-', 'Rank'),
+      (_formatXp(xp), 'Total XP'),
+      ('$evaluationCount', evaluationCount == 1 ? 'Evaluation' : 'Evaluations'),
+      (averageScore != null ? '$averageScore%' : '-', 'Avg Score'),
+    ];
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 10 : 12,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < stats.length; i++) ...[
+            if (i > 0)
+              Container(
+                width: 1,
+                height: 28,
+                margin: EdgeInsets.symmetric(horizontal: compact ? 2 : 4),
+                color: Colors.white.withValues(alpha: 0.16),
+              ),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    stats[i].$1,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: dashText(TextStyle(
+                      color: Colors.white,
+                      fontSize: compact ? 13 : 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    )),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    stats[i].$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: dashText(TextStyle(
+                      color: Colors.white.withValues(alpha: 0.62),
+                      fontSize: compact ? 8.5 : 10,
+                      fontWeight: FontWeight.w500,
+                    )),
                   ),
                 ],
               ),
-              child: Column(children: [
-                Row(children: [
-                  // Avatar
-                  CircleAvatar(
-                    radius: 36,
-                    backgroundColor: appState.profileColor,
-                    backgroundImage: appState.profileImageUrl != null
-                        ? NetworkImage(appState.profileImageUrl!)
-                        : null,
-                    child: appState.profileImageUrl == null
-                        ? Text(appState.profileInitials,
-                            style: const TextStyle(color: Colors.white,
-                                fontSize: 22, fontWeight: FontWeight.w800))
-                        : null,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(appState.profileName, style: const TextStyle(color: Colors.white,
-                      fontSize: 20, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 4),
-                    _TitleBadge(),
-                    const SizedBox(height: 6),
-                    Text(appState.profileEmail,
-                      style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12)),
-                    const SizedBox(height: 4),
-                    _RoleBadge(role: appState.profileTitle ?? 'ACCESS Member'),
-                    const SizedBox(height: 4),
-                    Text('Skill: $skill',
-                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                  ])),
-                ]),
-                const SizedBox(height: 16),
-                Row(children: [
-                  _HeroStat(label: 'Uploads', value: '${appState.profileUploads}'),
-                  _divider(),
-                  _HeroStat(label: 'Badges', value: '${appState.achievements.length}'),
-                  _divider(),
-                  _HeroStat(label: 'Submissions', value: '$submissions'),
-                  _divider(),
-                  _HeroStat(label: 'Tasks', value: '$completedTasks'),
-                ]),
-              ]),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+}
 
-            const SizedBox(height: 14),
-            MobilePrimaryButton(
-              label: 'Edit Profile',
-              icon: Icons.edit_outlined,
-              onPressed: () async {
-                final saved = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                );
-                if (saved == true && context.mounted) {
-                  await memberDataController.refreshAll();
-                }
-              },
+class _ProfileHeroChip extends StatelessWidget {
+  const _ProfileHeroChip({
+    required this.icon,
+    required this.label,
+    required this.compact,
+    this.filled = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool compact;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxChipWidth = MediaQuery.sizeOf(context).width - 32;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 9,
+        vertical: compact ? 4 : 5,
+      ),
+      constraints: BoxConstraints(maxWidth: maxChipWidth),
+      decoration: BoxDecoration(
+        color: filled
+            ? Colors.white.withValues(alpha: 0.22)
+            : Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: compact ? 13 : 14, color: Colors.white),
+          SizedBox(width: compact ? 5 : 6),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: dashText(TextStyle(
+                fontSize: compact ? 11 : 12,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              )),
             ),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: submissions == 0
-                      ? null
-                      : () => showEvaluationDetail(context, appState.evaluations.first),
-                  icon: const Icon(Icons.insights_outlined, size: 18),
-                  label: const Text('My Evaluations'),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => showMobileToast(context, 'Open Calendar tab for assigned tasks.'),
-                  icon: const Icon(Icons.task_alt_outlined, size: 18),
-                  label: const Text('My Tasks'),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
-                ),
-              ),
-            ]),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-            const SizedBox(height: 20),
+class _ProfileAvatarWithRank extends StatelessWidget {
+  const _ProfileAvatarWithRank({
+    required this.rank,
+    required this.compact,
+  });
 
-            // ── Performance ───────────────────────────────────────────────
-            const AccessSectionHeader(title: 'Performance'),
-            const SizedBox(height: 12),
-            // Badge card — neutral surface, accent highlights only.
-            Container(
-              padding: const EdgeInsets.all(16),
+  final int rank;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = compact ? 34.0 : 38.0;
+    final imageUrl = appState.profileImageUrl;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(2.5),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: CircleAvatar(
+            radius: radius,
+            backgroundColor: Colors.white.withValues(alpha: 0.25),
+            backgroundImage: imageUrl != null && imageUrl.isNotEmpty
+                ? NetworkImage(imageUrl)
+                : null,
+            child: imageUrl == null || imageUrl.isEmpty
+                ? _DefaultAvatarContent(compact: compact)
+                : null,
+          ),
+        ),
+        if (rank > 0)
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: kSurface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kBorder),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(999),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
+                    color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: Row(children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: kAccent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    appState.profileBadge.emoji,
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        appState.profileBadge.label,
-                        style: const TextStyle(
-                          color: kTextPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${appState.profileGoodEvaluations} good evals · ${_nextBadgeHint(appState.profileGoodEvaluations)}',
-                        style: const TextStyle(color: kTextSecondary, fontSize: 11, height: 1.35),
-                      ),
-                    ],
-                  ),
-                ),
-              ]),
-            ),
-            const SizedBox(height: 12),
-            AccessStatGrid(cards: [
-              AccessStatCard(
-                icon: Icons.camera_alt_rounded,
-                label: 'Avg Photo Score',
-                value: submissions == 0 ? '—' : '${(avgScore * 100).round()}%',
-              ),
-              AccessStatCard(
-                icon: Icons.event_available_rounded,
-                label: 'Events Covered',
-                value: '${appState.evaluations.length}',
-              ),
-              AccessStatCard(
-                icon: Icons.rate_review_rounded,
-                label: 'Feedback Given',
-                value: '${appState.feedbacks.length}',
-              ),
-              AccessStatCard(
-                icon: Icons.task_alt_rounded,
-                label: 'Completed Tasks',
-                value: '$completedTasks',
-              ),
-            ]),
-
-            // Score ring if has submissions
-            if (submissions > 0 && avgScore > 0) ...[
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: kSurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kBorder),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(children: [
-                  SizedBox(
-                    width: 84,
-                    height: 84,
-                    child: ScoreRing(score: avgScore, label: '${(avgScore * 100).round()}%'),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Average Photo Score',
-                          style: TextStyle(
-                            color: kTextPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Based on $submissions submission${submissions > 1 ? 's' : ''}',
-                          style: const TextStyle(color: kTextSecondary, fontSize: 11),
-                        ),
-                        const SizedBox(height: 10),
-                        _ScoreBar(label: 'Composition', value: _avgMetric('composition')),
-                        const SizedBox(height: 6),
-                        _ScoreBar(label: 'Lighting', value: _avgMetric('lighting')),
-                      ],
-                    ),
-                  ),
-                ]),
-              ),
-            ],
-
-            const SizedBox(height: 24),
-
-            // ── Achievements ──────────────────────────────────────────────
-            AccessSectionHeader(
-              title: 'Achievements',
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: kAccent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${appState.achievements.length}',
-                  style: const TextStyle(
-                    color: kAccent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              child: Text(
+                '#$rank',
+                style: dashText(const TextStyle(
+                  color: kMemberPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                )),
               ),
             ),
-            const SizedBox(height: 12),
-            if (appState.achievements.isEmpty)
-              const AccessEmptyCard(
-                icon: Icons.workspace_premium_rounded,
-                title: 'No achievements yet',
-                subtitle: 'Submit and pass evaluations to earn badges.',
-              )
-            else
-              ...appState.achievements.map((a) => _AchievementTile(a: a)),
-
-            const SizedBox(height: 24),
-
-            // ── Completed tasks ───────────────────────────────────────────
-            const AccessSectionHeader(title: 'Completed Tasks'),
-            const SizedBox(height: 12),
-            if (appState.challenges.where((c) => c.completed).isEmpty)
-              const AccessEmptyCard(
-                icon: Icons.task_alt_rounded,
-                title: 'No tasks completed yet',
-                subtitle: 'Finish a documentation task to see it here.',
-              )
-            else
-              ...appState.challenges.where((c) => c.completed).map(
-                    (c) => Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: kSurface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: kBorder),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: kAccent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.check_rounded, color: kAccent, size: 18),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                c.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: kTextPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                c.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: kTextSecondary,
-                                  fontSize: 11,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: kAccent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '+${c.xp} XP',
-                            style: const TextStyle(
-                              color: kAccent,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: kSurface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kBorder),
-              ),
-              child: Row(
-                children: [
-                  const AccessLogoImage(size: 48, circular: true),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          brandingController.appName,
-                          style: const TextStyle(
-                            color: kTextPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          brandingController.shortTagline,
-                          style: const TextStyle(color: kTextSecondary, fontSize: 11, height: 1.35),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          brandingController.organization,
-                          style: const TextStyle(color: kTextSecondary, fontSize: 10),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ]),
-        ),
-        );
-      },
+          ),
+      ],
     );
   }
-
-  double _avgMetric(String field) {
-    final scored = appState.evaluations.where((e) => e.score > 0).toList();
-    if (scored.isEmpty) return 0;
-    // Map label to numeric value
-    double labelToVal(String l) => l == 'Excellent' ? 1.0
-      : l == 'Good' ? 0.75 : l == 'Average' ? 0.5 : 0.25;
-    final vals = scored.map((e) =>
-      labelToVal(field == 'composition' ? e.composition : e.lighting));
-    return vals.fold(0.0, (a, b) => a + b) / vals.length;
-  }
-
-  Widget _divider() => Container(width: 1, height: 36,
-    margin: const EdgeInsets.symmetric(horizontal: 8),
-    color: Colors.white.withValues(alpha: 0.15));
 }
 
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
+class _DefaultAvatarContent extends StatelessWidget {
+  const _DefaultAvatarContent({required this.compact});
 
-class _RoleBadge extends StatelessWidget {
-  final String role;
-  const _RoleBadge({required this.role});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-    decoration: BoxDecoration(
-      color: kAccent.withValues(alpha: 0.2),
-      borderRadius: BorderRadius.circular(20)),
-    child: Text(role, style: const TextStyle(color: Colors.white,
-      fontSize: 11, fontWeight: FontWeight.w600)),
-  );
-}
-
-class _TitleBadge extends StatelessWidget {
-  const _TitleBadge();
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final title = appState.profileTitle;
-    final scored = appState.evaluations.where((e) => e.score > 0).length;
-
-    if (title != null) {
-      // Title earned
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: kAccent.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(20)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.verified, color: Colors.white, size: 12),
-          const SizedBox(width: 4),
-          Text(title, style: const TextStyle(color: Colors.white,
-            fontSize: 11, fontWeight: FontWeight.w600)),
-        ]),
+    final initials = appState.profileInitials.trim();
+    if (initials.isNotEmpty && initials != '?') {
+      return Text(
+        initials,
+        style: dashText(const TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+        )),
       );
     }
-
-    // Not yet earned — show progress
-    final needed = 3 - scored;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.3))),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.lock_outline, color: Colors.white54, size: 12),
-        const SizedBox(width: 4),
-        Text(
-          needed > 0
-            ? 'Title unlocks in $needed more eval${needed == 1 ? '' : 's'}'
-            : 'Complete evaluations to earn title',
-          style: const TextStyle(color: Colors.white54,
-            fontSize: 11, fontWeight: FontWeight.w500)),
-      ]),
+    return Icon(
+      Icons.person_rounded,
+      size: compact ? 32 : 36,
+      color: Colors.white.withValues(alpha: 0.9),
     );
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  final String label, value;
-  const _HeroStat({required this.label, required this.value});
+class _ProfileActionRow extends StatelessWidget {
+  const _ProfileActionRow({
+    required this.compact,
+    this.onRankings,
+  });
+
+  final bool compact;
+  final VoidCallback? onRankings;
 
   @override
-  Widget build(BuildContext context) => Expanded(
-        child: Column(
+  Widget build(BuildContext context) {
+    final gap = compact ? 8.0 : 10.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
           children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+            Expanded(
+              child: _ProfileActionTile(
+                compact: compact,
+                icon: Icons.assignment_rounded,
+                title: 'My Assignments',
+                subtitle: 'Coverage and tasks',
+                backgroundColor: kAccent.withValues(alpha: 0.07),
+                borderColor: kAccent.withValues(alpha: 0.18),
+                iconColor: kAccent,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyAssignmentsScreen()),
+                ),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10),
+            SizedBox(width: gap),
+            Expanded(
+              child: _ProfileActionTile(
+                compact: compact,
+                icon: Icons.leaderboard_rounded,
+                title: 'Leaderboard',
+                subtitle: 'Rankings and XP',
+                backgroundColor: kCyan.withValues(alpha: 0.10),
+                borderColor: kCyan.withValues(alpha: 0.22),
+                iconColor: kCyan,
+                onTap: onRankings,
+              ),
             ),
           ],
         ),
-      );
+      ],
+    );
+  }
 }
 
-class _ScoreBar extends StatelessWidget {
-  final String label;
-  final double value;
-  const _ScoreBar({required this.label, required this.value});
+class _ProfileActionTile extends StatelessWidget {
+  const _ProfileActionTile({
+    required this.compact,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.backgroundColor = kSurface,
+    this.borderColor = kBorder,
+    this.iconColor,
+    this.onTap,
+  });
 
-  Color get _color => value >= 0.8 ? kGreen : value >= 0.6 ? kAccent : kYellow;
-
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    SizedBox(width: 80, child: Text(label,
-      style: const TextStyle(color: kTextSecondary, fontSize: 11))),
-    Expanded(child: ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: LinearProgressIndicator(
-        value: value, minHeight: 6,
-        backgroundColor: kBorder,
-        valueColor: AlwaysStoppedAnimation(_color)))),
-    const SizedBox(width: 8),
-    Text('${(value * 100).round()}%',
-      style: TextStyle(color: _color, fontSize: 10, fontWeight: FontWeight.w700)),
-  ]);
-}
-
-class _AchievementTile extends StatelessWidget {
-  final Achievement a;
-  const _AchievementTile({required this.a});
+  final bool compact;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color backgroundColor;
+  final Color borderColor;
+  final Color? iconColor;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kBorder),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+            color: backgroundColor,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          padding: EdgeInsets.all(compact ? 12 : 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MemberDashboardIconTile(
+                icon: icon,
+                size: compact ? 38 : 42,
+                iconSize: compact ? 19 : 21,
+                color: iconColor ?? kAccent,
+              ),
+              SizedBox(height: compact ? 10 : 12),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: memberDashboardCardTitleStyle.copyWith(fontSize: compact ? 13 : 14),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: memberDashboardMetaStyle.copyWith(fontSize: compact ? 10 : 11),
+              ),
+            ],
+          ),
         ),
-        child: Row(children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: kAccent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(a.icon, color: kAccent, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  a.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: kTextPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  a.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: kTextSecondary, fontSize: 11, height: 1.3),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            a.date,
-            style: const TextStyle(color: kTextSecondary, fontSize: 10),
-          ),
-        ]),
-      );
-}
-
-String _nextBadgeHint(int goodEvals) {
-  if (goodEvals >= 15) return 'Max badge reached!';
-  if (goodEvals >= 10) return '${15 - goodEvals} more to Master';
-  if (goodEvals >= 6)  return '${10 - goodEvals} more to Expert';
-  if (goodEvals >= 3)  return '${6 - goodEvals} more to Advanced';
-  if (goodEvals >= 1)  return '${3 - goodEvals} more to Intermediate';
-  return 'Get 1 good evaluation to earn Beginner badge';
+      ),
+    );
+  }
 }

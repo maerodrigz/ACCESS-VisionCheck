@@ -17,12 +17,13 @@ def uploads_count(db: Session, user_id: int) -> int:
 
 
 def assignments_completed(db: Session, user_id: int) -> int:
+    """Assignments the member confirmed (accepted). Includes legacy completed rows."""
     return db.scalar(
         select(func.count())
         .select_from(RequestAssignment)
         .where(
             RequestAssignment.member_id == user_id,
-            RequestAssignment.status.in_(["completed", "done"]),
+            RequestAssignment.status.in_(["accepted", "in_progress", "completed", "done"]),
         )
     ) or 0
 

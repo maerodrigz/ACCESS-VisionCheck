@@ -1,0 +1,9 @@
+STEP 8C.1 STATUS: COMPLETE
+Output: C:\Users\Dell\Desktop\access_mobile\access_backend\evaluation_results\step8c1\20260927_231208
+PRODUCTION BEHAVIOR CHANGED: NO
+
+Test images:
+  IMG_20230512_103539_795.jpg (A_outlier_63patch)
+  IMG_20230612_173018_154.jpg (B_outlier_130patch)
+  IMG_20260824_192434_311@-1182336623.jpg (C_normal_72patch_median_peer)
+  IMG_20231119_112124_234.jpg (D_normal_130patch_median_peer)

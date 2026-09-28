@@ -1,0 +1,8 @@
+STEP 6 STATUS: COMPLETE
+Step 4: C:\Users\Dell\Desktop\access_mobile\access_backend\evaluation_results\step4\20260926_170227
+Step 5: C:\Users\Dell\Desktop\access_mobile\access_backend\evaluation_results\step5\20260926_181649
+Deduplicated main: REAL=100 AI=90 removed=0
+Fusion repro: compared=190 max_diff=0.0010000000000000009 verdict_mismatch=0
+Raw ROC-AUC: 0.6336666666666672
+B strict F1=0.151 flagged F1=0.508
+PRODUCTION BEHAVIOR CHANGED: NO

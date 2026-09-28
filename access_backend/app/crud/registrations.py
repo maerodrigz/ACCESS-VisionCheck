@@ -69,6 +69,7 @@ def _organization_row(u: User) -> dict:
         "user_id": u.id,
         "organization_name": u.fullname,
         "organization_email": u.email,
+        "requestor_type": u.student_id,
         "adviser_name": u.adviser_name,
         "contact_number": u.contact_number,
         "status": u.status,

@@ -98,6 +98,26 @@ class CalendarEventItem {
   String get dateLabel =>
       '${eventDate.year}-${eventDate.month.toString().padLeft(2, '0')}-${eventDate.day.toString().padLeft(2, '0')}';
 
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  static const _weekdays = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+  ];
+
+  /// Human-readable date for UI, e.g. "Jul 25, 2026".
+  String get displayDateLabel =>
+      '${_months[eventDate.month - 1]} ${eventDate.day}, ${eventDate.year}';
+
+  /// Short date for compact tiles, e.g. "Jul 25".
+  String get shortDateLabel => '${_months[eventDate.month - 1]} ${eventDate.day}';
+
+  String get weekdayLabel => _weekdays[eventDate.weekday - 1];
+
+  String get displayDateTimeLabel => '$displayDateLabel · $timeLabel';
+
   bool occursOn(DateTime day) {
     final d = DateTime(day.year, day.month, day.day);
     final start = DateTime(eventDate.year, eventDate.month, eventDate.day);

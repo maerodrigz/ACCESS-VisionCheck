@@ -1,0 +1,378 @@
+{
+  "step8c_status": "COMPLETE",
+  "step8b_input_dir": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step8b\\20260927_040610",
+  "output_dir": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step8c\\20260927_224216",
+  "production_behavior_changed": false,
+  "dataset": {
+    "root": "C:\\Users\\Dell\\Desktop\\fresh_validation",
+    "discovered": 100,
+    "unique_sha256": 100,
+    "real": 50,
+    "ai": 50,
+    "label_conflicts": 0
+  },
+  "ai_by_generator": {
+    "chatgpt": {
+      "n": 20,
+      "probe_mean": 0.8976984903216362,
+      "probe_median": 0.9855565428733826,
+      "probe_min": 0.21258212625980377,
+      "probe_max": 0.9998231530189514,
+      "widths": [
+        "1536"
+      ],
+      "formats": [
+        "PNG"
+      ],
+      "patches": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12
+      ]
+    },
+    "gemini": {
+      "n": 10,
+      "probe_mean": 0.23762343089911156,
+      "probe_median": 0.02933303778991103,
+      "probe_min": 0.0009169560507871211,
+      "probe_max": 0.9998759031295776,
+      "widths": [
+        "1024",
+        "1408"
+      ],
+      "formats": [
+        "JPEG"
+      ],
+      "patches": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        8,
+        8
+      ]
+    },
+    "canva": {
+      "n": 10,
+      "probe_mean": 0.38236709758639337,
+      "probe_median": 0.30240797996520996,
+      "probe_min": 0.025052107870578766,
+      "probe_max": 0.9563247561454773,
+      "widths": [
+        "1264"
+      ],
+      "formats": [
+        "JPG"
+      ],
+      "patches": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    "pixlr": {
+      "n": 10,
+      "probe_mean": 0.343232286721468,
+      "probe_median": 0.1437465213239193,
+      "probe_min": 0.004240572452545166,
+      "probe_max": 0.9998496770858765,
+      "widths": [
+        "1024"
+      ],
+      "formats": [
+        "PNG"
+      ],
+      "patches": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    }
+  },
+  "ai_correlations_spearman_probe": {
+    "probe_vs_patches_spearman": 0.626468117093642,
+    "probe_vs_megapixels_spearman": 0.34294175326748555,
+    "probe_vs_file_size_spearman": 0.7105402160864346,
+    "probe_vs_aspect_spearman": 0.12141813786382202
+  },
+  "runtime_quartiles_seconds": {
+    "min": 14.400672499999928,
+    "q1": 44.888902850001614,
+    "median": 71.32841639999606,
+    "q3": 358.42308615,
+    "p90": 561.407293950001,
+    "p95": 612.001126789991,
+    "max": 33656.8079074,
+    "mean": 660.6661851219998
+  },
+  "median_seconds_per_patch_all": 4.6747499999999995,
+  "runtime_correlations": {
+    "runtime_vs_patches_pearson_excl_outliers": 0.9816722194525712,
+    "runtime_vs_patches_pearson_all": 0.12318017438734341
+  },
+  "patch_runtime_groups": [
+    {
+      "patch_range": "1-10",
+      "n": 30,
+      "median_runtime_s": 37.65,
+      "mean_runtime_s": 35.47,
+      "median_seconds_per_patch": 4.8439
+    },
+    {
+      "patch_range": "11-25",
+      "n": 21,
+      "median_runtime_s": 56.57,
+      "mean_runtime_s": 57.59,
+      "median_seconds_per_patch": 4.7143
+    },
+    {
+      "patch_range": "26-50",
+      "n": 0,
+      "median_runtime_s": null,
+      "mean_runtime_s": null,
+      "median_seconds_per_patch": null
+    },
+    {
+      "patch_range": "51-75",
+      "n": 9,
+      "median_runtime_s": 254.94,
+      "mean_runtime_s": 3981.38,
+      "median_seconds_per_patch": 3.5408
+    },
+    {
+      "patch_range": "76-100",
+      "n": 20,
+      "median_runtime_s": 296.43,
+      "mean_runtime_s": 309.06,
+      "median_seconds_per_patch": 3.6433
+    },
+    {
+      "patch_range": "101+",
+      "n": 20,
+      "median_runtime_s": 556.76,
+      "mean_runtime_s": 1088.98,
+      "median_seconds_per_patch": 4.2828
+    }
+  ],
+  "real_grayzone_count_probe_ge_0.25": 10,
+  "outlier_9_35h": {
+    "filename": "IMG_20230512_103539_795.jpg",
+    "patches": 63,
+    "recorded_seconds": 33656.8079074,
+    "seconds_per_patch": 534.235,
+    "compare_51_75_patch_median_runtime": 250.86956445000396,
+    "compare_130_patch_median_runtime": 556.7562708999976,
+    "compare_130_patch_median_sec_per_patch": 4.28275,
+    "timing_method": "perf_counter wall time per image in experiment_probe_step8b.py",
+    "log_evidence": "step8b_run_2.log records [54/100] patches=63 t=33656.8s for IMG_20230512_103539_795.jpg",
+    "assessment": "NOT plausibly continuous CPU inference at observed sec/patch (~534 s/patch vs ~4\u20135 s/patch for other 51\u2013130 patch phone photos). Elapsed timer likely includes machine sleep, suspension, or long scheduling gap (B/D). Insufficient evidence to distinguish B vs D vs CPU throttling; E (pure timing bug) unlikely given consistent logging.",
+    "classification": "B_or_D_likely_sleep_or_interruption_not_pure_compute"
+  },
+  "gemini_individual": [
+    {
+      "filename": "e1e19a80-d7c6-4a54-a354-97aeef47fc18.jpeg",
+      "generator": "gemini",
+      "width": "1024",
+      "height": "559",
+      "aspect_ratio": 1.8318,
+      "file_format": "JPEG",
+      "file_size_bytes": 188221,
+      "megapixels": 0.5724,
+      "number_of_patches": 3,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.0009169560507871211,
+      "raw_univfd_probability": 7.926591206341982e-05,
+      "inference_seconds": 14.528621999997995
+    },
+    {
+      "filename": "5a29fcb4-7e99-470b-8ffd-0c0baab8636c.jpeg",
+      "generator": "gemini",
+      "width": "1024",
+      "height": "559",
+      "aspect_ratio": 1.8318,
+      "file_format": "JPEG",
+      "file_size_bytes": 140137,
+      "megapixels": 0.5724,
+      "number_of_patches": 3,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.0009997864253818989,
+      "raw_univfd_probability": 6.692999886581674e-05,
+      "inference_seconds": 14.517752600004314
+    },
+    {
+      "filename": "ea0f2e4e-8d2f-4418-a2d7-484bdcb13749.jpeg",
+      "generator": "gemini",
+      "width": "1024",
+      "height": "559",
+      "aspect_ratio": 1.8318,
+      "file_format": "JPEG",
+      "file_size_bytes": 280243,
+      "megapixels": 0.5724,
+      "number_of_patches": 3,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.0012614225270226598,
+      "raw_univfd_probability": 5.114095620228909e-05,
+      "inference_seconds": 14.400672499999928
+    },
+    {
+      "filename": "115bd514-0af2-443a-85b6-4d319c2d8a8d.jpeg",
+      "generator": "gemini",
+      "width": "1024",
+      "height": "559",
+      "aspect_ratio": 1.8318,
+      "file_format": "JPEG",
+      "file_size_bytes": 93925,
+      "megapixels": 0.5724,
+      "number_of_patches": 3,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.003711284603923559,
+      "raw_univfd_probability": 1.0517810551391449e-05,
+      "inference_seconds": 14.543298500000674
+    },
+    {
+      "filename": "69c7233c-e3a9-4bbe-b2b7-81b4bee5cc15.jpeg",
+      "generator": "gemini",
+      "width": "1024",
+      "height": "559",
+      "aspect_ratio": 1.8318,
+      "file_format": "JPEG",
+      "file_size_bytes": 220971,
+      "megapixels": 0.5724,
+      "number_of_patches": 3,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.008168629370629787,
+      "raw_univfd_probability": 3.613862645579502e-05,
+      "inference_seconds": 14.49187179999717
+    },
+    {
+      "filename": "24ca3a71-1487-4274-b3da-6a695e823d48.jpeg",
+      "generator": "gemini",
+      "width": "1024",
+      "height": "559",
+      "aspect_ratio": 1.8318,
+      "file_format": "JPEG",
+      "file_size_bytes": 83263,
+      "megapixels": 0.5724,
+      "number_of_patches": 3,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.050497446209192276,
+      "raw_univfd_probability": 2.694114982659812e-06,
+      "inference_seconds": 14.482946900003299
+    },
+    {
+      "filename": "1541a244-8d7e-4ca0-994c-e31a0919a5be.jpeg",
+      "generator": "gemini",
+      "width": "1024",
+      "height": "559",
+      "aspect_ratio": 1.8318,
+      "file_format": "JPEG",
+      "file_size_bytes": 228581,
+      "megapixels": 0.5724,
+      "number_of_patches": 3,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.05448443070054054,
+      "raw_univfd_probability": 4.120288576814346e-05,
+      "inference_seconds": 14.754574099999445
+    },
+    {
+      "filename": "f3f147d8-9cfb-4e4c-91c3-ed6c44c1dbac.jpeg",
+      "generator": "gemini",
+      "width": "1024",
+      "height": "559",
+      "aspect_ratio": 1.8318,
+      "file_format": "JPEG",
+      "file_size_bytes": 209559,
+      "megapixels": 0.5724,
+      "number_of_patches": 3,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.2565820813179016,
+      "raw_univfd_probability": 0.0006627448019571602,
+      "inference_seconds": 14.507049700005155
+    },
+    {
+      "filename": "Gemini_Generated_Image_bfrn47bfrn47bfrn.jpeg",
+      "generator": "gemini",
+      "width": "1408",
+      "height": "768",
+      "aspect_ratio": 1.8333,
+      "file_format": "JPEG",
+      "file_size_bytes": 1163787,
+      "megapixels": 1.0813,
+      "number_of_patches": 8,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.9997363686561584,
+      "raw_univfd_probability": 2.6183475711150095e-05,
+      "inference_seconds": 39.85395140000037
+    },
+    {
+      "filename": "Gemini_Generated_Image_6lrcj46lrcj46lrc.jpeg",
+      "generator": "gemini",
+      "width": "1408",
+      "height": "768",
+      "aspect_ratio": 1.8333,
+      "file_format": "JPEG",
+      "file_size_bytes": 965506,
+      "megapixels": 1.0813,
+      "number_of_patches": 8,
+      "is_jpeg": true,
+      "is_png": false,
+      "exif_present": false,
+      "probe_probability": 0.9998759031295776,
+      "raw_univfd_probability": 0.015910938382148743,
+      "inference_seconds": 38.55608719999873
+    }
+  ]
+}

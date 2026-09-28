@@ -6,6 +6,7 @@ class MediaEvaluationFilters {
   String memberQuery = '';
   AiResultLabel? aiFilter;
   QualityStatus? qualityFilter;
+  bool? standaloneOnly;
   bool sortByOverallDesc = false;
 }
 
@@ -123,6 +124,19 @@ class MediaEvaluationFilterBar extends StatelessWidget {
                   ],
                   onChanged: (v) {
                     filters.qualityFilter = v;
+                    onChanged();
+                  },
+                ),
+                _FilterDropdown<bool?>(
+                  label: 'Source',
+                  value: filters.standaloneOnly,
+                  items: const [
+                    (null, 'All submissions'),
+                    (true, 'Practice only'),
+                    (false, 'Event-linked only'),
+                  ],
+                  onChanged: (v) {
+                    filters.standaloneOnly = v;
                     onChanged();
                   },
                 ),

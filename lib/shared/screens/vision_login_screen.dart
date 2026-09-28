@@ -1,20 +1,20 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
-import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/screens/registration_choice_screen.dart';
-import 'package:access_mobile/shared/widgets/access_logo.dart';
+import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
+import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
+import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Single login screen for Admin, Member, and Organization accounts.
-/// Role detection and platform redirect happen in [AuthGate] after success.
-///
-/// Registration (Create Account) is shown on mobile only — not on web admin.
+/// Enterprise login for ACCESS VisionCheck — web admin and mobile.
 class VisionLoginScreen extends StatefulWidget {
   const VisionLoginScreen({super.key, this.onAuthenticated});
 
-  /// Optional callback after successful login (auth state is also persisted).
   final void Function()? onAuthenticated;
 
   @override
@@ -22,14 +22,14 @@ class VisionLoginScreen extends StatefulWidget {
 }
 
 class _VisionLoginScreenState extends State<VisionLoginScreen> {
+  static const _rememberKey = 'login_remember_email';
+
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscure = true;
+  bool _rememberMe = false;
   bool _loading = false;
   String? _error;
-
-  /// Registration is mobile-only; web admin login stays sign-in only.
-  static bool get _showCreateAccount => !kIsWeb;
 
   @override
   void initState() {
@@ -37,16 +37,34 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     if (brandingController.lastError != null) {
       brandingController.refresh();
     }
+    _loadRememberedEmail();
   }
-
-  static const Color _panelNavy = Color(0xFF0A1F38);
-  static const Color _panelNavyLight = Color(0xFF1E3A5F);
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_rememberKey);
+    if (saved != null && saved.isNotEmpty && mounted) {
+      setState(() {
+        _emailCtrl.text = saved;
+        _rememberMe = true;
+      });
+    }
+  }
+
+  Future<void> _persistRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setString(_rememberKey, _emailCtrl.text.trim());
+    } else {
+      await prefs.remove(_rememberKey);
+    }
   }
 
   Future<void> _submit() async {
@@ -62,22 +80,19 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     });
     try {
       await authController.login(email, pass);
+      await _persistRememberMe();
       if (!mounted) return;
       setState(() => _loading = false);
       widget.onAuthenticated?.call();
     } on ApiException catch (e) {
       setState(() {
         _loading = false;
-        if (e.code == 'pending') {
-          _error = 'Your account is still pending admin approval.';
-        } else if (e.code == 'rejected') {
-          _error =
-              'Your account registration was rejected. Please contact the administrator.';
-        } else if (e.code == 'removed') {
-          _error = 'Your account has been removed. Please contact the administrator.';
-        } else {
-          _error = e.message;
-        }
+        _error = switch (e.code) {
+          'pending' => 'Your account is still pending admin approval.',
+          'rejected' => 'Your account registration was rejected. Please contact the administrator.',
+          'removed' => 'Your account has been removed. Please contact the administrator.',
+          _ => e.message,
+        };
       });
     } catch (e) {
       setState(() {
@@ -87,313 +102,148 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     }
   }
 
-  void _openRegistrationChoice() {
-    Navigator.push(
+  Future<void> _openRegistration() async {
+    final registeredEmail = await Navigator.push<String>(
       context,
       MaterialPageRoute(builder: (_) => const RegistrationChoiceScreen()),
     );
+    if (!mounted || registeredEmail == null || registeredEmail.isEmpty) return;
+    setState(() {
+      _emailCtrl.text = registeredEmail;
+      _error = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Registration submitted. Sign in after an administrator approves your account.'),
+        backgroundColor: kGreen,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _forgotPassword() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Reset password', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: const Text(
+          'Contact your ACCESS VisionCheck administrator to reset your password.',
+          style: TextStyle(height: 1.45),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: FilledButton.styleFrom(backgroundColor: LoginPageTokens.secondary),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _fixBackendUrl() async {
+    if (kIsWeb) return;
+    final changed = await showBackendUrlDialog(context);
+    if (changed && mounted) {
+      await apiClient.reconnect();
+      setState(() => _error = null);
+      await brandingController.refresh();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final wide = size.width >= 900;
+    final wide = MediaQuery.sizeOf(context).width >= 900;
 
     return Scaffold(
-      backgroundColor: kBg,
-      body: SizedBox(
-        width: size.width,
-        height: size.height,
-        child: wide ? _wideLayout(context) : _narrowLayout(context),
-      ),
+      backgroundColor: LoginPageTokens.background,
+      resizeToAvoidBottomInset: true,
+      body: wide ? _wideLayout() : _narrowLayout(),
     );
   }
 
-  Widget _wideLayout(BuildContext context) {
+  Widget _wideLayout() {
     return Row(
       children: [
-        Expanded(child: _brandPanel(context, compact: false)),
+        const Expanded(flex: 6, child: LoginBrandPanel()),
         Expanded(
-          child: ColoredBox(
-            color: kSurface,
-            child: _formPanel(context, horizontalPadding: 56, maxFormWidth: 420),
+          flex: 4,
+          child: LoginFormPanel(
+            emailController: _emailCtrl,
+            passwordController: _passCtrl,
+            obscurePassword: _obscure,
+            rememberMe: _rememberMe,
+            loading: _loading,
+            error: _error,
+            onToggleObscure: () => setState(() => _obscure = !_obscure),
+            onRememberMeChanged: (v) => setState(() => _rememberMe = v),
+            onSubmit: _submit,
+            onForgotPassword: _forgotPassword,
+            onCreateAccount: kIsWeb ? null : _openRegistration,
+            onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
           ),
         ),
       ],
     );
   }
 
-  Widget _narrowLayout(BuildContext context) {
-    final viewPadding = MediaQuery.viewPaddingOf(context);
-    final headerHeight = (MediaQuery.sizeOf(context).height * 0.34)
-        .clamp(200.0 + viewPadding.top, 300.0);
+  Widget _narrowLayout() {
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    final keyboardOpen = viewInsets.bottom > 0;
+    final screenH = MediaQuery.sizeOf(context).height;
+    final heroHeight = screenH * 0.32;
 
-    return ColoredBox(
-      color: kSurface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            height: headerHeight,
-            child: _brandPanel(context, compact: true),
-          ),
-          Expanded(
-            child: _formPanel(context, horizontalPadding: 24, maxFormWidth: double.infinity),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _brandPanel(BuildContext context, {required bool compact}) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_panelNavy, _panelNavyLight, Color(0xFF0E7490)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+    return DecoratedBox(
+      decoration: const BoxDecoration(gradient: LoginPageTokens.heroGradient),
       child: SafeArea(
+        top: false,
         bottom: false,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 20 : 48,
-            vertical: compact ? 12 : 48,
-          ),
-          child: ListenableBuilder(
-            listenable: brandingController,
-            builder: (_, __) {
-              final brandColumn = Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  AccessLogoImage(size: compact ? 72 : 100, fit: BoxFit.contain),
-                  SizedBox(height: compact ? 10 : 28),
-                  Text(
-                    brandingController.appName,
-                    textAlign: TextAlign.center,
-                    maxLines: compact ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: compact ? 20 : 32,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      height: 1.1,
-                    ),
-                  ),
-                  if (compact) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      brandingController.shortTagline,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.82),
-                        fontSize: 11,
-                        height: 1.35,
-                      ),
-                    ),
-                  ] else ...[
-                    const SizedBox(height: 14),
-                    Text(
-                      brandingController.shortTagline,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.82),
-                        fontSize: 15,
-                        height: 1.45,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'Coordination and Documentation Platform',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontSize: 12,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ],
-              );
-
-              if (compact) {
-                return Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: brandColumn,
-                  ),
-                );
-              }
-
-              return brandColumn;
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _formPanel(BuildContext context, {required double horizontalPadding, required double maxFormWidth}) {
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 32),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight > 0 ? constraints.maxHeight - 64 : 0,
-                maxWidth: maxFormWidth,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!keyboardOpen)
+              SizedBox(
+                height: heroHeight,
+                child: const LoginBrandPanel(compact: true),
               ),
-              child: Align(
-                alignment: Alignment.center,
-                child: _formContent(),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _formContent() {
-    final isWebAdmin = kIsWeb;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          'Sign in',
-          style: TextStyle(
-            color: kTextPrimary,
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          isWebAdmin
-              ? 'Administrator sign in for the ACCESS Sync web dashboard.'
-              : 'Sign in with your approved member or organization account.',
-          style: const TextStyle(color: kTextSecondary, fontSize: 14, height: 1.45),
-        ),
-        const SizedBox(height: 32),
-        if (_error != null) ...[
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: kRedDim,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: kRed.withValues(alpha: 0.4)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.error_outline, color: kRed, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(_error!, style: const TextStyle(color: kRed, fontSize: 13)),
+            Expanded(
+              child: Transform.translate(
+                offset: Offset(0, keyboardOpen ? 0 : -22),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: LoginPageTokens.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: LoginFormPanel(
+                    compact: true,
+                    sheetStyle: true,
+                    emailController: _emailCtrl,
+                    passwordController: _passCtrl,
+                    obscurePassword: _obscure,
+                    rememberMe: _rememberMe,
+                    loading: _loading,
+                    error: _error,
+                    onToggleObscure: () => setState(() => _obscure = !_obscure),
+                    onRememberMeChanged: (v) => setState(() => _rememberMe = v),
+                    onSubmit: _submit,
+                    onForgotPassword: _forgotPassword,
+                    onCreateAccount: kIsWeb ? null : _openRegistration,
+                    onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
+                  ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-        const Text('Email', style: TextStyle(color: kTextSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _emailCtrl,
-          keyboardType: TextInputType.emailAddress,
-          decoration: _decoration('you@access.edu', Icons.email_outlined),
-        ),
-        const SizedBox(height: 16),
-        const Text('Password', style: TextStyle(color: kTextSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _passCtrl,
-          obscureText: _obscure,
-          onSubmitted: (_) => _submit(),
-          decoration: _decoration(
-            '••••••••',
-            Icons.lock_outline,
-            suffix: IconButton(
-              icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-              onPressed: () => setState(() => _obscure = !_obscure),
-            ),
-          ),
-        ),
-        const SizedBox(height: 28),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kAccent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: _loading ? null : _submit,
-            child: _loading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Text('Sign In', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-          ),
-        ),
-        if (_showCreateAccount) ...[
-          const SizedBox(height: 20),
-          _createAccountLink(),
-        ],
-      ],
-    );
-  }
-
-  Widget _createAccountLink() {
-    return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          const Text(
-            "Don't have an account? ",
-            style: TextStyle(color: kTextSecondary, fontSize: 13),
-          ),
-          GestureDetector(
-            onTap: _openRegistrationChoice,
-            child: const Text(
-              'Create Account',
-              style: TextStyle(
-                color: kAccent,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
-
-  InputDecoration _decoration(String hint, IconData icon, {Widget? suffix}) {
-    return InputDecoration(
-      hintText: hint,
-      prefixIcon: Icon(icon, color: kTextSecondary, size: 18),
-      suffixIcon: suffix,
-      filled: true,
-      fillColor: kSurfaceAlt,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAccent, width: 1.5)),
     );
   }
 }

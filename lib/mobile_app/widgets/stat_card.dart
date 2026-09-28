@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
 /// Unified statistic / feature card used across the mobile dashboard and
 /// profile screens.
@@ -16,7 +17,7 @@ import 'package:access_mobile/shared/themes/theme.dart';
 /// - Label: 11, w500, secondary text
 ///
 /// Shared card radius for dashboard / profile stat tiles.
-const double kAccessCardRadius = 14;
+const double kAccessCardRadius = 16;
 
 /// Use this widget everywhere — never hand-roll another stat card.
 class AccessStatCard extends StatelessWidget {
@@ -49,7 +50,7 @@ class AccessStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = iconColor ?? kAccent;
+    final color = iconColor ?? kMemberCyan;
     final colors = context.colors;
     final radius = BorderRadius.circular(kAccessCardRadius);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -65,14 +66,16 @@ class AccessStatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: radius,
-        border: Border.all(color: colors.border.withValues(alpha: 0.85)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.04),
-            blurRadius: isDark ? 10 : 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: colors.border.withValues(alpha: 0.9)),
+        boxShadow: dashboardLayout
+            ? memberDashboardCardShadows()
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: dashboardLayout
           ? _buildDashboardBody(colors, color)
@@ -100,7 +103,7 @@ class AccessStatCard extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(11),
       ),
       child: Icon(icon, color: color, size: iconSize),
@@ -265,13 +268,7 @@ class AccessSectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: TextStyle(
-              color: context.colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
-              letterSpacing: -0.2,
-            ),
+            style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
           ),
         ),
         if (trailing != null) trailing!,
@@ -311,10 +308,10 @@ class AccessEmptyCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: kAccent.withValues(alpha: 0.10),
+              color: kMemberCyan.withValues(alpha: 0.10),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: kAccent, size: 22),
+            child: Icon(icon, color: kMemberCyan, size: 22),
           ),
           const SizedBox(height: 10),
           Text(

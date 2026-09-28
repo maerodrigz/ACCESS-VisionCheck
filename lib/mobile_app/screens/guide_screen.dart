@@ -56,8 +56,8 @@ class GuideScreen extends StatelessWidget {
           subtitle: 'Member uploads photos or videos',
           bullets: [
             'Photos: JPG, PNG, GIF',
-            'Videos: MP4, MOV, AVI (up to 100 MB)',
-            'System checks file type — videos go through FFmpeg/OpenCV keyframe extraction',
+            'Videos: MP4, MOV, AVI (up to 3 min, 350 MB)',
+            'System checks file type; videos go through FFmpeg/OpenCV keyframe extraction',
             'Photos are normalized to 224×224 for AI processing',
           ],
         ),
@@ -77,9 +77,9 @@ class GuideScreen extends StatelessWidget {
 
         _Step(
           number: 3,
-          color: kPurple,
+          color: kAccent,
           icon: Icons.psychology_outlined,
-          title: 'AI Core — EfficientNet-B0',
+          title: 'AI Core: EfficientNet-B0',
           subtitle: 'Technical quality + authenticity analysis',
           bullets: [
             'Technical Quality Score: measures sharpness, lighting, composition, resolution',
@@ -97,9 +97,9 @@ class GuideScreen extends StatelessWidget {
           title: 'Score Computation',
           subtitle: 'Weighted algorithm',
           bullets: [
-            'Quality score (60%) + Authenticity score (40%)',
-            'Final score computed on a 0–100% scale',
-            'Results aggregated into a single evaluation report',
+            'Media quality (70%) + Media integrity (30%)',
+            'Combined into your skill score on a 0–100 scale',
+            'Beginner / Intermediate / Advanced / Expert tiers use this score',
           ],
         ),
 
@@ -148,7 +148,7 @@ class GuideScreen extends StatelessWidget {
           color: const Color(0xFF4285F4),
           icon: Icons.chat_bubble_outline,
           title: 'Gemini Feedback Generation',
-          subtitle: 'Google Gemini API — LLM natural language feedback',
+          subtitle: 'Google Gemini API, LLM natural language feedback',
           bullets: [
             'Rubric scores sent to Gemini 1.5 Flash',
             'Generates a personalized 3–5 sentence feedback paragraph',
@@ -164,7 +164,7 @@ class GuideScreen extends StatelessWidget {
           color: kGreen,
           icon: Icons.storage_outlined,
           title: 'Profile & Database Update',
-          subtitle: 'PostgreSQL — persistent storage',
+          subtitle: 'PostgreSQL persistent storage',
           bullets: [
             'Evaluation result saved to member profile',
             'Badge and title updated based on new score',
@@ -182,7 +182,7 @@ class GuideScreen extends StatelessWidget {
         const SizedBox(height: 12),
         _ComponentCard(
           icon: Icons.auto_awesome_rounded,
-          color: kPurple,
+          color: kAccent,
           title: 'AI Core (EfficientNet-B0)',
           desc: 'Deep learning model that analyzes visual characteristics, measures technical clarity, and detects AI-generated or manipulated content.'),
         _ComponentCard(

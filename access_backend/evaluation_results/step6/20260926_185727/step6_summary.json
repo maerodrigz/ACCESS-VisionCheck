@@ -1,0 +1,411 @@
+{
+  "step6_status": "COMPLETE",
+  "input": {
+    "step4_run": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step4\\20260926_170227",
+    "step5_run": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step5\\20260926_181649"
+  },
+  "verified_thresholds": {
+    "AI_GENERATED_THRESHOLD": 0.58,
+    "SUSPICIOUS_THRESHOLD": 0.36
+  },
+  "deduplication": {
+    "original_labeled_main": 190,
+    "unique_labeled_main": 190,
+    "unique_REAL": 100,
+    "unique_AI": 90,
+    "duplicates_removed_from_main": 0,
+    "uncertain_excluded": 9,
+    "cross_label_conflicts": 0,
+    "conflict_details": []
+  },
+  "fusion_reproduction": {
+    "rows_compared": 190,
+    "near_matches_le_0_011": 190,
+    "max_probability_difference": 0.0010000000000000009,
+    "verdict_mismatches": 0
+  },
+  "raw_univfd": {
+    "ROC_AUC_deduplicated": 0.6336666666666672,
+    "threshold_sweep_file": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step6\\20260926_185727\\step6_raw_threshold_sweep.csv"
+  },
+  "production_fusion_deduplicated": {
+    "strict": {
+      "TP": 9,
+      "TN": 80,
+      "FP": 20,
+      "FN": 81,
+      "accuracy": 0.46842105263157896,
+      "precision": 0.3103448275862069,
+      "recall": 0.1,
+      "f1": 0.15126050420168066,
+      "specificity": 0.8,
+      "false_positive_rate": 0.2,
+      "false_negative_rate": 0.9
+    },
+    "flagged": {
+      "TP": 49,
+      "TN": 46,
+      "FP": 54,
+      "FN": 41,
+      "accuracy": 0.5,
+      "precision": 0.47572815533980584,
+      "recall": 0.5444444444444444,
+      "f1": 0.5077720207253885,
+      "specificity": 0.46,
+      "false_positive_rate": 0.54,
+      "false_negative_rate": 0.45555555555555555
+    }
+  },
+  "experimental_configurations": {
+    "B_production_fusion": {
+      "description": "Exact production fusion + post-boosts (offline reproduction)",
+      "strict": {
+        "TP": 9,
+        "TN": 80,
+        "FP": 20,
+        "FN": 81,
+        "accuracy": 0.46842105263157896,
+        "precision": 0.3103448275862069,
+        "recall": 0.1,
+        "f1": 0.15126050420168066,
+        "specificity": 0.8,
+        "false_positive_rate": 0.2,
+        "false_negative_rate": 0.9
+      },
+      "flagged": {
+        "TP": 49,
+        "TN": 46,
+        "FP": 54,
+        "FN": 41,
+        "accuracy": 0.5,
+        "precision": 0.47572815533980584,
+        "recall": 0.5444444444444444,
+        "f1": 0.5077720207253885,
+        "specificity": 0.46,
+        "false_positive_rate": 0.54,
+        "false_negative_rate": 0.45555555555555555
+      }
+    },
+    "E_no_post_boosts": {
+      "description": "Production fusion without post-fusion boosts",
+      "strict": {
+        "TP": 0,
+        "TN": 100,
+        "FP": 0,
+        "FN": 90,
+        "accuracy": 0.5263157894736842,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "specificity": 1.0,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 1.0
+      },
+      "flagged": {
+        "TP": 23,
+        "TN": 78,
+        "FP": 22,
+        "FN": 67,
+        "accuracy": 0.531578947368421,
+        "precision": 0.5111111111111111,
+        "recall": 0.25555555555555554,
+        "f1": 0.3407407407407407,
+        "specificity": 0.78,
+        "false_positive_rate": 0.22,
+        "false_negative_rate": 0.7444444444444445
+      }
+    },
+    "C_neural_035": {
+      "description": "Neural weight 0.35; opencv weights scaled so opencv_sum+neural=1.08",
+      "strict": {
+        "TP": 9,
+        "TN": 81,
+        "FP": 19,
+        "FN": 81,
+        "accuracy": 0.47368421052631576,
+        "precision": 0.32142857142857145,
+        "recall": 0.1,
+        "f1": 0.15254237288135594,
+        "specificity": 0.81,
+        "false_positive_rate": 0.19,
+        "false_negative_rate": 0.9
+      },
+      "flagged": {
+        "TP": 46,
+        "TN": 47,
+        "FP": 53,
+        "FN": 44,
+        "accuracy": 0.48947368421052634,
+        "precision": 0.46464646464646464,
+        "recall": 0.5111111111111111,
+        "f1": 0.4867724867724868,
+        "specificity": 0.47,
+        "false_positive_rate": 0.53,
+        "false_negative_rate": 0.4888888888888889
+      }
+    },
+    "C_neural_040": {
+      "description": "Neural weight 0.4; opencv weights scaled so opencv_sum+neural=1.08",
+      "strict": {
+        "TP": 8,
+        "TN": 81,
+        "FP": 19,
+        "FN": 82,
+        "accuracy": 0.46842105263157896,
+        "precision": 0.2962962962962963,
+        "recall": 0.08888888888888889,
+        "f1": 0.13675213675213674,
+        "specificity": 0.81,
+        "false_positive_rate": 0.19,
+        "false_negative_rate": 0.9111111111111111
+      },
+      "flagged": {
+        "TP": 46,
+        "TN": 50,
+        "FP": 50,
+        "FN": 44,
+        "accuracy": 0.5052631578947369,
+        "precision": 0.4791666666666667,
+        "recall": 0.5111111111111111,
+        "f1": 0.4946236559139785,
+        "specificity": 0.5,
+        "false_positive_rate": 0.5,
+        "false_negative_rate": 0.4888888888888889
+      }
+    },
+    "C_neural_045": {
+      "description": "Neural weight 0.45; opencv weights scaled so opencv_sum+neural=1.08",
+      "strict": {
+        "TP": 8,
+        "TN": 80,
+        "FP": 20,
+        "FN": 82,
+        "accuracy": 0.4631578947368421,
+        "precision": 0.2857142857142857,
+        "recall": 0.08888888888888889,
+        "f1": 0.13559322033898305,
+        "specificity": 0.8,
+        "false_positive_rate": 0.2,
+        "false_negative_rate": 0.9111111111111111
+      },
+      "flagged": {
+        "TP": 45,
+        "TN": 50,
+        "FP": 50,
+        "FN": 45,
+        "accuracy": 0.5,
+        "precision": 0.47368421052631576,
+        "recall": 0.5,
+        "f1": 0.4864864864864865,
+        "specificity": 0.5,
+        "false_positive_rate": 0.5,
+        "false_negative_rate": 0.5
+      }
+    },
+    "C_neural_050": {
+      "description": "Neural weight 0.5; opencv weights scaled so opencv_sum+neural=1.08",
+      "strict": {
+        "TP": 8,
+        "TN": 79,
+        "FP": 21,
+        "FN": 82,
+        "accuracy": 0.45789473684210524,
+        "precision": 0.27586206896551724,
+        "recall": 0.08888888888888889,
+        "f1": 0.13445378151260504,
+        "specificity": 0.79,
+        "false_positive_rate": 0.21,
+        "false_negative_rate": 0.9111111111111111
+      },
+      "flagged": {
+        "TP": 45,
+        "TN": 52,
+        "FP": 48,
+        "FN": 45,
+        "accuracy": 0.5105263157894737,
+        "precision": 0.4838709677419355,
+        "recall": 0.5,
+        "f1": 0.4918032786885246,
+        "specificity": 0.52,
+        "false_positive_rate": 0.48,
+        "false_negative_rate": 0.5
+      }
+    },
+    "D1_heuristic_075": {
+      "description": "Production neural; metadata\u00d70.75 filename\u00d70.75 opencv\u00d70.75",
+      "strict": {
+        "TP": 8,
+        "TN": 85,
+        "FP": 15,
+        "FN": 82,
+        "accuracy": 0.48947368421052634,
+        "precision": 0.34782608695652173,
+        "recall": 0.08888888888888889,
+        "f1": 0.1415929203539823,
+        "specificity": 0.85,
+        "false_positive_rate": 0.15,
+        "false_negative_rate": 0.9111111111111111
+      },
+      "flagged": {
+        "TP": 43,
+        "TN": 54,
+        "FP": 46,
+        "FN": 47,
+        "accuracy": 0.5105263157894737,
+        "precision": 0.48314606741573035,
+        "recall": 0.4777777777777778,
+        "f1": 0.4804469273743017,
+        "specificity": 0.54,
+        "false_positive_rate": 0.46,
+        "false_negative_rate": 0.5222222222222223
+      }
+    },
+    "D2_heuristic_050": {
+      "description": "Production neural; metadata\u00d70.50 filename\u00d70.50 opencv\u00d70.50",
+      "strict": {
+        "TP": 7,
+        "TN": 85,
+        "FP": 15,
+        "FN": 83,
+        "accuracy": 0.4842105263157895,
+        "precision": 0.3181818181818182,
+        "recall": 0.07777777777777778,
+        "f1": 0.125,
+        "specificity": 0.85,
+        "false_positive_rate": 0.15,
+        "false_negative_rate": 0.9222222222222223
+      },
+      "flagged": {
+        "TP": 42,
+        "TN": 59,
+        "FP": 41,
+        "FN": 48,
+        "accuracy": 0.531578947368421,
+        "precision": 0.5060240963855421,
+        "recall": 0.4666666666666667,
+        "f1": 0.48554913294797686,
+        "specificity": 0.59,
+        "false_positive_rate": 0.41,
+        "false_negative_rate": 0.5333333333333333
+      }
+    },
+    "D3_meta_keep_reduce_other": {
+      "description": "Metadata full; filename\u00d70.50; opencv\u00d70.50; neural unchanged",
+      "strict": {
+        "TP": 7,
+        "TN": 85,
+        "FP": 15,
+        "FN": 83,
+        "accuracy": 0.4842105263157895,
+        "precision": 0.3181818181818182,
+        "recall": 0.07777777777777778,
+        "f1": 0.125,
+        "specificity": 0.85,
+        "false_positive_rate": 0.15,
+        "false_negative_rate": 0.9222222222222223
+      },
+      "flagged": {
+        "TP": 42,
+        "TN": 58,
+        "FP": 42,
+        "FN": 48,
+        "accuracy": 0.5263157894736842,
+        "precision": 0.5,
+        "recall": 0.4666666666666667,
+        "f1": 0.4827586206896552,
+        "specificity": 0.58,
+        "false_positive_rate": 0.42,
+        "false_negative_rate": 0.5333333333333333
+      }
+    },
+    "F_univfd_metadata_only": {
+      "description": "Diagnostic: neural + metadata only (no filename/opencv); no post-boosts",
+      "strict": {
+        "TP": 16,
+        "TN": 86,
+        "FP": 14,
+        "FN": 74,
+        "accuracy": 0.5368421052631579,
+        "precision": 0.5333333333333333,
+        "recall": 0.17777777777777778,
+        "f1": 0.26666666666666666,
+        "specificity": 0.86,
+        "false_positive_rate": 0.14,
+        "false_negative_rate": 0.8222222222222222
+      },
+      "flagged": {
+        "TP": 26,
+        "TN": 82,
+        "FP": 18,
+        "FN": 64,
+        "accuracy": 0.5684210526315789,
+        "precision": 0.5909090909090909,
+        "recall": 0.28888888888888886,
+        "f1": 0.38805970149253727,
+        "specificity": 0.82,
+        "false_positive_rate": 0.18,
+        "false_negative_rate": 0.7111111111111111
+      }
+    },
+    "G_univfd_opencv_only": {
+      "description": "Diagnostic: neural + opencv only (no metadata/filename); no post-boosts",
+      "strict": {
+        "TP": 1,
+        "TN": 99,
+        "FP": 1,
+        "FN": 89,
+        "accuracy": 0.5263157894736842,
+        "precision": 0.5,
+        "recall": 0.011111111111111112,
+        "f1": 0.02173913043478261,
+        "specificity": 0.99,
+        "false_positive_rate": 0.01,
+        "false_negative_rate": 0.9888888888888889
+      },
+      "flagged": {
+        "TP": 23,
+        "TN": 78,
+        "FP": 22,
+        "FN": 67,
+        "accuracy": 0.531578947368421,
+        "precision": 0.5111111111111111,
+        "recall": 0.25555555555555554,
+        "f1": 0.3407407407407407,
+        "specificity": 0.78,
+        "false_positive_rate": 0.22,
+        "false_negative_rate": 0.7444444444444445
+      }
+    },
+    "H_heuristics_only": {
+      "description": "Diagnostic: metadata+filename+opencv; no neural; no post-boosts",
+      "strict": {
+        "TP": 0,
+        "TN": 100,
+        "FP": 0,
+        "FN": 90,
+        "accuracy": 0.5263157894736842,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "specificity": 1.0,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 1.0
+      },
+      "flagged": {
+        "TP": 24,
+        "TN": 51,
+        "FP": 49,
+        "FN": 66,
+        "accuracy": 0.39473684210526316,
+        "precision": 0.3287671232876712,
+        "recall": 0.26666666666666666,
+        "f1": 0.294478527607362,
+        "specificity": 0.51,
+        "false_positive_rate": 0.49,
+        "false_negative_rate": 0.7333333333333333
+      }
+    }
+  },
+  "overfitting_limitation": "Step 6 explores configurations on the same labeled images used in Steps 4\u20135. Results are exploratory; any chosen configuration should be validated on held-out data.",
+  "production_behavior_changed": false
+}

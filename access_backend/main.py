@@ -8,6 +8,8 @@ Or:
   python main.py
 """
 
+import mimetypes
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -22,10 +24,33 @@ from starlette.responses import Response
 from app.api.routes import api_router
 from app.config import settings
 
+
+@asynccontextmanager
+async def _app_lifespan(_app: FastAPI):
+    import asyncio
+
+    from app.services.deferred_media_pipeline import reconcile_pending_media_evaluations
+
+    reconcile_pending_media_evaluations()
+
+    def _warm_probe_detector() -> None:
+        from app.services.dedicated_ai_detector import active_ai_detector_backend
+
+        if active_ai_detector_backend() != "probe":
+            return
+        from app.services.probe_dino_detector import _get_model
+
+        _get_model()
+
+    await asyncio.to_thread(_warm_probe_detector)
+    yield
+
+
 app = FastAPI(
     title="ACCESS VisionCheck API",
     description="Backend for Flutter Web Admin (Chrome) and Mobile User (Android)",
     version="1.0.0",
+    lifespan=_app_lifespan,
 )
 
 # Restrict Host header to configured LAN/local names (see ALLOWED_HOSTS in .env)
@@ -71,6 +96,12 @@ class PrivateNetworkAccessMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(PrivateNetworkAccessMiddleware)
+
+# Windows often lacks WebP/HEIC mappings — browsers need correct Content-Type for previews.
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("image/heic", ".heic")
+mimetypes.add_type("image/heif", ".heif")
+mimetypes.add_type("video/mp4", ".mp4")
 
 # Uploaded media files
 upload_path = Path(settings.upload_dir)

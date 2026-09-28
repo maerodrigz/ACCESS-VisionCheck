@@ -201,7 +201,8 @@ class _NewRequestTabState extends State<_NewRequestTab> {
     if (_submitted) return _SuccessView(onReset: _reset);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: mobileScrollPadding(context, top: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _SectionLabel('Organization / Requester Name'),
         const SizedBox(height: 8),
@@ -464,6 +465,30 @@ class _RequestCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(req.details, style: const TextStyle(color: kTextPrimary,
             fontSize: 13, height: 1.5)),
+          if (req.status == 'Rejected' &&
+              req.rejectionReason != null &&
+              req.rejectionReason!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: kRedDim,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: kRed.withValues(alpha: 0.25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Rejection reason',
+                    style: TextStyle(color: kRed, fontSize: 11, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text(req.rejectionReason!,
+                    style: const TextStyle(color: kTextPrimary, fontSize: 12, height: 1.4)),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(children: [
             const Icon(Icons.tag_rounded, color: kTextSecondary, size: 13),

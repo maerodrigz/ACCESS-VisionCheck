@@ -15,6 +15,8 @@ class ImageQualityMetrics {
     required this.edgeBalance,
     required this.noiseLevel,
     required this.subjectClarity,
+    this.blockingArtifacts = 0.15,
+    this.ringingArtifacts = 0.12,
   });
 
   final int width;
@@ -26,6 +28,8 @@ class ImageQualityMetrics {
   final double edgeBalance;
   final double noiseLevel;
   final double subjectClarity;
+  final double blockingArtifacts;
+  final double ringingArtifacts;
 
   double get resolutionScore {
     final pixels = width * height;
@@ -151,6 +155,9 @@ ImageQualityMetrics _analyzePixels(img.Image image) {
   }
   final overexposed = lum.isEmpty ? 0.0 : highLum / lum.length;
 
+  final blocking = _blockingArtifactScore(image);
+  final ringing = _ringingArtifactScore(image);
+
   return ImageQualityMetrics(
     width: w,
     height: h,
@@ -161,5 +168,65 @@ ImageQualityMetrics _analyzePixels(img.Image image) {
     edgeBalance: edgeBalance.toDouble(),
     noiseLevel: overexposed.clamp(0.0, 1.0).toDouble(),
     subjectClarity: subjectClarity.toDouble(),
+    blockingArtifacts: blocking,
+    ringingArtifacts: ringing,
   );
+}
+
+/// Lower score = more blocking (JPEG macro-block flatness).
+double _blockingArtifactScore(img.Image image) {
+  const block = 8;
+  final w = image.width;
+  final h = image.height;
+  if (w < block * 2 || h < block * 2) return 0.1;
+
+  var flatBlocks = 0;
+  var totalBlocks = 0;
+  for (var by = 0; by < h - block; by += block) {
+    for (var bx = 0; bx < w - block; bx += block) {
+      final vars = <double>[];
+      for (var y = by; y < by + block && y < h; y++) {
+        for (var x = bx; x < bx + block && x < w; x++) {
+          final p = image.getPixel(x, y);
+          vars.add((0.299 * p.r + 0.587 * p.g + 0.114 * p.b) / 255.0);
+        }
+      }
+      if (vars.isEmpty) continue;
+      final mean = vars.reduce((a, b) => a + b) / vars.length;
+      final v = vars.map((e) => (e - mean) * (e - mean)).reduce((a, b) => a + b) / vars.length;
+      if (v < 0.0008) flatBlocks++;
+      totalBlocks++;
+    }
+  }
+  if (totalBlocks == 0) return 0.1;
+  return (flatBlocks / totalBlocks).clamp(0.0, 1.0);
+}
+
+/// Higher = more ringing halos along strong edges.
+double _ringingArtifactScore(img.Image image) {
+  final w = image.width;
+  final h = image.height;
+  if (w < 16 || h < 16) return 0.1;
+
+  var oscillations = 0;
+  var edges = 0;
+  final stepY = (h / 24).ceil().clamp(1, h);
+  for (var y = 0; y < h; y += stepY) {
+    int? prevSign;
+    for (var x = 1; x < w; x += 2) {
+      final p1 = image.getPixel(x - 1, y);
+      final p2 = image.getPixel(x, y);
+      final l1 = (0.299 * p1.r + 0.587 * p1.g + 0.114 * p1.b) / 255.0;
+      final l2 = (0.299 * p2.r + 0.587 * p2.g + 0.114 * p2.b) / 255.0;
+      final diff = l2 - l1;
+      if (diff.abs() > 0.08) {
+        edges++;
+        final sign = diff > 0 ? 1 : -1;
+        if (prevSign != null && sign != prevSign) oscillations++;
+        prevSign = sign;
+      }
+    }
+  }
+  if (edges == 0) return 0.08;
+  return (oscillations / edges).clamp(0.0, 1.0);
 }

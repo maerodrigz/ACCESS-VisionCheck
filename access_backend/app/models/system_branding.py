@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 # Bundled defaults when admin has not customized names.
-DEFAULT_APP_NAME = "ACCESS Sync"
+DEFAULT_APP_NAME = "ACCESS"
 DEFAULT_TAGLINE = "Unified Platform for Coordination and Documentation"
 DEFAULT_SHORT_TAGLINE = "Coordination and Documentation Platform"
 DEFAULT_ORGANIZATION = "USTP Oroquieta"

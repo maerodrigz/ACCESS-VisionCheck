@@ -115,6 +115,11 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
+    '10.68.93.169',
+    '10.93.47.169',
+    '192.168.8.99',
+    '192.168.8.100',
+    '10.96.22.169',
     '192.168.137.25',
     '192.168.137.162',
     '192.168.0.137',
@@ -165,6 +170,20 @@ class ApiConfig {
   /// Last LAN base URL that successfully answered (auto-saved, not user-entered).
   static String? _lastWorkingBaseUrl;
 
+  /// Wipe device-saved URLs when developer passed `--dart-define-from-file=config/api.json`.
+  static Future<void> clearStaleOverridesWhenCompileTimeHostSet() async {
+    final hasCompileTime =
+        apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty;
+    if (!hasCompileTime) return;
+    _lastWorkingBaseUrl = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access.api_last_working_base_url');
+      await prefs.remove('access.api_base_url_override');
+    } catch (_) {}
+    await runtimeBaseUrl.clear();
+  }
+
   static Future<void> loadLastWorkingBaseUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -187,12 +206,21 @@ class ApiConfig {
     }
   }
 
+  /// Drop a stale saved host after a connectivity failure (wrong Wi-Fi / IP changed).
+  static Future<void> forgetLastWorkingBaseUrl(String baseUrl) async {
+    final normalized = baseUrl.replaceAll(RegExp(r'/+$'), '');
+    if (_lastWorkingBaseUrl != normalized) return;
+    _lastWorkingBaseUrl = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access.api_last_working_base_url');
+    } catch (_) {}
+  }
+
   /// Base URLs to try in order when the backend is unreachable.
   ///
-  /// - compile-time API_BASE_URL override
-  /// - last successful LAN URL (auto-saved)
-  /// - platform-derived host (web / android / ios / desktop)
-  /// - known LAN IPs (home + campus) as a fallback for physical phones
+  /// Order matters on physical phones: saved/runtime URLs first, then LAN
+  /// fallbacks, emulator alias last (10.0.2.2 is wrong on real devices).
   static List<String> candidateBaseUrls() {
     final out = <String>[];
 
@@ -204,26 +232,36 @@ class ApiConfig {
       if (!out.contains(normalized)) out.add(normalized);
     }
 
-    add(apiBaseUrlOverride);
-    add(_webSameOriginBaseUrl);
-    if (_webSameOriginBaseUrl == null) {
-      add(_lastWorkingBaseUrl);
-    }
-    add(baseUrl);
-    if (kIsWeb && _webSameOriginBaseUrl == null) {
-      add('http://$apiWebHostOverride:$defaultPort');
-    }
+    final explicitCompileTimeHost =
+        apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty;
+    final runtime = runtimeBaseUrl.value;
 
-    // Physical phone failover: try known LAN IPs on the same port.
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      for (final h in knownLanHosts) {
-        add('http://$h:$port');
+    add(apiBaseUrlOverride);
+    if (explicitCompileTimeHost) {
+      add(baseUrl);
+    }
+    add(_webSameOriginBaseUrl);
+
+    if (!explicitCompileTimeHost) {
+      add(runtime);
+      add(_lastWorkingBaseUrl);
+      // On Android, try known LAN IPs before 10.0.2.2 (emulator-only alias).
+      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+        add(baseUrl);
       }
     }
 
-    // Always keep the emulator alias as a last resort for Android.
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (!explicitCompileTimeHost &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      for (final h in knownLanHosts) {
+        add('http://$h:$port');
+      }
       add('http://$androidEmulatorHost:$port');
+    }
+
+    if (kIsWeb && _webSameOriginBaseUrl == null) {
+      add('http://$apiWebHostOverride:$defaultPort');
     }
 
     return out;

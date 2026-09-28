@@ -1,0 +1,142 @@
+/* ACCESS VisionCheck login — matches Flutter mobile/web login tokens */
+
+.login-page {
+  --login-bg: #f8fafc;
+  --login-surface: #ffffff;
+  --login-text: #0f172a;
+  --login-text-secondary: #64748b;
+  --login-border: #e2e8f0;
+  --login-primary: #0052d4;
+  --login-secondary: #0066ff;
+  --login-cyan: #00c4e8;
+  --login-hero-start: #050c1c;
+  --login-hero-mid: #0a1628;
+  --login-hero-end: #0c3340;
+}
+
+.login-hero-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--login-hero-start) 0%,
+    var(--login-hero-mid) 55%,
+    var(--login-hero-end) 100%
+  );
+}
+
+.login-form-panel {
+  background: var(--login-surface);
+  color: var(--login-text);
+}
+
+.login-input {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--login-border);
+  background: var(--login-bg);
+  color: var(--login-text);
+  padding: 13px 16px 13px 44px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-input:focus {
+  border-color: var(--login-secondary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--login-secondary) 16%, transparent);
+}
+
+.login-input-wrap {
+  position: relative;
+}
+
+.login-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--login-text-secondary);
+  pointer-events: none;
+}
+
+.login-btn-primary {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 16px;
+  background: var(--login-secondary);
+  color: #fff;
+  padding: 11px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.login-btn-primary:hover:not(:disabled) {
+  opacity: 0.95;
+}
+
+.login-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-sheet {
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.login-mark-clip {
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.login-mark-clip img {
+  transform: scale(1.14);
+  object-fit: contain;
+}
+
+.login-glow {
+  pointer-events: none;
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(0.5px);
+}
+
+.login-glow--cyan {
+  top: -60px;
+  right: -40px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(0, 196, 232, 0.22) 0%, transparent 70%);
+}
+
+.login-input-wrap .admin-input {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--login-border);
+  background: var(--login-bg);
+  color: var(--login-text);
+  padding: 13px 44px;
+  font-size: 14px;
+  outline: none;
+}
+
+.login-input-wrap .admin-input:focus {
+  border-color: var(--login-secondary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--login-secondary) 16%, transparent);
+}
+
+.login-input-wrap .admin-input + button,
+.login-input-wrap button[type='button'] {
+  color: var(--login-text-secondary);
+}
+
+.login-input-wrap .admin-input + button:hover,
+.login-input-wrap button[type='button']:hover {
+  background: color-mix(in srgb, var(--login-border) 55%, transparent);
+}

@@ -14,9 +14,11 @@ from __future__ import annotations
 import argparse
 import sys
 
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 
 def cmd_runserver(args: argparse.Namespace) -> None:
@@ -28,9 +30,29 @@ def cmd_runserver(args: argparse.Namespace) -> None:
     port = args.port or settings.api_port
     reload = not args.no_reload
 
+    from app.config import facebook_credentials
+
     public = settings.public_api_url
+    _, fb_token = facebook_credentials()
+    fb_ready = bool(fb_token)
+    from app.services.dedicated_ai_detector import active_ai_detector_backend
+    from app.services.probe_dino_detector import checkpoint_path, probe_detector_available
+
+    backend = active_ai_detector_backend()
     print(f"Starting ACCESS VisionCheck API (bind {host}:{port})")
     print(f"  Public: {public}")
+    print(f"  Facebook Graph API: {'ready' if fb_ready else 'token missing in .env'}")
+    print(f"  AI detector backend: {backend}")
+    print(f"  Media evaluation workers: {max(1, int(settings.max_media_evaluation_workers))}")
+    if backend == "probe":
+        print(f"  PROBE max long edge: {int(settings.probe_max_long_edge)}")
+        print(
+            f"  PROBE risk thresholds: {float(settings.probe_low_risk_threshold)} / "
+            f"{float(settings.probe_high_risk_threshold)}"
+        )
+        ckpt = checkpoint_path()
+        ckpt_state = "ready" if probe_detector_available() else "MISSING"
+        print(f"  PROBE checkpoint: {ckpt_state} ({ckpt.name})")
     print(f"  Docs:   {public}/docs")
     print(f"  Health: {public}/api/health")
     print(f"  Local:  http://127.0.0.1:{port}/api/health")

@@ -29,6 +29,8 @@ class MemberRankingRow {
     required this.participationStatus,
     required this.lastActivity,
     required this.adminRemarks,
+    this.competencyLevelOverride,
+    this.competencyRecommendedLevel,
   });
 
   final int id;
@@ -52,6 +54,8 @@ class MemberRankingRow {
   final ParticipationStatus participationStatus;
   final DateTime? lastActivity;
   final String? adminRemarks;
+  final String? competencyLevelOverride;
+  final String? competencyRecommendedLevel;
 
   factory MemberRankingRow.fromMap(Map<String, dynamic> m) {
     final rank = m['rank'] as int? ?? m['rank_position'] as int? ?? 0;
@@ -114,6 +118,8 @@ class MemberRankingRow {
       participationStatus: participationStatusFromString(m['participation_status'] as String?),
       lastActivity: _parseDate(m['last_activity']),
       adminRemarks: m['admin_remarks'] as String?,
+      competencyLevelOverride: m['competency_level_override'] as String?,
+      competencyRecommendedLevel: m['competency_recommended_level'] as String?,
     );
   }
 
@@ -184,11 +190,8 @@ String formatLastActivity(DateTime? dt) {
 
 const kSkillScoreTooltip = '''
 Skill Score combines:
-• Media Quality — 40%
-• Approved Uploads — 25%
-• Task Participation — 20%
-• Admin Evaluation — 10%
-• AI Authenticity — 5%
+• Media Quality — 70%
+• Media Integrity (AI authenticity) — 30%
 
 Expert: 90–100 | Advanced: 75–89 | Intermediate: 60–74 | Beginner: below 60''';
 

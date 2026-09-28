@@ -1,11 +1,11 @@
 {
-    "name": "access_mobile",
-    "short_name": "access_mobile",
+    "name": "ACCESS VisionCheck",
+    "short_name": "VisionCheck",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0052D4",
+    "theme_color": "#0052D4",
+    "description": "ACCESS VisionCheck — Coordination and Documentation Platform",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

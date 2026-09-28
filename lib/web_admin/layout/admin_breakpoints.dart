@@ -8,9 +8,9 @@ abstract final class AdminBreakpoints {
   /// Collapsible icon rail (tablet).
   static const double tablet = 768;
 
-  static const double sidebarFullWidth = 268;
+  static const double sidebarFullWidth = 256;
   static const double sidebarRailWidth = 72;
-  static const double drawerWidth = 280;
+  static const double drawerWidth = 256;
 
   static double widthOf(BuildContext context) => MediaQuery.sizeOf(context).width;
 
@@ -26,13 +26,13 @@ abstract final class AdminBreakpoints {
   /// Drawer on mobile; persistent sidebar on tablet+.
   static bool useDrawer(BuildContext context) => isMobile(context);
 
-  /// Icon-only rail when tablet and collapsed.
+  /// Icon-only rail when collapsed (tablet + desktop).
   static bool useSidebarRail(BuildContext context, {required bool collapsed}) =>
-      isTablet(context) && collapsed;
+      !useDrawer(context) && collapsed;
 
   static double sidebarWidth(BuildContext context, {required bool collapsed}) {
     if (useDrawer(context)) return 0;
-    if (isTablet(context) && collapsed) return sidebarRailWidth;
+    if (collapsed) return sidebarRailWidth;
     return sidebarFullWidth;
   }
 
@@ -40,8 +40,8 @@ abstract final class AdminBreakpoints {
     final w = widthOf(context);
     if (w < 430) return const EdgeInsets.fromLTRB(12, 20, 12, 32);
     if (w < tablet) return const EdgeInsets.fromLTRB(16, 24, 16, 36);
-    if (w < desktop) return const EdgeInsets.fromLTRB(20, 26, 20, 40);
-    return const EdgeInsets.fromLTRB(28, 28, 28, 40);
+    if (w < desktop) return const EdgeInsets.fromLTRB(16, 16, 16, 24);
+    return const EdgeInsets.fromLTRB(20, 16, 20, 28);
   }
 
   /// Max width for side panels / export dialogs.

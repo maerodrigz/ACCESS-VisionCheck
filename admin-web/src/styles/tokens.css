@@ -1,0 +1,81 @@
+/* ACCESS VisionCheck — theme tokens (dark default, light optional via data-theme) */
+
+:root {
+  /* Brand accents — aligned with Flutter kAccent / kCyan */
+  --color-accent-primary: #0052d4;
+  --color-accent-cyan: #00c4e8;
+  --color-accent-blue: #0052d4;
+  --color-accent-purple: #6366f1;
+  --color-card-top-accent: #00c4e8;
+  --card-top-accent-height: 3px;
+
+  /* Semantic */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* Gradients */
+  --nav-active-bg: #0052d4;
+  --brand-hero-gradient: linear-gradient(135deg, #0052d4 0%, #0066ff 52%, #00c4e8 100%);
+  --dashboard-stats-gradient: linear-gradient(135deg, #0052d4 0%, #0066ff 100%);
+
+  /* Sizing */
+  --sidebar-width: 248px;
+  --card-radius: 16px;
+  --topbar-height: 64px;
+
+  /* Sidebar — dark navy on both themes (matches Flutter kSidebar) */
+  --color-sidebar-bg: #1a2b4a;
+  --color-sidebar-border: rgba(255, 255, 255, 0.08);
+  --color-sidebar-text: rgba(255, 255, 255, 0.78);
+  --color-sidebar-text-muted: rgba(255, 255, 255, 0.45);
+  --color-sidebar-top: #00c4e8;
+  --color-sidebar-mid: #3b82f6;
+  --color-sidebar-bottom: #6366f1;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-content-bg: #070b14;
+  --color-surface: #0f1623;
+  --color-surface-elevated: #141c2b;
+  --color-surface-muted: rgba(255, 255, 255, 0.04);
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
+
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-brand-wordmark: #ffffff;
+  --color-warning-text: #fcd34d;
+  --color-warning-surface: rgba(245, 158, 11, 0.08);
+  --color-danger-text: #fca5a5;
+  --color-success-text: #6ee7b7;
+  --color-card-hover-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --topbar-search-bg: rgba(255, 255, 255, 0.05);
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+
+  --color-content-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-hover: #e2e8f0;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-brand-wordmark: #1e293b;
+  --color-warning-text: #b45309;
+  --color-warning-surface: rgba(245, 158, 11, 0.12);
+  --color-danger-text: #b91c1c;
+  --color-success-text: #047857;
+  --color-card-hover-shadow: 0 4px 16px rgba(15, 39, 68, 0.08);
+  --topbar-search-bg: #f1f5f9;
+}

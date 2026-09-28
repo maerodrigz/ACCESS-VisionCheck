@@ -1,12 +1,19 @@
 """Application settings loaded from environment variables."""
 
-from pydantic import Field, computed_field
+from pathlib import Path
+import os
+
+from dotenv import load_dotenv
+from pydantic import Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+ENV_FILE = BACKEND_ROOT / ".env"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
         populate_by_name=True,
@@ -62,11 +69,40 @@ class Settings(BaseSettings):
     )
     upload_dir: str = "uploads"
     max_upload_mb: int = 100
+    # Practice evaluation uploads (3 min phone video can exceed 100 MB).
+    evaluation_max_upload_mb: int = Field(default=350, alias="EVALUATION_MAX_UPLOAD_MB")
+
+    # Firebase Storage — photos/videos (optional; mobile can also send cloud_file_url)
+    firebase_storage_bucket: str = Field(default="", alias="FIREBASE_STORAGE_BUCKET")
+    firebase_service_account_json: str = Field(default="", alias="FIREBASE_SERVICE_ACCOUNT_JSON")
+    firebase_storage_enabled: str = Field(default="", alias="FIREBASE_STORAGE_ENABLED")
 
     facebook_app_id: str = Field(default="", alias="FACEBOOK_APP_ID")
     facebook_client_token: str = Field(default="", alias="FACEBOOK_CLIENT_TOKEN")
-    facebook_page_id: str = Field(default="61590008614900", alias="FACEBOOK_PAGE_ID")
+    facebook_page_id: str = Field(default="1202339146306816", alias="FACEBOOK_PAGE_ID")
     facebook_page_access_token: str = Field(default="", alias="FACEBOOK_PAGE_ACCESS_TOKEN")
+    # Optional: target album for bulk photo publish (Meta blocks creating albums via API).
+    facebook_page_album_id: str = Field(default="", alias="FACEBOOK_PAGE_ALBUM_ID")
+
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-3-flash-preview", alias="GEMINI_MODEL")
+
+    # Dedicated AI detector backend: univfd (default) or probe (PROBE-DINOv2 @ 1344px cap).
+    ai_detector_backend: str = Field(default="univfd", alias="AI_DETECTOR_BACKEND")
+    probe_max_long_edge: int = Field(default=1344, alias="PROBE_MAX_LONG_EDGE")
+    probe_checkpoint_path: str = Field(default="", alias="PROBE_CHECKPOINT_PATH")
+    probe_low_risk_threshold: float = Field(default=0.30, alias="PROBE_LOW_RISK_THRESHOLD")
+    probe_high_risk_threshold: float = Field(default=0.45, alias="PROBE_HIGH_RISK_THRESHOLD")
+
+    max_media_evaluation_workers: int = Field(default=1, alias="MAX_MEDIA_EVALUATION_WORKERS")
+
+    @model_validator(mode="after")
+    def _validate_probe_risk_thresholds(self) -> "Settings":
+        low = float(self.probe_low_risk_threshold)
+        high = float(self.probe_high_risk_threshold)
+        if not (0.0 <= low < high <= 1.0):
+            raise ValueError("PROBE_LOW_RISK_THRESHOLD and PROBE_HIGH_RISK_THRESHOLD must satisfy 0 <= LOW < HIGH <= 1")
+        return self
 
     @computed_field
     @property
@@ -96,3 +132,17 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def reload_dotenv_file() -> None:
+    """Reload access_backend/.env into os.environ (dev: pick up edits without full restart)."""
+    if ENV_FILE.is_file():
+        load_dotenv(ENV_FILE, override=True)
+
+
+def facebook_credentials() -> tuple[str, str]:
+    """Page ID + access token, re-read from .env each call."""
+    reload_dotenv_file()
+    page_id = (os.getenv("FACEBOOK_PAGE_ID") or settings.facebook_page_id or "").strip()
+    token = (os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN") or settings.facebook_page_access_token or "").strip()
+    return page_id, token

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
+import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
+import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
 
 /// Self-service member registration (pending admin approval).
 class MemberRegistrationScreen extends StatefulWidget {
@@ -24,6 +27,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _loading = false;
+  bool _acceptedLegal = false;
   String? _error;
 
   @override
@@ -39,6 +43,10 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedLegal) {
+      setState(() => _error = 'Please agree to the Terms and Conditions and Privacy Policy.');
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -53,15 +61,16 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
         contactNumber: _contactCtrl.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Registration submitted! Your account is pending admin approval.',
-          ),
-          backgroundColor: kGreen,
-        ),
+      final email = _emailCtrl.text.trim();
+      await showRegistrationSuccessDialog(
+        context,
+        title: 'Registration submitted',
+        message:
+            'Your member account is pending administrator approval. '
+            'You will be able to sign in once an admin approves your registration.',
       );
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      if (!mounted) return;
+      Navigator.pop(context, email);
     } on ApiException catch (e) {
       setState(() {
         _loading = false;
@@ -79,6 +88,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBg,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: kSurface,
         elevation: 0,
@@ -100,7 +110,8 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: mobileScrollPadding(context),
             children: [
               const Text(
                 'Create your member account. An administrator will review and approve your registration before you can sign in.',
@@ -197,6 +208,14 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                 ),
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 18),
+              LegalAgreementCheckbox(
+                value: _acceptedLegal,
+                onChanged: (v) => setState(() {
+                  _acceptedLegal = v;
+                  if (v) _error = null;
+                }),
               ),
               const SizedBox(height: 28),
               SizedBox(

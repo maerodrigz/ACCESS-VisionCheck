@@ -238,7 +238,7 @@ class _MemberRankingsPageState extends State<MemberRankingsPage> {
           onPressed: canExport ? _exportReport : null,
           enabled: canExport,
         ),
-        PageHeaderIconButton(icon: Icons.refresh, onPressed: _load),
+        PageHeaderRefreshButton(onPressed: _load),
       ],
       filter: _showFilters
           ? SearchFilterCard(

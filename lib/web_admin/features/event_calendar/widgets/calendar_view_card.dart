@@ -36,10 +36,12 @@ class CalendarViewCard extends StatelessWidget {
       };
 
   List<CalendarEventItem> _forDay(DateTime day) =>
-      events.where((e) => e.occursOn(day)).toList();
+      events.where((e) => e.occursOn(day)).toList()..sort((a, b) => a.eventDate.compareTo(b.eventDate));
 
   @override
   Widget build(BuildContext context) {
+    final isMonth = viewMode == CalendarViewMode.month;
+
     return Container(
       decoration: AdminTheme.cardDecoration(),
       padding: const EdgeInsets.all(16),
@@ -78,21 +80,14 @@ class CalendarViewCard extends StatelessWidget {
             eventLoader: _forDay,
             onDaySelected: onDaySelected,
             onPageChanged: onPageChanged,
+            rowHeight: isMonth ? 108 : 72,
             calendarStyle: CalendarStyle(
-              todayDecoration: BoxDecoration(
-                color: AdminTheme.accentCyan.withValues(alpha: 0.25),
-                shape: BoxShape.circle,
-                border: Border.all(color: AdminTheme.accentCyan, width: 1.5),
-              ),
-              selectedDecoration: const BoxDecoration(
-                color: AdminTheme.accentBlue,
-                shape: BoxShape.circle,
-              ),
-              markerDecoration: const BoxDecoration(
-                color: AdminTheme.accentCyan,
-                shape: BoxShape.circle,
-              ),
+              cellMargin: const EdgeInsets.all(2),
+              markersMaxCount: 0,
               outsideDaysVisible: false,
+              defaultDecoration: const BoxDecoration(),
+              todayDecoration: const BoxDecoration(),
+              selectedDecoration: const BoxDecoration(),
             ),
             headerStyle: const HeaderStyle(
               formatButtonVisible: false,
@@ -100,54 +95,177 @@ class CalendarViewCard extends StatelessWidget {
               titleTextStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
             ),
             calendarBuilders: CalendarBuilders(
-              markerBuilder: (context, day, dayEvents) {
-                if (dayEvents.isEmpty) return null;
-                return Positioned(
-                  bottom: 1,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(
-                      dayEvents.length.clamp(0, 3),
-                      (_) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: eventStatusColor(dayEvents.first.status),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+              defaultBuilder: (context, day, _) => _CalendarDayCell(
+                day: day,
+                events: _forDay(day),
+                isToday: false,
+                isSelected: false,
+                onEventTap: onEventTap,
+              ),
+              todayBuilder: (context, day, _) => _CalendarDayCell(
+                day: day,
+                events: _forDay(day),
+                isToday: true,
+                isSelected: isSameDay(day, selectedDay),
+                onEventTap: onEventTap,
+              ),
+              selectedBuilder: (context, day, _) => _CalendarDayCell(
+                day: day,
+                events: _forDay(day),
+                isToday: isSameDay(day, DateTime.now()),
+                isSelected: true,
+                onEventTap: onEventTap,
+              ),
+              outsideBuilder: (context, day, _) => _CalendarDayCell(
+                day: day,
+                events: const [],
+                isToday: false,
+                isSelected: false,
+                muted: true,
+                onEventTap: onEventTap,
+              ),
             ),
           ),
-          if (viewMode == CalendarViewMode.day) ...[
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 8),
-            Text(
-              'Events on ${selectedDay.month}/${selectedDay.day}/${selectedDay.year}',
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            ..._forDay(selectedDay).map(
-              (e) => ListTile(
-                dense: true,
-                title: Text(e.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text('${e.timeLabel} · ${e.location ?? 'TBA'}'),
-                trailing: const Icon(Icons.chevron_right, size: 18),
-                onTap: () => onEventTap(e),
-              ),
-            ),
-            if (_forDay(selectedDay).isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(8),
-                child: Text('No events on this day.', style: TextStyle(color: AdminTheme.textSecondary)),
-              ),
-          ],
         ],
+      ),
+    );
+  }
+}
+
+class _CalendarDayCell extends StatelessWidget {
+  const _CalendarDayCell({
+    required this.day,
+    required this.events,
+    required this.isToday,
+    required this.isSelected,
+    required this.onEventTap,
+    this.muted = false,
+  });
+
+  final DateTime day;
+  final List<CalendarEventItem> events;
+  final bool isToday;
+  final bool isSelected;
+  final bool muted;
+  final ValueChanged<CalendarEventItem> onEventTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ringColor = isSelected
+        ? AdminTheme.accentBlue
+        : isToday
+            ? AdminTheme.accentCyan
+            : null;
+
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: ringColor != null
+                  ? BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: ringColor.withValues(alpha: 0.1),
+                      border: Border.all(color: ringColor, width: 1.5),
+                    )
+                  : null,
+              alignment: Alignment.center,
+              child: Text(
+                '${day.day}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: muted
+                      ? AdminTheme.textSecondary.withValues(alpha: 0.4)
+                      : ringColor ?? AdminTheme.textPrimary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Expanded(
+            child: events.isEmpty
+                ? const SizedBox.shrink()
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...events.take(2).map(
+                            (e) => _CalendarEventTitle(
+                              event: e,
+                              onTap: () => onEventTap(e),
+                            ),
+                          ),
+                      if (events.length > 2)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Text(
+                            '+${events.length - 2} more',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w600,
+                              color: AdminTheme.textSecondary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarEventTitle extends StatefulWidget {
+  const _CalendarEventTitle({required this.event, required this.onTap});
+
+  final CalendarEventItem event;
+  final VoidCallback onTap;
+
+  @override
+  State<_CalendarEventTitle> createState() => _CalendarEventTitleState();
+}
+
+class _CalendarEventTitleState extends State<_CalendarEventTitle> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = eventStatusColor(widget.event.status);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+          decoration: BoxDecoration(
+            color: _hovered ? color.withValues(alpha: 0.12) : color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: _hovered ? color.withValues(alpha: 0.5) : color.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Text(
+            widget.event.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: color,
+              height: 1.2,
+            ),
+          ),
+        ),
       ),
     );
   }

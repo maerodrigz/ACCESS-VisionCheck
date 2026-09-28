@@ -4,12 +4,24 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_approved
+from app.crud import assignment_member_feedback as member_rating_crud
+from app.crud import media as media_crud
 from app.crud import member_profile as profile_crud
 from app.crud import member_ranking as ranking_crud
+from app.crud import system_settings as settings_crud
 from app.crud import user as user_crud
 from app.database import get_db
 from app.models.user import User
-from app.schemas.member_api import ParticipationOut, ProfileOut, ProfileUpdate
+from app.schemas.member_api import (
+    MemberReceivedRatingOut,
+    MemberReceivedRatingsOut,
+    ParticipationOut,
+    ProfileOut,
+    ProfileUpdate,
+)
+from app.core.security import verify_password
+from app.services.media_upload_config import evaluation_rules
+from app.services.security_policy import assert_password_meets_policy
 
 router = APIRouter(prefix="/member", tags=["Member"])
 
@@ -48,6 +60,12 @@ def apply_profile_update(db: Session, current_user: User, body: ProfileUpdate) -
         existing = user_crud.get_by_email(db, str(body.email))
         if existing and existing.id != user.id:
             raise HTTPException(status_code=409, detail="Email already in use")
+    if body.new_password:
+        if not body.current_password:
+            raise HTTPException(status_code=400, detail="Current password is required")
+        if not verify_password(body.current_password, user.password):
+            raise HTTPException(status_code=401, detail="Current password is incorrect")
+        assert_password_meets_policy(db, body.new_password)
     profile_crud.update_profile(
         db,
         user,  # type: ignore[arg-type]
@@ -79,15 +97,49 @@ def put_profile(
     return apply_profile_update(db, current_user, body)
 
 
+@router.get("/requester-ratings", response_model=MemberReceivedRatingsOut)
+def list_received_requester_ratings(
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    """Ratings and comments requestors left for the logged-in member."""
+    capped = min(max(limit, 1), 50)
+    rows = member_rating_crud.list_for_member(db, current_user.id, limit=capped)
+    summary = member_rating_crud.member_rating_summary(db, current_user.id)
+    return MemberReceivedRatingsOut(
+        count=int(summary["count"]),
+        average_rating=summary["average_rating"],
+        ratings=[
+            MemberReceivedRatingOut(
+                id=row.id,
+                request_id=row.request_id,
+                event_title=row.request.title if row.request else None,
+                requestor_name=row.requestor.fullname if row.requestor else None,
+                task_role=row.assignment.task_role if row.assignment else None,
+                rating=row.rating,
+                comment=row.comment,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ],
+    )
+
+
 @router.get("/participation", response_model=ParticipationOut)
 def participation(db: Session = Depends(get_db), current_user: User = Depends(require_approved)):
     ranking = ranking_crud.get_or_create(db, current_user.id)
     eval_count, avg = profile_crud.evaluations_stats(db, current_user.id)
+    eval_rules = evaluation_rules(db)
     return ParticipationOut(
         assignments_total=profile_crud.assignments_total(db, current_user.id),
         assignments_completed=profile_crud.assignments_completed(db, current_user.id),
         uploads_count=profile_crud.uploads_count(db, current_user.id),
         evaluations_count=eval_count,
+        evaluations_today=media_crud.count_member_evaluations_today(db, current_user.id),
+        daily_evaluation_limit=settings_crud.max_evaluation_uploads_per_day(db),
+        evaluation_max_upload_mb=int(eval_rules["max_upload_mb"]),
+        evaluation_max_video_minutes=3,
         average_score=round(avg, 3),
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,

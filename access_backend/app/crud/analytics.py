@@ -1,5 +1,7 @@
 """Dashboard and analytics aggregates from PostgreSQL."""
 
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -62,6 +64,42 @@ def _count_assignments_by_status(db: Session, status: str) -> int:
     )
 
 
+def _count_assignments_in_statuses(db: Session, statuses: tuple[str, ...]) -> int:
+    if not statuses:
+        return 0
+    return (
+        db.scalar(
+            select(func.count())
+            .select_from(RequestAssignment)
+            .where(RequestAssignment.status.in_(statuses))
+        )
+        or 0
+    )
+
+
+ACCEPTED_ASSIGNMENT_STATUSES = ("accepted", "in_progress", "completed", "done")
+PENDING_ASSIGNMENT_STATUSES = ("pending_acceptance", "assigned")
+DECLINED_ASSIGNMENT_STATUSES = ("declined",)
+
+
+def _count_new_approved_members(db: Session, start: datetime, end: datetime) -> int:
+    member_since = func.coalesce(User.approved_at, User.created_at)
+    return (
+        db.scalar(
+            select(func.count())
+            .select_from(User)
+            .join(Role)
+            .where(
+                Role.role_name == RoleName.MEMBER,
+                User.status == UserStatus.APPROVED,
+                member_since >= start,
+                member_since < end,
+            )
+        )
+        or 0
+    )
+
+
 def dashboard_stats(db: Session) -> dict:
     """Real counts for admin dashboard summary cards (PostgreSQL)."""
     total_requests = db.scalar(select(func.count()).select_from(DocumentationRequest)) or 0
@@ -94,7 +132,17 @@ def dashboard_stats(db: Session) -> dict:
 
     total_events = db.scalar(select(func.count()).select_from(EventCalendar)) or 0
     task_assignments = db.scalar(select(func.count()).select_from(RequestAssignment)) or 0
-    completed_tasks = _count_assignments_by_status(db, "completed")
+    pending_assignments = _count_assignments_in_statuses(db, PENDING_ASSIGNMENT_STATUSES)
+    accepted_assignments = _count_assignments_in_statuses(db, ACCEPTED_ASSIGNMENT_STATUSES)
+    declined_assignments = _count_assignments_in_statuses(db, DECLINED_ASSIGNMENT_STATUSES)
+    # Legacy field name — counts member-confirmed assignments (accepted workflow).
+    completed_tasks = accepted_assignments
+
+    now = datetime.now(timezone.utc)
+    members_30d_start = now - timedelta(days=30)
+    members_60d_start = now - timedelta(days=60)
+    new_members_30d = _count_new_approved_members(db, members_30d_start, now)
+    new_members_prev_30d = _count_new_approved_members(db, members_60d_start, members_30d_start)
 
     media_uploads = db.scalar(select(func.count()).select_from(MediaFile)) or 0
     total_evaluations = db.scalar(select(func.count()).select_from(MediaEvaluation)) or 0
@@ -123,7 +171,12 @@ def dashboard_stats(db: Session) -> dict:
         "active_members": active_members,
         "total_events": total_events,
         "task_assignments": task_assignments,
+        "pending_assignments": pending_assignments,
+        "accepted_assignments": accepted_assignments,
+        "declined_assignments": declined_assignments,
         "completed_tasks": completed_tasks,
+        "new_members_30d": new_members_30d,
+        "new_members_prev_30d": new_members_prev_30d,
         "media_uploads": media_uploads,
         "total_evaluations": total_evaluations,
         "ai_flagged": ai_flagged,

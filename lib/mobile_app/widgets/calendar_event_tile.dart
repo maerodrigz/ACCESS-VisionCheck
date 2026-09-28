@@ -13,7 +13,7 @@ class CalendarEventTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap ?? () => showMemberEventDetail(context, event),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -51,10 +51,7 @@ class CalendarEventTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => showEventOptions(context, event),
-                  child: Icon(Icons.more_vert_rounded, color: colors.textSecondary, size: 18),
-                ),
+                StatusDot(color: event.statusColor, label: event.status),
               ],
             ),
             const SizedBox(height: 10),
@@ -72,25 +69,6 @@ class CalendarEventTile extends StatelessWidget {
                 Icon(Icons.calendar_today_outlined, color: colors.textSecondary, size: 13),
                 const SizedBox(width: 4),
                 Text(event.date, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                StatusDot(color: event.statusColor, label: event.status),
-                const Spacer(),
-                TextButton(
-                  onPressed: onTap,
-                  style: TextButton.styleFrom(
-                    foregroundColor: kAccent,
-                    minimumSize: const Size(0, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  child: const Text(
-                    'View Details',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                  ),
-                ),
               ],
             ),
           ],

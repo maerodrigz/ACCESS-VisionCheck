@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/constants/api_config.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
@@ -10,8 +12,31 @@ const double kMobilePagePadding = 16;
 /// Vertical gap between major sections on tab screens.
 const double kMobileSectionGap = 16;
 
-/// Minimum touch height for tappable controls (Material guideline).
-const double kMobileMinTouch = 44;
+/// Minimum touch height for tappable controls (Android Material guideline).
+const double kMobileMinTouch = 48;
+
+/// Responsive horizontal padding for phone widths.
+double mobilePagePaddingOf(BuildContext context) {
+  final width = MediaQuery.sizeOf(context).width;
+  if (width < 360) return 14;
+  if (width < 400) return 16;
+  return kMobilePagePadding;
+}
+
+/// Scroll/form padding that clears the software keyboard.
+EdgeInsets mobileScrollPadding(
+  BuildContext context, {
+  double top = 8,
+  double bottom = 32,
+}) {
+  final horizontal = mobilePagePaddingOf(context);
+  return EdgeInsets.fromLTRB(
+    horizontal,
+    top,
+    horizontal,
+    bottom + MediaQuery.viewInsetsOf(context).bottom,
+  );
+}
 
 /// Wraps tab body with pull-to-refresh and optional offline banner.
 class MobilePageWrapper extends StatelessWidget {
@@ -58,11 +83,22 @@ class MobileOfflineBanner extends StatelessWidget {
   final String? error;
   final VoidCallback? onRetry;
 
+  bool get _isAuthError {
+    final text = (error ?? '').toLowerCase();
+    return text.contains('invalid token') ||
+        text.contains('no token') ||
+        text.contains('session expired');
+  }
+
+  String get _bannerTitle =>
+      _isAuthError ? 'Session expired' : "Can't reach backend";
+
   @override
   Widget build(BuildContext context) {
-    final body = error ?? 'Sync issue — pull down to retry.';
+    final body = error ?? 'Sync issue. Pull down to retry.';
     final accentSoft = kAccent.withValues(alpha: 0.08);
     final accentLine = kAccent.withValues(alpha: 0.22);
+    final bannerIcon = _isAuthError ? Icons.lock_clock_rounded : Icons.cloud_off_rounded;
     return Material(
       color: accentSoft,
       child: InkWell(
@@ -83,7 +119,7 @@ class MobileOfflineBanner extends StatelessWidget {
                   color: kAccent.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.cloud_off_rounded, color: kAccent, size: 15),
+                child: Icon(bannerIcon, color: kAccent, size: 15),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -92,7 +128,7 @@ class MobileOfflineBanner extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      "Can't reach backend",
+                      _bannerTitle,
                       style: TextStyle(
                         color: context.colors.textPrimary,
                         fontSize: 12,
@@ -120,8 +156,8 @@ class MobileOfflineBanner extends StatelessWidget {
                   onPressed: onRetry,
                   style: TextButton.styleFrom(
                     foregroundColor: kAccent,
-                    minimumSize: const Size(0, 28),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    minimumSize: const Size(0, kMobileMinTouch),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -213,7 +249,7 @@ class MobileOfflineBanner extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: kAccent,
                   side: const BorderSide(color: kAccent),
-                  minimumSize: const Size(double.infinity, 40),
+                  minimumSize: const Size(double.infinity, kMobileMinTouch),
                 ),
               ),
             ],
@@ -244,11 +280,17 @@ class MobileOfflineBanner extends StatelessWidget {
 ///
 /// Returns `true` if the user saved a new value.
 Future<bool> showBackendUrlDialog(BuildContext context) async {
+  final savedUrl = ApiConfig.runtimeBaseUrl.value;
+  final suggested = (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android &&
+          savedUrl == null)
+      ? 'http://${ApiConfig.knownLanHosts.first}:${ApiConfig.defaultPort}'
+      : '';
   final controller = TextEditingController(
-    text: ApiConfig.runtimeBaseUrl.value ?? '',
+    text: savedUrl ?? suggested,
   );
   String? errorText;
-  bool saved = false;
+  bool didSave = false;
 
   await showDialog<void>(
     context: context,
@@ -267,7 +309,8 @@ Future<bool> showBackendUrlDialog(BuildContext context) async {
                   'Could not parse. Try `192.168.1.42` or `http://192.168.1.42:3001`.');
               return;
             }
-            saved = true;
+            await apiClient.reconnect();
+            didSave = true;
             if (ctx.mounted) Navigator.pop(ctx);
           }
 
@@ -320,7 +363,7 @@ Future<bool> showBackendUrlDialog(BuildContext context) async {
                 TextButton(
                   onPressed: () async {
                     await ApiConfig.runtimeBaseUrl.clear();
-                    saved = true;
+                    didSave = true;
                     if (ctx.mounted) Navigator.pop(ctx);
                   },
                   style: TextButton.styleFrom(foregroundColor: kRed),
@@ -342,7 +385,7 @@ Future<bool> showBackendUrlDialog(BuildContext context) async {
     },
   );
 
-  return saved;
+  return didSave;
 }
 
 class MobilePageTitle extends StatelessWidget {
@@ -357,7 +400,7 @@ class MobilePageTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(kMobilePagePadding, 12, kMobilePagePadding, 4),
+        padding: EdgeInsets.fromLTRB(mobilePagePaddingOf(context), 12, mobilePagePaddingOf(context), 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -518,7 +561,7 @@ class MobileFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 40,
+        height: kMobileMinTouch,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: kMobilePagePadding),
@@ -585,8 +628,8 @@ class MobilePrimaryButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: kAccent,
         foregroundColor: Colors.white,
-        minimumSize: const Size(0, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        minimumSize: const Size(0, kMobileMinTouch),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
       ),
@@ -667,6 +710,217 @@ void showMobileToast(BuildContext context, String message, {bool success = true}
       duration: const Duration(seconds: 3),
     ),
   );
+}
+
+/// Lively post-save banner after a practice evaluation is stored.
+void showEvalSaveSuccessToast(
+  BuildContext context, {
+  required int xp,
+  required int submissionsRemaining,
+  bool xpPending = false,
+}) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      padding: EdgeInsets.zero,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 22),
+      duration: const Duration(seconds: 4),
+      content: _EvalSaveSuccessBanner(
+        xp: xp,
+        submissionsRemaining: submissionsRemaining,
+        xpPending: xpPending,
+      ),
+    ),
+  );
+}
+
+class _EvalSaveSuccessBanner extends StatelessWidget {
+  const _EvalSaveSuccessBanner({
+    required this.xp,
+    required this.submissionsRemaining,
+    this.xpPending = false,
+  });
+
+  final int xp;
+  final int submissionsRemaining;
+  final bool xpPending;
+
+  @override
+  Widget build(BuildContext context) {
+    final remainingLabel = submissionsRemaining == 1
+        ? '1 upload left today'
+        : '$submissionsRemaining uploads left today';
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kGreen.withValues(alpha: 0.35)),
+          boxShadow: [
+            BoxShadow(
+              color: kGreen.withValues(alpha: 0.18),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                height: 3,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [kGreen, kCyan],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            kGreen.withValues(alpha: 0.95),
+                            kGreen.withValues(alpha: 0.78),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: kGreen.withValues(alpha: 0.28),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.check_rounded, color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Evaluation saved!',
+                            style: TextStyle(
+                              color: kTextPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            xpPending
+                                ? 'Saved. XP is pending officer review.'
+                                : 'Nice work. Your score is on the leaderboard.',
+                            style: TextStyle(
+                              color: kTextSecondary.withValues(alpha: 0.95),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              _EvalSaveChip(
+                                icon: xpPending ? Icons.hourglass_top_rounded : Icons.bolt_rounded,
+                                label: xpPending ? 'XP pending review' : '+$xp XP',
+                                iconColor: xpPending ? kYellow : kYellow,
+                                background: kYellowDim,
+                                borderColor: kYellow.withValues(alpha: 0.35),
+                              ),
+                              _EvalSaveChip(
+                                icon: Icons.photo_camera_rounded,
+                                label: remainingLabel,
+                                iconColor: kAccent,
+                                background: kCyanDim,
+                                borderColor: kCyan.withValues(alpha: 0.35),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EvalSaveChip extends StatelessWidget {
+  const _EvalSaveChip({
+    required this.icon,
+    required this.label,
+    required this.iconColor,
+    required this.background,
+    required this.borderColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color iconColor;
+  final Color background;
+  final Color borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: iconColor),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: kTextPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 Future<bool> showMobileConfirmDialog(

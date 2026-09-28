@@ -288,7 +288,7 @@ class _AiDetectionResultsPageState extends State<AiDetectionResultsPage> {
           onPressed: canExport ? _exportReport : null,
           enabled: canExport,
         ),
-        PageHeaderIconButton(icon: Icons.refresh, onPressed: () => _load(silent: false), tooltip: 'Refresh'),
+        PageHeaderRefreshButton(onPressed: () => _load(silent: false)),
       ],
       filter: _showFilters
           ? SearchFilterCard(

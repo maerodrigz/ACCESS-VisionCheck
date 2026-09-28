@@ -1,0 +1,145 @@
+{
+  "step7_status": "COMPLETE",
+  "timestamp": "20260926_224651",
+  "python_version": "3.12.10",
+  "device": "cpu",
+  "dataset_root": "C:\\Users\\Dell\\Desktop\\fresh_validation",
+  "discovered_images": 100,
+  "unsupported_files": 0,
+  "unreadable": 0,
+  "per_source_counts": {
+    "canva": 10,
+    "chatgpt": 20,
+    "gemini": 10,
+    "pixlr": 10,
+    "own_new_photos": 25,
+    "verified_external": 25
+  },
+  "holdout_integrity": {
+    "internal_duplicate_paths": 0,
+    "prior_benchmark_duplicates": 0,
+    "label_conflicts": 0,
+    "primary_heldout_n": 100
+  },
+  "model": {
+    "architecture": "CLIP ViT-L/14 + UnivFD fc_weights.pth",
+    "classifier_checkpoint": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\univfd\\fc_weights.pth",
+    "clip_checkpoint": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\univfd\\ViT-L-14.pt",
+    "classifier_sha256": "477100745713bcc957beb2b40859536859b6483fd6301b3b9293151b194c7847",
+    "clip_sha256": "b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836"
+  },
+  "production_thresholds": {
+    "SUSPICIOUS_THRESHOLD": 0.36,
+    "AI_GENERATED_THRESHOLD": 0.58
+  },
+  "step6_config_source": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\scripts\\experiment_univfd_step6.py",
+  "step6_run_comparison": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\evaluation_results\\step6\\20260926_185727",
+  "fusion_reproduction": {
+    "rows_compared": 100,
+    "max_probability_difference": 0.0010000000000000009,
+    "verdict_mismatches": 0
+  },
+  "raw_univfd_primary": {
+    "ROC_AUC": 0.061599999999999995,
+    "REAL": {
+      "mean": 0.55339480294846,
+      "median": 0.6693695485591888,
+      "min": 0.004321810323745012,
+      "max": 0.9991472959518433
+    },
+    "AI": {
+      "mean": 0.03254555512111437,
+      "median": 0.0027611596742644906,
+      "min": 2.9552825253631454e-07,
+      "max": 0.7295137643814087
+    }
+  },
+  "configurations": {
+    "B": {
+      "strict": {
+        "TP": 7,
+        "TN": 40,
+        "FP": 10,
+        "FN": 43,
+        "accuracy": 0.47,
+        "precision": 0.4117647058823529,
+        "recall": 0.14,
+        "f1": 0.208955223880597,
+        "specificity": 0.8,
+        "false_positive_rate": 0.2,
+        "false_negative_rate": 0.86
+      },
+      "flagged": {
+        "TP": 23,
+        "TN": 16,
+        "FP": 34,
+        "FN": 27,
+        "accuracy": 0.39,
+        "precision": 0.40350877192982454,
+        "recall": 0.46,
+        "f1": 0.42990654205607476,
+        "specificity": 0.32,
+        "false_positive_rate": 0.68,
+        "false_negative_rate": 0.54
+      }
+    },
+    "E": {
+      "strict": {
+        "TP": 0,
+        "TN": 49,
+        "FP": 1,
+        "FN": 50,
+        "accuracy": 0.49,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "specificity": 0.98,
+        "false_positive_rate": 0.02,
+        "false_negative_rate": 1.0
+      },
+      "flagged": {
+        "TP": 13,
+        "TN": 25,
+        "FP": 25,
+        "FN": 37,
+        "accuracy": 0.38,
+        "precision": 0.34210526315789475,
+        "recall": 0.26,
+        "f1": 0.29545454545454547,
+        "specificity": 0.5,
+        "false_positive_rate": 0.5,
+        "false_negative_rate": 0.74
+      }
+    },
+    "D1": {
+      "strict": {
+        "TP": 5,
+        "TN": 41,
+        "FP": 9,
+        "FN": 45,
+        "accuracy": 0.46,
+        "precision": 0.35714285714285715,
+        "recall": 0.1,
+        "f1": 0.15625,
+        "specificity": 0.82,
+        "false_positive_rate": 0.18,
+        "false_negative_rate": 0.9
+      },
+      "flagged": {
+        "TP": 13,
+        "TN": 17,
+        "FP": 33,
+        "FN": 37,
+        "accuracy": 0.3,
+        "precision": 0.2826086956521739,
+        "recall": 0.26,
+        "f1": 0.27083333333333337,
+        "specificity": 0.34,
+        "false_positive_rate": 0.66,
+        "false_negative_rate": 0.74
+      }
+    }
+  },
+  "production_behavior_changed": false,
+  "no_tuning_on_step7": true
+}

@@ -62,3 +62,12 @@ def require_approved(current_user: User = Depends(get_current_user)) -> User:
             detail={"error": "rejected", "message": "Account not approved"},
         )
     return current_user
+
+
+def require_organization(current_user: User = Depends(require_approved)) -> User:
+    if current_user.role.role_name != RoleName.ORGANIZATION:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requestor (Organization) accounts only",
+        )
+    return current_user

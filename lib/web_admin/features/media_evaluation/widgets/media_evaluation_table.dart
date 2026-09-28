@@ -37,6 +37,7 @@ class MediaEvaluationTable extends StatelessWidget {
             columns: const [
                 DataColumn(label: Text('Media Name')),
                 DataColumn(label: Text('Member Name')),
+                DataColumn(label: Text('Source')),
                 DataColumn(label: Text('Sharpness')),
                 DataColumn(label: Text('Brightness')),
                 DataColumn(label: Text('Contrast')),
@@ -67,6 +68,16 @@ class MediaEvaluationTable extends StatelessWidget {
           ),
         ),
         DataCell(Text(r.memberName, style: const TextStyle(fontSize: 12))),
+        DataCell(
+          Text(
+            r.sourceLabel,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: r.isStandalone ? AdminTheme.accentBlue : AdminTheme.textSecondary,
+            ),
+          ),
+        ),
         DataCell(SizedBox(width: 100, child: ScoreProgressBar(score: r.sharpnessScore, showLabel: true))),
         DataCell(SizedBox(width: 100, child: ScoreProgressBar(score: r.brightnessScore, showLabel: true))),
         DataCell(SizedBox(width: 100, child: ScoreProgressBar(score: r.contrastScore, showLabel: true))),

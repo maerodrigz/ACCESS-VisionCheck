@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Image, Loader2, RefreshCw, Search, Video } from 'lucide-react'
-import { fetchAiDetectionList, fetchAiDetectionSummary } from '../api/admin'
-import type { AiDetectionRow, AiDetectionSummary } from '../api/media'
+import { Info, Loader2, RefreshCw, Search } from 'lucide-react'
+import { fetchAiDetectionList } from '../api/admin'
+import type { AiDetectionRow } from '../api/media'
 import { AdminCard } from '../components/AdminCard'
 import { AdminErrorBanner } from '../components/AdminAlert'
 import { AdminPageHeader } from '../components/AdminPageHeader'
@@ -18,14 +18,16 @@ import {
   matchesIntegrityInbox,
   parseAiDetectionRow,
   sortDetectionRows,
-  summaryFromRows,
 } from '../lib/aiDetection'
+
+type QueueKind = 'photos' | 'videos'
+
 const INBOX_CHIPS: { id: IntegrityInboxFilter; label: string }[] = [
-  { id: 'needs_action', label: 'Needs action' },
-  { id: 'all', label: 'All scans' },
-  { id: 'pending_scan', label: 'Pending scan' },
+  { id: 'needs_action', label: 'Needs Action' },
+  { id: 'all', label: 'All Scans' },
+  { id: 'pending_scan', label: 'Pending Scan' },
   { id: 'suspicious', label: 'Suspicious' },
-  { id: 'ai_generated', label: 'AI generated' },
+  { id: 'ai_generated', label: 'AI Generated' },
   { id: 'human', label: 'Human' },
   { id: 'resolved', label: 'Resolved' },
 ]
@@ -38,15 +40,17 @@ const FORMAT_OPTIONS: { id: IntegrityFormatFilter; label: string }[] = [
 
 function IntegrityResultsList({
   items,
+  showFormat,
   onDetails,
 }: {
   items: AiDetectionRow[]
+  showFormat: boolean
   onDetails: (row: AiDetectionRow) => void
 }) {
   return (
-    <div className="space-y-3">
+    <div className="grid gap-2 xl:grid-cols-2">
       {items.map((row) => (
-        <AiDetectionRowCard key={row.id} row={row} onDetails={onDetails} />
+        <AiDetectionRowCard key={row.id} row={row} showFormat={showFormat} onDetails={onDetails} />
       ))}
     </div>
   )
@@ -55,12 +59,12 @@ function IntegrityResultsList({
 export function MediaIntegrityPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [rows, setRows] = useState<AiDetectionRow[]>([])
-  const [summary, setSummary] = useState<AiDetectionSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [inboxFilter, setInboxFilter] = useState<IntegrityInboxFilter>('needs_action')
   const [formatFilter, setFormatFilter] = useState<IntegrityFormatFilter>('all')
+  const [queueKind, setQueueKind] = useState<QueueKind>('photos')
   const [includeProbeSmoke, setIncludeProbeSmoke] = useState(false)
   const [selected, setSelected] = useState<AiDetectionRow | null>(null)
 
@@ -68,22 +72,14 @@ export function MediaIntegrityPage() {
     () => (includeProbeSmoke ? rows : rows.filter((r) => !isProbeSmokeTestRow(r))),
     [rows, includeProbeSmoke],
   )
-  const probeSmokeHiddenCount = useMemo(
-    () => rows.filter((r) => isProbeSmokeTestRow(r)).length,
-    [rows],
-  )
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [list, sum] = await Promise.all([
-        fetchAiDetectionList(),
-        fetchAiDetectionSummary().catch(() => null),
-      ])
+      const list = await fetchAiDetectionList()
       const parsed = list.map((m) => parseAiDetectionRow(m))
       setRows(parsed)
-      setSummary(sum ?? summaryFromRows(parsed))
       setSelected((prev) => {
         if (!prev) return null
         return parsed.find((r) => r.id === prev.id) ?? null
@@ -91,13 +87,6 @@ export function MediaIntegrityPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load AI detection results')
       setRows([])
-      setSummary({
-        total_scanned: 0,
-        human_count: 0,
-        ai_generated_count: 0,
-        suspicious_count: 0,
-        pending_review_count: 0,
-      })
     } finally {
       setLoading(false)
     }
@@ -156,14 +145,11 @@ export function MediaIntegrityPage() {
     }
   }, [memberRows, inboxFilter])
 
-  const splitByFormat = formatFilter === 'all'
   const filteredPhotos = useMemo(() => filtered.filter((r) => !isVideoDetectionRow(r)), [filtered])
   const filteredVideos = useMemo(() => filtered.filter((r) => isVideoDetectionRow(r)), [filtered])
-  const hiddenVideoCount = useMemo(
-    () =>
-      memberRows.filter((r) => isVideoDetectionRow(r) && !matchesIntegrityInbox(r, inboxFilter)).length,
-    [memberRows, inboxFilter],
-  )
+  const showKindTabs = formatFilter === 'all' && filteredPhotos.length > 0 && filteredVideos.length > 0
+  const visibleRows = showKindTabs ? (queueKind === 'photos' ? filteredPhotos : filteredVideos) : filtered
+  const showFormatBadge = formatFilter === 'all' && !showKindTabs
 
   const queueTitle =
     inboxFilter === 'needs_action'
@@ -177,10 +163,10 @@ export function MediaIntegrityPage() {
   }
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="mx-auto max-w-[1400px] space-y-3 pb-8">
       <AdminPageHeader
         title="Media Integrity"
-        subtitle="Trust check for flagged member uploads. Pair with Member Uploads to browse files."
+        subtitle="Review flagged member uploads. Open Media Gallery for event documentation files."
         backTo="/"
         actions={
           <button type="button" onClick={load} disabled={loading} className={pageToolbarBtnClass}>
@@ -192,146 +178,132 @@ export function MediaIntegrityPage() {
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
 
-      <div className="flex flex-wrap gap-2">
-        {INBOX_CHIPS.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setInboxFilter(c.id)}
-            className={[
-              'rounded-full px-4 py-1.5 text-xs font-bold transition',
-              inboxFilter === c.id
-                ? 'bg-[var(--color-accent-blue)] text-white'
-                : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]',
-            ].join(' ')}
-          >
-            {c.label} ({inboxCount(c.id)})
-          </button>
-        ))}
+      <div
+        className="flex flex-wrap gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
+        role="tablist"
+        aria-label="Scan status"
+      >
+        {INBOX_CHIPS.map((c) => {
+          const active = inboxFilter === c.id
+          return (
+            <button
+              key={c.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setInboxFilter(c.id)}
+              className={[
+                'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+                active
+                  ? 'bg-[var(--color-accent-blue)] text-white'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]',
+              ].join(' ')}
+            >
+              {c.label}
+              <span
+                className={[
+                  'rounded-full px-1.5 text-[10px] font-bold',
+                  active
+                    ? 'bg-white/20 text-white'
+                    : 'bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]',
+                ].join(' ')}
+              >
+                {inboxCount(c.id)}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
-      <div className="flex flex-col gap-2 rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-          <div className="relative min-w-0">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-            <input
-              placeholder="Search media or member name…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="admin-input w-full rounded-xl py-2 pl-9 pr-3 text-sm"
-            />
-          </div>
-          <AdminSelect
-            value={formatFilter}
-            onChange={(v) => setFormatFilter(v as IntegrityFormatFilter)}
-            aria-label="Filter by format"
-            options={FORMAT_OPTIONS.map((o) => ({
-              value: o.id,
-              label: `${o.label} (${formatCounts[o.id]})`,
-            }))}
+      <div className="grid gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 lg:grid-cols-[minmax(0,1fr)_14rem]">
+        <div className="relative min-w-0">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+          <input
+            placeholder="Search media or member name…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="admin-input w-full rounded-lg py-1.5 pl-9 pr-3 text-sm"
           />
         </div>
-        {summary && (
-          <p className="text-xs text-[var(--color-text-muted)]">
-            {summary.total_scanned} scanned · {summary.human_count} human · {summary.suspicious_count} suspicious ·{' '}
-            {summary.ai_generated_count} AI · {summary.pending_review_count} need review
-          </p>
-        )}
-        <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2.5">
-          <input
-            type="checkbox"
-            checked={includeProbeSmoke}
-            onChange={(e) => setIncludeProbeSmoke(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent-blue)]"
-          />
-          <span className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-            <span className="font-bold text-[var(--color-text-primary)]">Include PROBE smoke tests</span>
-            {probeSmokeHiddenCount > 0 ? (
+        <AdminSelect
+          value={formatFilter}
+          onChange={(v) => setFormatFilter(v as IntegrityFormatFilter)}
+          aria-label="Filter by format"
+          options={FORMAT_OPTIONS.map((o) => ({
+            value: o.id,
+            label: `${o.label} (${formatCounts[o.id]})`,
+          }))}
+        />
+      </div>
+
+      <section className="space-y-2 pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-[var(--color-text-primary)]">{queueTitle}</h2>
+            <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
+              {filtered.length} item{filtered.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          {showKindTabs ? (
+            <div
+              className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5"
+              role="tablist"
+              aria-label="Media type"
+            >
+              {([
+                ['photos', 'Photos', filteredPhotos.length],
+                ['videos', 'Videos', filteredVideos.length],
+              ] as const).map(([id, label, count]) => {
+                const active = queueKind === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setQueueKind(id)}
+                    className={[
+                      'rounded-md px-3 py-1 text-xs font-bold transition',
+                      active
+                        ? 'bg-[var(--color-accent-blue)] text-white'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]',
+                    ].join(' ')}
+                  >
+                    {label} ({count})
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
+
+        <p className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+          <Info size={12} className="shrink-0" />
+          Automated detection is an indicator, not proof. Flagged media needs Admin review before any decision.
+        </p>
+
+        {loading && rows.length === 0 ? (
+          <div className="flex justify-center py-16 text-[var(--color-text-secondary)]">
+            <Loader2 className="animate-spin" size={28} />
+          </div>
+        ) : filtered.length === 0 ? (
+          <AdminCard dashed padding="lg" className="text-center text-sm text-[var(--color-text-secondary)]">
+            {inboxFilter === 'needs_action' && !searchQuery.trim() && formatFilter === 'all' ? (
               <>
-                {' '}
-                ({probeSmokeHiddenCount} hidden by default: names starting with &quot;PROBE smoke&quot; or legacy
-                Step8A/Step8B)
+                <p className="font-semibold text-[var(--color-text-primary)]">Queue is clear</p>
+                <p className="mt-1">No scans waiting for Admin review right now.</p>
               </>
             ) : (
-              <> (dev E2E uploads from the PROBE smoke scripts)</>
+              <>
+                <p className="font-semibold text-[var(--color-text-primary)]">No results match your filters</p>
+                <p className="mt-1">Try another status tab, format, or clear your search.</p>
+              </>
             )}
-          </span>
-        </label>
-      </div>
-
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-[var(--color-text-primary)]">{queueTitle}</h2>
-        <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-          {filtered.length} item{filtered.length === 1 ? '' : 's'}
-        </span>
-      </div>
-
-      {loading && rows.length === 0 ? (
-        <div className="flex justify-center py-16 text-[var(--color-text-secondary)]">
-          <Loader2 className="animate-spin" size={28} />
-        </div>
-      ) : filtered.length === 0 ? (
-        <AdminCard dashed padding="lg" className="text-center text-sm text-[var(--color-text-secondary)]">
-          {inboxFilter === 'needs_action' && !searchQuery.trim() && formatFilter === 'all' ? (
-            <>
-              <p className="font-semibold text-[var(--color-text-primary)]">Queue is clear</p>
-              <p className="mt-1">No scans waiting for admin review right now.</p>
-            </>
-          ) : (
-            <>
-              <p className="font-semibold text-[var(--color-text-primary)]">No results match your filters</p>
-              <p className="mt-1">Try another inbox tab, format, or clear your search.</p>
-            </>
-          )}
-        </AdminCard>
-      ) : splitByFormat ? (
-        <div className="space-y-8">
-          {filteredPhotos.length > 0 && (
-            <section>
-              <div className="mb-3 flex items-center gap-2">
-                <Image size={16} className="text-[var(--color-accent-cyan)]" />
-                <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Photos</h3>
-                <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-                  {filteredPhotos.length}
-                </span>
-              </div>
-              <IntegrityResultsList items={filteredPhotos} onDetails={setSelected} />
-            </section>
-          )}
-          {(filteredVideos.length > 0 || hiddenVideoCount > 0) && (
-            <section>
-              <div className="mb-3 flex items-center gap-2">
-                <Video size={16} className="text-[var(--color-accent-blue)]" />
-                <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Videos</h3>
-                <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-                  {filteredVideos.length}
-                </span>
-              </div>
-              {filteredVideos.length > 0 ? (
-                <IntegrityResultsList items={filteredVideos} onDetails={setSelected} />
-              ) : (
-                <AdminCard dashed padding="md" className="text-sm text-[var(--color-text-secondary)]">
-                  <p className="font-semibold text-[var(--color-text-primary)]">No videos in this inbox tab</p>
-                  <p className="mt-1">
-                    {hiddenVideoCount} video scan{hiddenVideoCount === 1 ? '' : 's'} exist but are already reviewed or
-                    marked low AI risk. Switch to <span className="font-semibold">All scans</span> or{' '}
-                    <span className="font-semibold">Resolved</span> to see them.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setInboxFilter('all')}
-                    className="mt-3 rounded-lg bg-[var(--color-accent-blue)] px-3 py-1.5 text-xs font-bold text-white"
-                  >
-                    Show all scans
-                  </button>
-                </AdminCard>
-              )}
-            </section>
-          )}
-        </div>
-      ) : (
-        <IntegrityResultsList items={filtered} onDetails={setSelected} />
-      )}
+          </AdminCard>
+        ) : (
+          <IntegrityResultsList items={visibleRows} showFormat={showFormatBadge} onDetails={setSelected} />
+        )}
+      </section>
 
       {selected && (
         <AiReviewModal row={selected} onClose={() => setSelected(null)} onSaved={load} />

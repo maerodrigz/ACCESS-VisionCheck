@@ -1,19 +1,120 @@
-import { ChevronDown, ChevronUp, FolderOpen, Image, Loader2, Sparkles, Star, Video } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Archive, ChevronDown, ChevronUp, FolderOpen, Loader2, MoreHorizontal, Sparkles, Star, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdminCard } from '../AdminCard'
 import type { MediaAlbum, MediaAsset } from '../../lib/mediaLibrary'
 import { formatMediaDate } from '../../lib/mediaLibrary'
 import { MediaPreviewContent } from './MediaPreviewContent'
+import { MEDIA_GALLERY_GRID_CLASS } from './MediaTileGrid'
 import { MediaTile } from './MediaTile'
+
+function AlbumCoverImage({ url, alt }: { url?: string; alt: string }) {
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) {
+    return (
+      <MediaPreviewContent url="" isVideo={false} mode="thumbnail" className="h-full w-full" />
+    )
+  }
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className="h-full w-full object-cover"
+      onError={() => setFailed(true)}
+    />
+  )
+}
 
 interface AlbumsProps {
   albums: MediaAlbum[]
   selectedAlbumId: string | null
+  isAdmin?: boolean
   onAlbumTap: (album: MediaAlbum) => void
   onClearAlbum: () => void
+  onDeleteAlbum?: (album: MediaAlbum) => void
+  onArchiveAlbum?: (album: MediaAlbum) => void
 }
 
-export function EventAlbumsSection({ albums, selectedAlbumId, onAlbumTap, onClearAlbum }: AlbumsProps) {
+function AlbumOptionsMenu({
+  album,
+  onDelete,
+  onArchive,
+}: {
+  album: MediaAlbum
+  onDelete?: (album: MediaAlbum) => void
+  onArchive?: (album: MediaAlbum) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="absolute right-1.5 top-1.5 z-20">
+      <button
+        type="button"
+        aria-label={`Options for ${album.name}`}
+        aria-expanded={open}
+        onClick={(event) => {
+          event.stopPropagation()
+          setOpen((value) => !value)
+        }}
+        className="flex h-7 w-7 items-center justify-center rounded-md bg-black/55 text-white shadow-sm hover:bg-black/75"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute right-0 top-8 w-40 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(event) => {
+              event.stopPropagation()
+              setOpen(false)
+              onArchive?.(album)
+            }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+          >
+            <Archive size={13} />
+            Archive album
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(event) => {
+              event.stopPropagation()
+              setOpen(false)
+              onDelete?.(album)
+            }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold text-red-600 hover:bg-[var(--color-surface-hover)]"
+          >
+            <Trash2 size={13} />
+            Delete album
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function EventAlbumsSection({
+  albums,
+  selectedAlbumId,
+  isAdmin = false,
+  onAlbumTap,
+  onClearAlbum,
+  onDeleteAlbum,
+  onArchiveAlbum,
+}: AlbumsProps) {
   if (albums.length === 0) return null
 
   return (
@@ -22,10 +123,9 @@ export function EventAlbumsSection({ albums, selectedAlbumId, onAlbumTap, onClea
         <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <FolderOpen size={16} className="text-[var(--color-accent-blue)]" />
-          <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Event albums</h2>
-          <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-            {albums.length}
-          </span>
+          <h2 className="text-sm font-bold text-[var(--color-text-primary)]">
+            Event albums <span className="font-semibold text-[var(--color-text-secondary)]">({albums.length})</span>
+          </h2>
         </div>
         {selectedAlbumId && (
           <button
@@ -38,45 +138,49 @@ export function EventAlbumsSection({ albums, selectedAlbumId, onAlbumTap, onClea
         )}
         </div>
       </div>
-      <div className="px-4 pb-4">
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {albums.map((album) => {
-          const selected = selectedAlbumId === album.id
-          return (
-            <button
-              key={album.id}
-              type="button"
-              onClick={() => onAlbumTap(album)}
-              className={[
-                'w-48 shrink-0 overflow-hidden rounded-xl border text-left transition',
-                selected
-                  ? 'border-[var(--color-accent-blue)] ring-2 ring-[var(--color-accent-blue)]/20'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent-cyan)]/40',
-              ].join(' ')}
-            >
-              <div className="relative aspect-[4/3] overflow-hidden bg-[var(--color-surface-muted)]">
-                {album.coverUrl ? (
-                  <img src={album.coverUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-[var(--color-text-muted)]">No cover</div>
-                )}
-                <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
-                  {album.totalCount}
-                </span>
+      <div className="px-4 pb-3 pt-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3">
+          {albums.map((album) => {
+            const selected = selectedAlbumId === album.id
+            return (
+              <div key={album.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => onAlbumTap(album)}
+                  className={[
+                    'flex h-full w-full flex-col overflow-hidden rounded-xl border bg-[var(--color-surface)] text-left shadow-[0_1px_3px_rgba(15,39,68,0.06)] transition',
+                    selected
+                      ? 'border-[var(--color-accent-blue)] ring-2 ring-[var(--color-accent-blue)]/20'
+                      : 'border-[var(--color-border)] hover:border-[var(--color-accent-cyan)]/40 hover:shadow-[0_4px_12px_rgba(15,39,68,0.08)]',
+                  ].join(' ')}
+                >
+                  <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-[var(--color-surface-muted)]">
+                    <AlbumCoverImage url={album.coverUrl} alt={album.name} />
+                    <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
+                      {album.totalCount}
+                    </span>
+                  </div>
+                  <div className="flex flex-col p-2">
+                    <div className="line-clamp-2 text-xs font-bold leading-snug text-[var(--color-text-primary)]">
+                      {album.name}
+                    </div>
+                    <div className="mt-1 text-[10px] text-[var(--color-text-secondary)]">
+                      {album.photoCount} photos · {album.videoCount} videos
+                    </div>
+                    {album.date ? (
+                      <div className="mt-0.5 text-[10px] text-[var(--color-text-secondary)]">
+                        {formatMediaDate(album.date)}
+                      </div>
+                    ) : null}
+                  </div>
+                </button>
+                {isAdmin ? (
+                  <AlbumOptionsMenu album={album} onDelete={onDeleteAlbum} onArchive={onArchiveAlbum} />
+                ) : null}
               </div>
-              <div className="p-3">
-                <div className="truncate text-xs font-bold text-[var(--color-text-primary)]">{album.name}</div>
-                <div className="mt-0.5 text-[10px] text-[var(--color-text-secondary)]">
-                  {album.photoCount} photos · {album.videoCount} videos
-                </div>
-                {album.date && (
-                  <div className="mt-0.5 text-[10px] text-[var(--color-text-secondary)]">{formatMediaDate(album.date)}</div>
-                )}
-              </div>
-            </button>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
       </div>
     </AdminCard>
   )
@@ -103,61 +207,62 @@ export function BestPicksSection({
 }) {
   return (
     <div className="rounded-[var(--card-radius)] border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-[var(--color-surface)]">
-      <div className="border-b border-amber-500/15 px-4 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <Star size={16} className="fill-amber-400 text-amber-400" />
-            <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Best picks</h2>
-            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">{items.length}</span>
+      <div className="border-b border-amber-500/15 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Star size={15} className="fill-amber-400 text-amber-500" />
+              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Best picks</h2>
+              <span className="text-[10px] font-bold text-amber-600">({items.length})</span>
+            </div>
           </div>
-          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-            Star items in the gallery, then publish. Published items leave this row and lose their star.
-          </p>
-        </div>
-        {isAdmin && onPublishAll && items.length > 0 && (
-          <button
-            type="button"
-            disabled={
-              !facebookReady ||
-              publishReadyCount === 0 ||
-              (!facebookGraphReady && publishReadyCount > 1)
-            }
-            title={
-              !facebookReady
-                ? 'Facebook publishing disabled'
-                : !facebookGraphReady && publishReadyCount > 1
-                  ? 'Add Page token for bulk publish, or star and publish one item'
-                  : undefined
-            }
-            onClick={onPublishAll}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#1877F2] px-3 text-xs font-bold text-white hover:opacity-95 disabled:opacity-50"
-          >
-            Publish best picks ({publishReadyCount})
-          </button>
-        )}
+          {isAdmin && onPublishAll && (
+            <button
+              type="button"
+              disabled={
+                items.length === 0 ||
+                !facebookReady ||
+                publishReadyCount === 0 ||
+                (!facebookGraphReady && publishReadyCount > 1)
+              }
+              title={
+                !facebookReady
+                  ? 'Facebook publishing disabled'
+                  : items.length === 0
+                    ? 'Add best picks with the star icon'
+                    : !facebookGraphReady && publishReadyCount > 1
+                      ? 'Add Page token for bulk publish, or star and publish one item'
+                      : undefined
+              }
+              onClick={onPublishAll}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[#1877F2] px-2.5 text-xs font-bold text-white hover:opacity-95 disabled:opacity-50"
+            >
+              Publish Best Picks{publishReadyCount > 0 ? ` (${publishReadyCount})` : ''}
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="px-4 py-4">
-      {items.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 px-4 py-5">
-          <Sparkles size={20} className="shrink-0 text-amber-500" />
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            No best picks yet. Use the{' '}
-            <Star size={12} className="inline fill-amber-400 text-amber-400" /> star on event photos and videos to
-            curate what gets published.
-          </p>
-        </div>
-      ) : (
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="w-32 shrink-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
-            >
-              <button type="button" onClick={() => onPreview(item)} className="block w-full text-left">
-                <div className="relative aspect-square overflow-hidden bg-[var(--color-surface-muted)]">
+      <div className="px-3 py-2">
+        {items.length === 0 ? (
+          <div className="flex items-center gap-2 rounded-lg border border-dashed border-amber-500/25 bg-amber-500/5 px-3 py-2">
+            <Sparkles size={14} className="shrink-0 text-amber-500" />
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              No best picks yet. Use the star on a photo or video below.
+            </p>
+          </div>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {items.map((item) => (
+              <article
+                key={item.id}
+                className="group relative w-[148px] shrink-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => onPreview(item)}
+                  className="relative block aspect-[4/3] w-full overflow-hidden bg-[var(--color-surface-muted)]"
+                >
                   <MediaPreviewContent
                     url={item.thumbnailUrl}
                     isVideo={item.isVideo}
@@ -165,27 +270,33 @@ export function BestPicksSection({
                     mode="thumbnail"
                     className="h-full w-full"
                   />
-                  <span className="absolute left-1.5 top-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    {item.isVideo ? 'Video' : 'Photo'}
-                  </span>
-                </div>
-                <div className="p-2">
-                  <div className="truncate text-[10px] font-bold text-[var(--color-text-primary)]">{item.eventName}</div>
-                </div>
-              </button>
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => onToggleBestShot(item)}
-                  className="w-full border-t border-[var(--color-border)] py-1.5 text-[10px] font-semibold text-amber-300 hover:bg-amber-500/10"
-                >
-                  Remove
+                  {item.isVideo ? (
+                    <span className="absolute left-1.5 top-1.5 rounded bg-black/50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/95">
+                      Video
+                    </span>
+                  ) : null}
                 </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => onToggleBestShot(item)}
+                    className="absolute right-1.5 top-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+                <div className="border-t border-[var(--color-border)] px-2 py-1.5">
+                  <p className="truncate text-[11px] font-semibold text-[var(--color-text-primary)]" title={item.fileName}>
+                    {item.fileName}
+                  </p>
+                  {item.uploadDateLabel ? (
+                    <p className="truncate text-[10px] text-[var(--color-text-secondary)]">{item.uploadDateLabel}</p>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -363,7 +474,7 @@ export function FacebookHistoryCollapsible({
   if (items.length === 0 && failedHistory.length === 0) return null
 
   return (
-    <AdminCard padding="md">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-[0_1px_2px_rgba(15,39,68,0.04)]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -376,21 +487,17 @@ export function FacebookHistoryCollapsible({
         </span>
       </button>
       {open && (
-        <div className="mt-4 space-y-6">
+        <div className="mt-3 space-y-4">
           {items.length === 0 ? (
             <p className="text-sm text-[var(--color-text-secondary)]">No published media yet.</p>
           ) : (
             <>
               {publishedPhotos.length > 0 && (
                 <section>
-                  <div className="mb-3 flex items-center gap-2">
-                    <Image size={16} className="text-[var(--color-accent-cyan)]" />
-                    <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Photos</h3>
-                    <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-                      {publishedPhotos.length}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-4">
+                  <h3 className="mb-2 text-sm font-bold text-[var(--color-text-primary)]">
+                    Photos ({publishedPhotos.length})
+                  </h3>
+                  <div className={MEDIA_GALLERY_GRID_CLASS}>
                     {publishedPhotos.map((item) => (
                       <MediaTile
                         key={item.id}
@@ -407,14 +514,10 @@ export function FacebookHistoryCollapsible({
               )}
               {publishedVideos.length > 0 && (
                 <section>
-                  <div className="mb-3 flex items-center gap-2">
-                    <Video size={16} className="text-[var(--color-accent-blue)]" />
-                    <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Videos</h3>
-                    <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-                      {publishedVideos.length}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-4">
+                  <h3 className="mb-2 text-sm font-bold text-[var(--color-text-primary)]">
+                    Videos ({publishedVideos.length})
+                  </h3>
+                  <div className={MEDIA_GALLERY_GRID_CLASS}>
                     {publishedVideos.map((item) => (
                       <MediaTile
                         key={item.id}
@@ -471,6 +574,6 @@ export function FacebookHistoryCollapsible({
           )}
         </div>
       )}
-    </AdminCard>
+    </div>
   )
 }

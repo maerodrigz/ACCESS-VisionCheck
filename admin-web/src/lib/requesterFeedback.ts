@@ -399,27 +399,3 @@ export function filterFeedback(
     )
   })
 }
-
-export function buildExportReport(data: RequesterFeedbackDashboardData): string {
-  const lines: string[] = [
-    'ACCESS VisionCheck — Requester Feedback Report',
-    `Generated: ${new Date().toLocaleString()}`,
-    '',
-    'Overview',
-    `  Average satisfaction: ${data.stats.averageRating > 0 ? data.stats.averageRating.toFixed(1) : '—'} / 5`,
-    `  Total feedback received: ${data.stats.totalReceived}`,
-    `  Positive reviews (4–5★): ${data.stats.positiveReviews}`,
-    `  Needs attention: ${data.stats.needsAttention}`,
-    `  Pending admin review: ${data.stats.pendingReview}`,
-    '',
-  ]
-  for (const f of data.feedback.filter((i) => i.reviewStatus !== 'archived')) {
-    lines.push(`${f.eventName} — ${f.organization}`)
-    lines.push(`  Rating: ${f.rating}/5 · Submitted ${formatFeedbackDate(f.submittedAt)}`)
-    lines.push(`  Requester: ${f.requesterName}`)
-    if (f.comment) lines.push(`  Comment: ${f.comment}`)
-    if (f.adminResponse) lines.push(`  Admin response: ${f.adminResponse}`)
-    lines.push('')
-  }
-  return lines.join('\n')
-}

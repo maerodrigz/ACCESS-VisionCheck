@@ -28,7 +28,6 @@ export interface AiDetectionRow {
   media_name: string
   file_type?: string
   media_url: string
-  file_type?: string
   member_name: string
   member_id?: number
   ai_result: string

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   CalendarCheck,
   CheckCircle2,
-  Image,
   MessageSquare,
   Send,
   TrendingUp,
@@ -106,19 +105,7 @@ export function CompetencyProfileDrawer({
               className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
             >
               <Users size={15} className="text-[var(--color-text-secondary)]" />
-              Team roster
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => {
-                onClose()
-                navigate(`/media/member-uploads?q=${encodeURIComponent(m.profile.name)}`)
-              }}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
-            >
-              <Image size={15} className="text-[var(--color-text-secondary)]" />
-              All uploads
+              Member management
             </button>
           </div>
         ) : undefined

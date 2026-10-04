@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   ChevronRight,
   TrendingDown,
@@ -7,7 +7,14 @@ import {
 import { AdminCard } from '../AdminCard'
 import { AdminSelect } from '../AdminSelect'
 import { ActivityTypeIcon } from '../ActivityTypeIcon'
-import type { ActivityItem, OrgRank, QualityBucket, TimeSeriesPoint } from '../../lib/analyticsOverview'
+import {
+  buildRequestsByMonth,
+  requestYears,
+  type ActivityItem,
+  type MonthlyRequestPoint,
+  type OrgRank,
+  type QualityBucket,
+} from '../../lib/analyticsOverview'
 
 export function AnalyticsKpiCard({
   icon,
@@ -68,139 +75,117 @@ export function AnalyticsKpiCard({
 const CHART_PAIR_HEIGHT = 'h-[400px]'
 const BOTTOM_ROW_HEIGHT = 'h-[300px]'
 
-export function EvaluationsAreaChart({ points }: { points: TimeSeriesPoint[] }) {
+function niceAxisStep(dataMax: number, ticks: number): number {
+  const raw = Math.max(1, Math.ceil(dataMax / ticks))
+  const magnitude = 10 ** Math.floor(Math.log10(raw))
+  for (const m of [1, 2, 5, 10]) {
+    if (m * magnitude >= raw) return m * magnitude
+  }
+  return 10 * magnitude
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
+export function RequestsBarChart({ points, year }: { points: MonthlyRequestPoint[]; year: number }) {
   const width = 720
   const height = 300
-  const pad = { top: 24, right: 20, bottom: 44, left: 52 }
+  const pad = { top: 28, right: 16, bottom: 40, left: 44 }
   const innerW = width - pad.left - pad.right
   const innerH = height - pad.top - pad.bottom
-  const safePoints =
-    points.length > 0 ? points : [{ label: '—', value: 0, date: new Date() }]
-
-  const dataMax = Math.max(...safePoints.map((p) => p.value), 1)
-  const niceMax = dataMax <= 800 ? 800 : Math.ceil(dataMax / 200) * 200
-  const yStep = niceMax / 4
-  const yTicks = [0, 1, 2, 3, 4].map((i) => ({
-    val: Math.round(yStep * i),
-    y: pad.top + innerH * (1 - i / 4),
-  }))
-
-  const coords = safePoints.map((p, i) => {
-    const x =
-      pad.left + (safePoints.length <= 1 ? innerW / 2 : (i / (safePoints.length - 1)) * innerW)
-    const y = pad.top + innerH - (p.value / niceMax) * innerH
-    return { x, y, ...p }
-  })
-
-  const linePath = coords
-    .map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`)
-    .join(' ')
-  const areaPath = `${linePath} L ${coords[coords.length - 1]?.x ?? pad.left} ${pad.top + innerH} L ${coords[0]?.x ?? pad.left} ${pad.top + innerH} Z`
-
-  const xLabelEvery = Math.max(1, Math.floor(coords.length / 5))
+  const tickCount = 4
+  const step = niceAxisStep(Math.max(...points.map((p) => p.requests), 1), tickCount)
+  const axisMax = step * tickCount
+  const slot = innerW / Math.max(points.length, 1)
+  const barW = Math.min(36, slot * 0.56)
+  const now = new Date()
+  const currentMonth = now.getFullYear() === year ? now.getMonth() : -1
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
-      {yTicks.map(({ val, y }) => (
-        <g key={val}>
-          <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e8edf2" strokeWidth="1" />
-          <text
-            x={pad.left - 12}
-            y={y + 5}
-            textAnchor="end"
-            fill="#64748b"
-            fontSize="14"
-            fontWeight="500"
-          >
-            {val}
-          </text>
-        </g>
-      ))}
-      <path d={areaPath} fill="url(#evalAreaGrad)" />
-      <path
-        d={linePath}
-        fill="none"
-        stroke="#0052d4"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {coords.map((c) => (
-        <circle key={`${c.label}-${c.x}`} cx={c.x} cy={c.y} r="4.5" fill="#0052d4" stroke="#fff" strokeWidth="2" />
-      ))}
-      {coords.map((c, i) =>
-        i % xLabelEvery === 0 || i === coords.length - 1 ? (
-          <text
-            key={`${c.label}-x`}
-            x={c.x}
-            y={height - 12}
-            textAnchor="middle"
-            fill="#64748b"
-            fontSize="14"
-            fontWeight="500"
-          >
-            {c.label}
-          </text>
-        ) : null,
-      )}
-      <defs>
-        <linearGradient id="evalAreaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0052d4" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#0052d4" stopOpacity="0.03" />
-        </linearGradient>
-      </defs>
+      {Array.from({ length: tickCount + 1 }, (_, i) => {
+        const y = pad.top + innerH * (1 - i / tickCount)
+        return (
+          <g key={i}>
+            <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e8edf2" strokeWidth="1" />
+            <text x={pad.left - 10} y={y + 5} textAnchor="end" fill="#64748b" fontSize="13" fontWeight="500">
+              {step * i}
+            </text>
+          </g>
+        )
+      })}
+      {points.map((p, i) => {
+        const cx = pad.left + slot * i + slot / 2
+        const barH = (p.requests / axisMax) * innerH
+        const y = pad.top + innerH - barH
+        const isCurrent = p.month === currentMonth
+        return (
+          <g key={p.month} className="transition-opacity hover:opacity-80">
+            <title>
+              {`${p.label} ${year}: ${plural(p.requests, 'request')}${
+                p.requests > 0 ? ` from ${plural(p.requesters, 'requester')}` : ''
+              }`}
+            </title>
+            <rect x={pad.left + slot * i} y={pad.top} width={slot} height={innerH} fill="transparent" />
+            {p.requests > 0 && (
+              <>
+                <rect x={cx - barW / 2} y={y} width={barW} height={barH} rx={5} fill="#0052d4" />
+                <text x={cx} y={y - 7} textAnchor="middle" fill="#1e293b" fontSize="13" fontWeight="700">
+                  {p.requests}
+                </text>
+              </>
+            )}
+            <text
+              x={cx}
+              y={height - 14}
+              textAnchor="middle"
+              fill={isCurrent ? '#0052d4' : '#64748b'}
+              fontSize="13"
+              fontWeight={isCurrent ? '700' : '500'}
+            >
+              {p.label}
+            </text>
+          </g>
+        )
+      })}
     </svg>
   )
 }
 
-function ChartDropdown({
-  value,
-  onChange,
-  options,
-}: {
-  value: string
-  onChange: (v: string) => void
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <AdminSelect
-      value={value}
-      onChange={onChange}
-      aria-label="Chart granularity"
-      buttonClassName="rounded-lg py-1.5 pl-3 pr-2 text-xs font-semibold"
-      options={options}
-    />
+export function RequestsByMonthCard({ requests }: { requests: Record<string, unknown>[] }) {
+  const years = useMemo(() => requestYears(requests), [requests])
+  const [year, setYear] = useState(() => years[0] ?? new Date().getFullYear())
+  const { points, totalRequests, totalRequesters } = useMemo(
+    () => buildRequestsByMonth(requests, year),
+    [requests, year],
   )
-}
 
-export function EvaluationsOverTimeCard({
-  points,
-  seriesMode,
-  onSeriesModeChange,
-}: {
-  points: TimeSeriesPoint[]
-  seriesMode: 'daily' | 'weekly'
-  onSeriesModeChange: (mode: 'daily' | 'weekly') => void
-}) {
   return (
     <AdminCard
       padding="md"
       bodyClassName="flex h-full min-h-0 flex-col"
       className={`h-full ${CHART_PAIR_HEIGHT}`}
     >
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">Evaluations Over Time</h3>
-        <ChartDropdown
-          value={seriesMode}
-          onChange={(v) => onSeriesModeChange(v as 'daily' | 'weekly')}
-          options={[
-            { value: 'daily', label: 'Daily' },
-            { value: 'weekly', label: 'Weekly' },
-          ]}
+      <div className="mb-1 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">Event Requests by Month</h3>
+          <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+            {totalRequests > 0
+              ? `${plural(totalRequests, 'request')} from ${plural(totalRequesters, 'requester')} in ${year}`
+              : `No requests submitted in ${year}`}
+          </p>
+        </div>
+        <AdminSelect
+          value={String(year)}
+          onChange={(v) => setYear(Number(v))}
+          aria-label="Year"
+          buttonClassName="rounded-lg py-1.5 pl-3 pr-2 text-xs font-semibold"
+          options={years.map((y) => ({ value: String(y), label: String(y) }))}
         />
       </div>
-      <div className="min-h-0 flex-1 w-full pt-2">
-        <EvaluationsAreaChart points={points} />
+      <div className="min-h-0 w-full flex-1 pt-2">
+        <RequestsBarChart points={points} year={year} />
       </div>
     </AdminCard>
   )

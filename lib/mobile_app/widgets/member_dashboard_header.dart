@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
-import 'package:access_mobile/shared/themes/theme.dart';import 'package:access_mobile/shared/widgets/access_logo.dart';
+import 'package:access_mobile/shared/themes/theme.dart';import 'package:access_mobile/shared/widgets/access_branding.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
@@ -124,7 +124,7 @@ class _HeaderBrandWordmark extends StatelessWidget {
 
     return Row(
       children: [
-        AccessLogoImage(size: logoSize),
+        AccessOrgSealLogo(size: logoSize, showShadow: false),
         SizedBox(width: compact ? 6 : 8),
         Expanded(
           child: RichText(

@@ -79,7 +79,7 @@ export function routeForNotification(
         case 'task_assignment':
           return ref ? `/documentation-requests?assignment=${ref}` : '/members'
         case 'media_evaluation':
-          return ref ? `/media/member-uploads?media=${ref}` : '/media/member-uploads'
+          return ref ? `/media?media=${ref}` : '/media'
         case 'ai_detection':
           return ref ? `/media-integrity?media=${ref}` : '/media-integrity'
         case 'feedback':

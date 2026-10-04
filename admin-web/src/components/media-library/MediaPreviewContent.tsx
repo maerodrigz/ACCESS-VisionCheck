@@ -1,4 +1,5 @@
-import { Image, Video } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ImageOff, Video } from 'lucide-react'
 import { isVideoMedia, isVideoMediaPath } from '../../api/media'
 
 interface Props {
@@ -15,6 +16,31 @@ function inferVideo(isVideo: boolean, url: string, fileName?: string, fileType?:
   return isVideo || isVideoMedia(fileType, fileName, url) || isVideoMediaPath(url) || isVideoMediaPath(fileName)
 }
 
+export function MediaThumbnailPlaceholder({
+  isVideo,
+  className = '',
+  compact,
+}: {
+  isVideo: boolean
+  className?: string
+  compact?: boolean
+}) {
+  const Icon = isVideo ? Video : ImageOff
+  return (
+    <div
+      className={[
+        'flex flex-col items-center justify-center gap-1.5 bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]',
+        className,
+      ].join(' ')}
+    >
+      <Icon size={compact ? 22 : 32} strokeWidth={1.5} />
+      <span className={compact ? 'text-[9px] font-medium' : 'text-[10px] font-medium'}>
+        {isVideo && !compact ? 'Video unavailable' : 'No preview'}
+      </span>
+    </div>
+  )
+}
+
 export function MediaPreviewContent({
   url,
   isVideo,
@@ -25,15 +51,11 @@ export function MediaPreviewContent({
 }: Props) {
   const video = inferVideo(isVideo, url, fileName, fileType)
   const isThumbnail = mode === 'thumbnail'
+  const [mediaFailed, setMediaFailed] = useState(false)
+  useEffect(() => setMediaFailed(false), [url])
 
-  if (!url) {
-    return (
-      <div
-        className={`flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-[var(--color-text-secondary)] ${className}`}
-      >
-        {video ? <Video size={36} strokeWidth={1.5} /> : <Image size={36} strokeWidth={1.5} />}
-      </div>
-    )
+  if (!url || mediaFailed) {
+    return <MediaThumbnailPlaceholder isVideo={video} className={className} compact={isThumbnail} />
   }
 
   if (video) {
@@ -44,6 +66,7 @@ export function MediaPreviewContent({
         muted={isThumbnail}
         playsInline
         preload={isThumbnail ? 'metadata' : 'auto'}
+        onError={() => setMediaFailed(true)}
         className={[
           isThumbnail
             ? 'pointer-events-none h-full w-full object-cover'
@@ -58,9 +81,10 @@ export function MediaPreviewContent({
     <img
       src={url}
       alt=""
+      onError={() => setMediaFailed(true)}
       className={[
         isThumbnail
-          ? 'h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]'
+          ? 'h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]'
           : 'max-h-72 w-full object-contain',
         className,
       ].join(' ')}

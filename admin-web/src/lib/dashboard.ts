@@ -3,6 +3,7 @@ import {
   fetchEvaluations,
   fetchEvents,
   fetchMedia,
+  fetchRankings,
   fetchServiceRequests,
   fetchTasks,
 } from '../api/admin'
@@ -52,6 +53,47 @@ export interface AnnouncementItem {
   dateLabel: string
 }
 
+export type ActionCenterKind = 'request' | 'integrity' | 'media'
+
+export interface ActionCenterItem {
+  id: number
+  title: string
+  subtitle: string
+  timeLabel: string
+  kind: ActionCenterKind
+  count: number
+}
+
+export interface EvalOverviewStats {
+  evaluated: number
+  goodQuality: number
+  needsImprovement: number
+  aiFlagged: number
+  evaluatedTrend: number
+  goodQualityTrend: number
+  needsImprovementTrend: number
+  aiFlaggedTrend: number
+}
+
+export interface EvaluationTrendPoint {
+  dateLabel: string
+  evaluated: number
+  goodQuality: number
+  needsImprovement: number
+  aiFlagged: number
+}
+
+export interface CompetencyBreakdown {
+  label: string
+  count: number
+  percent: number
+}
+
+export interface ActiveDocumenterSnapshot {
+  totalActive: number
+  breakdown: CompetencyBreakdown[]
+}
+
 export interface HomeDashboardSnapshot {
   overview: HomeOverviewStats
   pendingRequests: PendingRequestItem[]
@@ -62,6 +104,10 @@ export interface HomeDashboardSnapshot {
   announcements: AnnouncementItem[]
   pendingMembers: number
   stats: DashboardStats
+  actionCenterItems: ActionCenterItem[]
+  evalOverview: EvalOverviewStats
+  evalTrend: EvaluationTrendPoint[]
+  activeDocumenters: ActiveDocumenterSnapshot
 }
 
 function parseDate(raw: unknown): Date | null {
@@ -72,7 +118,7 @@ function parseDate(raw: unknown): Date | null {
 
 function formatDate(raw: unknown): string {
   const d = parseDate(raw)
-  if (!d) return '—'
+  if (!d) return 'N/A'
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 }
@@ -277,6 +323,204 @@ function buildAnnouncements(notifications: AdminNotification[]): AnnouncementIte
   ]
 }
 
+function trendPct(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return Math.round(((current - previous) / previous) * 100)
+}
+
+function buildEvalOverview(
+  evaluations: Record<string, unknown>[],
+  today: Date,
+): EvalOverviewStats {
+  const last7Start = new Date(today)
+  last7Start.setDate(last7Start.getDate() - 7)
+  const prev7Start = new Date(today)
+  prev7Start.setDate(prev7Start.getDate() - 14)
+
+  let evalCurrent = 0
+  let goodCurrent = 0
+  let needsCurrent = 0
+  let aiCurrent = 0
+  let evalPrev = 0
+  let goodPrev = 0
+  let needsPrev = 0
+  let aiPrev = 0
+
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  for (const e of evaluations) {
+    const d = parseDate(e.evaluated_at ?? e.created_at)
+    if (!d) continue
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+    const score = Number(e.overall_score ?? 0)
+    const detection = String(e.detection_result ?? '').toLowerCase()
+    const isFlagged = detection === 'ai_generated' || detection === 'suspicious'
+    const isGood = !isFlagged && score >= 0.75
+    const isNeeds = !isFlagged && score < 0.75
+
+    if (day >= last7Start && day < tomorrow) {
+      evalCurrent++
+      if (isFlagged) aiCurrent++
+      else if (isGood) goodCurrent++
+      else if (isNeeds) needsCurrent++
+    } else if (day >= prev7Start && day < last7Start) {
+      evalPrev++
+      if (isFlagged) aiPrev++
+      else if (isGood) goodPrev++
+      else if (isNeeds) needsPrev++
+    }
+  }
+
+  return {
+    evaluated: evalCurrent,
+    goodQuality: goodCurrent,
+    needsImprovement: needsCurrent,
+    aiFlagged: aiCurrent,
+    evaluatedTrend: trendPct(evalCurrent, evalPrev),
+    goodQualityTrend: trendPct(goodCurrent, goodPrev),
+    needsImprovementTrend: trendPct(needsCurrent, needsPrev),
+    aiFlaggedTrend: trendPct(aiCurrent, aiPrev),
+  }
+}
+
+function buildEvalTrend(evaluations: Record<string, unknown>[], today: Date): EvaluationTrendPoint[] {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const points: EvaluationTrendPoint[] = []
+
+  for (let i = 6; i >= 0; i--) {
+    const day = new Date(today)
+    day.setDate(day.getDate() - i)
+    const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
+    const dayEnd = new Date(dayStart)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+    const label = `${months[dayStart.getMonth()]} ${dayStart.getDate()}`
+
+    let evaluated = 0
+    let good = 0
+    let needs = 0
+    let ai = 0
+
+    for (const e of evaluations) {
+      const d = parseDate(e.evaluated_at ?? e.created_at)
+      if (!d || d < dayStart || d >= dayEnd) continue
+
+      const score = Number(e.overall_score ?? 0)
+      const detection = String(e.detection_result ?? '').toLowerCase()
+      const isFlagged = detection === 'ai_generated' || detection === 'suspicious'
+
+      evaluated++
+      if (isFlagged) ai++
+      else if (score >= 0.75) good++
+      else needs++
+    }
+
+    points.push({ dateLabel: label, evaluated, goodQuality: good, needsImprovement: needs, aiFlagged: ai })
+  }
+
+  return points
+}
+
+function buildActiveDocumenters(
+  rankings: Record<string, unknown>[],
+  stats: DashboardStats,
+): ActiveDocumenterSnapshot {
+  let advanced = 0
+  let developing = 0
+  let amateur = 0
+
+  for (const r of rankings) {
+    const level = String(r.skill_level ?? r.competency_level ?? '').toLowerCase()
+    if (level.includes('advanced') || level.includes('expert')) advanced++
+    else if (level.includes('developing') || level.includes('intermediate')) developing++
+    else amateur++
+  }
+
+  const total = advanced + developing + amateur
+  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
+
+  if (total === 0) {
+    const active = stats.active_members ?? 0
+    return {
+      totalActive: active,
+      breakdown:
+        active === 0
+          ? []
+          : [
+              { label: 'Advanced', count: 0, percent: 0 },
+              { label: 'Developing', count: 0, percent: 0 },
+              { label: 'Amateur', count: active, percent: 100 },
+            ],
+    }
+  }
+
+  return {
+    totalActive: total,
+    breakdown: [
+      { label: 'Advanced', count: advanced, percent: pct(advanced) },
+      { label: 'Developing', count: developing, percent: pct(developing) },
+      { label: 'Amateur', count: amateur, percent: pct(amateur) },
+    ],
+  }
+}
+
+function buildActionCenterItems(input: {
+  pendingRequests: PendingRequestItem[]
+  pendingMedia: number
+  evaluations: Record<string, unknown>[]
+  media: Record<string, unknown>[]
+}): ActionCenterItem[] {
+  const items: ActionCenterItem[] = []
+
+  if (input.pendingRequests.length > 0) {
+    const org = input.pendingRequests[0].requestor
+    const n = input.pendingRequests.length
+    items.push({
+      id: input.pendingRequests[0].id,
+      title: `${n} documentation request${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} approval`,
+      subtitle: `New request from ${org}`,
+      timeLabel: 'Just now',
+      kind: 'request',
+      count: n,
+    })
+  }
+
+  const flaggedCount =
+    input.evaluations.filter((e) => {
+      const d = String(e.detection_result ?? '').toLowerCase()
+      return d === 'suspicious' || d === 'ai_generated'
+    }).length +
+    input.media.filter((m) => {
+      const d = String(m.detection_result ?? m.ai_result ?? '').toLowerCase()
+      return d === 'suspicious' || d === 'ai_generated'
+    }).length
+
+  if (flaggedCount > 0) {
+    items.push({
+      id: -1,
+      title: `${flaggedCount} media item${flaggedCount === 1 ? '' : 's'} flagged for integrity review`,
+      subtitle: 'Suspicious content detected by AI',
+      timeLabel: 'Recent',
+      kind: 'integrity',
+      count: flaggedCount,
+    })
+  }
+
+  if (input.pendingMedia > 0) {
+    items.push({
+      id: -2,
+      title: `${input.pendingMedia} media item${input.pendingMedia === 1 ? '' : 's'} awaiting evaluation`,
+      subtitle: 'Recently uploaded by team members',
+      timeLabel: 'Recent',
+      kind: 'media',
+      count: input.pendingMedia,
+    })
+  }
+
+  return items
+}
+
 export function buildDailySummary(snap: HomeDashboardSnapshot): string {
   const parts: string[] = []
   const o = snap.overview
@@ -313,15 +557,17 @@ export function buildDailySummary(snap: HomeDashboardSnapshot): string {
 }
 
 export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
-  const [stats, requests, events, evaluations, media, notificationsRaw, tasks] = await Promise.all([
-    fetchDashboardStats(),
-    fetchServiceRequests(),
-    fetchEvents(),
-    fetchEvaluations(),
-    fetchMedia(),
-    fetchNotifications(),
-    fetchTasks(),
-  ])
+  const [stats, requests, events, evaluations, media, notificationsRaw, tasks, rankings] =
+    await Promise.all([
+      fetchDashboardStats(),
+      fetchServiceRequests(),
+      fetchEvents(),
+      fetchEvaluations(),
+      fetchMedia(),
+      fetchNotifications(),
+      fetchTasks(),
+      fetchRankings(),
+    ])
 
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -382,5 +628,14 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
     announcements: buildAnnouncements(notifications),
     pendingMembers: stats.pending_members ?? 0,
     stats,
+    actionCenterItems: buildActionCenterItems({
+      pendingRequests,
+      pendingMedia,
+      evaluations,
+      media,
+    }),
+    evalOverview: buildEvalOverview(evaluations, today),
+    evalTrend: buildEvalTrend(evaluations, today),
+    activeDocumenters: buildActiveDocumenters(rankings, stats),
   }
 }

@@ -14,6 +14,7 @@ class EvalResultActionBar extends StatelessWidget {
     this.evaluationAlreadySaved = false,
     this.evaluateAgainLabel,
     this.adminReviewStatus,
+    this.compact = false,
   });
 
   final VoidCallback onSave;
@@ -24,6 +25,7 @@ class EvalResultActionBar extends StatelessWidget {
   final bool isSaving;
   final bool atLimit;
   final bool evaluationAlreadySaved;
+  final bool compact;
 
   String get _secondaryLabel {
     if (evaluateAgainLabel != null) return evaluateAgainLabel!;
@@ -37,6 +39,8 @@ class EvalResultActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gap = compact ? 8.0 : 12.0;
+    final buttonHeight = compact ? 48.0 : 56.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -55,20 +59,23 @@ class EvalResultActionBar extends StatelessWidget {
                   colors: [Color(0xFF10B981), Color(0xFF059669)],
                 ),
           backgroundColor: atLimit && !evaluationAlreadySaved ? kDashBorder : null,
+          height: buttonHeight,
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: gap),
         _SecondaryEvalButton(
           label: _secondaryLabel,
           icon: Icons.refresh_rounded,
           onPressed: isSaving ? null : onEvaluateAgain,
+          height: buttonHeight,
         ),
         if (onDetailedAnalysis != null) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: gap),
           _SecondaryEvalButton(
             label: 'Detailed Analysis',
             icon: Icons.analytics_outlined,
             onPressed: isSaving ? null : onDetailedAnalysis,
             accent: kEvalSecondary,
+            height: buttonHeight,
           ),
         ],
       ],
@@ -84,6 +91,7 @@ class _PrimaryEvalButton extends StatelessWidget {
     this.isLoading = false,
     this.gradient,
     this.backgroundColor,
+    this.height = 56,
   });
 
   final String label;
@@ -92,6 +100,7 @@ class _PrimaryEvalButton extends StatelessWidget {
   final bool isLoading;
   final LinearGradient? gradient;
   final Color? backgroundColor;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -104,11 +113,11 @@ class _PrimaryEvalButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(16),
         child: Ink(
-          height: 56,
+          height: height,
           decoration: BoxDecoration(
             gradient: disabled ? null : gradient,
             color: disabled ? (backgroundColor ?? kDashBorder) : backgroundColor,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             boxShadow: disabled || gradient == null
                 ? null
                 : [
@@ -153,12 +162,14 @@ class _SecondaryEvalButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.accent,
+    this.height = 56,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback? onPressed;
   final Color? accent;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -166,16 +177,16 @@ class _SecondaryEvalButton extends StatelessWidget {
     final disabled = onPressed == null;
 
     return SizedBox(
-      height: 56,
+      height: height,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, size: 22, color: disabled ? kDashTextSecondary : color),
+        icon: Icon(icon, size: 20, color: disabled ? kDashTextSecondary : color),
         label: Text(label),
         style: OutlinedButton.styleFrom(
           foregroundColor: disabled ? kDashTextSecondary : color,
           side: BorderSide(color: disabled ? kDashBorder : color.withValues(alpha: 0.45), width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          textStyle: dashText(TextStyle(fontWeight: FontWeight.w700, fontSize: height <= 48 ? 14 : 16)),
         ),
       ),
     );

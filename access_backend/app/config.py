@@ -87,8 +87,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-3-flash-preview", alias="GEMINI_MODEL")
 
-    # Dedicated AI detector backend: univfd (default) or probe (PROBE-DINOv2 @ 1344px cap).
-    ai_detector_backend: str = Field(default="univfd", alias="AI_DETECTOR_BACKEND")
+    # Dedicated AI detector backend: probe (PROBE-DINOv2 @ 1344px cap) or univfd.
+    ai_detector_backend: str = Field(default="probe", alias="AI_DETECTOR_BACKEND")
     probe_max_long_edge: int = Field(default=1344, alias="PROBE_MAX_LONG_EDGE")
     probe_checkpoint_path: str = Field(default="", alias="PROBE_CHECKPOINT_PATH")
     probe_low_risk_threshold: float = Field(default=0.30, alias="PROBE_LOW_RISK_THRESHOLD")

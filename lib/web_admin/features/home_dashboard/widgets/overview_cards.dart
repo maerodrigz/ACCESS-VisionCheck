@@ -13,76 +13,93 @@ class OverviewStatCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cards = [
+      _CardConfig(
+        icon: Icons.description_outlined,
+        label: 'Pending Requests',
+        sublabel: 'needs approval',
+        value: stats.pendingRequests,
+        color: AdminTheme.danger,
+        bgColor: const Color(0xFFFFF5F5),
+        route: AdminRoute.docRequests,
+      ),
+      _CardConfig(
+        icon: Icons.calendar_today_outlined,
+        label: "Today's Events",
+        sublabel: 'scheduled today',
+        value: stats.todayEvents,
+        color: AdminTheme.accentBlue,
+        bgColor: const Color(0xFFF0F5FF),
+        route: AdminRoute.eventCalendar,
+      ),
+      _CardConfig(
+        icon: Icons.photo_library_outlined,
+        label: 'Media Awaiting Review',
+        sublabel: 'for AI evaluation',
+        value: stats.mediaPendingEvaluation,
+        color: AdminTheme.accentCyan,
+        bgColor: const Color(0xFFF0FBFF),
+        route: AdminRoute.mediaEvaluation,
+      ),
+      _CardConfig(
+        icon: Icons.notifications_outlined,
+        label: 'Unread Alerts',
+        sublabel: 'new notifications',
+        value: stats.unreadNotifications,
+        color: const Color(0xFF7C3AED),
+        bgColor: const Color(0xFFF5F0FF),
+        route: AdminRoute.notifications,
+        badge: stats.unreadNotifications,
+      ),
+    ];
+
     return LayoutBuilder(
-      builder: (context, c) {
-        final cols = c.maxWidth >= 1100 ? 5 : c.maxWidth >= 640 ? 3 : 2;
+      builder: (context, constraints) {
+        final cols = constraints.maxWidth >= 900 ? 4 : constraints.maxWidth >= 600 ? 2 : 1;
         return GridView.count(
           crossAxisCount: cols,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: cols >= 5 ? 1.55 : 1.45,
-          children: [
-            _OverviewCard(
-              icon: Icons.mark_email_unread_outlined,
-              label: 'Pending Requests',
-              value: '${stats.pendingRequests}',
-              color: AdminTheme.danger,
-              onTap: () => onNavigate(AdminRoute.docRequests),
-            ),
-            _OverviewCard(
-              icon: Icons.event_outlined,
-              label: 'Today\'s Events',
-              value: '${stats.todayEvents}',
-              color: AdminTheme.accentBlue,
-              onTap: () => onNavigate(AdminRoute.eventCalendar),
-            ),
-            _OverviewCard(
-              icon: Icons.psychology_outlined,
-              label: 'Integrity Alerts',
-              value: '${stats.mediaPendingEvaluation}',
-              color: const Color(0xFF0891B2),
-              onTap: () => onNavigate(AdminRoute.mediaEvaluation),
-            ),
-            _OverviewCard(
-              icon: Icons.groups_outlined,
-              label: 'Active Members',
-              value: '${stats.activeMembers}',
-              color: AdminTheme.success,
-              onTap: () => onNavigate(AdminRoute.members),
-            ),
-            _OverviewCard(
-              icon: Icons.notifications_outlined,
-              label: 'Unread Alerts',
-              value: '${stats.unreadNotifications}',
-              color: const Color(0xFF7C3AED),
-              badge: stats.unreadNotifications > 0,
-              onTap: () => onNavigate(AdminRoute.notifications),
-            ),
-          ],
+          childAspectRatio: cols == 4 ? 1.8 : cols == 2 ? 2.2 : 3.5,
+          children: cards.map((c) => _OverviewCard(
+            config: c,
+            onTap: () => onNavigate(c.route),
+          )).toList(),
         );
       },
     );
   }
 }
 
-class _OverviewCard extends StatefulWidget {
-  const _OverviewCard({
+class _CardConfig {
+  const _CardConfig({
     required this.icon,
     required this.label,
+    required this.sublabel,
     required this.value,
     required this.color,
-    required this.onTap,
-    this.badge = false,
+    required this.bgColor,
+    required this.route,
+    this.badge = 0,
   });
 
   final IconData icon;
   final String label;
-  final String value;
+  final String sublabel;
+  final int value;
   final Color color;
+  final Color bgColor;
+  final AdminRoute route;
+  final int badge;
+}
+
+class _OverviewCard extends StatefulWidget {
+  const _OverviewCard({required this.config, required this.onTap});
+
+  final _CardConfig config;
   final VoidCallback onTap;
-  final bool badge;
 
   @override
   State<_OverviewCard> createState() => _OverviewCardState();
@@ -93,63 +110,95 @@ class _OverviewCardState extends State<_OverviewCard> {
 
   @override
   Widget build(BuildContext context) {
+    final c = widget.config;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: Material(
-        color: AdminTheme.surface,
-        elevation: _hovered ? 2 : 0,
-        shadowColor: const Color(0x140F2744),
-        borderRadius: BorderRadius.circular(AdminTheme.cardRadius),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(AdminTheme.cardRadius),
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AdminTheme.cardRadius),
-              border: Border.all(color: _hovered ? widget.color.withValues(alpha: 0.35) : AdminTheme.border),
-              boxShadow: _hovered ? AdminTheme.cardShadow : null,
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: AdminTheme.surface,
+            borderRadius: BorderRadius.circular(AdminTheme.cardRadius),
+            border: Border.all(
+              color: _hovered ? c.color.withValues(alpha: 0.4) : AdminTheme.border,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: widget.color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(widget.icon, size: 20, color: widget.color),
-                      ),
-                      if (widget.badge) ...[
-                        const Spacer(),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(color: AdminTheme.danger, shape: BoxShape.circle),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    widget.value,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AdminTheme.textPrimary, height: 1),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.label,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AdminTheme.textSecondary),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            boxShadow: _hovered
+                ? [
+                    BoxShadow(
+                      color: c.color.withValues(alpha: 0.12),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : AdminTheme.cardShadow,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Icon tile
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: c.bgColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(c.icon, size: 24, color: c.color),
               ),
-            ),
+              const SizedBox(width: 14),
+              // Text block
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      c.label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AdminTheme.textSecondary,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${c.value}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: AdminTheme.textPrimary,
+                        height: 1.1,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      c.sublabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AdminTheme.textSecondary.withValues(alpha: 0.85),
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Arrow
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: _hovered ? c.color : AdminTheme.textSecondary.withValues(alpha: 0.5),
+              ),
+            ],
           ),
         ),
       ),

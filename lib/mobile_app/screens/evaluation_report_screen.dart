@@ -6,6 +6,7 @@ import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart'
 import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
+import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
@@ -47,6 +48,31 @@ class EvaluationReportScreen extends StatelessWidget {
             _ReportMediaHeader(evaluation: evaluation),
             const SizedBox(height: 14),
             if (result != null) ...[
+              if (result.showQualityFeedbackEffective) ...[
+                Text(
+                  'Media quality',
+                  style: evalSectionTitleStyle.copyWith(fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Technical score and improvement feedback from your upload.',
+                  style: evalSectionSubtitleStyle.copyWith(fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                MediaEvaluationResultsPanel(
+                  result: result,
+                  gemini: evaluation.geminiFeedback,
+                  compact: true,
+                  dense: true,
+                  useBreakdownCard: true,
+                  showOverallHeader: false,
+                  feedbackIsLocalFallback: result.geminiFeedbackIsLocal,
+                ),
+                const SizedBox(height: 16),
+              ] else ...[
+                IntegrityOnlyMessageCard(result: result),
+                const SizedBox(height: 16),
+              ],
               AiDetectionBanner(
                 aiDetection: result.aiDetection,
                 adminReviewStatus: evaluation.reviewStatus,
@@ -56,16 +82,6 @@ class EvaluationReportScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 AdminReviewRemarksPanel(remarks: evaluation.adminRemarks!),
               ],
-              const SizedBox(height: 12),
-              MediaEvaluationResultsPanel(
-                result: result,
-                gemini: evaluation.geminiFeedback,
-                compact: true,
-                dense: true,
-                useBreakdownCard: true,
-                showOverallHeader: false,
-                feedbackIsLocalFallback: result.geminiFeedbackIsLocal,
-              ),
             ] else ...[
               Container(
                 padding: const EdgeInsets.all(16),

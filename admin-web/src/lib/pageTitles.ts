@@ -3,7 +3,6 @@ import { allNavItems } from '../config/navigation'
 const EXTRA_TITLES: Record<string, string> = {
   '/system-configuration': 'System Configuration',
   '/notifications': 'Notification Center',
-  '/media/member-uploads': 'Member Uploads',
 }
 
 export function pageTitleForPath(pathname: string): string {

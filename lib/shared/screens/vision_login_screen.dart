@@ -6,6 +6,7 @@ import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/screens/registration_choice_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
 import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
@@ -189,61 +190,110 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Widget _narrowLayout() {
-    final viewInsets = MediaQuery.viewInsetsOf(context);
-    final keyboardOpen = viewInsets.bottom > 0;
-    final screenH = MediaQuery.sizeOf(context).height;
-    final heroHeight = screenH * 0.32;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
+    final card = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Center(
+        child: LoginFormPanel(
+          cardStyle: true,
+          emailController: _emailCtrl,
+          passwordController: _passCtrl,
+          obscurePassword: _obscure,
+          rememberMe: _rememberMe,
+          loading: _loading,
+          error: _error,
+          onToggleObscure: () => setState(() => _obscure = !_obscure),
+          onRememberMeChanged: (v) => setState(() => _rememberMe = v),
+          onSubmit: _submit,
+          onForgotPassword: _forgotPassword,
+          onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
+        ),
+      ),
+    );
+
+    final links = _MobileLoginLinks(
+      onCreateAccount: kIsWeb ? null : _openRegistration,
+      onSetBackendUrl: kIsWeb ? null : _fixBackendUrl,
+    );
 
     return DecoratedBox(
       decoration: const BoxDecoration(gradient: LoginPageTokens.heroGradient),
       child: SafeArea(
         top: false,
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!keyboardOpen)
-              SizedBox(
-                height: heroHeight,
-                child: const LoginBrandPanel(compact: true),
-              ),
-            Expanded(
-              child: Transform.translate(
-                offset: Offset(0, keyboardOpen ? 0 : -22),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: LoginPageTokens.surface,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, -4),
-                      ),
-                    ],
+        child: keyboardOpen
+            ? SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top + 20, bottom: 20),
+                child: Column(children: [card, const SizedBox(height: 12), links]),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Expanded(flex: 5, child: LoginBrandPanel(compact: true)),
+                  card,
+                  const SizedBox(height: 14),
+                  links,
+                  const Spacer(flex: 2),
+                  const LegalFooterLinks(onDarkBackground: true),
+                  const SizedBox(height: 4),
+                  Text(
+                    '© 2026 ACCESS VisionCheck · USTP Oroquieta Campus',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
                   ),
-                  child: LoginFormPanel(
-                    compact: true,
-                    sheetStyle: true,
-                    emailController: _emailCtrl,
-                    passwordController: _passCtrl,
-                    obscurePassword: _obscure,
-                    rememberMe: _rememberMe,
-                    loading: _loading,
-                    error: _error,
-                    onToggleObscure: () => setState(() => _obscure = !_obscure),
-                    onRememberMeChanged: (v) => setState(() => _rememberMe = v),
-                    onSubmit: _submit,
-                    onForgotPassword: _forgotPassword,
-                    onCreateAccount: kIsWeb ? null : _openRegistration,
-                    onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
-                  ),
-                ),
+                  const SizedBox(height: 12),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
+    );
+  }
+}
+
+/// Create account and backend setup, shown on the gradient below the floating sign-in card.
+class _MobileLoginLinks extends StatelessWidget {
+  const _MobileLoginLinks({this.onCreateAccount, this.onSetBackendUrl});
+
+  final VoidCallback? onCreateAccount;
+  final VoidCallback? onSetBackendUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Colors.white.withValues(alpha: 0.7);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (onCreateAccount != null)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text("Don't have an account?", style: TextStyle(color: muted, fontSize: 13)),
+              TextButton(
+                onPressed: onCreateAccount,
+                style: TextButton.styleFrom(
+                  foregroundColor: kCyan,
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Create Account', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        if (onSetBackendUrl != null)
+          TextButton.icon(
+            onPressed: onSetBackendUrl,
+            icon: const Icon(Icons.dns_outlined, size: 14),
+            label: const Text('Set backend URL'),
+            style: TextButton.styleFrom(
+              foregroundColor: muted,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+      ],
     );
   }
 }

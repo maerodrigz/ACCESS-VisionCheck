@@ -8,7 +8,7 @@ import type {
   ExifMetadataFlag,
   ReviewStatus,
 } from '../api/media'
-import { isVideoMedia, isVideoMediaPath } from '../api/media'
+import { isVideoMedia } from '../api/media'
 
 export function aiLabelForResult(raw?: string | null): AiResultLabel {
   if (!raw) return 'pending'

@@ -14,6 +14,7 @@ interface AdminSelectProps {
   className?: string
   buttonClassName?: string
   disabled?: boolean
+  placement?: 'bottom' | 'top'
   'aria-label'?: string
 }
 
@@ -21,7 +22,7 @@ const triggerClass =
   'admin-input flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition hover:bg-[var(--color-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50'
 
 const menuClass =
-  'absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-60 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-1 shadow-[var(--color-overlay-shadow)]'
+  'absolute left-0 right-0 z-50 max-h-60 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-1 shadow-[0_12px_32px_rgba(0,0,0,0.35)]'
 
 const optionClass = (active: boolean) =>
   [
@@ -39,6 +40,7 @@ export function AdminSelect({
   className = '',
   buttonClassName = '',
   disabled = false,
+  placement = 'bottom',
   'aria-label': ariaLabel,
 }: AdminSelectProps) {
   const [open, setOpen] = useState(false)
@@ -86,7 +88,15 @@ export function AdminSelect({
       </button>
 
       {open ? (
-        <ul id={listboxId} role="listbox" aria-label={ariaLabel} className={menuClass}>
+        <ul
+          id={listboxId}
+          role="listbox"
+          aria-label={ariaLabel}
+          className={[
+            menuClass,
+            placement === 'top' ? 'bottom-[calc(100%+4px)]' : 'top-[calc(100%+4px)]',
+          ].join(' ')}
+        >
           {options.map((opt) => {
             const active = opt.value === value
             return (

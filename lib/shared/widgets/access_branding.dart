@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
@@ -36,6 +37,76 @@ class AccessRibbonMark extends StatelessWidget {
   }
 }
 
+/// Circular org seal — full artwork visible ([BoxFit.contain]), no square JPEG matte.
+class AccessOrgSealLogo extends StatelessWidget {
+  const AccessOrgSealLogo({
+    super.key,
+    required this.size,
+    this.showShadow = true,
+    this.paddingFraction = 0.05,
+  });
+
+  final double size;
+  final bool showShadow;
+  /// Insets the raster so the outer ring/text stay inside the circle clip.
+  final double paddingFraction;
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = (size * paddingFraction).clamp(2.0, 14.0);
+    final inner = size - inset * 2;
+
+    Widget sealImage() {
+      return Image.asset(
+        kAccessOrgSealAsset,
+        width: inner,
+        height: inner,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        semanticLabel:
+            'ACCESS, Active Certified Computer-Enhance Student Society, USTP Oroquieta',
+        errorBuilder: (_, __, ___) => Center(
+          child: AccessRibbonMark(size: inner * 0.88),
+        ),
+      );
+    }
+
+    final disk = ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: ColoredBox(
+          color: Colors.white,
+          child: Padding(
+            padding: EdgeInsets.all(inset),
+            child: Center(child: sealImage()),
+          ),
+        ),
+      ),
+    );
+
+    if (!showShadow) return disk;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: size * 0.18,
+            offset: Offset(0, size * 0.06),
+          ),
+        ],
+      ),
+      child: disk,
+    );
+  }
+}
+
 /// Horizontal logo lockup — matches React admin-web [AccessBrand].
 class AccessBrandLockup extends StatelessWidget {
   const AccessBrandLockup({
@@ -57,7 +128,7 @@ class AccessBrandLockup extends StatelessWidget {
       mainAxisSize: MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        AccessRibbonMark(size: markSize),
+        AccessOrgSealLogo(size: markSize, showShadow: false),
         SizedBox(width: gap),
         Expanded(
           child: Column(
@@ -207,9 +278,17 @@ class AccessBrandMark extends StatelessWidget {
     return ListenableBuilder(
       listenable: brandingController,
       builder: (_, __) {
-        final logo = compact
-            ? AccessLogoImage(size: logoSize, circular: true, fit: BoxFit.cover, padding: EdgeInsets.zero, backgroundColor: Colors.white)
-            : _brandLogo(logoSize);
+        final logo = kIsWeb
+            ? (compact
+                ? AccessLogoImage(
+                    size: logoSize,
+                    circular: true,
+                    fit: BoxFit.cover,
+                    padding: EdgeInsets.zero,
+                    backgroundColor: Colors.white,
+                  )
+                : _brandLogo(logoSize))
+            : AccessOrgSealLogo(size: logoSize, showShadow: !compact);
         if (compact) return logo;
 
         final textBlock = Column(

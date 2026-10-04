@@ -40,20 +40,14 @@ const AccountManagementPage = lazy(() =>
 const SystemConfigurationPage = lazy(() =>
   import('./pages/SystemConfigurationPage').then((m) => ({ default: m.SystemConfigurationPage })),
 )
-const MemberMediaGalleryPage = lazy(() =>
-  import('./pages/MemberMediaGalleryPage').then((m) => ({ default: m.MemberMediaGalleryPage })),
-)
 const NotFoundPage = lazy(() =>
   import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
 
-/** Old bookmarks to /evaluations?media=… land on Member Uploads. */
-function EvaluationsRedirect() {
+/** Old bookmarks to /evaluations or /media/member-uploads land on Event Media. */
+function LegacyMediaRedirect() {
   const { search } = useLocation()
-  const params = new URLSearchParams(search)
-  const media = params.get('media')
-  if (media) return <Navigate to={`/media/member-uploads?media=${media}`} replace />
-  return <Navigate to="/media/member-uploads" replace />
+  return <Navigate to={`/media${search}`} replace />
 }
 
 export default function App() {
@@ -67,10 +61,10 @@ export default function App() {
           <Route path="event-calendar" element={<EventCalendarPage />} />
           <Route path="members" element={<DocumentationTeamPage />} />
           <Route path="media" element={<MediaLibraryPage />} />
-          <Route path="media/member-uploads" element={<MemberMediaGalleryPage />} />
+          <Route path="media/member-uploads" element={<LegacyMediaRedirect />} />
           <Route path="media-integrity" element={<MediaIntegrityPage />} />
           <Route path="feedback" element={<RequesterFeedbackPage />} />
-          <Route path="evaluations" element={<EvaluationsRedirect />} />
+          <Route path="evaluations" element={<LegacyMediaRedirect />} />
           <Route path="competency" element={<CompetencyManagementPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="notifications" element={<NotificationCenterPage />} />

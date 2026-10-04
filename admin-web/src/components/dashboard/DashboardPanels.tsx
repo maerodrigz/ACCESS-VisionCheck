@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
@@ -7,6 +8,7 @@ import {
   ClipboardCheck,
   FileText,
   Megaphone,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'
@@ -387,19 +389,62 @@ export function AnalyticsBanner() {
   )
 }
 
-export function WelcomeHeader({ adminName }: { adminName: string }) {
+function formatDashboardClock(d: Date) {
+  return d.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+export function WelcomeHeader({
+  adminName,
+  onRefresh,
+  loading,
+}: {
+  adminName: string
+  onRefresh?: () => void
+  loading?: boolean
+}) {
   const h = new Date().getHours()
   const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = adminName.split(' ')[0] ?? 'Admin'
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60000)
+    return () => window.clearInterval(id)
+  }, [])
 
   return (
-    <div>
-      <h1 className="text-2xl font-extrabold tracking-tight text-[var(--color-text-primary)] md:text-[26px]">
-        {greeting}, {firstName}!
-      </h1>
-      <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
-        Here&apos;s what needs your attention today.
-      </p>
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 className="text-2xl font-extrabold tracking-tight text-[var(--color-text-primary)] md:text-[26px]">
+          {greeting}, {firstName}!
+        </h1>
+        <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
+          Here&apos;s an overview of your documentation activities today.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {onRefresh ? (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        ) : null}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)]">
+          {formatDashboardClock(now)}
+        </div>
+      </div>
     </div>
   )
 }

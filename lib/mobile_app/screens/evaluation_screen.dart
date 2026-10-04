@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
-import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
+import 'package:access_mobile/shared/utils/member_integrity_display.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_report_screen.dart';
@@ -154,7 +154,7 @@ class _EvaluationPageHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Evaluations',
+                  'Media Evaluation',
                   style: dashText(const TextStyle(
                     color: kTextPrimary,
                     fontSize: 28,
@@ -165,7 +165,7 @@ class _EvaluationPageHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'AI Media Quality Evaluation',
+                  'Quality Analysis & Feedback',
                   style: evalSectionSubtitleStyle.copyWith(fontSize: 14),
                 ),
               ],
@@ -308,7 +308,7 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
-                                    "Let's evaluate your\nmedia quality",
+                                    'Evaluate your media',
                                     style: dashText(const TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
@@ -319,7 +319,7 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    'Our AI will analyze your photo or video and give you detailed feedback and tips to help you improve.',
+                                    'Upload a photo or video to analyze its quality and receive detailed feedback for improvement.',
                                     style: dashText(TextStyle(
                                       color: Colors.white.withValues(alpha: 0.9),
                                       fontSize: 13,
@@ -496,7 +496,7 @@ class _EvalOptionsSection extends StatelessWidget {
                 child: _EvalSelectionCard(
                   icon: Icons.photo_camera_rounded,
                   title: 'Photo',
-                  description: 'Image quality + AI feedback',
+                  description: 'Quality analysis & feedback',
                   accent: kMemberCyan,
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
@@ -515,7 +515,7 @@ class _EvalOptionsSection extends StatelessWidget {
                 child: _EvalSelectionCard(
                   icon: Icons.videocam_rounded,
                   title: 'Video',
-                  description: 'Video quality + AI feedback',
+                  description: 'Quality analysis & feedback',
                   accent: kMemberPrimary,
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
@@ -970,16 +970,10 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 5),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 3,
-                      children: [
-                        _QualityPill(label: bucket, color: accent),
-                        if (ev.hasAdminReviewDecision && ev.reviewStatus != null)
-                          AdminReviewStatusBadge(reviewStatus: ev.reviewStatus!, compact: true)
-                        else if (ev.isUnderAdminReview)
-                          const AdminReviewStatusBadge(reviewStatus: 'pending_review', compact: true),
-                      ],
+                    _EvaluationResultPills(
+                      qualityLabel: bucket,
+                      qualityColor: accent,
+                      integrityLabel: _integrityTierFor(ev),
                     ),
                   ],
                 ),
@@ -1071,16 +1065,10 @@ class _RecentEvalCard extends StatelessWidget {
                     style: memberDashboardMetaStyle.copyWith(fontSize: 11),
                   ),
                   const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 5,
-                    runSpacing: 4,
-                    children: [
-                      _QualityPill(label: bucket, color: accent),
-                      if (ev.hasAdminReviewDecision && ev.reviewStatus != null)
-                        AdminReviewStatusBadge(reviewStatus: ev.reviewStatus!, compact: true)
-                      else if (ev.isUnderAdminReview)
-                        const AdminReviewStatusBadge(reviewStatus: 'pending_review', compact: true),
-                    ],
+                  _EvaluationResultPills(
+                    qualityLabel: bucket,
+                    qualityColor: accent,
+                    integrityLabel: _integrityTierFor(ev),
                   ),
                 ],
               ),
@@ -1090,6 +1078,67 @@ class _RecentEvalCard extends StatelessWidget {
             Icon(Icons.chevron_right_rounded, size: 20, color: kDashTextSecondary.withValues(alpha: 0.55)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+String _integrityTierFor(Evaluation ev) {
+  final ai = ev.parsedEvaluation?.aiDetection;
+  if (ai != null) {
+    return memberIntegrityTierLabel(
+      automated: ai,
+      adminReviewStatus: ev.reviewStatus,
+    );
+  }
+  if (ev.isUnderAdminReview || ev.isPending) return 'Needs Review';
+  return 'Low AI Risk';
+}
+
+class _EvaluationResultPills extends StatelessWidget {
+  const _EvaluationResultPills({
+    required this.qualityLabel,
+    required this.qualityColor,
+    required this.integrityLabel,
+  });
+
+  final String qualityLabel;
+  final Color qualityColor;
+  final String integrityLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final integrityColor = memberIntegrityTierColor(integrityLabel);
+    return Wrap(
+      spacing: 5,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _QualityPill(label: qualityLabel, color: qualityColor),
+        _IntegrityTierPill(label: integrityLabel, color: integrityColor),
+      ],
+    );
+  }
+}
+
+class _IntegrityTierPill extends StatelessWidget {
+  const _IntegrityTierPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: kSurface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.32)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700),
       ),
     );
   }

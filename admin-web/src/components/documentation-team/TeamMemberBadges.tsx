@@ -16,6 +16,7 @@ import {
 } from '../../lib/teamMembers'
 
 const avatarSizes = {
+  xs: 'h-8 w-8 text-[11px]',
   sm: 'h-11 w-11 text-sm',
   md: 'h-14 w-14 text-lg',
   lg: 'h-20 w-20 text-2xl',
@@ -70,7 +71,7 @@ export function TeamCoverageBadge({ role }: { role: TeamCoverageRole }) {
   }
   const isPhoto = role === 'photographer'
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-accent-blue)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--color-accent-blue)]">
+    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent-blue)]/15 px-2 py-0.5 text-[10px] font-semibold leading-none text-[var(--color-accent-blue)]">
       {isPhoto ? <Camera size={12} /> : <Video size={12} />}
       {coverageRoleLabel(role)}
     </span>
@@ -92,7 +93,7 @@ export function SkillLevelBadge({ tier, label }: { tier: SkillLevelTier; label: 
 const availabilityColors: Record<TeamAvailability, string> = {
   available: 'var(--color-success)',
   assigned: 'var(--color-warning)',
-  unavailable: 'var(--color-danger)',
+  unavailable: 'var(--color-text-muted)',
 }
 
 export function TeamAvailabilityIndicator({
@@ -109,10 +110,13 @@ export function TeamAvailabilityIndicator({
 
   const statusPill = (
     <span
-      className="inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-      style={{ backgroundColor: `${color}14`, color }}
+      className={[
+        'inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full font-semibold',
+        compact ? 'px-2 py-0.5 text-[10px] leading-none' : 'px-2.5 py-1 text-[11px]',
+      ].join(' ')}
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
     >
-      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
       <span className="truncate">{title}</span>
     </span>
   )
@@ -170,6 +174,32 @@ export function MemberSkillBadge({ member }: { member: TeamMemberProfile }) {
   return <SkillLevelBadge tier={member.skillTier} label={skillLevelLabel(member)} />
 }
 
+/** Roster label for the three competency groups already used on the dashboard. */
+function rosterCompetencyLabel(member: TeamMemberProfile): 'Amateur' | 'Developing' | 'Advanced' {
+  const raw = `${member.skillLevel ?? ''} ${member.skillTier}`.toLowerCase()
+  if (raw.includes('advanced') || raw.includes('expert')) return 'Advanced'
+  if (raw.includes('develop') || raw.includes('intermediate')) return 'Developing'
+  return 'Amateur'
+}
+
+export function RosterCompetencyBadge({ member }: { member: TeamMemberProfile }) {
+  const label = rosterCompetencyLabel(member)
+  const color =
+    label === 'Advanced'
+      ? 'var(--color-accent-blue)'
+      : label === 'Developing'
+        ? 'var(--color-accent-cyan)'
+        : 'var(--color-text-secondary)'
+  return (
+    <span
+      className="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+      style={{ color, backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)` }}
+    >
+      {label}
+    </span>
+  )
+}
+
 const accountStatusStyles: Record<MemberAccountLabel, { bg: string; text: string }> = {
   Active: { bg: 'rgba(16,185,129,0.12)', text: '#059669' },
   Inactive: { bg: 'rgba(100,116,139,0.12)', text: 'var(--color-text-secondary)' },
@@ -181,7 +211,7 @@ export function MemberAccountStatusBadge({ member }: { member: TeamMemberProfile
   const colors = accountStatusStyles[label]
   return (
     <span
-      className="inline-flex shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+      className="inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none"
       style={{ backgroundColor: colors.bg, color: colors.text }}
     >
       {label}
@@ -189,13 +219,32 @@ export function MemberAccountStatusBadge({ member }: { member: TeamMemberProfile
   )
 }
 
-export function MemberRequesterRatingDisplay({ member }: { member: TeamMemberProfile }) {
+export function MemberRequesterRatingDisplay({
+  member,
+  compact = false,
+}: {
+  member: TeamMemberProfile
+  compact?: boolean
+}) {
   if (member.requesterRatingCount <= 0 || member.requesterRatingAvg == null) {
-    return <span className="text-xs text-[var(--color-text-muted)]">No ratings</span>
+    return <span className="text-[11px] text-[var(--color-text-muted)]">No ratings</span>
   }
 
   const rounded = Math.round(member.requesterRatingAvg * 10) / 10
   const filled = Math.round(member.requesterRatingAvg)
+
+  if (compact) {
+    return (
+      <span
+        className="inline-flex items-center gap-1"
+        aria-label={`${rounded} out of 5 from ${member.requesterRatingCount} rating${member.requesterRatingCount === 1 ? '' : 's'}`}
+      >
+        <Star size={13} className="fill-amber-400 text-amber-400" strokeWidth={1.5} />
+        <span className="text-xs font-semibold tabular-nums text-[var(--color-text-primary)]">{rounded}</span>
+        <span className="text-[10px] text-[var(--color-text-muted)]">({member.requesterRatingCount})</span>
+      </span>
+    )
+  }
 
   return (
     <div className="min-w-[88px]">

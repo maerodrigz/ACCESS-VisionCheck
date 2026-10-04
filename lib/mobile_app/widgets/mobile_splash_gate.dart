@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
-import 'package:access_mobile/shared/widgets/access_logo.dart';
+import 'package:access_mobile/shared/widgets/access_branding.dart';
 
 TextStyle _splashText(TextStyle base) => GoogleFonts.inter(textStyle: base);
 
@@ -75,11 +75,7 @@ class _SplashBrandContent extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    AccessLogoImage(
-                      size: logoSize,
-                      fit: BoxFit.contain,
-                      circular: false,
-                    ),
+                    AccessOrgSealLogo(size: logoSize, showShadow: true),
                     SizedBox(height: compact ? 24 : 28),
                     RichText(
                       textAlign: TextAlign.center,

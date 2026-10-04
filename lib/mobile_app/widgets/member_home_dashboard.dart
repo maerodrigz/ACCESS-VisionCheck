@@ -137,14 +137,14 @@ class MemberHomeDashboard extends StatelessWidget {
                         onViewGallery: onViewEventGallery,
                         onViewPortfolio: onViewPortfolio,
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
                       _HomeAiEvaluationCard(onOpen: onViewPortfolio),
-                      const SizedBox(height: 24),
-                      const _HomeAnnouncementsSection(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
                       _HomeSkillProgressSection(onViewRankings: onViewRankings),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
                       const _HomeLatestFeedbackSection(),
+                      const SizedBox(height: 22),
+                      const _HomeAnnouncementsSection(),
                     ],
                   ),
                 ),
@@ -703,7 +703,7 @@ class _HomeHeroStats extends StatelessWidget {
               child: _HeroStatCell(
                 icon: Icons.star_outline_rounded,
                 value: aiScore,
-                label: 'AI Quality Score',
+                label: 'Avg. Quality Score',
                 onTap: onAiScoreTap,
               ),
             ),
@@ -931,16 +931,6 @@ class _HomeEmptyTasksCard extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MyAssignmentsScreen()),
-                );
-              },
-              child: const Text('Browse assignments'),
             ),
           ],
         ],
@@ -1359,7 +1349,7 @@ class _HomeUploadImage extends StatelessWidget {
   }
 }
 
-// ── AI Evaluation callout ─────────────────────────────────────────────────────
+// ── Media evaluation callout ──────────────────────────────────────────────────
 
 class _HomeAiEvaluationCard extends StatelessWidget {
   const _HomeAiEvaluationCard({this.onOpen});
@@ -1399,7 +1389,7 @@ class _HomeAiEvaluationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'AI Evaluation Status',
+                  'Media Evaluation',
                   style: memberDashboardCardTitleStyle.copyWith(fontSize: 13),
                 ),
                 const SizedBox(height: 2),
@@ -1428,7 +1418,7 @@ class _HomeAiEvaluationCard extends StatelessWidget {
                 fontSize: 11,
               )),
             ),
-            child: const Text('Open AI Tool >'),
+            child: const Text('Evaluate Media'),
           ),
         ],
       ),
@@ -1767,70 +1757,72 @@ class _HomeLatestFeedbackSection extends StatelessWidget {
                     )),
                   ),
                 ),
+                TextButton(
+                  onPressed: () => _openFeedback(context, latest),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'View Feedback',
+                    style: dashText(const TextStyle(
+                      color: kAccent,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    )),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: kSurface,
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _openFeedback(context, latest),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: kBorder),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    latest.eventName,
-                    style: memberDashboardMetaStyle.copyWith(
-                      color: kAccent,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '"${latest.preview}"',
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: memberDashboardBodyStyle.copyWith(
-                      fontSize: 12,
-                      height: 1.4,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(latest.date, style: memberDashboardMetaStyle.copyWith(fontSize: 10)),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _openFeedback(context, latest),
-                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                      label: const Text('View Feedback'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: kAccent,
-                        side: BorderSide(color: kAccent.withValues(alpha: 0.35)),
-                        minimumSize: const Size.fromHeight(40),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        textStyle: dashText(const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        )),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: kBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        latest.eventName,
+                        style: memberDashboardMetaStyle.copyWith(
+                          color: kAccent,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '"${latest.preview}"',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: memberDashboardBodyStyle.copyWith(
+                          fontSize: 12,
+                          height: 1.4,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(latest.date, style: memberDashboardMetaStyle.copyWith(fontSize: 10)),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],

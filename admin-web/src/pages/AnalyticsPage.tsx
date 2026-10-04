@@ -16,7 +16,6 @@ import {
 } from '../components/analytics/AnalyticsPanels'
 import {
   ANALYTICS_TABS,
-  exportAnalyticsReport,
   fetchAnalyticsSnapshot,
   parseAnalyticsTab,
   type AnalyticsSnapshot,
@@ -41,6 +40,7 @@ export function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
   const { showToast } = useToast()
   const range = useMemo(() => defaultDateRange(), [])
 
@@ -61,10 +61,18 @@ export function AnalyticsPage() {
     load()
   }, [load])
 
-  function exportReport() {
-    if (!data) return
-    exportAnalyticsReport(data, range, tab)
-    showToast('Analytics report downloaded')
+  async function exportReport() {
+    if (!data || exporting) return
+    setExporting(true)
+    try {
+      const { exportAnalyticsPdf } = await import('../lib/analyticsPdf')
+      exportAnalyticsPdf(data, range, tab)
+      showToast('Analytics report downloaded')
+    } catch (e) {
+      showToast(e instanceof Error ? `Could not create PDF: ${e.message}` : 'Could not create PDF', 'error')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const activityItems = useMemo(
@@ -90,11 +98,15 @@ export function AnalyticsPage() {
             <button
               type="button"
               onClick={exportReport}
-              disabled={!data}
+              disabled={!data || exporting}
               className={`${pageToolbarBtnClass} disabled:opacity-50`}
             >
-              <Download size={16} className="shrink-0 text-[var(--color-text-secondary)]" strokeWidth={2} />
-              Export report
+              {exporting ? (
+                <Loader2 size={16} className="shrink-0 animate-spin text-[var(--color-text-secondary)]" strokeWidth={2} />
+              ) : (
+                <Download size={16} className="shrink-0 text-[var(--color-text-secondary)]" strokeWidth={2} />
+              )}
+              Export PDF
             </button>
             <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
           </>

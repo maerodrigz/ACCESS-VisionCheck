@@ -39,13 +39,13 @@ class AdminReviewStatusBadge extends StatelessWidget {
 
   static String _labelFor(String raw) {
     final n = raw.toLowerCase();
-    if (n.contains('verified_human')) return 'Verified authentic';
-    if (n.contains('confirmed_ai') || n.contains('verified_ai')) return 'AI confirmed';
+    if (n.contains('verified_human')) return 'Low AI Risk';
+    if (n.contains('confirmed_ai') || n.contains('verified_ai')) return 'High AI Risk';
     if (n.contains('accepted') && n.contains('warning')) return 'Accepted with warning';
     if (n.contains('reupload')) return 'Reupload requested';
     if (n.contains('reject')) return 'Rejected';
-    if (n.contains('further') || n.contains('needs')) return 'Under review';
-    if (n.contains('pending')) return 'Under review';
+    if (n.contains('further') || n.contains('needs')) return 'Needs Review';
+    if (n.contains('pending')) return 'Needs Review';
     return raw.replaceAll('_', ' ');
   }
 

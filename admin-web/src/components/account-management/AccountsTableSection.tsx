@@ -2,7 +2,6 @@ import {
   accountStatusKey,
   formatAccountDate,
   initialsFromName,
-  isRequestorRole,
   partitionAccounts,
   type AdminAccountUser,
 } from '../../lib/accountManagement'
@@ -23,7 +22,6 @@ interface Props {
 
 function AccountsTable({
   rows,
-  showSkillLevel,
   allUsers,
   openMenuId,
   onToggleMenu,
@@ -32,7 +30,7 @@ function AccountsTable({
   onChangeRole,
   onResetPassword,
   onToggleActive,
-}: Props & { showSkillLevel: boolean }) {
+}: Props) {
   return (
     <div className="account-mgmt__table-wrap">
       <table className="account-mgmt__table">
@@ -40,7 +38,6 @@ function AccountsTable({
           <tr>
             <th>Name</th>
             <th>Email</th>
-            {showSkillLevel ? <th>Skill Level</th> : null}
             <th>Status</th>
             <th>Date Joined</th>
             <th className="account-mgmt__th-actions">Actions</th>
@@ -58,9 +55,6 @@ function AccountsTable({
                 </div>
               </td>
               <td className="account-mgmt__email">{u.email}</td>
-              {showSkillLevel ? (
-                <td>{isRequestorRole(u.role) ? 'N/A' : u.skill_level || 'N/A'}</td>
-              ) : null}
               <td>
                 <StatusBadge statusKey={accountStatusKey(u)} />
               </td>
@@ -89,16 +83,16 @@ function AccountsTable({
 export function AccountsTableSection(props: Props) {
   const { rows } = props
   const { members, requestors, administrators } = partitionAccounts(rows)
-  const sections: { title: string; rows: AdminAccountUser[]; showSkillLevel: boolean }[] = []
+  const sections: { title: string; rows: AdminAccountUser[] }[] = []
 
   if (administrators.length) {
-    sections.push({ title: 'Administrators', rows: administrators, showSkillLevel: false })
+    sections.push({ title: 'Administrators', rows: administrators })
   }
   if (members.length) {
-    sections.push({ title: 'Documentation Members', rows: members, showSkillLevel: true })
+    sections.push({ title: 'Documentation Members', rows: members })
   }
   if (requestors.length) {
-    sections.push({ title: 'Requestors', rows: requestors, showSkillLevel: false })
+    sections.push({ title: 'Requestors', rows: requestors })
   }
 
   if (!sections.length) return null
@@ -111,7 +105,7 @@ export function AccountsTableSection(props: Props) {
             <h2 className="account-mgmt__section-title">{section.title}</h2>
             <span className="account-mgmt__section-count">{section.rows.length}</span>
           </div>
-          <AccountsTable {...props} rows={section.rows} showSkillLevel={section.showSkillLevel} />
+          <AccountsTable {...props} rows={section.rows} />
         </section>
       ))}
     </div>

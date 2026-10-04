@@ -1,9 +1,9 @@
-import type { AiResultLabel, ConfidenceLevel, ReviewStatus } from '../../api/media'
+import type { AiResultLabel, ReviewStatus } from '../../api/media'
 import { aiResultLabelText, reviewStatusLabel } from '../../lib/aiDetection'
 
 const aiColors: Record<AiResultLabel, string> = {
   human: 'var(--color-success)',
-  ai_generated: 'var(--color-warning)',
+  ai_generated: 'var(--color-danger)',
   suspicious: 'var(--color-warning)',
   pending: 'var(--color-text-secondary)',
 }
@@ -11,7 +11,7 @@ const aiColors: Record<AiResultLabel, string> = {
 const reviewColors: Record<ReviewStatus, string> = {
   pending_review: 'var(--color-text-secondary)',
   verified_human: 'var(--color-success)',
-  confirmed_ai_generated: 'var(--color-warning)',
+  confirmed_ai_generated: 'var(--color-danger)',
   needs_further_review: 'var(--color-warning)',
   accepted_with_warning: 'var(--color-warning)',
   reupload_requested: 'var(--color-accent-blue)',
@@ -19,52 +19,76 @@ const reviewColors: Record<ReviewStatus, string> = {
   automated_low_ai_risk: 'var(--color-success)',
 }
 
+const riskLabels: Record<AiResultLabel, string> = {
+  human: 'Low Risk',
+  suspicious: 'Suspicious',
+  ai_generated: 'High Risk',
+  pending: 'Pending Scan',
+}
+
+function tint(color: string, pct = 14) {
+  return `color-mix(in srgb, ${color} ${pct}%, transparent)`
+}
+
 export function AiResultBadge({ label }: { label: AiResultLabel }) {
   const color = aiColors[label]
   return (
     <span
       className="inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide"
-      style={{ backgroundColor: `${color}18`, color }}
+      style={{ backgroundColor: tint(color), color }}
     >
       {aiResultLabelText(label)}
     </span>
   )
 }
 
-export function ReviewStatusBadge({ status }: { status: ReviewStatus }) {
-  const color = reviewColors[status]
+export function RiskBadge({ label }: { label: AiResultLabel }) {
+  const color = aiColors[label]
   return (
     <span
-      className="inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold"
-      style={{ backgroundColor: `${color}14`, color }}
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
+      style={{ backgroundColor: tint(color), color }}
     >
-      {reviewStatusLabel(status)}
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+      {riskLabels[label]}
     </span>
   )
 }
 
-export function ConfidenceBar({
-  score,
+export function AiProbability({
   label,
-  level,
+  probability,
+  showLabel = true,
 }: {
-  score: number
-  label: string
-  level: ConfidenceLevel
+  label: AiResultLabel
+  probability: number
+  showLabel?: boolean
 }) {
-  const pct = Math.round(score * 100)
-  const barColor =
-    level === 'high' ? 'var(--color-success)' : level === 'medium' ? 'var(--color-warning)' : 'var(--color-danger)'
-
+  const color = aiColors[label]
+  const value = label === 'pending' ? 'N/A' : `${Math.round(probability * 100)}%`
   return (
-    <div>
-      <div className="mb-1 flex justify-between text-[11px] text-[var(--color-text-secondary)]">
-        <span>{label}</span>
-        <span className="font-bold">{pct}%</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-text-secondary)]">
+      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+      {showLabel ? 'AI Probability:' : null}
+      <span className="font-bold text-[var(--color-text-primary)]">{value}</span>
+    </span>
+  )
+}
+
+const compactReviewLabels: Partial<Record<ReviewStatus, string>> = {
+  needs_further_review: 'Needs Further Review',
+  confirmed_ai_generated: 'Confirmed AI',
+  automated_low_ai_risk: 'Auto Cleared',
+}
+
+export function ReviewStatusBadge({ status, compact = false }: { status: ReviewStatus; compact?: boolean }) {
+  const color = reviewColors[status]
+  return (
+    <span
+      className="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold"
+      style={{ backgroundColor: tint(color, 12), color }}
+    >
+      {(compact && compactReviewLabels[status]) || reviewStatusLabel(status)}
+    </span>
   )
 }

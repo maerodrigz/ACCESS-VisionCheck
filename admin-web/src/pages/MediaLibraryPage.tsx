@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
+  ArrowLeft,
   FolderOpen,
-  Image,
   Loader2,
   RefreshCw,
   Search,
   Upload,
-  Video,
 } from 'lucide-react'
 import {
   archiveMediaFile,
@@ -40,17 +39,16 @@ import {
   FacebookHistoryCollapsible,
   MediaBulkToolbar,
 } from '../components/media-library/MediaAlbumSections'
-import { MediaGalleryTabs } from '../components/media-library/MediaGalleryTabs'
 import { MediaPreviewDrawer } from '../components/media-library/MediaPreviewDrawer'
-import { MediaTile } from '../components/media-library/MediaTile'
+import { MediaTileGrid } from '../components/media-library/MediaTileGrid'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import {
+  albumKey,
   buildAlbums,
   canPublishToFacebook,
   computeMediaStats,
   filterMedia,
-  filterByMediaFormat,
   parseEventMediaRows,
   pendingBestShots,
   refreshAssetFlags,
@@ -61,13 +59,7 @@ import { publishOneToFacebookBrowser, openFacebookPage } from '../lib/facebookSh
 import type { FacebookPublishStatus } from '../api/eventMedia'
 
 type FbChip = FacebookPublishStatus | 'all'
-type FormatFilter = 'all' | 'photos' | 'videos'
-
-const FORMAT_OPTIONS: { id: FormatFilter; label: string }[] = [
-  { id: 'all', label: 'All formats' },
-  { id: 'photos', label: 'Photos' },
-  { id: 'videos', label: 'Videos' },
-]
+type GalleryKind = 'photos' | 'videos'
 
 const PUBLISH_STATUS_OPTIONS: { id: FbChip; label: string }[] = [
   { id: 'all', label: 'All publish status' },
@@ -91,7 +83,7 @@ export function MediaLibraryPage() {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [formatFilter, setFormatFilter] = useState<FormatFilter>('all')
+  const [galleryKind, setGalleryKind] = useState<GalleryKind>('photos')
   const [fbFilter, setFbFilter] = useState<FbChip>('all')
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [selectedAlbumName, setSelectedAlbumName] = useState<string | null>(null)
@@ -106,6 +98,8 @@ export function MediaLibraryPage() {
     | { kind: 'delete-one'; item: MediaAsset }
     | { kind: 'archive-one'; item: MediaAsset }
     | { kind: 'delete-bulk'; count: number }
+    | { kind: 'delete-album'; albumId: string; name: string; ids: number[] }
+    | { kind: 'archive-album'; albumId: string; name: string; ids: number[] }
     | null
   >(null)
   const [moveAlbumItems, setMoveAlbumItems] = useState<MediaAsset[] | null>(null)
@@ -158,23 +152,6 @@ export function MediaLibraryPage() {
     setSearchParams(next, { replace: true })
   }, [all, searchParams, setSearchParams])
 
-  const unpublishedEventMedia = useMemo(
-    () =>
-      all.filter(
-        (a) => a.mediaCategory === 'event_documentation' && a.facebookPublishStatus !== 'published',
-      ),
-    [all],
-  )
-
-  const formatCounts = useMemo(
-    () => ({
-      all: unpublishedEventMedia.length,
-      photos: unpublishedEventMedia.filter((a) => a.isPhoto).length,
-      videos: unpublishedEventMedia.filter((a) => a.isVideo).length,
-    }),
-    [unpublishedEventMedia],
-  )
-
   const publishedItems = useMemo(
     () =>
       filterMedia(all, '', null, {
@@ -189,20 +166,10 @@ export function MediaLibraryPage() {
   )
   const stats = useMemo(() => computeMediaStats(all, albums), [all, albums])
   const bestPickItems = useMemo(() => pendingBestShots(all), [all])
-  const visibleBestPicks = useMemo(
-    () => filterByMediaFormat(bestPickItems, formatFilter),
-    [bestPickItems, formatFilter],
-  )
   const bestPickPublishReady = useMemo(
-    () => visibleBestPicks.filter(canPublishToFacebook).length,
-    [visibleBestPicks],
+    () => bestPickItems.filter(canPublishToFacebook).length,
+    [bestPickItems],
   )
-
-  const visibleAlbums = useMemo(() => {
-    if (formatFilter === 'photos') return albums.filter((a) => a.photoCount > 0)
-    if (formatFilter === 'videos') return albums.filter((a) => a.videoCount > 0)
-    return albums
-  }, [albums, formatFilter])
 
   const filtered = useMemo(() => {
     const items = filterMedia(all, search, selectedAlbumId, {
@@ -215,18 +182,26 @@ export function MediaLibraryPage() {
     return items
   }, [all, search, selectedAlbumId, fbFilter])
 
-  const galleryItems = useMemo(() => {
-    const byFormat = filterByMediaFormat(filtered, formatFilter)
-    return [...byFormat].sort((a, b) => {
+  const galleryPool = useMemo(() => {
+    return [...filtered].sort((a, b) => {
       const ta = a.uploadedAt?.getTime() ?? 0
       const tb = b.uploadedAt?.getTime() ?? 0
       return tb - ta
     })
-  }, [filtered, formatFilter])
+  }, [filtered])
 
-  const splitByFormat = formatFilter === 'all'
-  const galleryPhotos = useMemo(() => galleryItems.filter((a) => a.isPhoto), [galleryItems])
-  const galleryVideos = useMemo(() => galleryItems.filter((a) => a.isVideo), [galleryItems])
+  const galleryCounts = useMemo(
+    () => ({
+      photos: galleryPool.filter((a) => a.isPhoto).length,
+      videos: galleryPool.filter((a) => a.isVideo).length,
+    }),
+    [galleryPool],
+  )
+
+  const galleryItems = useMemo(
+    () => galleryPool.filter((a) => (galleryKind === 'photos' ? a.isPhoto : a.isVideo)),
+    [galleryPool, galleryKind],
+  )
 
   const selectedItems = useMemo(() => all.filter((a) => selectedIds.has(a.id)), [all, selectedIds])
   const publishableSelected = useMemo(() => selectedItems.filter(canPublishToFacebook), [selectedItems])
@@ -236,15 +211,7 @@ export function MediaLibraryPage() {
 
   const showGallerySections = !selectedAlbumId && !search.trim() && fbFilter === 'all'
 
-  const galleryTitle = selectedAlbumName
-    ? `Album: ${selectedAlbumName}${formatFilter === 'photos' ? ' · Photos' : formatFilter === 'videos' ? ' · Videos' : ''}`
-    : search.trim()
-      ? `Search results${formatFilter === 'photos' ? ' · Photos' : formatFilter === 'videos' ? ' · Videos' : ''}`
-      : formatFilter === 'photos'
-        ? 'Photos'
-        : formatFilter === 'videos'
-          ? 'Videos'
-          : 'Event media'
+  const galleryTitle = search.trim() ? 'Search results' : 'Event media'
 
   function showMsg(msg: string, tone: 'success' | 'error' | 'info' = 'success') {
     showToast(msg, tone)
@@ -582,6 +549,106 @@ export function MediaLibraryPage() {
     }
   }
 
+  function albumMediaIds(album: MediaAlbum) {
+    return all.filter((item) => albumKey(item.albumName, item.requestId) === album.id).map((item) => item.id)
+  }
+
+  function requestDeleteAlbum(album: MediaAlbum) {
+    if (!isAdmin) return
+    const ids = albumMediaIds(album)
+    if (ids.length === 0) {
+      showMsg('This album has no files to delete.', 'info')
+      return
+    }
+    setConfirmDialog({ kind: 'delete-album', albumId: album.id, name: album.name, ids })
+  }
+
+  function requestArchiveAlbum(album: MediaAlbum) {
+    if (!isAdmin) return
+    const ids = albumMediaIds(album)
+    if (ids.length === 0) {
+      showMsg('This album has no files to archive.', 'info')
+      return
+    }
+    setConfirmDialog({ kind: 'archive-album', albumId: album.id, name: album.name, ids })
+  }
+
+  function clearAlbumIfDeleted(albumId: string) {
+    if (selectedAlbumId === albumId) {
+      setSelectedAlbumId(null)
+      setSelectedAlbumName(null)
+    }
+  }
+
+  async function deleteAlbum(albumId: string, name: string, ids: number[]) {
+    setDialogBusy(true)
+    setOperationBanner({ status: 'loading', message: `Deleting album "${name}"…` })
+    let deleted = 0
+    let lastError: string | null = null
+    try {
+      for (const id of ids) {
+        try {
+          await deleteMedia(id)
+          deleted++
+        } catch (e) {
+          lastError = e instanceof Error ? e.message : 'Delete failed'
+        }
+      }
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const id of ids) next.delete(id)
+        return next
+      })
+      if (previewItem && ids.includes(previewItem.id)) setPreviewItem(null)
+      clearAlbumIfDeleted(albumId)
+      await load()
+      if (deleted === ids.length) {
+        const msg = `Deleted album "${name}" (${deleted} file${deleted === 1 ? '' : 's'})`
+        setOperationBanner({ status: 'success', message: msg })
+        showMsg(msg, 'success')
+        setConfirmDialog(null)
+      } else if (deleted > 0) {
+        const msg = `Deleted ${deleted} of ${ids.length} files in "${name}". ${lastError ?? 'Some files could not be deleted.'}`
+        setOperationBanner({ status: 'error', message: msg })
+        showMsg(msg, 'error')
+      } else {
+        const msg = lastError ?? 'Delete failed'
+        setOperationBanner({ status: 'error', message: msg })
+        showMsg(msg, 'error')
+      }
+    } finally {
+      setDialogBusy(false)
+    }
+  }
+
+  async function archiveAlbum(albumId: string, name: string, ids: number[]) {
+    setDialogBusy(true)
+    setOperationBanner({ status: 'loading', message: `Archiving album "${name}"…` })
+    try {
+      for (const id of ids) {
+        await archiveMediaFile(id)
+      }
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const id of ids) next.delete(id)
+        return next
+      })
+      if (previewItem && ids.includes(previewItem.id)) setPreviewItem(null)
+      clearAlbumIfDeleted(albumId)
+      await load()
+      const msg = `Archived album "${name}"`
+      setOperationBanner({ status: 'success', message: msg })
+      showMsg(msg, 'success')
+      setConfirmDialog(null)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Archive failed'
+      setOperationBanner({ status: 'error', message: msg })
+      showMsg(msg, 'error')
+    } finally {
+      setDialogBusy(false)
+    }
+  }
+
   async function bulkArchive() {
     if (!isAdmin || selectedIds.size === 0) return
     setDialogBusy(true)
@@ -601,7 +668,7 @@ export function MediaLibraryPage() {
   }
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-4 pb-24">
       <AdminPageHeader
         title="Media Gallery"
         subtitle="Event documentation photos and videos. Star best picks, then publish to your org page."
@@ -653,8 +720,6 @@ export function MediaLibraryPage() {
         }
       />
 
-      <MediaGalleryTabs />
-
       <AdminOperationBanner banner={operationBanner} onDismiss={clearOperationBanner} />
 
       {fbConfig && fbCanPublish && !fbConfig.configured && (
@@ -664,8 +729,8 @@ export function MediaLibraryPage() {
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
 
       <div className="flex flex-col gap-2 rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
-          <div className="relative min-w-0">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative min-w-0 flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               value={search}
@@ -674,21 +739,15 @@ export function MediaLibraryPage() {
               className="admin-input w-full rounded-xl py-2 pl-9 pr-3 text-sm"
             />
           </div>
-          <AdminSelect
-            value={formatFilter}
-            onChange={(v) => setFormatFilter(v as FormatFilter)}
-            aria-label="Filter by format"
-            options={FORMAT_OPTIONS.map((o) => ({
-              value: o.id,
-              label: `${o.label} (${formatCounts[o.id]})`,
-            }))}
-          />
-          <AdminSelect
-            value={fbFilter}
-            onChange={(v) => setFbFilter(v as FbChip)}
-            aria-label="Filter by publish status"
-            options={PUBLISH_STATUS_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminSelect
+              value={fbFilter}
+              onChange={(v) => setFbFilter(v as FbChip)}
+              aria-label="Filter by publish status"
+              className="min-w-[11rem]"
+              options={PUBLISH_STATUS_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+            />
+          </div>
         </div>
         <p className="text-xs text-[var(--color-text-muted)]">
           {stats.totalAlbums} albums · {bestPickItems.length} best picks · {stats.storageUsedLabel} est. storage
@@ -704,8 +763,9 @@ export function MediaLibraryPage() {
           {showGallerySections && (
             <>
               <EventAlbumsSection
-                albums={visibleAlbums}
+                albums={albums}
                 selectedAlbumId={selectedAlbumId}
+                isAdmin={isAdmin}
                 onAlbumTap={(a) => {
                   setSelectedAlbumId(a.id)
                   setSelectedAlbumName(a.name)
@@ -714,43 +774,54 @@ export function MediaLibraryPage() {
                   setSelectedAlbumId(null)
                   setSelectedAlbumName(null)
                 }}
+                onDeleteAlbum={requestDeleteAlbum}
+                onArchiveAlbum={requestArchiveAlbum}
               />
 
               <BestPicksSection
-                items={visibleBestPicks}
+                items={bestPickItems}
                 isAdmin={isAdmin}
                 onPreview={setPreviewItem}
                 onToggleBestShot={handleToggleBestShot}
-                onPublishAll={() => openPublishModal(visibleBestPicks.filter(canPublishToFacebook))}
+                onPublishAll={() => openPublishModal(bestPickItems.filter(canPublishToFacebook))}
                 publishReadyCount={bestPickPublishReady}
                 facebookReady={fbCanPublish}
                 facebookGraphReady={fbGraphReady}
-              />
-
-              <FacebookHistoryCollapsible
-                items={publishedItems}
-                failedHistory={fbHistory.filter((row) => row.status === 'failed')}
-                onPreview={setPreviewItem}
               />
             </>
           )}
 
           <div>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+            {selectedAlbumId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAlbumId(null)
+                  setSelectedAlbumName(null)
+                }}
+                className="mb-2 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              >
+                <ArrowLeft size={16} strokeWidth={2.25} />
+                Back
+              </button>
+            ) : null}
+            <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+              <div className="min-w-0">
+                {selectedAlbumName ? (
+                  <p className="truncate text-base font-bold text-[var(--color-text-primary)]" title={selectedAlbumName}>
+                    {selectedAlbumName}
+                  </p>
+                ) : null}
                 <h2 className="text-sm font-bold text-[var(--color-text-primary)]">{galleryTitle}</h2>
-                <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-                  {galleryItems.length}
-                </span>
               </div>
-              {(selectedAlbumId || search.trim() || formatFilter !== 'all' || fbFilter !== 'all') && (
+              {(selectedAlbumId || search.trim() || fbFilter !== 'all') && (
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedAlbumId(null)
                     setSelectedAlbumName(null)
                     setSearch('')
-                    setFormatFilter('all')
+                    setGalleryKind('photos')
                     setFbFilter('all')
                   }}
                   className="text-xs font-semibold text-[var(--color-accent-blue)] hover:underline"
@@ -758,6 +829,36 @@ export function MediaLibraryPage() {
                   Clear filters
                 </button>
               )}
+            </div>
+
+            <div
+              className="mb-2 inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5"
+              role="tablist"
+              aria-label="Event media type"
+            >
+              {([
+                ['photos', 'Photos', galleryCounts.photos],
+                ['videos', 'Videos', galleryCounts.videos],
+              ] as const).map(([id, label, count]) => {
+                const active = galleryKind === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setGalleryKind(id)}
+                    className={[
+                      'rounded-md px-3 py-1 text-xs font-bold transition',
+                      active
+                        ? 'bg-[var(--color-accent-blue)] text-white'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]',
+                    ].join(' ')}
+                  >
+                    {label} ({count})
+                  </button>
+                )
+              })}
             </div>
 
             {galleryItems.length === 0 ? (
@@ -778,49 +879,6 @@ export function MediaLibraryPage() {
                   </button>
                 )}
               </AdminCard>
-            ) : splitByFormat ? (
-              <div className="space-y-8">
-                {galleryPhotos.length > 0 && (
-                  <section>
-                    <div className="mb-3 flex items-center gap-2">
-                      <Image size={16} className="text-[var(--color-accent-cyan)]" />
-                      <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Photos</h3>
-                      <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-                        {galleryPhotos.length}
-                      </span>
-                    </div>
-                    <MediaTileGrid
-                      items={galleryPhotos}
-                      selectedIds={selectedIds}
-                      isAdmin={isAdmin}
-                      onPreview={setPreviewItem}
-                      onToggleSelect={toggleSelect}
-                      onToggleBestShot={handleToggleBestShot}
-                      onDelete={isAdmin ? requestDeleteItem : undefined}
-                    />
-                  </section>
-                )}
-                {galleryVideos.length > 0 && (
-                  <section>
-                    <div className="mb-3 flex items-center gap-2">
-                      <Video size={16} className="text-[var(--color-accent-blue)]" />
-                      <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Videos</h3>
-                      <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-                        {galleryVideos.length}
-                      </span>
-                    </div>
-                    <MediaTileGrid
-                      items={galleryVideos}
-                      selectedIds={selectedIds}
-                      isAdmin={isAdmin}
-                      onPreview={setPreviewItem}
-                      onToggleSelect={toggleSelect}
-                      onToggleBestShot={handleToggleBestShot}
-                      onDelete={isAdmin ? requestDeleteItem : undefined}
-                    />
-                  </section>
-                )}
-              </div>
             ) : (
               <MediaTileGrid
                 items={galleryItems}
@@ -833,6 +891,14 @@ export function MediaLibraryPage() {
               />
             )}
           </div>
+
+          {showGallerySections && (
+            <FacebookHistoryCollapsible
+              items={publishedItems}
+              failedHistory={fbHistory.filter((row) => row.status === 'failed')}
+              onPreview={setPreviewItem}
+            />
+          )}
         </>
       )}
 
@@ -936,6 +1002,41 @@ export function MediaLibraryPage() {
         onCancel={() => !dialogBusy && setConfirmDialog(null)}
         onConfirm={() => confirmDialog?.kind === 'delete-bulk' && bulkDelete()}
       />
+
+      <AdminConfirmDialog
+        open={confirmDialog?.kind === 'delete-album'}
+        title="Delete album?"
+        message={
+          confirmDialog?.kind === 'delete-album'
+            ? `"${confirmDialog.name}" and its ${confirmDialog.ids.length} file${confirmDialog.ids.length === 1 ? '' : 's'} will be removed from the server. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete album"
+        tone="danger"
+        loading={dialogBusy}
+        onCancel={() => !dialogBusy && setConfirmDialog(null)}
+        onConfirm={() =>
+          confirmDialog?.kind === 'delete-album' &&
+          deleteAlbum(confirmDialog.albumId, confirmDialog.name, confirmDialog.ids)
+        }
+      />
+
+      <AdminConfirmDialog
+        open={confirmDialog?.kind === 'archive-album'}
+        title="Archive album?"
+        message={
+          confirmDialog?.kind === 'archive-album'
+            ? `"${confirmDialog.name}" will be hidden from the gallery. The ${confirmDialog.ids.length} file${confirmDialog.ids.length === 1 ? '' : 's'} stay on the server.`
+            : ''
+        }
+        confirmLabel="Archive album"
+        loading={dialogBusy}
+        onCancel={() => !dialogBusy && setConfirmDialog(null)}
+        onConfirm={() =>
+          confirmDialog?.kind === 'archive-album' &&
+          archiveAlbum(confirmDialog.albumId, confirmDialog.name, confirmDialog.ids)
+        }
+      />
     </div>
   )
 }
@@ -981,41 +1082,6 @@ function FacebookCredentialsReminder({ config }: { config: FacebookConfigStatus 
           Open Facebook Page (ACCESS)
         </button>
       </div>
-    </div>
-  )
-}
-
-function MediaTileGrid({
-  items,
-  selectedIds,
-  isAdmin,
-  onPreview,
-  onToggleSelect,
-  onToggleBestShot,
-  onDelete,
-}: {
-  items: MediaAsset[]
-  selectedIds: Set<number>
-  isAdmin: boolean
-  onPreview: (item: MediaAsset) => void
-  onToggleSelect: (item: MediaAsset) => void
-  onToggleBestShot: (item: MediaAsset) => void
-  onDelete?: (item: MediaAsset) => void
-}) {
-  return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-4">
-      {items.map((item) => (
-        <MediaTile
-          key={item.id}
-          item={item}
-          selected={selectedIds.has(item.id)}
-          isAdmin={isAdmin}
-          onTap={() => onPreview(item)}
-          onSelectToggle={() => onToggleSelect(item)}
-          onToggleBestShot={() => onToggleBestShot(item)}
-          onDelete={onDelete ? () => onDelete(item) : undefined}
-        />
-      ))}
     </div>
   )
 }

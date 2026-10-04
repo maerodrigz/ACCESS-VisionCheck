@@ -137,22 +137,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ..sort((a, b) => a.startDate.compareTo(b.startDate));
   }
 
-  int get _upcomingCount {
-    final today = _dayOnly(DateTime.now());
-    return _visibleEvents
-        .where((e) => e.isUpcoming && !_dayOnly(e.startDate).isBefore(today))
-        .length;
-  }
-
-  CalendarEvent? get _nextUpcomingEvent {
-    final today = _dayOnly(DateTime.now());
-    final list = _visibleEvents
-        .where((e) => e.isUpcoming && !_dayOnly(e.startDate).isBefore(today))
-        .toList()
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
-    return list.isEmpty ? null : list.first;
-  }
-
   bool _dayHasMyAssignment(DateTime day) =>
       _eventsForDay(day).any(memberIsAssignedToEvent);
 
@@ -186,33 +170,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ListenableBuilder(
-            listenable: Listenable.merge([appState, memberDataController]),
-            builder: (_, __) {
-              final next = _nextUpcomingEvent;
-              return _CalendarMiniHero(
-                upcomingCount: _upcomingCount,
-                nextEvent: next,
-                myAssignmentCount: appState.events.where(memberIsAssignedToEvent).length,
-                onNextEventTap: next == null
-                    ? null
-                    : () => showMemberEventDetail(
-                          context,
-                          next,
-                          onViewAssignment: widget.onViewAssignments,
-                          onViewGallery: widget.onViewGallery,
-                        ),
-                onMyAssignmentsTap: widget.onViewAssignments,
-                onNotificationsTap: widget.onNotificationsTap,
-                onProfileTap: widget.onProfileTap,
-              );
-            },
+          _CalendarPageHeader(
+            subtitle: widget.subtitle ??
+                'Your events and documentation assignments',
+            onNotificationsTap: widget.onNotificationsTap,
+            onProfileTap: widget.onProfileTap,
           ),
-          _CalendarToolbar(
-            onSearch: _toggleSearch,
-            hasActiveSearch: _hasActiveSearch || _searchExpanded,
+          _CalendarFilterTabs(
             myCoverageOnly: _myCoverageOnly,
-            onMyCoverageChanged: (value) => setState(() => _myCoverageOnly = value),
+            onChanged: (value) => setState(() => _myCoverageOnly = value),
+            onSearchTap: _toggleSearch,
+            searchActive: _hasActiveSearch || _searchExpanded,
           ),
           if (_searchExpanded)
             _CalendarSearchBar(
@@ -458,7 +426,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               onTap: () => showMemberEventDetail(
                                 context,
                                 dayEvents[i],
-                                onViewAssignment: widget.onViewAssignments,
                                 onViewGallery: widget.onViewGallery,
                               ),
                             ),
@@ -537,7 +504,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         showMemberEventDetail(
                                           context,
                                           event,
-                                          onViewAssignment: widget.onViewAssignments,
                                           onViewGallery: widget.onViewGallery,
                                         );
                                       },
@@ -699,18 +665,18 @@ class _CalendarNoEventsEmptyState extends StatelessWidget {
   }
 }
 
-class _CalendarToolbar extends StatelessWidget {
-  const _CalendarToolbar({
-    required this.onSearch,
-    required this.hasActiveSearch,
+class _CalendarFilterTabs extends StatelessWidget {
+  const _CalendarFilterTabs({
     required this.myCoverageOnly,
-    required this.onMyCoverageChanged,
+    required this.onChanged,
+    required this.onSearchTap,
+    required this.searchActive,
   });
 
-  final VoidCallback onSearch;
-  final bool hasActiveSearch;
   final bool myCoverageOnly;
-  final ValueChanged<bool> onMyCoverageChanged;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onSearchTap;
+  final bool searchActive;
 
   @override
   Widget build(BuildContext context) {
@@ -719,53 +685,114 @@ class _CalendarToolbar extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(padding, 0, padding, 8),
       child: Row(
         children: [
-          FilterChip(
-            label: const Text('My coverage'),
-            selected: myCoverageOnly,
-            onSelected: onMyCoverageChanged,
-            showCheckmark: false,
-            avatar: Icon(
-              Icons.assignment_ind_outlined,
-              size: 16,
-              color: myCoverageOnly ? kAccent : kIconInactive,
+          Expanded(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: kSurfaceAlt,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: kBorder),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(3),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _CalendarFilterTab(
+                        label: 'My Coverage',
+                        selected: myCoverageOnly,
+                        onTap: () => onChanged(true),
+                      ),
+                    ),
+                    Expanded(
+                      child: _CalendarFilterTab(
+                        label: 'All Events',
+                        selected: !myCoverageOnly,
+                        onTap: () => onChanged(false),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            labelStyle: TextStyle(
-              color: myCoverageOnly ? kAccent : kTextSecondary,
-              fontWeight: myCoverageOnly ? FontWeight.w700 : FontWeight.w500,
-              fontSize: 12,
-            ),
-            selectedColor: kAccent.withValues(alpha: 0.1),
-            side: BorderSide(
-              color: myCoverageOnly ? kAccent.withValues(alpha: 0.35) : kBorder,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            visualDensity: VisualDensity.compact,
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           Material(
-            color: Colors.transparent,
+            color: kSurface,
+            borderRadius: BorderRadius.circular(12),
             child: InkWell(
-              onTap: onSearch,
+              onTap: onSearchTap,
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: hasActiveSearch ? kAccent.withValues(alpha: 0.1) : kSurfaceAlt,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: hasActiveSearch ? kAccent.withValues(alpha: 0.35) : kBorder,
+                    color: searchActive
+                        ? kAccent.withValues(alpha: 0.45)
+                        : kBorder,
                   ),
                 ),
                 child: Icon(
                   Icons.search_rounded,
-                  size: 20,
-                  color: hasActiveSearch ? kAccent : kIconInactive,
+                  size: 22,
+                  color: searchActive ? kAccent : kTextSecondary,
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CalendarFilterTab extends StatelessWidget {
+  const _CalendarFilterTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? kSurface : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected ? kAccent : kTextSecondary,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -910,265 +937,55 @@ class _TodayPill extends StatelessWidget {
   }
 }
 
-class _CalendarMiniHero extends StatelessWidget {
-  const _CalendarMiniHero({
-    required this.upcomingCount,
-    this.nextEvent,
-    required this.myAssignmentCount,
-    this.onNextEventTap,
-    this.onMyAssignmentsTap,
+class _CalendarPageHeader extends StatelessWidget {
+  const _CalendarPageHeader({
+    required this.subtitle,
     this.onNotificationsTap,
     this.onProfileTap,
   });
 
-  final int upcomingCount;
-  final CalendarEvent? nextEvent;
-  final int myAssignmentCount;
-  final VoidCallback? onNextEventTap;
-  final VoidCallback? onMyAssignmentsTap;
+  final String subtitle;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
-    final headline = upcomingCount == 0
-        ? 'No upcoming events'
-        : '$upcomingCount upcoming event${upcomingCount == 1 ? '' : 's'}';
-
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(padding, 4, padding, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(padding, 8, padding, 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Your schedule',
-                      style: dashText(TextStyle(
-                        color: Colors.white.withValues(alpha: 0.62),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.2,
-                      )),
-                    ),
+                  Text(
+                    'Calendar',
+                    style: dashText(const TextStyle(
+                      color: kTextPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      height: 1.1,
+                    )),
                   ),
-                  MemberDarkHeroNotificationButton(onTap: onNotificationsTap),
-                  MemberDarkHeroProfileAvatar(onTap: onProfileTap),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: memberDashboardMetaStyle.copyWith(fontSize: 14),
+                  ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                headline,
-              style: dashText(const TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                height: 1.2,
-                letterSpacing: -0.2,
-              )),
             ),
-            const SizedBox(height: 10),
-            if (nextEvent != null)
-              _CalendarMiniNextEvent(
-                event: nextEvent!,
-                onTap: onNextEventTap,
-              )
-            else
-              Text(
-                'Approved ACCESS events appear on the grid below.',
-                style: dashText(TextStyle(
-                  color: Colors.white.withValues(alpha: 0.58),
-                  fontSize: 12,
-                  height: 1.35,
-                )),
-              ),
-            if (myAssignmentCount > 0) ...[
-              const SizedBox(height: 10),
-              _CalendarMiniChip(
-                icon: Icons.assignment_ind_outlined,
-                label: '$myAssignmentCount assigned to you',
-                onTap: onMyAssignmentsTap,
-              ),
-            ],
+            MemberPageNotificationButton(onTap: onNotificationsTap),
+            MemberPageProfileAvatar(onTap: onProfileTap),
           ],
         ),
-      ),
-      ),
-    );
-  }
-}
-
-class _CalendarMiniNextEvent extends StatelessWidget {
-  const _CalendarMiniNextEvent({
-    required this.event,
-    this.onTap,
-  });
-
-  final CalendarEvent event;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final meta = event.location.trim().isNotEmpty
-        ? '${event.date} · ${event.location}'
-        : event.date;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: kMemberDashboardAccentGradient,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: kAccent.withValues(alpha: 0.22),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                  ),
-                  child: const Icon(
-                    Icons.calendar_today_outlined,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Next up',
-                        style: dashText(TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        )),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        event.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: dashText(const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                        )),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        meta,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: dashText(TextStyle(
-                          color: Colors.white.withValues(alpha: 0.82),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w400,
-                        )),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.white.withValues(alpha: 0.85),
-                  size: 18,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CalendarMiniChip extends StatelessWidget {
-  const _CalendarMiniChip({
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final child = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: Colors.white.withValues(alpha: 0.88)),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: dashText(const TextStyle(
-              color: Colors.white,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-            )),
-          ),
-          if (onTap != null) ...[
-            const SizedBox(width: 2),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 14,
-              color: Colors.white.withValues(alpha: 0.85),
-            ),
-          ],
-        ],
-      ),
-    );
-
-    if (onTap == null) return child;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: child,
       ),
     );
   }

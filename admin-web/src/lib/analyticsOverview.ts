@@ -410,3 +410,55 @@ function buildRecentActivity(data: AnalyticsSnapshot, limit = 4): ActivityItem[]
 export function buildRecentActivityList(data: AnalyticsSnapshot, limit = 50): ActivityItem[] {
   return buildRecentActivity(data, limit)
 }
+
+export interface MonthlyRequestPoint {
+  month: number
+  label: string
+  requests: number
+  requesters: number
+}
+
+function requestSubmittedAt(r: Record<string, unknown>): Date | null {
+  return parseDate(r.created_at ?? r.submitted_at ?? r.request_date)
+}
+
+function requesterKey(r: Record<string, unknown>): string {
+  return String(r.requester_id ?? r.requester_name ?? r.organization_name ?? 'unknown')
+}
+
+/** Years that have at least one request, newest first; always includes the current year. */
+export function requestYears(requests: Record<string, unknown>[]): number[] {
+  const years = new Set<number>([new Date().getFullYear()])
+  for (const r of requests) {
+    const d = requestSubmittedAt(r)
+    if (d) years.add(d.getFullYear())
+  }
+  return [...years].sort((a, b) => b - a)
+}
+
+export function buildRequestsByMonth(
+  requests: Record<string, unknown>[],
+  year: number,
+): { points: MonthlyRequestPoint[]; totalRequests: number; totalRequesters: number } {
+  const perMonth = Array.from({ length: 12 }, () => ({ requests: 0, requesters: new Set<string>() }))
+  const allRequesters = new Set<string>()
+  for (const r of requests) {
+    const d = requestSubmittedAt(r)
+    if (!d || d.getFullYear() !== year) continue
+    const bucket = perMonth[d.getMonth()]
+    bucket.requests++
+    bucket.requesters.add(requesterKey(r))
+    allRequesters.add(requesterKey(r))
+  }
+  const points = perMonth.map((b, month) => ({
+    month,
+    label: new Date(year, month, 1).toLocaleDateString(undefined, { month: 'short' }),
+    requests: b.requests,
+    requesters: b.requesters.size,
+  }))
+  return {
+    points,
+    totalRequests: points.reduce((sum, p) => sum + p.requests, 0),
+    totalRequesters: allRequesters.size,
+  }
+}

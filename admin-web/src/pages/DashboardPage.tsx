@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { useNavigate } from 'react-router-dom'
 
-import { Bell, Brain, Calendar, MailOpen, RefreshCw, Users } from 'lucide-react'
+import { Bell, Calendar, ImageIcon, MailOpen } from 'lucide-react'
 
 import { fetchHomeDashboard, type HomeDashboardSnapshot } from '../lib/dashboard'
 
@@ -10,123 +10,53 @@ import { useAuth } from '../context/AuthContext'
 
 import { AdminErrorBanner } from '../components/AdminAlert'
 import { DashboardOverviewStrip } from '../components/dashboard/DashboardOverviewStrip'
-
 import {
-
-  AnalyticsBanner,
-
-  AnnouncementsPanel,
-
-  DailySummaryPanel,
-
-  MediaQueuePanel,
-
-  NotificationsPanel,
-
-  PendingRequestsPanel,
-
-  RecentActivityPanel,
-
-  TodaySchedulePanel,
-
-  WelcomeHeader,
-
-} from '../components/dashboard/DashboardPanels'
-
-
+  ActionCenterPanel,
+  ActiveDocumentersPanel,
+  EvaluationTrendPanel,
+  MediaEvaluationOverviewPanel,
+  TodayScheduleTimelinePanel,
+} from '../components/dashboard/DashboardSep29Panels'
+import { WelcomeHeader } from '../components/dashboard/DashboardPanels'
 
 export function DashboardPage() {
-
   const { user } = useAuth()
-
   const navigate = useNavigate()
-
   const [data, setData] = useState<HomeDashboardSnapshot | null>(null)
-
   const [loading, setLoading] = useState(true)
-
   const [error, setError] = useState<string | null>(null)
 
-
-
   const load = useCallback(async () => {
-
     setLoading(true)
-
     setError(null)
-
     try {
-
       const snap = await fetchHomeDashboard()
-
       setData(snap)
-
     } catch (e) {
-
       setError(e instanceof Error ? e.message : 'Failed to load dashboard')
-
     } finally {
-
       setLoading(false)
-
     }
-
   }, [])
 
-
-
   useEffect(() => {
-
     load()
-
   }, [load])
-
-
 
   const o = data?.overview
 
-
-
   return (
-
-    <div className="space-y-6">
-
-      <div className="flex flex-wrap items-start justify-between gap-4">
-
-        <WelcomeHeader adminName={user?.name ?? 'Admin'} />
-
-        <button
-
-          type="button"
-
-          onClick={load}
-
-          disabled={loading}
-
-          className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
-
-        >
-
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-
-          Refresh
-
-        </button>
-
-      </div>
-
-
+    <div className="mx-auto max-w-[1400px] space-y-5">
+      <WelcomeHeader adminName={user?.name ?? 'Admin'} onRefresh={load} loading={loading} />
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
 
-
-
       {loading && !data ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="h-[120px] animate-pulse rounded-[var(--card-radius)] bg-[var(--color-surface-muted)]"
+              className="h-[62px] animate-pulse rounded-xl bg-[var(--color-surface-muted)]"
             />
           ))}
         </div>
@@ -136,88 +66,62 @@ export function DashboardPage() {
             {
               icon: MailOpen,
               label: 'Pending Requests',
+              sublabel: 'needs approval',
               value: o.pendingRequests,
               color: 'var(--color-danger)',
+              bgColor: 'color-mix(in srgb, var(--color-danger) 6%, var(--color-surface))',
               onClick: () => navigate('/documentation-requests'),
             },
             {
               icon: Calendar,
               label: "Today's Events",
+              sublabel: 'scheduled today',
               value: o.todayEvents,
               color: 'var(--color-accent-blue)',
+              bgColor: 'color-mix(in srgb, var(--color-accent-blue) 6%, var(--color-surface))',
               onClick: () => navigate('/event-calendar'),
             },
             {
-              icon: Brain,
+              icon: ImageIcon,
               label: 'Media Awaiting Review',
+              sublabel: 'for AI evaluation',
               value: o.mediaPendingEvaluation,
               color: 'var(--color-accent-cyan)',
+              bgColor: 'color-mix(in srgb, var(--color-accent-cyan) 8%, var(--color-surface))',
               onClick: () => navigate('/media-integrity'),
-            },
-            {
-              icon: Users,
-              label: 'Active Members',
-              value: o.activeMembers,
-              color: 'var(--color-success)',
-              onClick: () => navigate('/members'),
             },
             {
               icon: Bell,
               label: 'Unread Alerts',
+              sublabel: 'new notifications',
               value: o.unreadNotifications,
               color: 'var(--color-accent-purple)',
+              bgColor: 'color-mix(in srgb, var(--color-accent-purple) 8%, var(--color-surface))',
               onClick: () => navigate('/notifications'),
+              badge: o.unreadNotifications > 0,
             },
           ]}
         />
       ) : null}
 
-
-
-      {data && (
-
+      {data ? (
         <>
-
-          <DailySummaryPanel snapshot={data} />
-
-
-
-          <div className="grid gap-6 xl:grid-cols-5">
-
-            <div className="space-y-6 xl:col-span-3">
-
-              <PendingRequestsPanel requests={data.pendingRequests} />
-
-              <RecentActivityPanel items={data.recentActivity} />
-
-              <MediaQueuePanel queue={data.mediaQueue} />
-
-            </div>
-
-            <div className="space-y-6 xl:col-span-2">
-
-              <TodaySchedulePanel items={data.todaySchedule} />
-
-              <NotificationsPanel items={data.notifications} />
-
-              <AnnouncementsPanel items={data.announcements} />
-
-            </div>
-
+          <div className="grid items-stretch gap-4 lg:grid-cols-[1.25fr_1fr]">
+            <ActionCenterPanel
+              items={data.actionCenterItems}
+              pendingCount={data.overview.pendingRequests}
+              mediaPendingCount={data.overview.mediaPendingEvaluation}
+            />
+            <TodayScheduleTimelinePanel items={data.todaySchedule} />
           </div>
 
-
-
-          <AnalyticsBanner />
-
+          <div className="grid items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <MediaEvaluationOverviewPanel stats={data.evalOverview} />
+            <EvaluationTrendPanel points={data.evalTrend} />
+            <ActiveDocumentersPanel snapshot={data.activeDocumenters} />
+          </div>
         </>
-
-      )}
-
+      ) : null}
     </div>
-
   )
-
 }
-
-

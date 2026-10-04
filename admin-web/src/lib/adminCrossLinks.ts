@@ -5,8 +5,8 @@ export function memberCompetencyProfileUrl(userId: number): string {
   return `/competency?member=${userId}`
 }
 
-/** Team roster search when user id is unknown. */
-export function memberTeamRosterUrl(memberName: string): string {
+/** Member management search when user id is unknown. */
+export function memberManagementUrl(memberName: string): string {
   return `/members?q=${encodeURIComponent(memberName.trim())}`
 }
 
@@ -14,7 +14,7 @@ export function memberPortfolioUrl(opts: { userId?: number | null; memberName?: 
   const id = opts.userId != null && opts.userId > 0 ? opts.userId : 0
   if (id) return memberCompetencyProfileUrl(id)
   const name = (opts.memberName ?? '').trim()
-  if (name) return memberTeamRosterUrl(name)
+  if (name) return memberManagementUrl(name)
   return '/competency'
 }
 
@@ -28,10 +28,10 @@ export function memberUploadUrl(opts?: {
   if (opts?.q?.trim()) params.set('q', opts.q.trim())
   if (opts?.format) params.set('format', opts.format)
   const qs = params.toString()
-  return qs ? `/media/member-uploads?${qs}` : '/media/member-uploads'
+  return qs ? `/media?${qs}` : '/media'
 }
 
-/** Evaluation Review page removed — deep links open Member Uploads instead. */
+/** Evaluation Review page removed — deep links open Event Media instead. */
 export function evaluationReviewUrl(opts?: { evaluationId?: number; mediaId?: number }): string {
   void opts?.evaluationId
   return memberUploadUrl({ mediaId: opts?.mediaId })

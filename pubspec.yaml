@@ -72,12 +72,12 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   background_color_ios: "#0052D4"
   image_path: assets/images/access_app_icon.png
-  adaptive_icon_background: "#00000000"
-  adaptive_icon_foreground: assets/images/access_app_icon.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/images/access_launcher_foreground.png
   web:
     generate: true
     image_path: assets/images/access_app_icon.png
-    background_color: "#0052D4"
+    background_color: "#FFFFFF"
     theme_color: "#0052D4"
   windows:
     generate: true
@@ -100,6 +100,7 @@ flutter:
   assets:
     - assets/images/access_logo.png
     - assets/images/access-brand-a.png
+    - assets/images/access-org-seal.jpg
     - assets/images/access_app_icon.png
     - assets/images/access_login_hero.png
 

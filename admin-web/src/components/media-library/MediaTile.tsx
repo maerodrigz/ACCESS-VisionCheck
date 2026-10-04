@@ -1,5 +1,5 @@
-import { Check, Play, Star, Trash2, XCircle } from 'lucide-react'
-import { canPublishToFacebook, type MediaAsset } from '../../lib/mediaLibrary'
+import { Star } from 'lucide-react'
+import type { MediaAsset } from '../../lib/mediaLibrary'
 import { MediaPreviewContent } from './MediaPreviewContent'
 
 interface Props {
@@ -12,22 +12,26 @@ interface Props {
   onDelete?: () => void
 }
 
-export function MediaTile({ item, selected, isAdmin, onTap, onSelectToggle, onToggleBestShot, onDelete }: Props) {
+export function MediaTile({ item, selected, isAdmin, onTap, onToggleBestShot }: Props) {
   const isEventDoc = item.mediaCategory === 'event_documentation'
   const fbPublished = item.facebookPublishStatus === 'published'
   const fbFailed = item.facebookPublishStatus === 'failed'
-  const publishReady = canPublishToFacebook(item)
+  const showBestPickStar = isAdmin && isEventDoc && !fbPublished
 
   return (
     <article
       className={[
-        'group relative overflow-hidden rounded-[var(--card-radius)] border bg-[var(--color-surface)] shadow-[0_2px_8px_rgba(15,39,68,0.04)] transition',
+        'group relative flex h-full flex-col overflow-hidden rounded-xl border bg-[var(--color-surface)] shadow-[0_1px_3px_rgba(15,39,68,0.06)] transition',
         selected
           ? 'border-[var(--color-accent-blue)] ring-2 ring-[var(--color-accent-blue)]/25'
-          : 'border-[var(--color-border)] hover:border-[var(--color-accent-cyan)]/50 hover:shadow-[0_4px_16px_rgba(15,39,68,0.08)]',
+          : 'border-[var(--color-border)] hover:border-[var(--color-accent-cyan)]/45 hover:shadow-[0_4px_12px_rgba(15,39,68,0.08)]',
       ].join(' ')}
     >
-      <button type="button" onClick={onTap} className="group relative block aspect-square w-full overflow-hidden bg-[var(--color-surface-muted)]">
+      <button
+        type="button"
+        onClick={onTap}
+        className="group relative block aspect-[4/3] w-full shrink-0 overflow-hidden bg-[var(--color-surface-muted)]"
+      >
         <MediaPreviewContent
           url={item.thumbnailUrl}
           isVideo={item.isVideo}
@@ -36,115 +40,51 @@ export function MediaTile({ item, selected, isAdmin, onTap, onSelectToggle, onTo
           className="h-full w-full"
         />
 
-        {item.isVideo && (
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm">
-              <Play size={18} fill="currentColor" className="ml-0.5" />
-            </span>
-          </span>
-        )}
-
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-2.5 pb-2.5 pt-10">
-          <p className="truncate text-left text-xs font-bold text-white">{item.eventName}</p>
-          <p className="truncate text-left text-[10px] text-white/80">{item.uploaderName}</p>
-        </div>
-
-        <span className="absolute left-2 top-2 rounded-md bg-black/55 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-          {item.isVideo ? 'Video' : 'Photo'}
-        </span>
-
         {!isEventDoc && (
-          <span className="absolute left-2 top-9 rounded-md bg-violet-600/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
+          <span className="absolute left-2 top-2 rounded-md bg-violet-600/85 px-1.5 py-0.5 text-[9px] font-bold text-white">
             Evaluation
-          </span>
-        )}
-
-        {isEventDoc && fbPublished && (
-          <span className="absolute bottom-14 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600/90 text-white shadow-sm">
-            <Check size={12} strokeWidth={3} />
-          </span>
-        )}
-        {isEventDoc && fbFailed && (
-          <span className="absolute bottom-14 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600/90 text-white shadow-sm">
-            <XCircle size={12} />
-          </span>
-        )}
-        {isEventDoc && publishReady && (
-          <span className="absolute bottom-14 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/90 text-white shadow-sm">
-            <Star size={11} className="fill-current" />
           </span>
         )}
       </button>
 
-      <div className="absolute right-2 top-2 flex items-center gap-1.5">
-        {isAdmin && onDelete && (
-          <button
-            type="button"
-            title="Delete permanently"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-red-400/50 bg-red-600/85 text-white opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-red-600"
-          >
-            <Trash2 size={13} />
-          </button>
-        )}
-        {isAdmin && isEventDoc && !fbPublished && (
-          <button
-            type="button"
-            title={item.isBestShot ? 'Remove best pick' : 'Mark as best pick'}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleBestShot()
-            }}
-            className={[
-              'flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition',
-              item.isBestShot
-                ? 'border-amber-400/50 bg-amber-500/20 text-amber-300'
-                : 'border-white/80 bg-black/40 text-white hover:bg-black/55',
-            ].join(' ')}
-          >
-            <Star size={14} className={item.isBestShot ? 'fill-current' : ''} />
-          </button>
-        )}
+      {showBestPickStar ? (
         <button
           type="button"
-          title={selected ? 'Deselect' : 'Select'}
+          title={item.isBestShot ? 'Remove best pick' : 'Add to best picks'}
           onClick={(e) => {
             e.stopPropagation()
-            onSelectToggle()
+            onToggleBestShot()
           }}
           className={[
-            'flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-sm transition',
-            selected
-              ? 'border-[var(--color-accent-blue)] bg-[var(--color-accent-blue)] text-white'
-              : 'border-white bg-black/40 text-transparent hover:bg-black/55',
+            'absolute right-1.5 top-1.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)] transition',
+            item.isBestShot ? 'text-amber-400' : 'text-white hover:text-amber-200',
           ].join(' ')}
         >
-          <Check size={14} className={selected ? 'opacity-100' : 'opacity-0'} strokeWidth={3} />
+          <Star size={16} className={item.isBestShot ? 'fill-current' : ''} />
         </button>
-      </div>
+      ) : null}
 
-      <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] px-2.5 py-2">
-        <div className="min-w-0">
-          <p className="truncate text-[11px] font-semibold text-[var(--color-text-primary)]">{item.fileName}</p>
-          {item.uploadDateLabel && (
-            <p className="text-[10px] text-[var(--color-text-secondary)]">{item.uploadDateLabel}</p>
-          )}
+      <div className="flex min-h-[52px] flex-1 items-start justify-between gap-2 border-t border-[var(--color-border)] px-2.5 py-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[11px] font-semibold text-[var(--color-text-primary)]" title={item.fileName}>
+            {item.fileName}
+          </p>
+          {item.uploadDateLabel ? (
+            <p className="mt-0.5 text-[10px] text-[var(--color-text-secondary)]">{item.uploadDateLabel}</p>
+          ) : null}
         </div>
         {isEventDoc && fbPublished && (
-          <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-300">
+          <span className="shrink-0 rounded-md bg-emerald-500/12 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600">
             Published
           </span>
         )}
         {isEventDoc && fbFailed && (
-          <span className="shrink-0 rounded-full bg-red-500/15 px-2 py-0.5 text-[9px] font-bold text-red-300">
+          <span className="shrink-0 rounded-md bg-red-500/12 px-1.5 py-0.5 text-[9px] font-bold text-red-600">
             Failed
           </span>
         )}
         {item.isBestShot && isEventDoc && !fbPublished && (
-          <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold text-amber-300">
+          <span className="shrink-0 rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[9px] font-bold text-amber-600">
             Best pick
           </span>
         )}

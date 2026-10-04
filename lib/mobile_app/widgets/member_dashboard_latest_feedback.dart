@@ -70,8 +70,8 @@ class LatestAdminFeedback {
 
   static String _preview(String text) {
     final cleaned = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (cleaned.length <= 120) return cleaned;
-    return '${cleaned.substring(0, 117)}…';
+    if (cleaned.length <= 90) return cleaned;
+    return '${cleaned.substring(0, 87)}…';
   }
 }
 
@@ -216,10 +216,13 @@ class MemberDashboardLatestFeedback extends StatelessWidget {
                         ),
                         child: Text(
                           '"${latest.preview}"',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: memberDashboardBodyStyle.copyWith(
                             color: kDashTextPrimary,
                             fontStyle: FontStyle.italic,
                             fontSize: 13,
+                            height: 1.35,
                           ),
                         ),
                       ),

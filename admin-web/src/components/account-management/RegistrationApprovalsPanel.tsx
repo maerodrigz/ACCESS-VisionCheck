@@ -29,11 +29,6 @@ const TABS: { id: RegistrationApprovalTab; label: string }[] = [
   { id: 'organizations', label: 'Organizations' },
 ]
 
-function parseTab(raw: string | null): RegistrationApprovalTab {
-  if (raw === 'members' || raw === 'faculty_instructors' || raw === 'organizations') return raw
-  return 'all'
-}
-
 interface Props {
   initialTab?: RegistrationApprovalTab
   onBack: () => void

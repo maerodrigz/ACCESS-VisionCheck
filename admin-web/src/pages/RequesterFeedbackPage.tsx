@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, Loader2, MessageSquare, Search } from 'lucide-react'
+import { Loader2, MessageSquare, Search } from 'lucide-react'
 import { fetchFeedback, fetchMedia, fetchServiceRequests, fetchTasks, fetchUsers, updateFeedbackAdminReview } from '../api/admin'
 import { AdminCard } from '../components/AdminCard'
 import { AdminSelect } from '../components/AdminSelect'
 import { AdminConfirmDialog } from '../components/AdminConfirmDialog'
 import { AdminErrorBanner } from '../components/AdminAlert'
 import { AdminPageHeader } from '../components/AdminPageHeader'
-import { pageToolbarBtnClass, PageToolbarRefreshButton } from '../components/PageToolbar'
+import { PageToolbarRefreshButton } from '../components/PageToolbar'
 import { useToast } from '../context/ToastContext'
 import { FeaturedTestimonialCard } from '../components/requester-feedback/FeaturedTestimonialCard'
 import { FeedbackDetailsDrawer } from '../components/requester-feedback/FeedbackDetailsDrawer'
 import { FeedbackReviewsTable } from '../components/requester-feedback/FeedbackReviewsTable'
 import {
-  buildExportReport,
   buildFeedbackDashboard,
   FILTER_CHIPS,
   matchesChip,
@@ -190,12 +189,6 @@ export function RequesterFeedbackPage() {
     }
   }
 
-  function exportReport() {
-    if (!data) return
-    void navigator.clipboard.writeText(buildExportReport(data))
-    showMsg('Feedback report copied to clipboard')
-  }
-
   function primaryChipLabel(id: FeedbackFilterChip): string {
     const base = FILTER_CHIPS.find((c) => c.id === id)?.label ?? id
     return `${base} (${chipCounts[id] ?? 0})`
@@ -208,13 +201,7 @@ export function RequesterFeedbackPage() {
         subtitle="Ratings and comments from organizations after completed events. Respond to issues and track satisfaction."
         backTo="/"
         actions={
-          <>
-            <button type="button" onClick={exportReport} disabled={!data} className={pageToolbarBtnClass}>
-              <Download size={16} className="shrink-0 text-[var(--color-text-secondary)]" strokeWidth={2} />
-              Export report
-            </button>
-            <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
-          </>
+          <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
         }
       />
 

@@ -37,8 +37,11 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    // Compact (phone) sits on the login screen's full-height gradient, so it paints none of its own.
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: LoginPageTokens.heroGradient),
+      decoration: widget.compact
+          ? const BoxDecoration()
+          : const BoxDecoration(gradient: LoginPageTokens.heroGradient),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -46,17 +49,19 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
           SafeArea(
             bottom: false,
             child: Align(
-              alignment: widget.compact ? Alignment.center : Alignment.center,
+              alignment: Alignment.center,
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: widget.compact ? 24 : 56,
-                  vertical: widget.compact ? 4 : 0,
+                  vertical: widget.compact ? 12 : 0,
                 ),
                 child: FadeTransition(
                   opacity: _fade,
                   child: SlideTransition(
                     position: _slide,
-                    child: _brandContent(),
+                    child: widget.compact
+                        ? FittedBox(fit: BoxFit.scaleDown, child: _brandContent())
+                        : _brandContent(),
                   ),
                 ),
               ),
@@ -68,15 +73,15 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
   }
 
   Widget _brandContent() {
-    final markSize = widget.compact ? 52.0 : 88.0;
+    final sealSize = widget.compact ? 108.0 : 168.0;
     final titleSize = widget.compact ? 20.0 : 32.0;
     final subtitleSize = widget.compact ? 11.0 : 14.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _LoginRibbonMark(size: markSize),
-        SizedBox(height: widget.compact ? 10 : 24),
+        AccessOrgSealLogo(size: sealSize),
+        SizedBox(height: widget.compact ? 10 : 20),
         Text(
           'ACCESS',
           textAlign: TextAlign.center,
@@ -116,42 +121,49 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
   }
 }
 
-/// Crops baked-in PNG fringe so the mark sits cleanly on the dark gradient.
-class _LoginRibbonMark extends StatelessWidget {
-  const _LoginRibbonMark({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ClipRect(
-        child: Center(
-          child: Transform.scale(
-            scale: 1.14,
-            child: AccessRibbonMark(size: size),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _HeroGlow extends StatelessWidget {
   const _HeroGlow({required this.compact});
 
   final bool compact;
 
+  Widget _glow(double size, Color color, double alpha) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final blob = compact ? 140.0 : 220.0;
+    final blob = compact ? 200.0 : 220.0;
 
     return IgnorePointer(
       child: Stack(
         children: [
+          if (compact) ...[
+            Positioned(
+              top: -50,
+              right: -60,
+              child: _glow(blob, LoginPageTokens.heroGlow, 0.26),
+            ),
+            Positioned(
+              top: size.height * 0.08,
+              left: -80,
+              child: _glow(blob * 1.1, LoginPageTokens.purple, 0.3),
+            ),
+            Positioned(
+              bottom: -40,
+              right: size.width * 0.15,
+              child: _glow(blob * 0.9, LoginPageTokens.primary, 0.22),
+            ),
+          ],
           if (!compact)
             Positioned(
               top: -60,

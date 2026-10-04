@@ -165,6 +165,22 @@ export function formatShortDate(d: Date): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+export function formatCompactDate(d: Date): string {
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+/** People already attached to the event: the request team, or the single assigned member. */
+export function eventDocumenters(event: CalendarEvent): string[] {
+  if (event.documentationTeam.length > 0) return event.documentationTeam
+  if (event.assignedMemberName) return [event.assignedMemberName]
+  return []
+}
+
+/** Covered when a documenter is assigned, or the event status is already Assigned. */
+export function isCoveredEvent(event: CalendarEvent): boolean {
+  return event.status === 'assigned' || eventDocumenters(event).length > 0
+}
+
 export function eventsOnDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
   return events.filter((e) => sameDay(e.eventDate, day)).sort(sortByTime)
 }

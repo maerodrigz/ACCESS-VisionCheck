@@ -43,32 +43,6 @@ export function DistributionCard({ title, segments }: { title: string; segments:
   )
 }
 
-export function AssignmentsOverviewCard({ data }: { data: AnalyticsSnapshot }) {
-  const s = data.stats
-  return (
-    <DistributionCard
-      title="Member assignments"
-      segments={[
-        {
-          label: 'Awaiting acceptance',
-          value: Number(s.pending_assignments ?? 0),
-          color: 'var(--color-warning)',
-        },
-        {
-          label: 'Accepted',
-          value: Number(s.accepted_assignments ?? s.completed_tasks ?? 0),
-          color: 'var(--color-success)',
-        },
-        {
-          label: 'Declined',
-          value: Number(s.declined_assignments ?? 0),
-          color: 'var(--color-danger)',
-        },
-      ]}
-    />
-  )
-}
-
 export function AnalyticsOverviewPanel({ data }: { data: AnalyticsSnapshot }) {
   const s = data.stats
   const rs = data.rankingsSummary
@@ -98,7 +72,6 @@ export function AnalyticsOverviewPanel({ data }: { data: AnalyticsSnapshot }) {
             { label: 'Completed', value: Number(s.completed_requests ?? 0), color: 'var(--color-accent-blue)' },
           ]}
         />
-        <AssignmentsOverviewCard data={data} />
         <DistributionCard
           title="Media & quality"
           segments={[

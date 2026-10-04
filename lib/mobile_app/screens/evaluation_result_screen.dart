@@ -85,11 +85,15 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showQuality = widget.result.showQualityFeedbackEffective;
+    final heldForReview =
+        widget.result.scoresHeldForReview && !widget.result.aiDetection.isAiGenerated;
+
     return Scaffold(
-      backgroundColor: kEvalBg,
+      backgroundColor: kBg,
       appBar: AppBar(
-        backgroundColor: kEvalBg,
-        foregroundColor: kDashTextPrimary,
+        backgroundColor: kBg,
+        foregroundColor: kTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
         title: Text('Evaluation Result', style: dashText(const TextStyle(fontWeight: FontWeight.w800, fontSize: 18))),
@@ -106,39 +110,52 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
               date: _formattedDate,
               onViewOriginal: () => _openOriginal(context),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             if (widget.qualityWarnings.isNotEmpty) ...[
               _QualityWarningsBanner(warnings: widget.qualityWarnings),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+            ],
+            if (showQuality) ...[
+              Text('Media quality', style: evalSectionTitleStyle.copyWith(fontSize: 15)),
+              const SizedBox(height: 8),
+              MediaEvaluationResultsPanel(
+                result: widget.result,
+                gemini: widget.geminiFeedback,
+                compact: true,
+                dense: true,
+                useBreakdownCard: true,
+                showOverallHeader: false,
+                feedbackIsLocalFallback: widget.result.geminiFeedbackIsLocal,
+              ),
+              const SizedBox(height: 10),
+            ] else ...[
+              IntegrityOnlyMessageCard(
+                result: widget.result,
+                layout: IntegrityOnlyCardLayout.resultCompact,
+              ),
+              const SizedBox(height: 8),
             ],
             AiDetectionBanner(
               aiDetection: widget.result.aiDetection,
               compact: true,
+              minimal: true,
               practiceFinalCopy: widget.evaluationAlreadySaved,
               adminReviewStatus: widget.adminReviewStatus,
             ),
-            const SizedBox(height: 12),
-            if (!widget.evaluationAlreadySaved && widget.result.qualityProvisionalEffective) ...[
-              IntegrityProvisionalBanner(message: widget.result.memberIntegrityMessageEffective),
-              const SizedBox(height: 12),
-            ],
-            if (widget.evaluationAlreadySaved &&
+            if (showQuality &&
+                !widget.evaluationAlreadySaved &&
                 widget.result.qualityProvisionalEffective &&
-                widget.result.memberIntegrityMessageEffective.isNotEmpty) ...[
-              _XpPendingNote(result: widget.result),
-              const SizedBox(height: 12),
+                !heldForReview) ...[
+              const SizedBox(height: 8),
+              IntegrityProvisionalBanner(
+                message: widget.result.memberIntegrityMessageEffective.isNotEmpty
+                    ? widget.result.memberIntegrityMessageEffective
+                    : 'Scores may change after integrity review completes.',
+              ),
             ],
-            MediaEvaluationResultsPanel(
-              result: widget.result,
-              gemini: widget.geminiFeedback,
-              compact: true,
-              dense: true,
-              useBreakdownCard: true,
-              showOverallHeader: false,
-              feedbackIsLocalFallback: widget.result.geminiFeedbackIsLocal,
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             EvalResultActionBar(
+              compact: true,
               isSaving: _isSaving,
               atLimit: widget.atLimit,
               evaluationAlreadySaved: widget.evaluationAlreadySaved,
@@ -147,7 +164,7 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
                   : null,
               onSave: widget.evaluationAlreadySaved ? _handleDone : _handleSave,
               onEvaluateAgain: widget.onEvaluateAgain,
-              onDetailedAnalysis: widget.result.showQualityFeedbackEffective
+              onDetailedAnalysis: showQuality
                   ? () => openEvaluationDetailedAnalysis(
                         context,
                         result: widget.result,
@@ -224,14 +241,25 @@ class _ResultTopCard extends StatelessWidget {
           );
 
     return Container(
-      decoration: evalCardDecoration(),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           preview,
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -239,10 +267,10 @@ class _ResultTopCard extends StatelessWidget {
                   displayTitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: evalCardTitleStyle.copyWith(fontSize: 16),
+                  style: evalCardTitleStyle.copyWith(fontSize: 15),
                 ),
                 if (displayTitle != fileName) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     fileName,
                     maxLines: 1,
@@ -253,29 +281,29 @@ class _ResultTopCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today_outlined, size: 14, color: kDashTextSecondary),
-                    const SizedBox(width: 6),
-                    Text(date, style: memberDashboardMetaStyle.copyWith(fontSize: 12)),
+                    Icon(Icons.calendar_today_outlined, size: 13, color: kTextSecondary),
+                    const SizedBox(width: 5),
+                    Text(date, style: memberDashboardMetaStyle.copyWith(fontSize: 11)),
                     const Spacer(),
                     MediaTypeBadge(mediaType: media.isVideo ? 'video' : 'photo'),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
+                  height: 40,
                   child: OutlinedButton.icon(
                     onPressed: onViewOriginal,
                     icon: Icon(
                       media.isVideo ? Icons.play_circle_outline_rounded : Icons.open_in_full_rounded,
-                      size: 18,
+                      size: 17,
                     ),
                     label: Text(media.isVideo ? 'Play Video' : 'View Original'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: kEvalSecondary,
-                      side: BorderSide(color: kEvalSecondary.withValues(alpha: 0.35)),
-                      minimumSize: const Size.fromHeight(46),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      textStyle: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                      foregroundColor: kAccent,
+                      side: BorderSide(color: kAccent.withValues(alpha: 0.35)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      textStyle: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                     ),
                   ),
                 ),
@@ -296,11 +324,11 @@ class _QualityWarningsBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+        color: kYellow.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kYellow.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,32 +345,6 @@ class _QualityWarningsBanner extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _XpPendingNote extends StatelessWidget {
-  const _XpPendingNote({required this.result});
-
-  final PhotoEvaluationResult result;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!result.xpPendingEffective) return const SizedBox.shrink();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: kAccent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: kAccent.withValues(alpha: 0.22)),
-      ),
-      child: Text(
-        result.memberIntegrityMessageEffective.isNotEmpty
-            ? result.memberIntegrityMessageEffective
-            : 'XP will be awarded if your submission is approved after officer review.',
-        style: const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45),
       ),
     );
   }

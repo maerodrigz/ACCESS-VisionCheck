@@ -4,7 +4,7 @@ import {
   MemberAccountStatusBadge,
   MemberAvatar,
   MemberRequesterRatingDisplay,
-  MemberSkillBadge,
+  RosterCompetencyBadge,
   TeamAvailabilityIndicator,
   TeamCoverageBadge,
 } from './TeamMemberBadges'
@@ -25,17 +25,17 @@ export function TeamMembersTable({ members, onViewProfile }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_1px_2px_rgba(15,39,68,0.04)]">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
             <tr>
-              <th className="px-4 py-3">Member</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Availability</th>
-              <th className="px-4 py-3">Ratings</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Action</th>
+              <th className="px-3 py-2">Member</th>
+              <th className="px-3 py-2">Role</th>
+              <th className="px-3 py-2">Availability</th>
+              <th className="px-3 py-2">Ratings</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2 text-right">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -44,38 +44,38 @@ export function TeamMembersTable({ members, onViewProfile }: Props) {
                 key={member.id}
                 className="border-b border-[var(--color-border-subtle)] transition last:border-0 hover:bg-[var(--color-surface-hover)]"
               >
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <MemberAvatar name={member.name} avatarUrl={member.avatarUrl} size="sm" />
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-2.5">
+                    <MemberAvatar name={member.name} avatarUrl={member.avatarUrl} size="xs" />
                     <div className="min-w-0">
-                      <div className="font-bold text-[var(--color-text-primary)]">{member.name}</div>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <MemberSkillBadge member={member} />
+                      <div className="truncate text-[13px] font-bold text-[var(--color-text-primary)]">
+                        {member.name}
+                      </div>
+                      <div className="mt-1">
+                        <RosterCompetencyBadge member={member} />
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2">
                   <TeamCoverageBadge role={member.coverageRole} />
                 </td>
-                <td className="px-4 py-3">
-                  <div className="min-w-[140px]">
-                    <TeamAvailabilityIndicator member={member} compact />
-                  </div>
+                <td className="px-3 py-2">
+                  <TeamAvailabilityIndicator member={member} compact />
                 </td>
-                <td className="px-4 py-3">
-                  <MemberRequesterRatingDisplay member={member} />
+                <td className="px-3 py-2">
+                  <MemberRequesterRatingDisplay member={member} compact />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2">
                   <MemberAccountStatusBadge member={member} />
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-3 py-2 text-right">
                   <button
                     type="button"
                     onClick={() => onViewProfile(member)}
-                    className="rounded-lg bg-[var(--color-accent-blue)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-95"
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-accent-blue)] hover:bg-[var(--color-surface-hover)]"
                   >
-                    Roster details
+                    View Details
                   </button>
                 </td>
               </tr>

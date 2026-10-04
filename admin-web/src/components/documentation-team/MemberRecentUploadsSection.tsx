@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Play } from 'lucide-react'
 import { DrawerBackButton } from '../AdminBackButton'
-import { memberUploadUrl } from '../../lib/adminCrossLinks'
 import { MediaPreviewContent } from '../media-library/MediaPreviewContent'
 import type { MemberUploadPreview } from '../../lib/teamMembers'
 
@@ -21,8 +19,6 @@ export function MemberRecentUploadsSection({ memberName, uploads }: Props) {
       </p>
     )
   }
-
-  const viewAllHref = memberUploadUrl({ q: memberName })
 
   return (
     <>
@@ -60,17 +56,10 @@ export function MemberRecentUploadsSection({ memberName, uploads }: Props) {
         ))}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] text-[var(--color-text-muted)]">
-          Latest {uploads.length} upload{uploads.length === 1 ? '' : 's'} (event coverage and practice).
-        </p>
-        <Link
-          to={viewAllHref}
-          className="text-[11px] font-semibold text-[var(--color-accent-blue)] hover:opacity-90"
-        >
-          View all uploads
-        </Link>
-      </div>
+      <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
+        Latest {uploads.length} upload{uploads.length === 1 ? '' : 's'} for {memberName} (event coverage and
+        practice).
+      </p>
 
       {preview ? (
         <>
@@ -117,15 +106,6 @@ export function MemberRecentUploadsSection({ memberName, uploads }: Props) {
                     ? ` · ${Math.round(preview.overallScore)}% score`
                     : ''}
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <Link
-                  to={memberUploadUrl({ mediaId: preview.id })}
-                  className="text-xs font-semibold text-[var(--color-accent-blue)]"
-                  onClick={() => setPreview(null)}
-                >
-                  Open in Member Uploads
-                </Link>
               </div>
             </div>
           </div>

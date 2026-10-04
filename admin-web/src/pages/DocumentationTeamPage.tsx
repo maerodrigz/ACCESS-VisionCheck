@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { Search, UserPlus } from 'lucide-react'
+import { CalendarCheck, Search, UserCheck, UserPlus, Users, type LucideIcon } from 'lucide-react'
 import {
   fetchEvaluations,
   fetchEvents,
@@ -126,7 +126,9 @@ export function DocumentationTeamPage() {
 
   const stats = useMemo(
     () => ({
+      total: all.length,
       available: countByChip(all, 'available'),
+      assigned: countByChip(all, 'assigned'),
       pendingMembers,
     }),
     [all, pendingMembers],
@@ -142,10 +144,12 @@ export function DocumentationTeamPage() {
     await load()
   }
 
+  const hasPending = stats.pendingMembers > 0
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1400px] space-y-3">
       <AdminPageHeader
-        title="Team Roster"
+        title="Member Management"
         subtitle="Day-to-day operations: who is available, who is on assignment, and member account status."
         backTo="/"
         actions={
@@ -153,13 +157,20 @@ export function DocumentationTeamPage() {
             <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
             <Link
               to="/account-management?view=registrations&tab=members"
-              className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-[var(--color-accent-blue)] px-4 text-sm font-bold text-white hover:opacity-95"
+              className={[
+                'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold',
+                hasPending
+                  ? 'bg-[var(--color-accent-blue)] text-white hover:opacity-95'
+                  : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]',
+              ].join(' ')}
             >
-              <UserPlus size={16} />
+              <UserPlus size={15} />
               Review registrations
-              {stats.pendingMembers > 0 && (
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{stats.pendingMembers}</span>
-              )}
+              {hasPending ? (
+                <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[11px] tabular-nums">
+                  {stats.pendingMembers}
+                </span>
+              ) : null}
             </Link>
           </>
         }
@@ -167,14 +178,45 @@ export function DocumentationTeamPage() {
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <MemberSummaryCard
+          icon={Users}
+          label="Total Members"
+          hint="on the roster"
+          value={stats.total}
+          color="var(--color-accent-blue)"
+        />
+        <MemberSummaryCard
+          icon={UserCheck}
+          label="Available"
+          hint="ready to assign"
+          value={stats.available}
+          color="var(--color-success)"
+        />
+        <MemberSummaryCard
+          icon={CalendarCheck}
+          label="Currently Assigned"
+          hint="on an event"
+          value={stats.assigned}
+          color="var(--color-warning)"
+        />
+        <MemberSummaryCard
+          icon={UserPlus}
+          label="Pending Registrations"
+          hint="awaiting review"
+          value={stats.pendingMembers}
+          color="var(--color-accent-cyan)"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
         {FILTER_CHIPS.map((c) => (
           <button
             key={c.id}
             type="button"
             onClick={() => setChip(c.id)}
             className={[
-              'rounded-full px-4 py-1.5 text-xs font-bold transition',
+              'rounded-full px-3 py-1 text-xs font-bold transition',
               chip === c.id
                 ? 'bg-[var(--color-accent-blue)] text-white'
                 : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]',
@@ -185,27 +227,29 @@ export function DocumentationTeamPage() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+      <div className="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[0_1px_2px_rgba(15,39,68,0.04)]">
+        <div className="grid items-center gap-2 md:grid-cols-[1fr_auto]">
           <div className="relative min-w-0">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search members…"
-              className="admin-input w-full rounded-xl py-2 pl-9 pr-3 text-sm"
+              aria-label="Search members"
+              className="admin-input w-full rounded-lg py-1.5 pl-9 pr-3 text-sm"
             />
           </div>
           <AdminSelect
+            className="md:w-52"
+            buttonClassName="rounded-lg py-1.5"
             value={sort}
             onChange={(v) => setSort(v as TeamSortOption)}
             aria-label="Sort team members"
             options={SORT_OPTIONS.map((o) => ({ value: o.id, label: `Sort: ${o.label}` }))}
           />
         </div>
-        <p className="text-xs text-[var(--color-text-secondary)]">
-          {visible.length} member{visible.length === 1 ? '' : 's'} shown · {stats.available} available ·{' '}
-          {stats.pendingMembers} pending registration{stats.pendingMembers === 1 ? '' : 's'}
+        <p className="px-1 text-[11px] text-[var(--color-text-secondary)]">
+          {visible.length} member{visible.length === 1 ? '' : 's'} shown
         </p>
       </div>
 
@@ -223,6 +267,43 @@ export function DocumentationTeamPage() {
           onStatusChange={handleStatusChange}
         />
       )}
+    </div>
+  )
+}
+
+function MemberSummaryCard({
+  icon: Icon,
+  label,
+  hint,
+  value,
+  color,
+}: {
+  icon: LucideIcon
+  label: string
+  hint: string
+  value: number
+  color: string
+}) {
+  return (
+    <div
+      className="flex h-[62px] items-center gap-2.5 rounded-xl border border-[var(--color-border)] px-3 shadow-[0_1px_2px_rgba(15,39,68,0.04)]"
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 6%, var(--color-surface))` }}
+    >
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+        style={{ backgroundColor: `color-mix(in srgb, ${color} 16%, var(--color-surface))`, color }}
+      >
+        <Icon size={16} strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-lg font-extrabold leading-none tabular-nums text-[var(--color-text-primary)]">
+          {value}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] font-semibold leading-tight text-[var(--color-text-primary)]">
+          {label}
+        </span>
+        <span className="block truncate text-[10px] leading-tight text-[var(--color-text-secondary)]">{hint}</span>
+      </span>
     </div>
   )
 }

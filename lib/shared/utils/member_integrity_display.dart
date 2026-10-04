@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+
+import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 
@@ -27,6 +30,52 @@ class MemberIntegrityBannerModel {
 enum MemberIntegrityColorKind { green, yellow, red, accent, neutral }
 
 enum MemberIntegrityIconKind { verified, warning, ai, pending, neutral }
+
+/// Member-facing automated integrity tier (copy only; thresholds unchanged).
+String memberAutomatedIntegrityTierLabel(AiDetectionResult automated) {
+  if (automated.isDeferredAuthenticity) return 'Needs Review';
+  final risk = (automated.riskLevel ?? automated.visualRiskLevel ?? '').toLowerCase();
+  if (automated.isAiGenerated || risk == 'high') return 'High AI Risk';
+  if (automated.isSuspicious ||
+      risk == 'suspicious' ||
+      risk == 'medium' ||
+      automated.isSourceUnverified) {
+    return 'Needs Review';
+  }
+  if (automated.requiresReview && !automated.isLowProbeRisk) return 'Needs Review';
+  return 'Low AI Risk';
+}
+
+/// Tier label for saved evaluations (admin review + automated PROBE).
+String memberIntegrityTierLabel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) {
+    if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
+      return 'Low AI Risk';
+    }
+    if (MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus) ||
+        MemberReviewStatus.isAdminRejected(adminReviewStatus)) {
+      return 'High AI Risk';
+    }
+    return 'Needs Review';
+  }
+  if (MemberReviewStatus.isReviewPending(adminReviewStatus)) return 'Needs Review';
+  return memberAutomatedIntegrityTierLabel(automated);
+}
+
+Color memberIntegrityTierColor(String tierLabel) {
+  switch (tierLabel) {
+    case 'High AI Risk':
+      return kRed;
+    case 'Needs Review':
+      return kYellow;
+    case 'Low AI Risk':
+    default:
+      return kGreen;
+  }
+}
 
 String automatedScreeningSecondaryLine(AiDetectionResult automated) {
   final pct = automated.probability != null ? (automated.probability! * 100).round() : null;

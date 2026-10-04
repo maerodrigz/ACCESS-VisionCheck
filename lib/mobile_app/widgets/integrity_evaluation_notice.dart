@@ -14,29 +14,29 @@ class IntegrityProvisionalBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: kYellow.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kYellow.withValues(alpha: 0.45)),
+        color: kYellow.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: kYellow.withValues(alpha: 0.35)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.hourglass_top_rounded, color: kYellow.withValues(alpha: 0.95), size: 20),
-          const SizedBox(width: 10),
+          Icon(Icons.hourglass_top_rounded, color: kYellow, size: 18),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Provisional scores',
-                  style: TextStyle(color: kTextPrimary, fontSize: 13, fontWeight: FontWeight.w800),
+                  style: TextStyle(color: kTextPrimary, fontSize: 12, fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   message,
-                  style: const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45),
+                  style: const TextStyle(color: kTextSecondary, fontSize: 11, height: 1.4),
                 ),
               ],
             ),
@@ -47,18 +47,26 @@ class IntegrityProvisionalBanner extends StatelessWidget {
   }
 }
 
+enum IntegrityOnlyCardLayout { standard, resultCompact }
+
 /// Shown instead of quality breakdown when AI-generated integrity tier blocks coaching.
 class IntegrityOnlyMessageCard extends StatelessWidget {
-  const IntegrityOnlyMessageCard({super.key, required this.result});
+  const IntegrityOnlyMessageCard({
+    super.key,
+    required this.result,
+    this.layout = IntegrityOnlyCardLayout.standard,
+  });
 
   final PhotoEvaluationResult result;
+  final IntegrityOnlyCardLayout layout;
 
   @override
   Widget build(BuildContext context) {
     final held = result.scoresHeldForReview && !result.aiDetection.isAiGenerated;
+    final compact = layout == IntegrityOnlyCardLayout.resultCompact;
     final message = held
         ? (result.reviewGateMessage ??
-            'This submission requires administrative review before its evaluation score and feedback can be released.')
+            'Scores and coaching stay hidden until an administrator completes review.')
         : (result.memberIntegrityMessageEffective.isNotEmpty
             ? result.memberIntegrityMessageEffective
             : result.feedback);
@@ -71,56 +79,73 @@ class IntegrityOnlyMessageCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-      decoration: evalCardDecoration(borderColor: accent.withValues(alpha: 0.22)),
+      padding: EdgeInsets.fromLTRB(
+        compact ? 12 : 16,
+        compact ? 12 : 16,
+        compact ? 12 : 16,
+        compact ? 12 : 18,
+      ),
+      decoration: evalCardDecoration(borderColor: accent.withValues(alpha: compact ? 0.28 : 0.22)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: compact ? 30 : 34,
+                height: compact ? 30 : 34,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.shield_outlined, color: accent, size: 18),
+                child: Icon(Icons.shield_outlined, color: accent, size: compact ? 16 : 18),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: evalCardTitleStyle.copyWith(fontSize: 15)),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: evalBodyStyle.copyWith(fontSize: 11),
-                    ),
+                    Text(title, style: evalCardTitleStyle.copyWith(fontSize: compact ? 14 : 15)),
+                    if (!compact) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: evalBodyStyle.copyWith(fontSize: 11),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: compact ? 8 : 14),
           Text(
             message,
-            style: const TextStyle(color: kTextPrimary, fontSize: 13, height: 1.55, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: kTextPrimary,
+              fontSize: compact ? 12 : 13,
+              height: compact ? 1.4 : 1.55,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           if (result.xpPendingEffective && result.xpPointsPreviewEffective > 0) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: compact ? 8 : 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(compact ? 8 : 10),
               decoration: BoxDecoration(
                 color: kAccent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: kAccent.withValues(alpha: 0.2)),
+                border: Border.all(color: kAccent.withValues(alpha: 0.22)),
               ),
               child: Text(
-                'Up to ${result.xpPointsPreviewEffective} XP may be awarded if your media is verified as authentic.',
-                style: const TextStyle(color: kTextSecondary, fontSize: 11, height: 1.4),
+                'Up to ${result.xpPointsPreviewEffective} XP may be awarded after review if approved.',
+                style: TextStyle(
+                  color: kAccent,
+                  fontSize: compact ? 11 : 11,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

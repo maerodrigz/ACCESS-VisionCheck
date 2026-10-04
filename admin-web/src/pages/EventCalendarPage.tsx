@@ -1,16 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ExternalLink, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import {
+  CalendarCheck,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { createEvent, deleteEvent, fetchEvents, fetchUsers, updateEvent } from '../api/admin'
 import {
-  EventDayListItem,
   EventStatusLegend,
-  EventUpcomingTable,
+  EventUpcomingCards,
+  SelectedDayEmpty,
+  SelectedDayEventCard,
 } from '../components/event-calendar/EventCalendarParts'
-import { pageToolbarBtnClass, pageToolbarIconBtnClass, PageToolbarRefreshButton } from '../components/PageToolbar'
+import { pageToolbarIconBtnClass, PageToolbarRefreshButton } from '../components/PageToolbar'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
 import { useToast } from '../context/ToastContext'
 import { AdminSelect } from '../components/AdminSelect'
 import { AdminConfirmDialog } from '../components/AdminConfirmDialog'
@@ -22,9 +34,8 @@ import {
   eventStatusLabel,
   eventsOnDay,
   formatEventDate,
-  formatEventTime,
   formatEventTimeRange,
-  formatShortDate,
+  isCoveredEvent,
   parseCalendarEvent,
   sameDay,
   upcomingEvents,
@@ -96,6 +107,14 @@ export function EventCalendarPage() {
   const monthDays = useMemo(() => buildMonthGrid(focusedMonth), [focusedMonth])
   const upcoming = useMemo(() => upcomingEvents(filtered), [filtered])
   const selectedDayEvents = useMemo(() => eventsOnDay(filtered, selectedDay), [filtered, selectedDay])
+  const summary = useMemo(
+    () => ({
+      total: events.length,
+      upcoming: upcomingEvents(events).length,
+      covered: events.filter(isCoveredEvent).length,
+    }),
+    [events],
+  )
 
   function shiftMonth(delta: number) {
     setFocusedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
@@ -110,71 +129,91 @@ export function EventCalendarPage() {
   const monthLabel = focusedMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 
   return (
-    <div className="space-y-5">
-      <AdminPageHeader
-        title="Event Calendar"
-        subtitle="Monitor documentation events, schedules, and team assignments in real time."
-        backTo="/"
-        actions={
-          <>
-            <button type="button" onClick={() => setShowCreate(true)} className={pageToolbarBtnClass}>
-              <Plus size={16} className="shrink-0 text-[var(--color-text-secondary)]" strokeWidth={2} />
-              Create Event
-            </button>
-            <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
-          </>
-        }
-      />
+    <div className="mx-auto max-w-[1400px] space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="min-w-0 text-sm leading-snug text-[var(--color-text-secondary)]">
+          Monitor documentation events, schedules, and team assignments in real time. Assign teams in{' '}
+          <Link to="/documentation-requests" className="font-semibold text-[var(--color-accent-blue)] hover:underline">
+            Documentation Requests
+          </Link>
+          .
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-blue)] px-3.5 py-1.5 text-sm font-semibold text-white hover:opacity-95"
+          >
+            <Plus size={15} strokeWidth={2.25} />
+            Create Event
+          </button>
+          <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
+        </div>
+      </div>
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
 
-      <p className="text-xs text-[var(--color-text-secondary)]">
-        Planning view for campus events. Approve and assign teams in{' '}
-        <Link to="/documentation-requests" className="font-semibold text-[var(--color-accent-blue)] hover:underline">
-          Documentation Requests
-        </Link>
-        .
-      </p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <CalendarSummaryCard
+          icon={CalendarDays}
+          label="Total Events"
+          hint="on the calendar"
+          value={summary.total}
+          color="var(--color-accent-blue)"
+        />
+        <CalendarSummaryCard
+          icon={CalendarCheck}
+          label="Upcoming Events"
+          hint="today and later"
+          value={summary.upcoming}
+          color="var(--color-accent-cyan)"
+        />
+        <CalendarSummaryCard
+          icon={Users}
+          label="Assigned/Covered"
+          hint="with a documenter"
+          value={summary.covered}
+          color="var(--color-accent-purple)"
+        />
+      </div>
 
-      <div className="flex flex-col gap-3 rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-          <div className="relative min-w-0">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search events…"
-              className="admin-input w-full rounded-xl py-2 pl-9 pr-3 text-sm"
-            />
-          </div>
-          <AdminSelect
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as EventStatus | '')}
-            aria-label="Filter by status"
-            options={[
-              { value: '', label: 'All statuses' },
-              { value: 'upcoming', label: 'Upcoming' },
-              { value: 'ongoing', label: 'Ongoing' },
-              { value: 'assigned', label: 'Assigned' },
-              { value: 'pending_documentation', label: 'Pending Documentation' },
-              { value: 'completed', label: 'Completed' },
-              { value: 'cancelled', label: 'Cancelled' },
-            ]}
+      <div className="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[0_1px_2px_rgba(15,39,68,0.04)] sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search events…"
+            aria-label="Search events"
+            className="admin-input w-full rounded-lg py-1.5 pl-9 pr-3 text-sm"
           />
-          <button
-            type="button"
-            onClick={() => {
-              setSearch('')
-              setStatusFilter('')
-            }}
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
-          >
-            Clear filters
-          </button>
         </div>
-        <p className="text-xs text-[var(--color-text-secondary)]">
-          {filtered.length} event{filtered.length === 1 ? '' : 's'} · {upcoming.length} upcoming
-        </p>
+        <AdminSelect
+          className="sm:w-52"
+          buttonClassName="rounded-lg py-1.5"
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as EventStatus | '')}
+          aria-label="Filter by status"
+          options={[
+            { value: '', label: 'All statuses' },
+            { value: 'upcoming', label: 'Upcoming' },
+            { value: 'ongoing', label: 'Ongoing' },
+            { value: 'assigned', label: 'Assigned' },
+            { value: 'pending_documentation', label: 'Pending Documentation' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'cancelled', label: 'Cancelled' },
+          ]}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setSearch('')
+            setStatusFilter('')
+          }}
+          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
+        >
+          Clear filters
+        </button>
       </div>
 
       {loading && events.length === 0 ? (
@@ -182,138 +221,136 @@ export function EventCalendarPage() {
           <Loader2 className="animate-spin text-[var(--color-text-muted)]" size={28} />
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-surface)]">
-          <div className="grid xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-            <div className="border-b border-[var(--color-border)] p-4 md:p-5 xl:border-b-0 xl:border-r">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                  Calendar
-                </h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={goToday}
-                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
-                  >
-                    Today
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => shiftMonth(-1)}
-                    className={pageToolbarIconBtnClass}
-                    aria-label="Previous month"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <span className="min-w-[140px] text-center text-sm font-bold text-[var(--color-text-primary)]">
-                    {monthLabel}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => shiftMonth(1)}
-                    className={pageToolbarIconBtnClass}
-                    aria-label="Next month"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                </div>
+        <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.78fr)]">
+          <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[0_1px_2px_rgba(15,39,68,0.04)] md:p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">{monthLabel}</h2>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={goToday}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent-blue)] hover:bg-[var(--color-surface-hover)]"
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => shiftMonth(-1)}
+                  className={`${pageToolbarIconBtnClass} h-8 w-8 rounded-lg`}
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => shiftMonth(1)}
+                  className={`${pageToolbarIconBtnClass} h-8 w-8 rounded-lg`}
+                  aria-label="Next month"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
+            </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-[var(--color-text-secondary)]">
-                {WEEKDAYS.map((d) => (
-                  <div key={d} className="py-1">
-                    {d}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-1 grid grid-cols-7 gap-1">
-                {monthDays.map((day) => {
-                  const inMonth = day.getMonth() === focusedMonth.getMonth()
-                  const isToday = sameDay(day, new Date())
-                  const isSelected = sameDay(day, selectedDay)
-                  const dayEvents = eventsOnDay(filtered, day)
-                  return (
-                    <button
-                      key={day.toISOString()}
-                      type="button"
-                      onClick={() => setSelectedDay(day)}
+            <div className="grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              {WEEKDAYS.map((d) => (
+                <div key={d} className="py-1">
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {monthDays.map((day) => {
+                const inMonth = day.getMonth() === focusedMonth.getMonth()
+                const isToday = sameDay(day, new Date())
+                const isSelected = sameDay(day, selectedDay)
+                const dayEvents = eventsOnDay(filtered, day)
+                return (
+                  <button
+                    key={day.toISOString()}
+                    type="button"
+                    onClick={() => setSelectedDay(day)}
+                    className={[
+                      'flex min-h-[52px] flex-col rounded-md border px-1 py-1 text-left transition sm:min-h-[64px]',
+                      inMonth
+                        ? 'border-[var(--color-border)] bg-[var(--color-surface)]'
+                        : 'border-transparent bg-transparent',
+                      isSelected ? 'border-[var(--color-accent-blue)] ring-1 ring-[var(--color-accent-blue)]/25' : '',
+                      isToday ? 'bg-[color-mix(in_srgb,var(--color-accent-blue)_8%,var(--color-surface))]' : '',
+                    ].join(' ')}
+                  >
+                    <span
                       className={[
-                        'flex min-h-[84px] flex-col rounded-lg border p-1.5 text-left transition',
-                        inMonth ? 'bg-[var(--color-surface-muted)]' : 'bg-[var(--color-surface-hover)] opacity-50',
-                        isSelected
-                          ? 'border-[var(--color-accent-blue)] ring-1 ring-[var(--color-accent-blue)]/30'
-                          : 'border-[var(--color-border-subtle)]',
-                        isToday && !isSelected ? 'bg-[var(--color-accent-blue)]/10' : '',
+                        'mb-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold',
+                        isToday
+                          ? 'bg-[var(--color-accent-blue)] text-white'
+                          : inMonth
+                            ? 'text-[var(--color-text-primary)]'
+                            : 'text-[var(--color-text-muted)]',
                       ].join(' ')}
                     >
-                      <span
-                        className={[
-                          'mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold',
-                          isToday ? 'bg-[var(--color-accent-blue)] text-white' : 'text-[var(--color-text-primary)]',
-                        ].join(' ')}
-                      >
-                        {day.getDate()}
-                      </span>
-                      <div className="space-y-0.5">
-                        {dayEvents.slice(0, 2).map((ev) => {
-                          const time = formatEventTime(ev.startTime)
-                          const label = time ? `${time} · ${ev.title}` : ev.title
-                          return (
-                            <span
-                              key={ev.id}
-                              className="block truncate rounded px-1 py-0.5 text-[9px] font-semibold text-white"
-                              style={{ backgroundColor: eventStatusColor(ev.status) }}
-                              title={label}
-                            >
-                              {label}
-                            </span>
-                          )
-                        })}
-                        {dayEvents.length > 2 ? (
-                          <span className="text-[9px] font-semibold text-[var(--color-text-secondary)]">
-                            +{dayEvents.length - 2} more
-                          </span>
-                        ) : null}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-              <EventStatusLegend />
+                      {day.getDate()}
+                    </span>
+                    <div className="space-y-0.5">
+                      {dayEvents.slice(0, 2).map((ev) => (
+                        <span
+                          key={ev.id}
+                          className="block truncate rounded px-1 text-[9px] font-semibold leading-4 text-white"
+                          style={{ backgroundColor: eventStatusColor(ev.status) }}
+                          title={ev.title}
+                        >
+                          {ev.title}
+                        </span>
+                      ))}
+                      {dayEvents.length > 2 ? (
+                        <span className="px-0.5 text-[9px] font-semibold text-[var(--color-text-secondary)]">
+                          +{dayEvents.length - 2}
+                        </span>
+                      ) : null}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
+            <EventStatusLegend />
+          </section>
 
-            <div className="flex min-h-0 flex-col">
-              <section className="border-b border-[var(--color-border)]">
-                <div className="flex items-center justify-between gap-2 px-4 py-3">
-                  <h2 className="text-sm font-extrabold text-[var(--color-text-primary)]">
-                    {formatShortDate(selectedDay)}
+          <aside className="flex min-h-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_1px_2px_rgba(15,39,68,0.04)]">
+            <section className="border-b border-[var(--color-border)] p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-accent-blue)]">
+                    Selected Day
                   </h2>
-                  <span className="text-xs text-[var(--color-text-secondary)]">
-                    {selectedDayEvents.length} event{selectedDayEvents.length === 1 ? '' : 's'}
-                  </span>
+                  <p className="mt-0.5 text-sm font-bold leading-snug text-[var(--color-text-primary)]">
+                    {formatEventDate(selectedDay)}
+                  </p>
                 </div>
+                <span className="shrink-0 rounded-full bg-[color-mix(in_srgb,var(--color-accent-blue)_10%,transparent)] px-2 py-1 text-[11px] font-semibold text-[var(--color-accent-blue)]">
+                  {selectedDayEvents.length} event{selectedDayEvents.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div className="mt-2 max-h-[280px] space-y-1.5 overflow-y-auto">
                 {selectedDayEvents.length === 0 ? (
-                  <p className="px-4 pb-4 text-sm text-[var(--color-text-secondary)]">No events on this date.</p>
+                  <SelectedDayEmpty />
                 ) : (
-                  <ul className="max-h-[280px] overflow-y-auto">
-                    {selectedDayEvents.map((ev) => (
-                      <EventDayListItem key={ev.id} event={ev} onSelect={setSelectedEvent} />
-                    ))}
-                  </ul>
+                  selectedDayEvents.map((ev) => (
+                    <SelectedDayEventCard key={ev.id} event={ev} onSelect={setSelectedEvent} />
+                  ))
                 )}
-              </section>
+              </div>
+            </section>
 
-              <section className="flex min-h-0 flex-1 flex-col">
-                <div className="flex items-center justify-between gap-2 px-4 py-3">
-                  <h2 className="text-sm font-extrabold text-[var(--color-text-primary)]">Upcoming</h2>
-                  <span className="text-xs text-[var(--color-text-secondary)]">{upcoming.length} scheduled</span>
-                </div>
-                <div className="max-h-[320px] flex-1 overflow-y-auto pb-2">
-                  <EventUpcomingTable events={upcoming.slice(0, 15)} onSelect={setSelectedEvent} />
-                </div>
-              </section>
-            </div>
-          </div>
+            <section className="p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Upcoming Events</h2>
+                <span className="text-[11px] font-semibold text-[var(--color-text-secondary)]">{upcoming.length}</span>
+              </div>
+              <div className="max-h-[280px] overflow-y-auto">
+                <EventUpcomingCards events={upcoming.slice(0, 15)} onSelect={setSelectedEvent} />
+              </div>
+            </section>
+          </aside>
         </div>
       )}
 
@@ -375,6 +412,43 @@ export function EventCalendarPage() {
           }}
         />
       )}
+    </div>
+  )
+}
+
+function CalendarSummaryCard({
+  icon: Icon,
+  label,
+  hint,
+  value,
+  color,
+}: {
+  icon: typeof CalendarDays
+  label: string
+  hint: string
+  value: number
+  color: string
+}) {
+  return (
+    <div
+      className="flex h-[62px] items-center gap-2.5 rounded-xl border border-[var(--color-border)] px-3 shadow-[0_1px_2px_rgba(15,39,68,0.04)]"
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 6%, var(--color-surface))` }}
+    >
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+        style={{ backgroundColor: `color-mix(in srgb, ${color} 16%, var(--color-surface))`, color }}
+      >
+        <Icon size={16} strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-lg font-extrabold leading-none tabular-nums text-[var(--color-text-primary)]">
+          {value}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] font-semibold leading-tight text-[var(--color-text-primary)]">
+          {label}
+        </span>
+        <span className="block truncate text-[10px] leading-tight text-[var(--color-text-secondary)]">{hint}</span>
+      </span>
     </div>
   )
 }

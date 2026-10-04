@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 import 'package:access_mobile/mobile_app/screens/evaluation_result_screen.dart';
-import 'package:access_mobile/mobile_app/widgets/eval_ai_processing_view.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_practice_analyzing_view.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_upload_illustration.dart';
@@ -22,6 +21,7 @@ import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/mobile_app/widgets/member_rankings_xp_config.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
+import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
 import 'package:access_mobile/shared/services/practice_evaluation_result_parser.dart';
@@ -384,12 +384,12 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
     final atLimit = appState.evaluationsTodayCount >= appState.dailyEvaluationLimit;
 
     return Scaffold(
-      backgroundColor: kEvalBg,
+      backgroundColor: kBg,
       appBar: _busy
           ? null
           : AppBar(
-              backgroundColor: kEvalBg,
-              foregroundColor: kDashTextPrimary,
+              backgroundColor: kBg,
+              foregroundColor: kTextPrimary,
               elevation: 0,
               scrolledUnderElevation: 0,
               title: Text(
@@ -398,12 +398,12 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
               ),
             ),
       body: _busy
-          ? (_phase == _EvalPhase.analyzing
-              ? EvalPracticeAnalyzingView(isVideo: _isVideo)
-              : EvalAiProcessingView(
-                  isVideo: _isVideo,
-                  phase: EvalProcessingPhase.gemini,
-                ))
+          ? EvalPracticeAnalyzingView(
+              isVideo: _isVideo,
+              activeStage: _phase == _EvalPhase.gemini
+                  ? EvalAnalysisPipelineStage.generatingFeedback
+                  : null,
+            )
           : ListenableBuilder(
         listenable: appState,
         builder: (_, __) => SingleChildScrollView(
@@ -417,14 +417,26 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                   titleController: _labelController,
                   onRemove: () => setState(_resetResults),
                 ),
-                const SizedBox(height: 16),
-                EvaluationContentStandardsCheckbox(
-                  value: _contentStandardsAccepted,
-                  onChanged: (v) => setState(() => _contentStandardsAccepted = v),
-                  onDarkBackground: true,
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: kBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      EvaluationContentStandardsCheckbox(
+                        value: _contentStandardsAccepted,
+                        onChanged: (v) => setState(() => _contentStandardsAccepted = v),
+                      ),
+                      const SizedBox(height: 8),
+                      const LegalUploadFootnote(),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                const LegalUploadFootnote(onDarkBackground: true),
                 const SizedBox(height: 16),
                 _StartEvaluationButton(
                   atLimit: atLimit,
@@ -436,7 +448,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                   isVideo: _isVideo,
                   supportedFormats: _supportedFormats,
                   maxSizeLabel: _maxSizeLabel,
-                  maxVideoLengthLabel: '${appState.evaluationMaxVideoMinutes} minutes',
+                  maxVideoLengthLabel: '60 seconds',
                   webDragging: _webDragging,
                   onChooseFile: _pickFromFileChooser,
                   onGallery: _pickFromGallery,
@@ -477,113 +489,132 @@ class _UploadPageBody extends StatelessWidget {
   final VoidCallback onGallery;
   final VoidCallback onCamera;
 
+  bool get _cameraEnabled => !kIsWeb && !isVideo;
+
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
-        borderRadius: BorderRadius.circular(kEvalCardRadius),
-        border: Border.all(color: kEvalGuideDarkBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _UploadInfoCard(
+                icon: Icons.folder_open_rounded,
+                label: 'Formats',
+                value: supportedFormats,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _UploadInfoCard(
+                icon: Icons.sd_storage_rounded,
+                label: 'Max size',
+                value: maxSizeLabel,
+              ),
+            ),
+          ],
+        ),
+        if (isVideo) ...[
+          const SizedBox(height: 8),
+          _UploadInfoCard(
+            icon: Icons.timer_outlined,
+            label: 'Max length',
+            value: maxVideoLengthLabel,
           ),
         ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
-        child: Column(
-          children: [
-            EvalUploadIllustration(isVideo: isVideo, size: 148),
-            const SizedBox(height: 20),
-            Text(
-              isVideo ? 'Upload your video' : 'Upload your photo',
-              style: evalGuideDarkTitleStyle.copyWith(fontSize: 22, letterSpacing: -0.3),
+        const SizedBox(height: 16),
+        Material(
+          color: kSurface,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(
+              color: webDragging ? kCyan : kBorder,
+              width: webDragging ? 1.5 : 1,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Our AI will analyze technical quality and generate personalized feedback.',
-              textAlign: TextAlign.center,
-              style: evalGuideDarkSubtitleStyle,
-            ),
-            const SizedBox(height: 14),
-            const EvaluationContentStandardsNotice(compact: true, onDarkBackground: true),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(child: _InfoChip(icon: Icons.folder_open_rounded, label: 'Formats', value: supportedFormats)),
-                const SizedBox(width: 10),
-                Expanded(child: _InfoChip(icon: Icons.sd_storage_rounded, label: 'Max size', value: maxSizeLabel)),
-              ],
-            ),
-            if (isVideo) ...[
-              const SizedBox(height: 10),
-              _InfoChip(icon: Icons.timer_outlined, label: 'Max length', value: maxVideoLengthLabel),
-            ],
-            const SizedBox(height: 18),
-            AnimatedContainer(
+          ),
+          child: InkWell(
+            onTap: onChooseFile,
+            borderRadius: BorderRadius.circular(14),
+            child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
               decoration: BoxDecoration(
-                color: webDragging ? kMemberCyan.withValues(alpha: 0.12) : kEvalGuideDarkPanel,
-                borderRadius: BorderRadius.circular(kEvalHeroRadius),
-                border: Border.all(
-                  color: webDragging ? kMemberCyan : kMemberCyan.withValues(alpha: 0.28),
-                  width: webDragging ? 2 : 1.5,
-                ),
+                color: webDragging ? kCyan.withValues(alpha: 0.06) : kSurface,
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
                 children: [
-                  Icon(
-                    kIsWeb ? Icons.file_download_outlined : Icons.touch_app_outlined,
-                    size: 36,
-                    color: kMemberCyan,
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: kAccent.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: kAccent.withValues(alpha: 0.2)),
+                    ),
+                    child: Icon(
+                      Icons.cloud_upload_outlined,
+                      size: 28,
+                      color: kAccent,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Text(
-                    kIsWeb ? 'Drag & Drop your file here' : 'Select a file to upload',
-                    style: evalGuideDarkTitleStyle.copyWith(fontSize: 16),
+                    'Select media to upload',
+                    style: dashText(const TextStyle(
+                      color: kTextPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    )),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    kIsWeb ? 'or use the buttons below' : 'Choose from gallery or camera',
-                    style: evalGuideDarkSubtitleStyle.copyWith(fontSize: 12),
-                  ),
+                  if (kIsWeb) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      webDragging ? 'Drop your file here' : 'Or drag and drop a file',
+                      style: memberDashboardMetaStyle.copyWith(fontSize: 12),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            _UploadActionButton(
-              icon: Icons.upload_file_rounded,
-              label: 'Choose File',
-              onTap: onChooseFile,
-            ),
-            const SizedBox(height: 10),
-            _UploadActionButton(
-              icon: Icons.photo_library_rounded,
-              label: 'Gallery',
-              onTap: onGallery,
-            ),
-            if (!kIsWeb && !isVideo) ...[
-              const SizedBox(height: 10),
-              _UploadActionButton(
-                icon: Icons.camera_alt_rounded,
-                label: 'Camera',
-                outlined: true,
-                onTap: onCamera,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _CompactSourceButton(
+                icon: Icons.photo_library_outlined,
+                label: 'Gallery',
+                onTap: onGallery,
               ),
-            ],
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _CompactSourceButton(
+                icon: Icons.photo_camera_outlined,
+                label: 'Camera',
+                onTap: _cameraEnabled ? onCamera : null,
+                enabled: _cameraEnabled,
+              ),
+            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label, required this.value});
+class _UploadInfoCard extends StatelessWidget {
+  const _UploadInfoCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   final IconData icon;
   final String label;
@@ -592,33 +623,40 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: kEvalGuideDarkPanel,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kEvalGuideDarkBorder),
+        color: kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBorder),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: kMemberCyan),
-              const SizedBox(width: 6),
-              Text(
-                label.toUpperCase(),
-                style: evalGuideDarkSubtitleStyle.copyWith(fontSize: 10, letterSpacing: 0.6),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: dashText(const TextStyle(
-              color: kEvalGuideDarkTextPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            )),
+          Icon(icon, size: 18, color: kAccent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: memberDashboardMetaStyle.copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: dashText(const TextStyle(
+                    color: kTextPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  )),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -626,52 +664,45 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-class _UploadActionButton extends StatelessWidget {
-  const _UploadActionButton({
+class _CompactSourceButton extends StatelessWidget {
+  const _CompactSourceButton({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.outlined = false,
+    this.enabled = true,
   });
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
-  final bool outlined;
+  final VoidCallback? onTap;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    if (outlined) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: onTap,
-          icon: Icon(icon, size: 20),
-          label: Text(label),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: kMemberCyan,
-            side: BorderSide(color: kMemberCyan.withValues(alpha: 0.45)),
-            minimumSize: const Size.fromHeight(52),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            textStyle: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+    final fg = enabled ? kAccent : kTextSecondary.withValues(alpha: 0.55);
+    return OutlinedButton(
+      onPressed: enabled ? onTap : null,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: fg,
+        backgroundColor: kSurface,
+        side: BorderSide(color: enabled ? kBorder : kBorder.withValues(alpha: 0.6)),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: fg),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: dashText(TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: fg,
+            )),
           ),
-        ),
-      );
-    }
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 20),
-        label: Text(label),
-        style: FilledButton.styleFrom(
-          backgroundColor: kMemberPrimary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-        ),
+        ],
       ),
     );
   }
@@ -704,24 +735,12 @@ class _MediaPreviewCard extends StatelessWidget {
             fileName: media.name,
           );
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
-        borderRadius: BorderRadius.circular(kEvalCardRadius),
-        border: Border.all(color: kEvalGuideDarkBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Stack(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Stack(
             children: [
               preview,
               if (onRemove != null)
@@ -729,125 +748,140 @@ class _MediaPreviewCard extends StatelessWidget {
                   top: 10,
                   right: 10,
                   child: Material(
-                    color: Colors.black.withValues(alpha: 0.45),
+                    color: kSurface.withValues(alpha: 0.92),
                     shape: const CircleBorder(),
                     child: IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                      icon: const Icon(Icons.close_rounded, color: kTextSecondary, size: 20),
                       onPressed: onRemove,
                     ),
                   ),
                 ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Preview', style: evalGuideDarkTitleStyle.copyWith(fontSize: 16)),
-                const SizedBox(height: 14),
-                Text(
-                  'Title (optional)',
-                  style: evalGuideDarkSubtitleStyle.copyWith(fontSize: 11),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: titleController,
-                  style: dashText(const TextStyle(
-                    color: kEvalGuideDarkTextPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  )),
-                  decoration: InputDecoration(
-                    hintText: media.name.replaceAll(RegExp(r'\.[^.]+$'), ''),
-                    hintStyle: evalGuideDarkSubtitleStyle.copyWith(fontSize: 14),
-                    filled: true,
-                    fillColor: kEvalGuideDarkPanel,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: kEvalGuideDarkBorder),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: kEvalGuideDarkBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: kMemberCyan.withValues(alpha: 0.65)),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: kBorder),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _CompactMetaLine(label: 'File name', value: media.name),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _CompactMetaLine(
+                      label: media.isVideo ? 'Video details' : 'Resolution',
+                      value: media.resolution ?? 'N/A',
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                _MetaRow(icon: Icons.insert_drive_file_outlined, label: 'File name', value: media.name),
-                const SizedBox(height: 10),
-                _MetaRow(
-                  icon: Icons.aspect_ratio_rounded,
-                  label: media.isVideo ? 'Video details' : 'Resolution',
-                  value: media.resolution ?? 'N/A',
-                ),
-                const SizedBox(height: 10),
-                _MetaRow(
-                  icon: Icons.sd_storage_outlined,
-                  label: 'File size',
-                  value: formatEvalFileSize(media.bytes.length),
-                ),
-                const SizedBox(height: 10),
-                _MetaRow(
-                  icon: media.isVideo ? Icons.videocam_rounded : Icons.photo_rounded,
-                  label: 'Media type',
-                  value: media.isVideo ? 'Video' : 'Photo',
-                ),
-              ],
-            ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _CompactMetaLine(
+                      label: 'File size',
+                      value: formatEvalFileSize(media.bytes.length),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _CompactMetaLine(
+                label: 'Media type',
+                value: media.isVideo ? 'Video' : 'Photo',
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: kBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Title (optional)',
+                style: memberDashboardMetaStyle.copyWith(fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: titleController,
+                style: dashText(const TextStyle(
+                  color: kTextPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                )),
+                decoration: InputDecoration(
+                  hintText: media.name.replaceAll(RegExp(r'\.[^.]+$'), ''),
+                  hintStyle: memberDashboardMetaStyle.copyWith(fontSize: 14),
+                  filled: true,
+                  fillColor: kBg,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: kBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: kAccent.withValues(alpha: 0.55)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _MetaRow extends StatelessWidget {
-  const _MetaRow({required this.icon, required this.label, required this.value});
+class _CompactMetaLine extends StatelessWidget {
+  const _CompactMetaLine({required this.label, required this.value});
 
-  final IconData icon;
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: kMemberCyan.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kMemberCyan.withValues(alpha: 0.28)),
-          ),
-          child: Icon(icon, size: 17, color: kMemberCyan),
+        Text(
+          label,
+          style: memberDashboardMetaStyle.copyWith(fontSize: 10, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: evalGuideDarkSubtitleStyle.copyWith(fontSize: 11)),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: dashText(const TextStyle(
-                  color: kEvalGuideDarkTextPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                )),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: dashText(const TextStyle(
+            color: kTextPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            height: 1.25,
+          )),
         ),
       ],
     );
@@ -873,13 +907,13 @@ class _StartEvaluationButton extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: _canTap ? kEvalHeroGradient : null,
-        color: _canTap ? null : kDashBorder,
+        color: _canTap ? null : kBorder,
         boxShadow: _canTap
             ? [
                 BoxShadow(
-                  color: kEvalSecondary.withValues(alpha: 0.35),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
+                  color: kEvalSecondary.withValues(alpha: 0.28),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ]
             : null,
@@ -890,7 +924,7 @@ class _StartEvaluationButton extends StatelessWidget {
           onTap: _canTap ? onPressed : null,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 18),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -900,14 +934,14 @@ class _StartEvaluationButton extends StatelessWidget {
                       : !enabled
                           ? Icons.check_box_outlined
                           : Icons.auto_awesome_rounded,
-                  color: _canTap ? Colors.white : kDashTextSecondary,
+                  color: _canTap ? Colors.white : kTextSecondary,
                   size: 22,
                 ),
                 const SizedBox(width: 10),
                 Text(
                   atLimit ? 'Daily limit reached' : 'Start AI Evaluation',
                   style: dashText(TextStyle(
-                    color: _canTap ? Colors.white : kDashTextSecondary,
+                    color: _canTap ? Colors.white : kTextSecondary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   )),

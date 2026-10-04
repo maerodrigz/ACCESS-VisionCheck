@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { Bell, Menu } from 'lucide-react'
+import { Bell, Menu, Search } from 'lucide-react'
 
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -66,6 +66,7 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
   if (!user) return null
 
   const pageTitle = pageTitleForPath(location.pathname)
+  const onHome = location.pathname === '/'
 
   return (
     <header className="flex h-full items-center gap-3 px-4 md:px-6">
@@ -80,9 +81,26 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
         </button>
       ) : null}
 
-      <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight text-[var(--color-text-primary)] md:text-lg">
-        {pageTitle}
-      </h1>
+      {!mobile && onHome ? (
+        <label className="relative hidden min-w-0 max-w-md flex-1 md:block">
+          <Search
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+          />
+          <input
+            type="search"
+            readOnly
+            placeholder="Search requests, events, members, or media..."
+            className="h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--topbar-search-bg)] pl-9 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
+            aria-label="Search (coming soon)"
+            title="Global search is not available yet"
+          />
+        </label>
+      ) : (
+        <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight text-[var(--color-text-primary)] md:text-lg">
+          {pageTitle}
+        </h1>
+      )}
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <button

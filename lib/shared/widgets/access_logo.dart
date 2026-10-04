@@ -8,6 +8,9 @@ const String kAccessLogoAsset = 'assets/images/access_logo.png';
 /// Ribbon A mark (React admin-web default).
 const String kAccessBrandMarkAsset = 'assets/images/access-brand-a.png';
 
+/// Official circular ACCESS org seal (mobile + login branding).
+const String kAccessOrgSealAsset = 'assets/images/access-org-seal.jpg';
+
 /// Official ACCESS logo — server custom image or bundled [kAccessLogoAsset].
 class AccessLogoImage extends StatelessWidget {
   const AccessLogoImage({

@@ -27,7 +27,7 @@ class RequestorHeroTopBar extends StatelessWidget {
             child: tight
                 ? Align(
                     alignment: Alignment.centerLeft,
-                    child: AccessRibbonMark(size: narrow ? 30 : 34),
+                    child: AccessOrgSealLogo(size: narrow ? 30 : 34, showShadow: false),
                   )
                 : AccessBrandLockup(
                     markSize: narrow ? 32 : 38,

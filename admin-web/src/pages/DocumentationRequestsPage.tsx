@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { Columns3, List, Loader2, Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 
 import { useSearchParams, useNavigate } from 'react-router-dom'
 
 import { fetchServiceRequests, fetchTasks } from '../api/admin'
 
 import { DocumentationRequestsTable } from '../components/documentation-requests/DocumentationRequestsTable'
-
-import { RequestsKanbanBoard } from '../components/documentation-requests/RequestsKanbanBoard'
 
 import { RequestReviewPanel } from '../components/documentation-requests/RequestReviewPanel'
 
@@ -70,10 +68,6 @@ const SORT_OPTIONS: { id: RequestSortOption; label: string }[] = [
 
 
 
-type RequestViewMode = 'board' | 'list'
-
-
-
 export function DocumentationRequestsPage() {
 
   const navigate = useNavigate()
@@ -93,8 +87,6 @@ export function DocumentationRequestsPage() {
   const [sort, setSort] = useState<RequestSortOption>('newest')
 
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | ''>('')
-
-  const [viewMode, setViewMode] = useState<RequestViewMode>('list')
 
   const [reviewItem, setReviewItem] = useState<DocumentationRequestItem | null>(null)
 
@@ -266,7 +258,7 @@ export function DocumentationRequestsPage() {
 
   return (
 
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[1400px] space-y-3">
       <AdminPageHeader
         title="Documentation Requests"
         subtitle="Review, approve, and assign members to organization documentation requests."
@@ -276,7 +268,7 @@ export function DocumentationRequestsPage() {
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
 
         {FILTER_TABS.map((tab) => (
 
@@ -290,7 +282,7 @@ export function DocumentationRequestsPage() {
 
             className={[
 
-              'rounded-full px-4 py-1.5 text-xs font-bold transition',
+              'rounded-full px-3 py-1 text-xs font-bold transition',
 
               filterTab === tab.id
 
@@ -312,9 +304,9 @@ export function DocumentationRequestsPage() {
 
 
 
-      <div className="flex flex-col gap-3 rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:p-4">
+      <div className="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[0_1px_2px_rgba(15,39,68,0.04)]">
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+        <div className="grid items-center gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
 
           <div className="relative min-w-0">
 
@@ -328,13 +320,15 @@ export function DocumentationRequestsPage() {
 
               placeholder="Search event, requestor, venue, REQ-…"
 
-              className="admin-input w-full rounded-xl py-2 pl-9 pr-3 text-sm"
+              className="admin-input w-full rounded-lg py-1.5 pl-9 pr-3 text-sm"
 
             />
 
           </div>
 
           <AdminSelect
+            className="xl:w-52"
+            buttonClassName="rounded-lg py-1.5"
             value={sort}
             onChange={(v) => setSort(v as RequestSortOption)}
             aria-label="Sort requests"
@@ -342,6 +336,8 @@ export function DocumentationRequestsPage() {
           />
 
           <AdminSelect
+            className="xl:w-44"
+            buttonClassName="rounded-lg py-1.5"
             value={priorityFilter}
             onChange={(v) => setPriorityFilter(v as RequestPriority | '')}
             aria-label="Filter by priority"
@@ -354,65 +350,9 @@ export function DocumentationRequestsPage() {
             ]}
           />
 
-          <div className="flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1">
-
-            <button
-
-              type="button"
-
-              onClick={() => setViewMode('list')}
-
-              className={[
-
-                'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition',
-
-                viewMode === 'list'
-
-                  ? 'bg-[var(--color-accent-blue)] text-white'
-
-                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]',
-
-              ].join(' ')}
-
-            >
-
-              <List size={14} />
-
-              Table
-
-            </button>
-
-            <button
-
-              type="button"
-
-              onClick={() => setViewMode('board')}
-
-              className={[
-
-                'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition',
-
-                viewMode === 'board'
-
-                  ? 'bg-[var(--color-accent-blue)] text-white'
-
-                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]',
-
-              ].join(' ')}
-
-            >
-
-              <Columns3 size={14} />
-
-              Board
-
-            </button>
-
-          </div>
-
         </div>
 
-        <p className="text-xs text-[var(--color-text-secondary)]">
+        <p className="px-1 text-[11px] text-[var(--color-text-secondary)]">
 
           {visible.length} request{visible.length === 1 ? '' : 's'} shown
 
@@ -431,10 +371,6 @@ export function DocumentationRequestsPage() {
           <Loader2 className="animate-spin text-[var(--color-text-muted)]" size={28} />
 
         </div>
-
-      ) : viewMode === 'board' ? (
-
-        <RequestsKanbanBoard items={visible} onReview={setReviewItem} />
 
       ) : (
 

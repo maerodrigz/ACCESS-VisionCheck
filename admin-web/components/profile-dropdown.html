@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ACCESS VisionCheck — Admin Profile Dropdown</title>
+    <link rel="stylesheet" href="profile-dropdown.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="profile-dropdown.js" defer></script>
+  </head>
+  <body>
+    <!-- Demo top navigation bar -->
+    <header class="demo-topbar" role="banner">
+      <button type="button" class="demo-topbar__bell" aria-label="Notifications">
+        <i data-lucide="bell" aria-hidden="true"></i>
+      </button>
+
+      <!-- Profile dropdown component (reusable) -->
+      <div class="profile-dropdown" data-profile-dropdown>
+        <button
+          type="button"
+          class="profile-dropdown__trigger"
+          data-profile-trigger
+          aria-label="Open admin profile menu"
+        >
+          <span class="profile-dropdown__trigger-text">
+            <span class="profile-dropdown__trigger-name">Admin User</span>
+            <span class="profile-dropdown__trigger-role">System Administrator</span>
+          </span>
+          <span class="profile-dropdown__avatar" aria-hidden="true">A</span>
+          <i data-lucide="chevron-down" class="profile-dropdown__chevron" aria-hidden="true"></i>
+        </button>
+
+        <div
+          class="profile-dropdown__panel"
+          data-profile-panel
+          role="menu"
+          aria-label="Admin profile menu"
+        >
+          <!-- Section 1: User information -->
+          <section class="profile-dropdown__user" aria-label="User information">
+            <div class="profile-dropdown__avatar profile-dropdown__avatar--lg" aria-hidden="true">A</div>
+            <h2 class="profile-dropdown__user-name">Admin User</h2>
+            <p class="profile-dropdown__user-email">admin@access.edu</p>
+            <span class="profile-dropdown__badge">System Administrator</span>
+          </section>
+
+          <hr class="profile-dropdown__divider" />
+
+          <!-- Section 2: Account -->
+          <section class="profile-dropdown__section" aria-label="Account">
+            <ul class="profile-dropdown__menu" role="none">
+              <li class="profile-dropdown__item" role="none">
+                <button
+                  type="button"
+                  class="profile-dropdown__link profile-dropdown__link--account"
+                  data-profile-menu-item="my-profile"
+                  role="menuitem"
+                >
+                  <span class="profile-dropdown__icon" aria-hidden="true">
+                    <i data-lucide="user"></i>
+                  </span>
+                  <span class="profile-dropdown__label">My Profile</span>
+                </button>
+              </li>
+            </ul>
+          </section>
+
+          <hr class="profile-dropdown__divider" />
+
+          <!-- Section 3: Administration -->
+          <section class="profile-dropdown__section" aria-label="Administration">
+            <h3 class="profile-dropdown__section-title">Administration</h3>
+            <ul class="profile-dropdown__menu" role="none">
+              <li class="profile-dropdown__item" role="none">
+                <button
+                  type="button"
+                  class="profile-dropdown__link profile-dropdown__link--admin"
+                  data-profile-menu-item="account-management"
+                  role="menuitem"
+                >
+                  <span class="profile-dropdown__icon" aria-hidden="true">
+                    <i data-lucide="user-cog"></i>
+                  </span>
+                  <span class="profile-dropdown__label">Account Management</span>
+                  <span class="profile-dropdown__item-chevron" aria-hidden="true">
+                    <i data-lucide="chevron-right"></i>
+                  </span>
+                </button>
+              </li>
+              <li class="profile-dropdown__item" role="none">
+                <button
+                  type="button"
+                  class="profile-dropdown__link profile-dropdown__link--admin"
+                  data-profile-menu-item="system-configuration"
+                  role="menuitem"
+                >
+                  <span class="profile-dropdown__icon" aria-hidden="true">
+                    <i data-lucide="settings"></i>
+                  </span>
+                  <span class="profile-dropdown__label">System Configuration</span>
+                  <span class="profile-dropdown__item-chevron" aria-hidden="true">
+                    <i data-lucide="chevron-right"></i>
+                  </span>
+                </button>
+              </li>
+            </ul>
+          </section>
+
+          <hr class="profile-dropdown__divider" />
+
+          <!-- Section 4: Logout -->
+          <div class="profile-dropdown__logout-wrap">
+            <button
+              type="button"
+              class="profile-dropdown__link profile-dropdown__link--logout"
+              data-profile-logout
+              role="menuitem"
+            >
+              <span class="profile-dropdown__icon" aria-hidden="true">
+                <i data-lucide="log-out"></i>
+              </span>
+              <span class="profile-dropdown__label">Logout</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Logout confirmation modal -->
+    <div
+      class="pd-modal-overlay"
+      data-logout-modal
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="logout-modal-title"
+      aria-hidden="true"
+    >
+      <div class="pd-modal">
+        <h2 id="logout-modal-title" class="pd-modal__title">Sign out?</h2>
+        <p class="pd-modal__message">You will return to the login screen. Any unsaved changes may be lost.</p>
+        <div class="pd-modal__actions">
+          <button type="button" class="pd-modal__btn pd-modal__btn--cancel" data-logout-cancel>
+            Cancel
+          </button>
+          <button type="button" class="pd-modal__btn pd-modal__btn--confirm" data-logout-confirm>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <main style="padding: 32px; max-width: 640px; margin: 0 auto">
+      <h1 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 8px">Profile Dropdown Demo</h1>
+      <p style="color: #64748b; font-size: 14px; line-height: 1.6">
+        Click the avatar or chevron in the top bar to open the menu. Press <kbd>Esc</kbd> or click outside to
+        close. Logout opens a confirmation modal.
+      </p>
+    </main>
+  </body>
+</html>

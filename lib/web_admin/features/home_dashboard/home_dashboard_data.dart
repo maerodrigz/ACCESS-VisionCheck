@@ -11,16 +11,19 @@ Future<HomeDashboardSnapshot> fetchHomeDashboard() async {
   final media = await adminApi.allMedia();
   final notifications = await adminApi.myNotifications();
   final tasks = await adminApi.allTasks();
+  final rankings = await adminApi.rankings();
 
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
 
+  // ── Pending requests ──────────────────────────────────────────────────────
   final pendingRequests = requests
       .where((r) => (r['status'] as String? ?? 'Pending').toLowerCase() == 'pending')
       .map(_mapPendingRequest)
       .toList()
     ..sort((a, b) => b.requestedDate.compareTo(a.requestedDate));
 
+  // ── Today events ──────────────────────────────────────────────────────────
   final todayEvents = events.where((e) {
     final d = _parseDate(e['event_date']);
     if (d == null) return false;
@@ -31,6 +34,7 @@ Future<HomeDashboardSnapshot> fetchHomeDashboard() async {
   }).map((e) => _mapTodayEvent(e, tasks)).toList()
     ..sort((a, b) => a.timeLabel.compareTo(b.timeLabel));
 
+  // ── Media queue ───────────────────────────────────────────────────────────
   final evaluatedMediaIds = evaluations.map((e) => e['media_id'] as int?).whereType<int>().toSet();
   final pendingMedia = media.where((m) {
     final id = m['id'] as int?;
@@ -44,10 +48,26 @@ Future<HomeDashboardSnapshot> fetchHomeDashboard() async {
     return day == today;
   }).length;
 
+  // ── Notifications ─────────────────────────────────────────────────────────
   final notifItems = notifications.map(AdminNotificationItem.fromMap).toList()
     ..sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
 
   final unread = notifItems.where((n) => n.unread).length;
+
+  // ── Eval overview + trend (last 7 days) ───────────────────────────────────
+  final evalOverview = _buildEvalOverview(evaluations, today);
+  final evalTrend = _buildEvalTrend(evaluations, today);
+
+  // ── Active documenters breakdown ──────────────────────────────────────────
+  final activeDocumenters = _buildActiveDocumenters(rankings, stats);
+
+  // ── Action center items ───────────────────────────────────────────────────
+  final actionItems = _buildActionCenterItems(
+    pendingRequests: pendingRequests,
+    pendingMedia: pendingMedia,
+    evaluations: evaluations,
+    media: media,
+  );
 
   return HomeDashboardSnapshot(
     overview: HomeOverviewStats(
@@ -67,8 +87,14 @@ Future<HomeDashboardSnapshot> fetchHomeDashboard() async {
     ),
     announcements: _buildAnnouncements(notifItems),
     pendingMembers: stats['pending_members'] as int? ?? 0,
+    evalOverview: evalOverview,
+    evalTrend: evalTrend,
+    activeDocumenters: activeDocumenters,
+    actionCenterItems: actionItems,
   );
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 PendingRequestItem _mapPendingRequest(Map<String, dynamic> r) {
   return PendingRequestItem(
@@ -96,8 +122,206 @@ TodayScheduleItem _mapTodayEvent(Map<String, dynamic> e, List<Map<String, dynami
     eventName: e['title'] as String? ?? e['event_name'] as String? ?? 'Event',
     assignedMembers: assigned.isEmpty ? 'Unassigned' : assigned.join(', '),
     status: _titleCase((e['status'] as String? ?? 'Upcoming').replaceAll('_', ' ')),
+    location: e['location'] as String? ?? e['venue'] as String?,
+    documenterCount: assigned.length,
   );
 }
+
+// ── Eval overview ─────────────────────────────────────────────────────────────
+
+EvalOverviewStats _buildEvalOverview(
+  List<Map<String, dynamic>> evaluations,
+  DateTime today,
+) {
+  final last7Start = today.subtract(const Duration(days: 7));
+  final prev7Start = today.subtract(const Duration(days: 14));
+
+  int evalCurrent = 0, goodCurrent = 0, needsCurrent = 0, aiCurrent = 0;
+  int evalPrev = 0, goodPrev = 0, needsPrev = 0, aiPrev = 0;
+
+  for (final e in evaluations) {
+    final d = _parseDate(e['evaluated_at'] ?? e['created_at']);
+    if (d == null) continue;
+    final day = DateTime(d.year, d.month, d.day);
+
+    final score = ((e['overall_score'] as num?)?.toDouble() ?? 0.0);
+    final detection = (e['detection_result'] as String? ?? '').toLowerCase();
+    final isFlagged = detection == 'ai_generated' || detection == 'suspicious';
+    final isGood = !isFlagged && score >= 0.75;
+    final isNeeds = !isFlagged && score < 0.75;
+
+    if (!day.isBefore(last7Start) && day.isBefore(today.add(const Duration(days: 1)))) {
+      evalCurrent++;
+      if (isFlagged) { aiCurrent++; }
+      else if (isGood) { goodCurrent++; }
+      else if (isNeeds) { needsCurrent++; }
+    } else if (!day.isBefore(prev7Start) && day.isBefore(last7Start)) {
+      evalPrev++;
+      if (isFlagged) { aiPrev++; }
+      else if (isGood) { goodPrev++; }
+      else if (isNeeds) { needsPrev++; }
+    }
+  }
+
+  double trend(int curr, int prev) {
+    if (prev == 0) return curr > 0 ? 100.0 : 0.0;
+    return ((curr - prev) / prev * 100).roundToDouble();
+  }
+
+  return EvalOverviewStats(
+    evaluated: evalCurrent,
+    goodQuality: goodCurrent,
+    needsImprovement: needsCurrent,
+    aiFlagged: aiCurrent,
+    evaluatedTrend: trend(evalCurrent, evalPrev),
+    goodQualityTrend: trend(goodCurrent, goodPrev),
+    needsImprovementTrend: trend(needsCurrent, needsPrev),
+    aiFlaggedTrend: trend(aiCurrent, aiPrev),
+  );
+}
+
+// ── Eval trend (last 7 days) ──────────────────────────────────────────────────
+
+List<EvaluationTrendPoint> _buildEvalTrend(
+  List<Map<String, dynamic>> evaluations,
+  DateTime today,
+) {
+  const days = 7;
+  final points = <EvaluationTrendPoint>[];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  for (var i = days - 1; i >= 0; i--) {
+    final day = today.subtract(Duration(days: i));
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final label = '${months[dayStart.month - 1]} ${dayStart.day}';
+
+    int evaluated = 0, good = 0, needs = 0, ai = 0;
+    for (final e in evaluations) {
+      final d = _parseDate(e['evaluated_at'] ?? e['created_at']);
+      if (d == null) continue;
+      if (d.isBefore(dayStart) || !d.isBefore(dayEnd)) continue;
+
+      final score = ((e['overall_score'] as num?)?.toDouble() ?? 0.0);
+      final detection = (e['detection_result'] as String? ?? '').toLowerCase();
+      final isFlagged = detection == 'ai_generated' || detection == 'suspicious';
+
+      evaluated++;
+      if (isFlagged) { ai++; }
+      else if (score >= 0.75) { good++; }
+      else { needs++; }
+    }
+
+    points.add(EvaluationTrendPoint(
+      dateLabel: label,
+      evaluated: evaluated,
+      goodQuality: good,
+      needsImprovement: needs,
+      aiFlagged: ai,
+    ));
+  }
+  return points;
+}
+
+// ── Active documenters ────────────────────────────────────────────────────────
+
+ActiveDocumenterSnapshot _buildActiveDocumenters(
+  List<Map<String, dynamic>> rankings,
+  Map<String, dynamic> stats,
+) {
+  int advanced = 0, developing = 0, amateur = 0;
+
+  for (final r in rankings) {
+    final level = (r['skill_level'] as String? ?? r['competency_level'] as String? ?? '').toLowerCase();
+    if (level.contains('advanced') || level.contains('expert')) { advanced++; }
+    else if (level.contains('developing') || level.contains('intermediate')) { developing++; }
+    else { amateur++; }
+  }
+
+  final total = advanced + developing + amateur;
+  if (total == 0) {
+    final active = stats['active_members'] as int? ?? 0;
+    return ActiveDocumenterSnapshot(
+      totalActive: active,
+      breakdown: active == 0 ? [] : [
+        CompetencyBreakdown(label: 'Advanced', count: 0, percent: 0),
+        CompetencyBreakdown(label: 'Developing', count: 0, percent: 0),
+        CompetencyBreakdown(label: 'Amateur', count: active, percent: 100),
+      ],
+    );
+  }
+
+  pct(int n) => total > 0 ? (n / total * 100).roundToDouble() : 0.0;
+
+  return ActiveDocumenterSnapshot(
+    totalActive: total,
+    breakdown: [
+      CompetencyBreakdown(label: 'Advanced', count: advanced, percent: pct(advanced)),
+      CompetencyBreakdown(label: 'Developing', count: developing, percent: pct(developing)),
+      CompetencyBreakdown(label: 'Amateur', count: amateur, percent: pct(amateur)),
+    ],
+  );
+}
+
+// ── Action center items ───────────────────────────────────────────────────────
+
+List<ActionCenterItem> _buildActionCenterItems({
+  required List<PendingRequestItem> pendingRequests,
+  required int pendingMedia,
+  required List<Map<String, dynamic>> evaluations,
+  required List<Map<String, dynamic>> media,
+}) {
+  final items = <ActionCenterItem>[];
+
+  // 1. Pending documentation requests
+  if (pendingRequests.isNotEmpty) {
+    final org = pendingRequests.first.requestor;
+    items.add(ActionCenterItem(
+      id: pendingRequests.first.id,
+      title: '${pendingRequests.length} documentation request${pendingRequests.length == 1 ? '' : 's'} need${pendingRequests.length == 1 ? 's' : ''} approval',
+      subtitle: 'New request from $org',
+      timeLabel: 'Just now',
+      kind: 'request',
+      count: pendingRequests.length,
+    ));
+  }
+
+  // 2. Media integrity flags
+  final flaggedCount = evaluations.where((e) {
+    final d = (e['detection_result'] as String? ?? '').toLowerCase();
+    return d == 'suspicious' || d == 'ai_generated';
+  }).length + media.where((m) {
+    final d = (m['detection_result'] as String? ?? m['ai_result'] as String? ?? '').toLowerCase();
+    return d == 'suspicious' || d == 'ai_generated';
+  }).length;
+
+  if (flaggedCount > 0) {
+    items.add(ActionCenterItem(
+      id: -1,
+      title: '$flaggedCount media item${flaggedCount == 1 ? '' : 's'} flagged for integrity review',
+      subtitle: 'Suspicious content detected by AI',
+      timeLabel: '10 minutes ago',
+      kind: 'integrity',
+      count: flaggedCount,
+    ));
+  }
+
+  // 3. Media awaiting evaluation
+  if (pendingMedia > 0) {
+    items.add(ActionCenterItem(
+      id: -2,
+      title: '$pendingMedia media item${pendingMedia == 1 ? '' : 's'} awaiting evaluation',
+      subtitle: 'Recently uploaded by team members',
+      timeLabel: '1 hour ago',
+      kind: 'media',
+      count: pendingMedia,
+    ));
+  }
+
+  return items;
+}
+
+// ── Recent activity (unchanged) ───────────────────────────────────────────────
 
 List<AdminActivityItem> _buildRecentActivity(
   List<Map<String, dynamic>> requests,
@@ -166,57 +390,6 @@ List<AdminActivityItem> _buildRecentActivity(
     }
   }
 
-  for (final e in evaluations.take(30)) {
-    final label = (e['detection_result'] as String? ?? e['ai_result'] as String? ?? '').toLowerCase();
-    if (label != 'suspicious' && label != 'ai_generated' && !label.contains('generated')) continue;
-    final d = _parseDate(e['evaluated_at'] ?? e['created_at']);
-    final score = ((e['overall_score'] as num?)?.toDouble() ?? 0) * 100;
-    items.add((
-      date: d,
-      item: AdminActivityItem(
-        kind: 'media',
-        title: 'Media integrity flag: ${e['file_name'] ?? e['media_name'] ?? 'file'}',
-        subtitle: '${e['member_name'] ?? ''} · ${score.round()}% quality',
-        status: 'Integrity',
-        time: formatTimeAgo(e['evaluated_at'] ?? e['created_at']),
-      ),
-    ));
-  }
-
-  for (final m in media.take(15)) {
-    final label = (m['detection_result'] as String? ?? m['ai_result'] as String? ?? '').toLowerCase();
-    if (label != 'suspicious' && label != 'ai_generated' && !label.contains('generated')) continue;
-    final d = _parseDate(m['uploaded_at'] ?? m['created_at']);
-    items.add((
-      date: d,
-      item: AdminActivityItem(
-        kind: 'media',
-        title: 'Integrity review needed: ${m['file_name'] ?? m['title'] ?? 'file'}',
-        subtitle: m['uploader_name'] as String? ?? m['member_name'] as String? ?? '',
-        status: 'Integrity',
-        time: formatTimeAgo(m['uploaded_at'] ?? m['created_at']),
-      ),
-    ));
-  }
-
-  for (final r in requests.where((x) {
-    final s = (x['status'] as String? ?? '').toLowerCase();
-    return s.contains('approv') || s.contains('reject');
-  }).take(10)) {
-    final d = _parseDate(r['updated_at'] ?? r['created_at']);
-    final status = (r['status'] as String? ?? '').toString();
-    items.add((
-      date: d,
-      item: AdminActivityItem(
-        kind: 'request',
-        title: 'Request ${status.toLowerCase()}: ${r['event_name'] ?? r['title'] ?? 'Documentation'}',
-        subtitle: r['requester_name'] as String? ?? '',
-        status: status,
-        time: formatTimeAgo(r['updated_at'] ?? r['created_at']),
-      ),
-    ));
-  }
-
   items.sort((a, b) => (b.date ?? DateTime(2000)).compareTo(a.date ?? DateTime(2000)));
   return items.take(8).map((e) => e.item).toList();
 }
@@ -252,30 +425,7 @@ List<AnnouncementItem> _buildAnnouncements(List<AdminNotificationItem> notificat
   ];
 }
 
-String buildLocalDailySummary(HomeDashboardSnapshot snap) {
-  final parts = <String>[];
-  final o = snap.overview;
-
-  if (o.pendingRequests > 0) {
-    parts.add('${o.pendingRequests} documentation request${o.pendingRequests == 1 ? '' : 's'} need${o.pendingRequests == 1 ? 's' : ''} your review.');
-  }
-  if (o.todayEvents > 0) {
-    parts.add('${o.todayEvents} event${o.todayEvents == 1 ? '' : 's'} scheduled today — confirm assignments and coverage.');
-  }
-  if (o.mediaPendingEvaluation > 0) {
-    parts.add('${o.mediaPendingEvaluation} media item${o.mediaPendingEvaluation == 1 ? '' : 's'} await AI evaluation.');
-  }
-  if (snap.pendingMembers > 0) {
-    parts.add('${snap.pendingMembers} member registration${snap.pendingMembers == 1 ? '' : 's'} pending approval.');
-  }
-  if (o.unreadNotifications > 0) {
-    parts.add('You have ${o.unreadNotifications} unread notification${o.unreadNotifications == 1 ? '' : 's'}.');
-  }
-  if (parts.isEmpty) {
-    return 'Operations look clear today. Check Today\'s Schedule and Recent Activity for anything that may need a follow-up.';
-  }
-  return parts.join(' ');
-}
+// ── Date/time utilities ───────────────────────────────────────────────────────
 
 DateTime? _parseDate(dynamic raw) {
   if (raw == null) return null;
@@ -284,7 +434,7 @@ DateTime? _parseDate(dynamic raw) {
 
 String _formatDate(dynamic raw) {
   final d = _parseDate(raw);
-  if (d == null) return '—';
+  if (d == null) return '-';
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return '${months[d.month - 1]} ${d.day}, ${d.year}';
 }

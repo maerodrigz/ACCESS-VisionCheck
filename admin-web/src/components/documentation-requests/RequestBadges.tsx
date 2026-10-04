@@ -15,12 +15,16 @@ const statusColors: Record<RequestDisplayStatus, string> = {
   completed: 'var(--color-success)',
 }
 
+function tint(color: string, percent: number) {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`
+}
+
 export function PriorityBadge({ priority }: { priority: RequestPriority }) {
   const color = priorityColors[priority]
   return (
     <span
-      className="inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold"
-      style={{ color, borderColor: `${color}40`, backgroundColor: `${color}14` }}
+      className="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+      style={{ color, backgroundColor: tint(color, 14) }}
     >
       {priorityLabel(priority)}
     </span>
@@ -31,15 +35,49 @@ export function StatusBadge({ status }: { status: RequestDisplayStatus }) {
   const color = statusColors[status]
   return (
     <span
-      className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold"
-      style={{ color, backgroundColor: `${color}1f` }}
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none"
+      style={{ color, backgroundColor: tint(color, 14) }}
     >
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
       {statusLabel(status)}
     </span>
   )
 }
 
 const avatarColors = ['#2563eb', '#16a34a', '#7c3aed', '#0891b2', '#f59e0b']
+
+/** Initials plus the member name, for the request table. */
+export function AssignedMemberList({ members, maxVisible = 2 }: { members: AssignedMember[]; maxVisible?: number }) {
+  if (members.length === 0) {
+    return <p className="text-[11px] text-[var(--color-text-muted)]">Unassigned</p>
+  }
+
+  const visible = members.slice(0, maxVisible)
+  const extra = members.length - visible.length
+
+  return (
+    <ul className="space-y-1">
+      {visible.map((m, i) => (
+        <li key={m.id} className="flex min-w-0 items-center gap-1.5">
+          <span
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold"
+            style={{
+              backgroundColor: tint(avatarColors[i % avatarColors.length], 16),
+              color: avatarColors[i % avatarColors.length],
+            }}
+            aria-hidden
+          >
+            {m.initials}
+          </span>
+          <span className="truncate text-[11px] font-medium text-[var(--color-text-primary)]">{m.name}</span>
+        </li>
+      ))}
+      {extra > 0 ? (
+        <li className="pl-6 text-[10px] font-semibold text-[var(--color-text-secondary)]">+{extra} more</li>
+      ) : null}
+    </ul>
+  )
+}
 
 export function MemberAvatarStack({ members, maxVisible = 3 }: { members: AssignedMember[]; maxVisible?: number }) {
   if (members.length === 0) {

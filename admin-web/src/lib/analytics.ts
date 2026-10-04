@@ -52,22 +52,12 @@ export function parseAnalyticsTab(raw: string | null): AnalyticsTab {
   return 'overview'
 }
 
-export function downloadTextFile(filename: string, content: string, mime = 'text/csv;charset=utf-8') {
-  const blob = new Blob([content], { type: mime })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(url)
-}
-
 import type { DateRange } from './analyticsOverview'
 import {
   buildAnalyticsOverview,
   buildRecentActivityList,
-  defaultDateRange,
-  formatDateRangeLabel,
+  buildRequestsByMonth,
+  requestYears,
 } from './analyticsOverview'
 
 export async function fetchAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
@@ -147,15 +137,15 @@ export function buildInsights(data: AnalyticsSnapshot): string[] {
   ]
 }
 
-function csvCell(value: string | number | null | undefined): string {
-  if (value == null) return ''
-  const s = String(value)
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-  return s
+export type ReportCell = string | number
+export interface ReportSection {
+  title: string
+  headers: string[]
+  rows: ReportCell[][]
 }
 
 function formatGrowthPct(pct: number | null): string {
-  if (pct == null) return '—'
+  if (pct == null) return 'N/A'
   const sign = pct > 0 ? '+' : ''
   return `${sign}${pct}%`
 }
@@ -164,25 +154,13 @@ function formatIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
-function pushSection(
-  lines: string[],
-  title: string,
-  headers: string[],
-  rows: (string | number | null | undefined)[][],
-) {
-  lines.push('', title, headers.map(csvCell).join(','))
-  for (const row of rows) {
-    lines.push(row.map(csvCell).join(','))
-  }
+function orNA(value: unknown): string {
+  if (value == null || value === '' || value === '—') return 'N/A'
+  return String(value)
 }
 
-function pushKeyValues(lines: string[], title: string, pairs: [string, string | number][]) {
-  pushSection(
-    lines,
-    title,
-    ['Metric', 'Value'],
-    pairs.map(([k, v]) => [k, v]),
-  )
+function keyValues(title: string, pairs: [string, ReportCell][]): ReportSection {
+  return { title, headers: ['Metric', 'Value'], rows: pairs }
 }
 
 function buildEventsExportRows(events: Record<string, unknown>[]) {
@@ -203,183 +181,158 @@ function buildEventsExportRows(events: Record<string, unknown>[]) {
       ['All events', events.length],
       ['Upcoming', upcoming],
       ['Completed', completed],
-    ] as [string, string | number][],
+    ] as [string, ReportCell][],
     table: events.slice(0, 100).map((e) => [
       String(e.title ?? e.event_name ?? 'Event'),
-      String(e.event_date ?? '—').slice(0, 10),
-      String(e.status ?? '—'),
-      String(e.assigned_count ?? e.assignments_count ?? '—'),
-      String(e.location ?? e.venue ?? '—'),
+      orNA(e.event_date).slice(0, 10),
+      orNA(e.status),
+      orNA(e.assigned_count ?? e.assignments_count),
+      orNA(e.location ?? e.venue),
     ]),
   }
 }
 
-export function buildAnalyticsCsv(
-  data: AnalyticsSnapshot,
-  range?: DateRange,
-  tab?: AnalyticsTab,
-): string {
+export function buildAnalyticsReportSections(data: AnalyticsSnapshot, range: DateRange): ReportSection[] {
   const s = data.stats
-  const effectiveRange = range ?? defaultDateRange()
-  const tabLabel = tab ? ANALYTICS_TABS.find((t) => t.id === tab)?.label : undefined
-  const lines = [
-    'ACCESS VisionCheck Analytics Report',
-    `Generated,${new Date().toISOString()}`,
-    `Period,${formatDateRangeLabel(effectiveRange)}`,
-  ]
-  if (tabLabel && tab !== 'overview') {
-    lines.push(`View context,${tabLabel}`)
-  }
+  const model = buildAnalyticsOverview(data, range)
+  const sections: ReportSection[] = []
 
-  const model = buildAnalyticsOverview(data, effectiveRange)
-
-  pushSection(
-    lines,
-    'Overview KPIs',
-    ['Metric', 'Value', 'Trend vs prior period'],
-    model.kpis.map((kpi) => [
+  sections.push({
+    title: 'Overview KPIs',
+    headers: ['Metric', 'Value', 'Trend vs prior period'],
+    rows: model.kpis.map((kpi) => [
       kpi.label,
       `${kpi.value}${kpi.valueSuffix ?? ''}`,
       formatGrowthPct(kpi.growthPct),
     ]),
-  )
+  })
 
-  pushSection(
-    lines,
-    'Documentation requests (all time)',
-    ['Status', 'Count'],
-    [
+  sections.push({
+    title: 'Documentation requests (all time)',
+    headers: ['Status', 'Count'],
+    rows: [
       ['Pending', Number(s.pending_requests ?? 0)],
       ['Approved', Number(s.approved_requests ?? 0)],
       ['Rejected', Number(s.rejected_requests ?? 0)],
       ['Completed', Number(s.completed_requests ?? 0)],
       ['Total', Number(s.total_requests ?? data.requests.length ?? 0)],
     ],
-  )
+  })
 
-  pushSection(
-    lines,
-    'Member assignments (all time)',
-    ['Status', 'Count'],
-    [
-      ['Awaiting acceptance', Number(s.pending_assignments ?? 0)],
-      ['Accepted', Number(s.accepted_assignments ?? s.completed_tasks ?? 0)],
-      ['Declined', Number(s.declined_assignments ?? 0)],
-    ],
-  )
+  sections.push({
+    title: 'Evaluation quality (selected period)',
+    headers: ['Quality level', 'Count'],
+    rows: model.qualityBuckets.map((b) => [b.label, b.count]),
+  })
 
-  pushSection(
-    lines,
-    'Evaluation quality (selected period)',
-    ['Quality level', 'Count'],
-    model.qualityBuckets.map((b) => [b.label, b.count]),
-  )
-
-  if (model.evaluationsSeries.some((p) => p.value > 0)) {
-    pushSection(
-      lines,
-      'Evaluations over time (selected period)',
-      ['Date', 'Evaluations'],
-      model.evaluationsSeries.map((p) => [formatIsoDate(p.date), p.value]),
+  const monthlyRequests = requestYears(data.requests)
+    .sort((a, b) => a - b)
+    .flatMap((year) =>
+      buildRequestsByMonth(data.requests, year)
+        .points.filter((p) => p.requests > 0)
+        .map((p): ReportCell[] => [`${p.label} ${year}`, p.requests, p.requesters]),
     )
+  if (monthlyRequests.length > 0) {
+    sections.push({
+      title: 'Event requests by month (submission date)',
+      headers: ['Month', 'Requests', 'Requesters'],
+      rows: monthlyRequests,
+    })
   }
 
-  pushSection(lines, 'Media in selected period', ['Type', 'Count'], [
-    ['Photos', model.mediaPhotos],
-    ['Videos', model.mediaVideos],
-    ['Total', model.mediaTotal],
-  ])
+  sections.push({
+    title: 'Media in selected period',
+    headers: ['Type', 'Count'],
+    rows: [
+      ['Photos', model.mediaPhotos],
+      ['Videos', model.mediaVideos],
+      ['Total', model.mediaTotal],
+    ],
+  })
 
   const rs = data.rankingsSummary
-  pushKeyValues(lines, 'Rankings summary', [
-    ['Total ranked', Number(rs.total_ranked ?? 0)],
-    ['Top performer', String(rs.top_performer_name ?? '—')],
-    ['Top performer points', Number(rs.top_performer_points ?? 0)],
-    ['Needs improvement', Number(rs.needs_improvement_count ?? 0)],
-    ['Most active uploader', String(rs.most_active_uploader_name ?? '—')],
-    ['Most uploads', Number(rs.most_active_uploads ?? 0)],
-  ])
-
-  pushSection(
-    lines,
-    'Top members by score',
-    ['Rank', 'Member', 'Score'],
-    model.topMembers.map((m) => [m.rank, m.name, m.score]),
-  )
-
-  const participation = participationRows(data.rankings).slice(0, 50)
-  pushSection(
-    lines,
-    'Member participation',
-    ['Member', 'Tasks completed', 'Uploads', 'Points', 'Avg quality %', 'Skill level'],
-    participation.map((row) => [
-      row.name,
-      row.tasks,
-      row.uploads,
-      row.participation,
-      row.quality > 0 ? Math.round(row.quality) : '—',
-      row.status,
+  sections.push(
+    keyValues('Rankings summary', [
+      ['Total ranked', Number(rs.total_ranked ?? 0)],
+      ['Top performer', orNA(rs.top_performer_name)],
+      ['Top performer points', Number(rs.top_performer_points ?? 0)],
+      ['Needs improvement', Number(rs.needs_improvement_count ?? 0)],
+      ['Most active uploader', orNA(rs.most_active_uploader_name)],
+      ['Most uploads', Number(rs.most_active_uploads ?? 0)],
     ]),
   )
 
-  const avgRating =
-    s.avg_feedback_rating != null ? Number(s.avg_feedback_rating).toFixed(1) : '—'
-  pushKeyValues(lines, 'Requester feedback', [
-    ['Total feedback records', data.feedback.length],
-    ['Average rating', avgRating],
-    ['Feedback count (dashboard)', Number(s.feedback_count ?? 0)],
-  ])
-  pushSection(
-    lines,
-    'Feedback rating distribution',
-    ['Rating', 'Count'],
-    [5, 4, 3, 2, 1].map((star) => [
-      `${star} stars`,
+  sections.push({
+    title: 'Top members by score',
+    headers: ['Rank', 'Member', 'Score'],
+    rows: model.topMembers.map((m) => [m.rank, m.name, m.score]),
+  })
+
+  sections.push({
+    title: 'Member participation',
+    headers: ['Member', 'Tasks completed', 'Uploads', 'Points', 'Avg quality %', 'Skill level'],
+    rows: participationRows(data.rankings)
+      .slice(0, 50)
+      .map((row) => [
+        row.name,
+        row.tasks,
+        row.uploads,
+        row.participation,
+        row.quality > 0 ? Math.round(row.quality) : 'N/A',
+        orNA(row.status),
+      ]),
+  })
+
+  sections.push(
+    keyValues('Requester feedback', [
+      ['Total feedback records', data.feedback.length],
+      ['Average rating', s.avg_feedback_rating != null ? Number(s.avg_feedback_rating).toFixed(1) : 'N/A'],
+      ['Feedback count (dashboard)', Number(s.feedback_count ?? 0)],
+    ]),
+  )
+  sections.push({
+    title: 'Feedback rating distribution',
+    headers: ['Rating', 'Count'],
+    rows: [5, 4, 3, 2, 1].map((star) => [
+      `${star} ${star === 1 ? 'star' : 'stars'}`,
       data.feedback.filter((f) => Math.round(Number(f.rating ?? 0)) === star).length,
     ]),
-  )
+  })
 
   const eventsExport = buildEventsExportRows(data.events)
-  pushKeyValues(lines, 'Events summary', eventsExport.summary)
+  sections.push(keyValues('Events summary', eventsExport.summary))
   if (eventsExport.table.length > 0) {
-    pushSection(lines, 'Event schedule', ['Event', 'Date', 'Status', 'Assigned', 'Location'], eventsExport.table)
+    sections.push({
+      title: 'Event schedule',
+      headers: ['Event', 'Date', 'Status', 'Assigned', 'Location'],
+      rows: eventsExport.table,
+    })
   }
 
   const ai = data.aiSummary as Record<string, unknown>
   if (Object.keys(ai).length > 0) {
-    pushKeyValues(lines, 'Media integrity (AI detection)', [
-      ['Total scanned', Number(ai.total_scanned ?? 0)],
-      ['Human verified', Number(ai.human_count ?? 0)],
-      ['AI generated flagged', Number(ai.ai_generated_count ?? 0)],
-      ['Suspicious', Number(ai.suspicious_count ?? 0)],
-      ['Pending admin review', Number(ai.pending_review_count ?? 0)],
-    ])
+    sections.push(
+      keyValues('Media integrity (AI detection)', [
+        ['Total scanned', Number(ai.total_scanned ?? 0)],
+        ['Human verified', Number(ai.human_count ?? 0)],
+        ['AI generated flagged', Number(ai.ai_generated_count ?? 0)],
+        ['Suspicious', Number(ai.suspicious_count ?? 0)],
+        ['Pending admin review', Number(ai.pending_review_count ?? 0)],
+      ]),
+    )
   }
 
-  pushSection(
-    lines,
-    'Insights',
-    ['Note'],
-    buildInsights(data).map((note) => [note]),
-  )
+  sections.push({
+    title: 'Insights',
+    headers: ['Note'],
+    rows: buildInsights(data).map((note) => [note]),
+  })
 
-  const activity = buildRecentActivityList(data, 50)
-  pushSection(
-    lines,
-    'Recent activity',
-    ['Date', 'Event', 'Detail'],
-    activity.map((a) => [formatIsoDate(a.at), a.title, a.subtitle ?? '']),
-  )
+  sections.push({
+    title: 'Recent activity',
+    headers: ['Date', 'Event', 'Detail'],
+    rows: buildRecentActivityList(data, 50).map((a) => [formatIsoDate(a.at), a.title, a.subtitle ?? '']),
+  })
 
-  return lines.join('\n')
-}
-
-export function exportAnalyticsReport(data: AnalyticsSnapshot, range: DateRange, tab?: AnalyticsTab) {
-  const start = range.start.toISOString().slice(0, 10)
-  const end = range.end.toISOString().slice(0, 10)
-  const tabSuffix = tab && tab !== 'overview' ? `-${tab}` : ''
-  downloadTextFile(
-    `access-analytics-${start}_to_${end}${tabSuffix}.csv`,
-    buildAnalyticsCsv(data, range, tab),
-  )
+  return sections
 }

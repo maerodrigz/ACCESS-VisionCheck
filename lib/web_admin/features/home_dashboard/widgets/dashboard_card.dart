@@ -31,17 +31,33 @@ class HomeSectionHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
+    this.icon,
+    this.iconColor,
   });
 
   final String title;
   final String? subtitle;
   final Widget? trailing;
+  final IconData? icon;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (icon != null) ...[
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: (iconColor ?? AdminTheme.accentBlue).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: iconColor ?? AdminTheme.accentBlue),
+          ),
+          const SizedBox(width: 10),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,10 +121,16 @@ class HomeStatusBadge extends StatelessWidget {
 }
 
 class HomeTextButton extends StatelessWidget {
-  const HomeTextButton({super.key, required this.label, required this.onPressed});
+  const HomeTextButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  });
 
   final String label;
   final VoidCallback onPressed;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +142,16 @@ class HomeTextButton extends StatelessWidget {
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         foregroundColor: AdminTheme.accentBlue,
       ),
-      child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          if (icon != null) ...[
+            const SizedBox(width: 2),
+            Icon(icon, size: 14),
+          ],
+        ],
+      ),
     );
   }
 }

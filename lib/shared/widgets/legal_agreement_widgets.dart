@@ -65,14 +65,17 @@ class LegalAgreementCheckbox extends StatelessWidget {
 
 /// Login footer links: Terms · Privacy.
 class LegalFooterLinks extends StatelessWidget {
-  const LegalFooterLinks({super.key, this.useLoginTokens = false});
+  const LegalFooterLinks({super.key, this.useLoginTokens = false, this.onDarkBackground = false});
 
   final bool useLoginTokens;
+  final bool onDarkBackground;
 
   @override
   Widget build(BuildContext context) {
-    final muted = useLoginTokens ? LoginPageTokens.textSecondary : kTextSecondary;
-    final link = useLoginTokens ? LoginPageTokens.secondary : kAccent;
+    final muted = onDarkBackground
+        ? Colors.white.withValues(alpha: 0.6)
+        : (useLoginTokens ? LoginPageTokens.textSecondary : kTextSecondary);
+    final link = onDarkBackground ? kCyan : (useLoginTokens ? LoginPageTokens.secondary : kAccent);
 
     return Wrap(
       alignment: WrapAlignment.center,

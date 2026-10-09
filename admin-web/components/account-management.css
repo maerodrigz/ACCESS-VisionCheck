@@ -56,9 +56,9 @@
 .account-mgmt__toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.625rem;
   align-items: center;
-  padding: 0.875rem 1rem;
+  padding: 0.625rem 0.875rem;
   background: var(--am-surface);
   border: 1px solid var(--am-border);
   border-radius: var(--am-radius);
@@ -199,22 +199,26 @@
 }
 
 .account-mgmt__section {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .account-mgmt__section-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
   border-bottom: 1px solid var(--am-border);
   background: var(--am-thead-bg);
 }
 
 .account-mgmt__section-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -222,16 +226,12 @@
 }
 
 .account-mgmt__section-count {
-  display: inline-flex;
-  min-width: 1.5rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0.125rem 0.5rem;
-  border-radius: 999px;
-  background: var(--am-input-bg);
   font-size: 0.6875rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
   color: var(--am-text-secondary);
+  opacity: 0.85;
 }
 
 .account-mgmt__card {
@@ -242,16 +242,44 @@
   box-shadow: none;
 }
 
+.account-mgmt__card.account-mgmt__section {
+  overflow: visible;
+}
+
 .account-mgmt__table-wrap {
   overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
 }
 
 .account-mgmt__table {
   width: 100%;
-  min-width: 720px;
-  border-collapse: collapse;
+  min-width: 640px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.8125rem;
+}
+
+/* Same column rhythm on every section card (Administrators, Members, Requestors). */
+.account-mgmt__col-name {
+  width: 22%;
+}
+
+.account-mgmt__col-email {
+  width: 32%;
+}
+
+.account-mgmt__col-status {
+  width: 14%;
+}
+
+.account-mgmt__col-date {
+  width: 20%;
+}
+
+.account-mgmt__col-actions {
+  width: 12%;
 }
 
 .account-mgmt__table thead {
@@ -260,7 +288,7 @@
 }
 
 .account-mgmt__table th {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1.25rem;
   text-align: left;
   font-size: 0.6875rem;
   font-weight: 700;
@@ -270,9 +298,16 @@
 }
 
 .account-mgmt__table td {
-  padding: 0.875rem 1rem;
+  padding: 0.5rem 1.25rem;
   border-bottom: 1px solid var(--am-border);
   vertical-align: middle;
+  min-height: 4rem;
+  box-sizing: border-box;
+}
+
+.account-mgmt__table tbody tr:has(.account-mgmt__menu-trigger--open) {
+  position: relative;
+  z-index: 55;
 }
 
 .account-mgmt__table tbody tr:hover {
@@ -285,7 +320,6 @@
 
 .account-mgmt__th-actions,
 .account-mgmt__actions-cell {
-  width: 4rem;
   text-align: right;
   position: relative;
   overflow: visible;
@@ -301,8 +335,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.375rem;
+  height: 2.375rem;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--am-cyan), var(--am-primary));
   color: #fff;
@@ -311,13 +345,43 @@
   flex-shrink: 0;
 }
 
+.account-mgmt__avatar--img {
+  object-fit: cover;
+  background: var(--am-input-bg);
+}
+
 .account-mgmt__name {
   font-weight: 700;
+  font-size: 0.8125rem;
+  line-height: 1.25;
   color: var(--am-text);
 }
 
 .account-mgmt__email {
   color: var(--am-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-mgmt__status-cell {
+  white-space: nowrap;
+}
+
+.account-mgmt__date-cell {
+  white-space: nowrap;
+  color: var(--am-text);
+}
+
+.account-mgmt__status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.625rem;
+  padding: 0.125rem 0.4375rem;
+  box-sizing: border-box;
+  text-align: center;
+  line-height: 1.25;
 }
 
 /* Badges */
@@ -328,6 +392,12 @@
   font-size: 0.6875rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.account-mgmt__status-badge.account-mgmt__badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  border-radius: 0.3125rem;
 }
 
 .account-mgmt__badge--admin {
@@ -346,17 +416,17 @@
 }
 
 .account-mgmt__badge--active {
-  background: rgba(22, 163, 74, 0.12);
-  color: var(--am-success);
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
 }
 
 .account-mgmt__badge--inactive {
-  background: rgba(100, 116, 139, 0.12);
+  background: rgba(100, 116, 139, 0.14);
   color: #64748b;
 }
 
 .account-mgmt__badge--suspended {
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(220, 38, 38, 0.08);
   color: var(--am-danger);
 }
 
@@ -371,8 +441,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.125rem;
+  height: 2.125rem;
   border: 1px solid var(--am-border);
   border-radius: 0.5rem;
   background: var(--am-input-bg);
@@ -382,10 +452,16 @@
 }
 
 .account-mgmt__menu-trigger:hover,
+.account-mgmt__menu-trigger:focus-visible,
 .account-mgmt__menu-trigger--open {
   background: var(--am-input-bg-focus);
   border-color: rgba(255, 255, 255, 0.14);
   color: var(--am-text);
+  outline: none;
+}
+
+.account-mgmt__menu-trigger:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--am-cyan) 35%, transparent);
 }
 
 .account-mgmt__menu-trigger svg {
@@ -396,14 +472,31 @@
 .account-mgmt__menu {
   position: absolute;
   right: 0;
-  top: calc(100% + 6px);
-  z-index: 60;
+  top: calc(100% + 4px);
+  z-index: 70;
   min-width: 13.5rem;
   padding: 0.375rem;
   background: var(--am-surface-elevated);
   border: 1px solid var(--am-border);
   border-radius: 0.875rem;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.account-mgmt__menu--portal {
+  position: fixed;
+  right: auto;
+  z-index: 120;
+  margin: 0;
+  /* Portaled nodes must use global tokens (not only --am-* scoped on .account-mgmt). */
+  background: var(--color-surface-elevated, var(--am-surface-elevated, #fff));
+  border: 1px solid var(--color-border, var(--am-border, rgba(15, 23, 42, 0.08)));
+  color: var(--color-text-primary, var(--am-text, #0f172a));
+  box-shadow: 0 12px 32px rgba(15, 39, 68, 0.14);
+  isolation: isolate;
+}
+
+html[data-theme='light'] .account-mgmt__menu--portal {
+  box-shadow: 0 12px 28px rgba(15, 39, 68, 0.12);
 }
 
 .account-mgmt__menu-item {
@@ -423,8 +516,10 @@
   cursor: pointer;
 }
 
-.account-mgmt__menu-item:hover:not(:disabled) {
+.account-mgmt__menu-item:hover:not(:disabled),
+.account-mgmt__menu-item:focus-visible {
   background: var(--am-row-hover);
+  outline: none;
 }
 
 .account-mgmt__menu-item:disabled {
@@ -461,33 +556,11 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: transparent;
-}
-
-.account-mgmt__confirm-text {
   margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--am-text-secondary);
-}
-
-.account-mgmt__temp-password {
-  margin-top: 0.875rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px dashed var(--am-border);
-  background: var(--am-input-bg);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--am-text);
-  word-break: break-all;
-}
-
-.account-mgmt__btn--danger {
-  background: var(--am-danger);
-  color: #fff;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
 }
 
 .account-mgmt__btn--danger:hover:not(:disabled) {

@@ -1,7 +1,9 @@
-import type { AiDetectionRow, ExifMetadata, ReviewStatus } from '../api/media'
+import type { AiDetectionRow, ExifMetadata, ExifMetadataField, ReviewStatus } from '../api/media'
 import { aiReviewRiskTier } from './aiDetection'
 
 export type VisualRiskBand = 'LOW' | 'SUSPICIOUS' | 'HIGH'
+
+export type CameraMetadataStatus = 'Present' | 'Missing' | 'Unknown'
 
 const MANUAL_REVIEW_STATUSES: ReviewStatus[] = ['pending_review', 'needs_further_review']
 
@@ -39,70 +41,188 @@ export function visualAiRiskSummaryLabel(row: AiDetectionRow): string {
   return pct ? `${word} (${pct})` : word
 }
 
-export function cameraOriginLabel(meta?: ExifMetadata): string {
-  const strength = (meta?.camera_provenance_strength ?? '').trim().toLowerCase()
-  if (strength === 'strong') return 'Verified'
-  if (strength === 'partial') return 'Limited verification'
-  if (strength === 'moderate') return 'Limited verification'
-  if (!strength || strength === 'none' || strength === 'weak' || strength === 'unknown' || strength === 'absent') {
-    return 'Not Verified'
-  }
-  return strength.charAt(0).toUpperCase() + strength.slice(1)
+/** Collapse EXIF padding and non-breaking spaces for readable admin copy (display only). */
+export function normalizeScanDisplayText(raw: string): string {
+  return raw
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
-/** Human-readable provenance policy outcome (backend `provenance_policy_outcome` values). */
-export function formatProvenancePolicyDisplay(raw?: string): string {
-  if (!raw?.trim()) return 'Not assessed'
-  const key = raw.trim().toLowerCase()
-  const labels: Record<string, string> = {
-    source_unverified: 'Unverified',
-    low_ai_risk: 'Low AI risk',
-    elevated_ai_risk: 'Elevated AI risk',
-    high_ai_risk: 'High AI risk',
-    source_partially_verified: 'Partially verified',
-  }
-  if (labels[key]) return labels[key]
-  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+function fieldHasValue(value: string): boolean {
+  const v = normalizeScanDisplayText(value)
+  return v.length > 0 && v !== '—' && v !== '-' && v.toLowerCase() !== 'n/a'
 }
 
-const POLICY_REVIEW_REASON: Record<string, string> = {
-  source_unverified: 'Camera origin could not be verified.',
-  elevated_ai_risk: 'Elevated AI-generation risk requires administrative review.',
-  high_ai_risk: 'High AI-generation risk requires administrative review.',
+function findFieldValue(fields: ExifMetadataField[], keys: string[], labelIncludes: string[] = []): string | undefined {
+  for (const f of fields) {
+    const key = f.key.toLowerCase()
+    const label = f.label.toLowerCase()
+    const keyMatch = keys.some((k) => key === k.toLowerCase() || key.endsWith(`:${k.toLowerCase()}`))
+    const labelMatch = labelIncludes.some((part) => label.includes(part.toLowerCase()))
+    if (!keyMatch && !labelMatch) continue
+    if (!fieldHasValue(f.value)) continue
+    return normalizeScanDisplayText(f.value)
+  }
+  return undefined
 }
 
-/** Short admin-facing reason when manual review is open; only backend-backed text. */
-export function integrityReviewReason(row: AiDetectionRow): string | null {
-  if (!MANUAL_REVIEW_STATUSES.includes(row.review_status)) return null
+/** Camera-identifying EXIF present (make/model), not provenance verification. */
+export function cameraMetadataStatus(meta?: ExifMetadata): CameraMetadataStatus {
+  if (!meta) return 'Unknown'
+  const fields = meta.fields ?? []
+  const make = findFieldValue(fields, ['Make', 'make'], ['camera make'])
+  const model = findFieldValue(fields, ['Model', 'model'], ['camera model'])
+  if (make || model) return 'Present'
+  if (!meta.has_exif || fields.length === 0) return 'Missing'
+  return 'Unknown'
+}
 
-  const reasons = (row.exif_metadata?.camera_provenance_reasons ?? []).map((r) => r.trim()).filter(Boolean)
-  if (reasons.length > 0) return reasons[0]
+export interface CameraFileDisplayRow {
+  label: string
+  value: string
+}
 
-  const outcome = row.exif_metadata?.provenance_policy_outcome?.trim().toLowerCase()
-  if (outcome && POLICY_REVIEW_REASON[outcome]) return POLICY_REVIEW_REASON[outcome]
+const EXIF_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
 
-  const remarks = row.detection_remarks?.trim()
-  if (remarks) {
-    const sentence = remarks.match(/^[^.!?]+[.!?]/)?.[0]?.trim()
-    return sentence ?? remarks
+/** Format EXIF datetime strings for display without timezone conversion. */
+export function formatExifCaptureDate(raw: string): string {
+  const text = normalizeScanDisplayText(raw)
+  const exif = text.match(/^(\d{4}):(\d{2}):(\d{2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/)
+  if (exif) {
+    const year = exif[1]
+    const monthIdx = Math.max(0, Math.min(11, parseInt(exif[2], 10) - 1))
+    const day = parseInt(exif[3], 10)
+    const hour24 = parseInt(exif[4], 10)
+    const minute = exif[5]
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    const hour12 = hour24 % 12 || 12
+    return `${EXIF_MONTHS[monthIdx]} ${day}, ${year} · ${hour12}:${minute} ${ampm}`
   }
+  return text
+}
 
+function parsePixelDimension(raw?: string): number | null {
+  if (!raw) return null
+  const match = normalizeScanDisplayText(raw).match(/(\d{2,5})/)
+  if (!match) return null
+  const n = parseInt(match[1], 10)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+function formatImageResolution(widthRaw?: string, heightRaw?: string): string | null {
+  const w = parsePixelDimension(widthRaw)
+  const h = parsePixelDimension(heightRaw)
+  if (w != null && h != null) return `${w} × ${h} px`
+  if (w != null) return `Width: ${w} px`
+  if (h != null) return `Height: ${h} px`
   return null
 }
 
-export function technicalProvenanceExplanation(meta?: ExifMetadata): string {
-  if (!meta) return 'File metadata was not available for this scan.'
-  const reasons = (meta.camera_provenance_reasons ?? []).map((r) => r.trim()).filter(Boolean)
+/** Admin-friendly camera and file fields extracted from stored EXIF (display only). */
+export function cameraFileDisplayRows(meta?: ExifMetadata): CameraFileDisplayRow[] {
+  if (!meta) return []
+
+  const fields = meta.fields ?? []
+  const rows: CameraFileDisplayRow[] = []
+
+  const make = findFieldValue(fields, ['Make'], ['camera make'])
+  const model = findFieldValue(fields, ['Model'], ['camera model'])
+  const captureRaw = findFieldValue(fields, ['DateTimeOriginal', 'DateTime', 'DateTimeDigitized'], [
+    'date taken',
+    'file date',
+    'digitized',
+    'capture',
+  ])
+  const software = findFieldValue(fields, ['Software'], ['software'])
+  const widthRaw = findFieldValue(
+    fields,
+    ['ImageWidth', 'ExifImageWidth', 'PixelXDimension'],
+    ['width', 'image width'],
+  )
+  const heightRaw = findFieldValue(
+    fields,
+    ['ImageHeight', 'ExifImageHeight', 'PixelYDimension', 'ImageLength'],
+    ['height', 'image height', 'image length'],
+  )
+
+  if (make) rows.push({ label: 'Camera Make', value: make })
+  if (model) rows.push({ label: 'Camera Model', value: model })
+  if (captureRaw) rows.push({ label: 'Capture Date', value: formatExifCaptureDate(captureRaw) })
+  const resolution = formatImageResolution(widthRaw, heightRaw)
+  if (resolution) rows.push({ label: 'Image Resolution', value: resolution })
+
+  const format = meta.format ? normalizeScanDisplayText(meta.format) : undefined
+  if (format && fieldHasValue(format)) rows.push({ label: 'File Format', value: format })
+  if (software) rows.push({ label: 'Camera Software', value: software })
+
+  return rows
+}
+
+/** Short manual-review reason for the integrity modal (display only). */
+export function integrityReviewReason(row: AiDetectionRow): string | null {
+  const meta = row.exif_metadata
+  const reasons =
+    meta?.camera_provenance_reasons
+      ?.map((r) => normalizeScanDisplayText(r))
+      .filter((r) => r.length > 0) ?? []
   if (reasons.length > 0) return reasons.join(' ')
-  const summary = meta.summary?.trim()
-  if (summary) return summary
-  if (!meta.has_exif) {
-    return 'Camera origin could not be verified because credible camera metadata is missing.'
+  const outcome = meta?.provenance_policy_outcome?.trim()
+  if (outcome) return outcome.replace(/_/g, ' ')
+  if (!MANUAL_REVIEW_STATUSES.includes(row.review_status)) return null
+  const band = visualAiRiskBand(row)
+  if (band === 'HIGH') return 'Elevated AI-generation risk'
+  if (band === 'SUSPICIOUS') return 'Suspicious AI-generation indicators'
+  return 'Manual review required'
+}
+
+/** Plain-language assessment summary for administrators (no raw EXIF strings). */
+export function integrityAssessmentSummary(row: AiDetectionRow): string {
+  const band = visualAiRiskBand(row)
+  const cam = cameraMetadataStatus(row.exif_metadata)
+  const outcome = (row.exif_metadata?.provenance_policy_outcome ?? '').trim().toLowerCase()
+  const status = row.review_status
+  const parts: string[] = []
+
+  if (band === 'HIGH') {
+    parts.push('The detector indicates high AI-generation risk.')
+  } else if (band === 'SUSPICIOUS') {
+    parts.push('The detector indicates elevated AI-generation risk.')
+  } else {
+    parts.push('The detector indicates low AI-generation risk.')
   }
-  return 'Review EXIF and upload context alongside automated checks.'
+
+  if (cam === 'Present') {
+    parts.push(
+      'Camera information is present in the file metadata, but this does not establish image authenticity.',
+    )
+  } else if (cam === 'Missing') {
+    parts.push('Camera-identifying metadata is missing or incomplete.')
+  } else {
+    parts.push('Camera metadata is limited or inconclusive.')
+  }
+
+  if (MANUAL_REVIEW_STATUSES.includes(status)) {
+    if (outcome === 'source_unverified') {
+      parts.push('Source verification could not be completed. Manual review is required.')
+    } else if (outcome === 'elevated_ai_risk' || outcome === 'high_ai_risk') {
+      parts.push('Manual review is required based on current risk and provenance policy.')
+    } else {
+      parts.push('Manual review is required.')
+    }
+  } else if (status === 'automated_low_ai_risk') {
+    parts.push('Automated routing marked this scan as low AI risk with acceptable provenance for the current policy.')
+  } else if (status === 'verified_human') {
+    parts.push('An administrator verified this media as human-made.')
+  } else if (status === 'confirmed_ai_generated') {
+    parts.push('An administrator confirmed AI-generated or manipulated content.')
+  } else if (status === 'reupload_requested') {
+    parts.push('An administrator requested a new upload from the member.')
+  }
+
+  return parts.join(' ')
 }
 
 export const PROBE_DETECTOR_DISPLAY_NAME = 'PROBE-DINOv2'
 
-export const AI_GENERATION_RISK_HINT =
-  'Low AI-generation risk does not prove human authenticity. Missing EXIF is not evidence of AI generation.'
+export const INTEGRITY_AI_DISCLAIMER = 'AI detection provides a risk estimate, not definitive proof.'

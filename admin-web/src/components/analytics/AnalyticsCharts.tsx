@@ -1,19 +1,16 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import {
   ChevronRight,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react'
 import { AdminCard } from '../AdminCard'
-import { AdminSelect } from '../AdminSelect'
 import { ActivityTypeIcon } from '../ActivityTypeIcon'
 import {
-  buildRequestsByMonth,
-  requestYears,
+  buildDocumentationActivitySeries,
   type ActivityItem,
-  type MonthlyRequestPoint,
+  type DocumentationActivityPoint,
   type OrgRank,
-  type QualityBucket,
 } from '../../lib/analyticsOverview'
 
 export function AnalyticsKpiCard({
@@ -88,60 +85,101 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 
-export function RequestsBarChart({ points, year }: { points: MonthlyRequestPoint[]; year: number }) {
-  const width = 720
-  const height = 300
-  const pad = { top: 28, right: 16, bottom: 40, left: 44 }
+function DocumentationActivityLegend() {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-4 gap-y-1 text-[11px] font-medium text-[var(--color-text-secondary)]">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" aria-hidden />
+        Requests
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-[#14b8a6]" aria-hidden />
+        Events Covered
+      </span>
+    </div>
+  )
+}
+
+function DocumentationActivityBarChart({ points }: { points: DocumentationActivityPoint[] }) {
+  const width = 640
+  const height = 210
+  const pad = { top: 18, right: 12, bottom: 30, left: 36 }
   const innerW = width - pad.left - pad.right
   const innerH = height - pad.top - pad.bottom
   const tickCount = 4
-  const step = niceAxisStep(Math.max(...points.map((p) => p.requests), 1), tickCount)
+  const dataMax = Math.max(...points.flatMap((p) => [p.requests, p.eventsCovered]), 1)
+  const step = niceAxisStep(dataMax, tickCount)
   const axisMax = step * tickCount
   const slot = innerW / Math.max(points.length, 1)
-  const barW = Math.min(36, slot * 0.56)
+  const groupW = Math.min(slot * 0.76, 72)
+  const barW = Math.max(10, (groupW - 6) / 2)
   const now = new Date()
-  const currentMonth = now.getFullYear() === year ? now.getMonth() : -1
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+
+  const barHeight = (value: number) => (value / axisMax) * innerH
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="docActivityRequests" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#2563eb" />
+        </linearGradient>
+        <linearGradient id="docActivityEvents" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#5eead4" />
+          <stop offset="100%" stopColor="#0d9488" />
+        </linearGradient>
+      </defs>
       {Array.from({ length: tickCount + 1 }, (_, i) => {
         const y = pad.top + innerH * (1 - i / tickCount)
         return (
           <g key={i}>
             <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e8edf2" strokeWidth="1" />
-            <text x={pad.left - 10} y={y + 5} textAnchor="end" fill="#64748b" fontSize="13" fontWeight="500">
+            <text x={pad.left - 8} y={y + 4} textAnchor="end" fill="#94a3b8" fontSize="11" fontWeight="500">
               {step * i}
             </text>
           </g>
         )
       })}
       {points.map((p, i) => {
+        const groupX = pad.left + slot * i + (slot - groupW) / 2
         const cx = pad.left + slot * i + slot / 2
-        const barH = (p.requests / axisMax) * innerH
-        const y = pad.top + innerH - barH
-        const isCurrent = p.month === currentMonth
+        const reqH = barHeight(p.requests)
+        const evtH = barHeight(p.eventsCovered)
+        const reqY = pad.top + innerH - reqH
+        const evtY = pad.top + innerH - evtH
+        const isCurrent = p.month === currentMonth && p.year === currentYear
+        const reqX = groupX
+        const evtX = groupX + barW + 6
         return (
-          <g key={p.month} className="transition-opacity hover:opacity-80">
+          <g key={`${p.year}-${p.month}`} className="transition-opacity hover:opacity-90">
             <title>
-              {`${p.label} ${year}: ${plural(p.requests, 'request')}${
-                p.requests > 0 ? ` from ${plural(p.requesters, 'requester')}` : ''
-              }`}
+              {`${p.label}: ${plural(p.requests, 'request')}, ${plural(p.eventsCovered, 'completed event')}`}
             </title>
             <rect x={pad.left + slot * i} y={pad.top} width={slot} height={innerH} fill="transparent" />
             {p.requests > 0 && (
               <>
-                <rect x={cx - barW / 2} y={y} width={barW} height={barH} rx={5} fill="#0052d4" />
-                <text x={cx} y={y - 7} textAnchor="middle" fill="#1e293b" fontSize="13" fontWeight="700">
+                <rect x={reqX} y={reqY} width={barW} height={reqH} rx={4} fill="url(#docActivityRequests)" />
+                <text x={reqX + barW / 2} y={reqY - 5} textAnchor="middle" fill="#334155" fontSize="11" fontWeight="700">
                   {p.requests}
+                </text>
+              </>
+            )}
+            {p.eventsCovered > 0 && (
+              <>
+                <rect x={evtX} y={evtY} width={barW} height={evtH} rx={4} fill="url(#docActivityEvents)" />
+                <text x={evtX + barW / 2} y={evtY - 5} textAnchor="middle" fill="#334155" fontSize="11" fontWeight="700">
+                  {p.eventsCovered}
                 </text>
               </>
             )}
             <text
               x={cx}
-              y={height - 14}
+              y={height - 10}
               textAnchor="middle"
               fill={isCurrent ? '#0052d4' : '#64748b'}
-              fontSize="13"
+              fontSize="12"
               fontWeight={isCurrent ? '700' : '500'}
             >
               {p.label}
@@ -153,97 +191,110 @@ export function RequestsBarChart({ points, year }: { points: MonthlyRequestPoint
   )
 }
 
-export function RequestsByMonthCard({ requests }: { requests: Record<string, unknown>[] }) {
-  const years = useMemo(() => requestYears(requests), [requests])
-  const [year, setYear] = useState(() => years[0] ?? new Date().getFullYear())
-  const { points, totalRequests, totalRequesters } = useMemo(
-    () => buildRequestsByMonth(requests, year),
-    [requests, year],
-  )
+export function DocumentationActivityCard({
+  requests,
+  events,
+  className = '',
+}: {
+  requests: Record<string, unknown>[]
+  events: Record<string, unknown>[]
+  className?: string
+}) {
+  const points = useMemo(() => buildDocumentationActivitySeries(requests, events, 6), [requests, events])
 
   return (
     <AdminCard
-      padding="md"
-      bodyClassName="flex h-full min-h-0 flex-col"
-      className={`h-full ${CHART_PAIR_HEIGHT}`}
+      padding="none"
+      bodyClassName="flex min-h-0 flex-1 flex-col"
+      className={`flex h-full min-w-0 flex-col overflow-hidden ${className}`.trim()}
     >
-      <div className="mb-1 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">Event Requests by Month</h3>
-          <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
-            {totalRequests > 0
-              ? `${plural(totalRequests, 'request')} from ${plural(totalRequesters, 'requester')} in ${year}`
-              : `No requests submitted in ${year}`}
+      <div className="flex items-start justify-between gap-2 px-4 pb-1 pt-3.5 sm:px-5">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-extrabold text-[var(--color-text-primary)] sm:text-base">
+            Documentation Activity
+          </h3>
+          <p className="mt-0.5 text-[11px] leading-snug text-[var(--color-text-secondary)] sm:text-xs">
+            Monthly documentation requests and completed events.
           </p>
         </div>
-        <AdminSelect
-          value={String(year)}
-          onChange={(v) => setYear(Number(v))}
-          aria-label="Year"
-          buttonClassName="rounded-lg py-1.5 pl-3 pr-2 text-xs font-semibold"
-          options={years.map((y) => ({ value: String(y), label: String(y) }))}
-        />
+        <DocumentationActivityLegend />
       </div>
-      <div className="min-h-0 w-full flex-1 pt-2">
-        <RequestsBarChart points={points} year={year} />
+      <div className="min-h-0 flex-1 px-2 pb-3 pt-0 sm:px-4 sm:pb-4">
+        <DocumentationActivityBarChart points={points} />
       </div>
     </AdminCard>
   )
 }
 
-function QualityDonutLegend({
-  segments,
-  total,
-}: {
-  segments: { value: number; color: string; label: string }[]
-  total: number
-}) {
-  const safeTotal = total > 0 ? total : segments.reduce((s, x) => s + x.value, 0)
+const MEDIA_EVAL_PHOTO_COLOR = '#38bdf8'
+const MEDIA_EVAL_VIDEO_COLOR = '#a78bfa'
+
+function MediaEvaluationOverviewLegend({ photos, videos }: { photos: number; videos: number }) {
+  const rows = [
+    { label: 'Photos', value: photos, color: MEDIA_EVAL_PHOTO_COLOR },
+    { label: 'Videos', value: videos, color: MEDIA_EVAL_VIDEO_COLOR },
+  ]
 
   return (
-    <div className="min-w-0 flex-1">
-      {segments.map((seg, i) => {
-        const pct = safeTotal > 0 ? (seg.value / safeTotal) * 100 : 0
-        return (
-          <div
-            key={seg.label}
-            className={[
-              'flex items-center justify-between gap-3 py-3',
-              i < segments.length - 1 ? 'border-b border-[#eef2f6]' : '',
-            ].join(' ')}
-          >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: seg.color }} />
-              <span className="truncate text-sm text-[var(--color-text-secondary)]">{seg.label}</span>
-            </div>
-            <span className="shrink-0 text-sm tabular-nums text-[var(--color-text-primary)]">
-              <span className="font-bold">{pct.toFixed(1)}%</span>{' '}
-              <span className="text-[var(--color-text-secondary)]">({seg.value.toLocaleString()})</span>
-            </span>
+    <div className="flex min-w-0 flex-1 flex-col justify-center gap-5 py-1">
+      {rows.map((row) => (
+        <div key={row.label} className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+            <span className="text-sm text-[var(--color-text-secondary)]">{row.label}</span>
           </div>
-        )
-      })}
+          <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--color-text-primary)]">
+            {row.value.toLocaleString()}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
 
-function QualityDonutVisual({ segments, total }: { segments: { value: number; color: string }[]; total: number }) {
-  const size = 168
+function MediaEvaluationOverviewDonut({ photos, videos }: { photos: number; videos: number }) {
+  const size = 176
   const cx = size / 2
   const cy = size / 2
-  const r = 62
-  const stroke = 24
+  const r = 58
+  const stroke = 22
   const circ = 2 * Math.PI * r
+  const total = photos + videos
+  const segments =
+    total > 0
+      ? [
+          { value: photos, color: MEDIA_EVAL_PHOTO_COLOR },
+          { value: videos, color: MEDIA_EVAL_VIDEO_COLOR },
+        ]
+      : []
+
   let offset = 0
-  const safeTotal = total > 0 ? total : segments.reduce((s, x) => s + x.value, 0)
+  const pctLabels: { x: number; y: number; text: string }[] = []
+
+  for (const seg of segments) {
+    if (seg.value <= 0 || total <= 0) continue
+    const len = (seg.value / total) * circ
+    const startAngle = (offset / circ) * 360 - 90
+    const sweep = (len / circ) * 360
+    const midRad = ((startAngle + sweep / 2) * Math.PI) / 180
+    const labelR = r + stroke / 2 + 14
+    pctLabels.push({
+      x: cx + labelR * Math.cos(midRad),
+      y: cy + labelR * Math.sin(midRad) + 4,
+      text: `${Math.round((seg.value / total) * 100)}%`,
+    })
+    offset += len
+  }
+
+  offset = 0
 
   return (
-    <div className="relative mx-auto shrink-0 lg:mx-0">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <div className="relative mx-auto shrink-0 sm:mx-0">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
         {segments.map((seg, idx) => {
-          if (seg.value <= 0 || safeTotal <= 0) return null
-          const len = (seg.value / safeTotal) * circ
+          if (seg.value <= 0 || total <= 0) return null
+          const len = (seg.value / total) * circ
           const el = (
             <circle
               key={idx}
@@ -253,6 +304,7 @@ function QualityDonutVisual({ segments, total }: { segments: { value: number; co
               fill="none"
               stroke={seg.color}
               strokeWidth={stroke}
+              strokeLinecap="round"
               strokeDasharray={`${len} ${circ - len}`}
               strokeDashoffset={-offset}
               transform={`rotate(-90 ${cx} ${cy})`}
@@ -261,12 +313,25 @@ function QualityDonutVisual({ segments, total }: { segments: { value: number; co
           offset += len
           return el
         })}
+        {pctLabels.map((lbl, i) => (
+          <text
+            key={i}
+            x={lbl.x}
+            y={lbl.y}
+            textAnchor="middle"
+            fill="#64748b"
+            fontSize="11"
+            fontWeight="600"
+          >
+            {lbl.text}
+          </text>
+        ))}
       </svg>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-        <div className="text-[22px] font-extrabold leading-none text-[var(--color-text-primary)]">
-          {safeTotal.toLocaleString()}
+        <div className="text-2xl font-extrabold leading-none tabular-nums text-[var(--color-text-primary)]">
+          {total.toLocaleString()}
         </div>
-        <div className="mt-1 text-xs font-medium text-[var(--color-text-secondary)]">Total</div>
+        <div className="mt-1 text-xs font-medium text-[var(--color-text-secondary)]">Evaluations</div>
       </div>
     </div>
   )
@@ -484,15 +549,17 @@ function ActivityIcon({ kind, accentColor }: { kind: ActivityItem['icon']; accen
 export function RecentActivityCard({
   items,
   onViewAll,
+  className,
 }: {
   items: ActivityItem[]
   onViewAll?: () => void
+  className?: string
 }) {
   return (
     <AdminCard
       padding="sm"
       bodyClassName="flex h-full min-h-0 flex-col"
-      className={`h-full ${BOTTOM_ROW_HEIGHT}`}
+      className={`h-full min-w-0 ${className ?? BOTTOM_ROW_HEIGHT}`}
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">Recent Activity</h3>
@@ -526,19 +593,249 @@ export function RecentActivityCard({
   )
 }
 
-export function QualityDonutCard({ buckets, total }: { buckets: QualityBucket[]; total: number }) {
-  const segments = buckets.map((b) => ({ value: b.count, color: b.color, label: b.label }))
+const MEMBER_PARTICIPATED_COLOR = '#0052d4'
+const MEMBER_NO_ACTIVITY_COLOR = '#e2e8f0'
+
+function ParticipationDonutChart({
+  primary,
+  secondary,
+  centerValue,
+  centerLabel,
+  primaryColor,
+  secondaryColor,
+}: {
+  primary: number
+  secondary: number
+  centerValue: number
+  centerLabel: string
+  primaryColor: string
+  secondaryColor: string
+}) {
+  const size = 176
+  const cx = size / 2
+  const cy = size / 2
+  const r = 58
+  const stroke = 22
+  const circ = 2 * Math.PI * r
+  const total = primary + secondary
+  const segments =
+    total > 0
+      ? [
+          { value: primary, color: primaryColor },
+          { value: secondary, color: secondaryColor },
+        ]
+      : []
+
+  let offset = 0
+  const pctLabels: { x: number; y: number; text: string }[] = []
+
+  for (const seg of segments) {
+    if (seg.value <= 0 || total <= 0) continue
+    const len = (seg.value / total) * circ
+    const startAngle = (offset / circ) * 360 - 90
+    const sweep = (len / circ) * 360
+    const midRad = ((startAngle + sweep / 2) * Math.PI) / 180
+    const labelR = r + stroke / 2 + 14
+    pctLabels.push({
+      x: cx + labelR * Math.cos(midRad),
+      y: cy + labelR * Math.sin(midRad) + 4,
+      text: `${Math.round((seg.value / total) * 100)}%`,
+    })
+    offset += len
+  }
+
+  offset = 0
+
+  return (
+    <div className="relative mx-auto shrink-0 sm:mx-0">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f8fafc" strokeWidth={stroke} />
+        {segments.map((seg, idx) => {
+          if (seg.value <= 0 || total <= 0) return null
+          const len = (seg.value / total) * circ
+          const el = (
+            <circle
+              key={idx}
+              cx={cx}
+              cy={cy}
+              r={r}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth={stroke}
+              strokeDasharray={`${len} ${circ - len}`}
+              strokeDashoffset={-offset}
+              transform={`rotate(-90 ${cx} ${cy})`}
+            />
+          )
+          offset += len
+          return el
+        })}
+        {pctLabels.map((lbl, i) => (
+          <text
+            key={i}
+            x={lbl.x}
+            y={lbl.y}
+            textAnchor="middle"
+            fill="#64748b"
+            fontSize="11"
+            fontWeight="600"
+          >
+            {lbl.text}
+          </text>
+        ))}
+      </svg>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+        <div className="text-2xl font-extrabold leading-none tabular-nums text-[var(--color-text-primary)]">
+          {centerValue.toLocaleString()}
+        </div>
+        <div className="mt-1 text-xs font-medium text-[var(--color-text-secondary)]">{centerLabel}</div>
+      </div>
+    </div>
+  )
+}
+
+function EventsByCategoryBars({ categories }: { categories: { label: string; count: number }[] }) {
+  const max = Math.max(...categories.map((c) => c.count), 1)
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 py-1">
+      {categories.map((row) => {
+        const widthPct = row.count > 0 ? Math.max(8, (row.count / max) * 100) : 0
+        return (
+          <div key={row.label} className="grid grid-cols-[minmax(0,7.5rem)_1fr_auto] items-center gap-x-2 gap-y-0 sm:grid-cols-[minmax(0,8.5rem)_1fr_auto] sm:gap-x-3">
+            <span className="truncate text-right text-[11px] font-medium leading-tight text-[var(--color-text-secondary)] sm:text-xs">
+              {row.label}
+            </span>
+            <div className="min-w-0 h-2.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)] sm:h-3">
+              {row.count > 0 ? (
+                <div
+                  className="h-full rounded-full bg-[#38bdf8]"
+                  style={{ width: `${widthPct}%` }}
+                />
+              ) : null}
+            </div>
+            <span className="w-6 shrink-0 text-right text-xs font-bold tabular-nums text-[var(--color-text-primary)] sm:w-7">
+              {row.count}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function EventsByCategoryCard({
+  categories,
+  className,
+}: {
+  categories: { label: string; count: number }[]
+  className?: string
+}) {
+  return (
+    <AdminCard
+      padding="none"
+      bodyClassName="flex min-h-0 flex-1 flex-col"
+      className={`flex h-full min-w-0 flex-col overflow-hidden ${className ?? CHART_PAIR_HEIGHT}`}
+    >
+      <div className="px-4 pb-1 pt-3.5 sm:px-5">
+        <h3 className="text-sm font-extrabold text-[var(--color-text-primary)] sm:text-base">
+          Events by Category
+        </h3>
+        <p className="mt-0.5 text-[11px] leading-snug text-[var(--color-text-secondary)] sm:text-xs">
+          Distribution of completed events.
+        </p>
+      </div>
+      <div className="flex min-h-0 flex-1 px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
+        <EventsByCategoryBars categories={categories} />
+      </div>
+    </AdminCard>
+  )
+}
+
+export function MemberParticipationCard({
+  stats,
+  className,
+}: {
+  stats: { totalMembers: number; participated: number; noParticipation: number }
+  className?: string
+}) {
+  const rows = [
+    { label: 'Participated', value: stats.participated, color: MEMBER_PARTICIPATED_COLOR },
+    {
+      label: 'No recorded participation',
+      value: stats.noParticipation,
+      color: '#94a3b8',
+    },
+  ]
 
   return (
     <AdminCard
-      padding="md"
-      bodyClassName="flex h-full min-h-0 flex-col"
-      className={`h-full ${CHART_PAIR_HEIGHT}`}
+      padding="none"
+      bodyClassName="flex min-h-0 flex-1 flex-col"
+      className={`flex h-full min-w-0 flex-col overflow-hidden ${className ?? CHART_PAIR_HEIGHT}`}
     >
-      <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">Evaluations by Quality Level</h3>
-      <div className="mt-4 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 sm:flex-row sm:items-center sm:gap-5">
-        <QualityDonutVisual segments={segments} total={total} />
-        <QualityDonutLegend segments={segments} total={total} />
+      <div className="px-4 pb-1 pt-3.5 sm:px-5">
+        <h3 className="text-sm font-extrabold text-[var(--color-text-primary)] sm:text-base">
+          Member Participation
+        </h3>
+        <p className="mt-0.5 text-[11px] leading-snug text-[var(--color-text-secondary)] sm:text-xs">
+          Members with and without recorded documentation activity.
+        </p>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 pb-4 sm:flex-row sm:items-center sm:gap-6 sm:px-5">
+        <ParticipationDonutChart
+          primary={stats.participated}
+          secondary={stats.noParticipation}
+          centerValue={stats.totalMembers}
+          centerLabel="Total Members"
+          primaryColor={MEMBER_PARTICIPATED_COLOR}
+          secondaryColor={MEMBER_NO_ACTIVITY_COLOR}
+        />
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-5 py-1">
+          {rows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                <span className="text-sm text-[var(--color-text-secondary)]">{row.label}</span>
+              </div>
+              <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--color-text-primary)]">
+                {row.value.toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </AdminCard>
+  )
+}
+
+/** Photos vs videos among evaluations in the reporting period (overview pair card). */
+export function MediaEvaluationOverviewCard({
+  photos,
+  videos,
+  className,
+}: {
+  photos: number
+  videos: number
+  className?: string
+}) {
+  return (
+    <AdminCard
+      padding="none"
+      bodyClassName="flex min-h-0 flex-1 flex-col"
+      className={`flex h-full min-w-0 flex-col overflow-hidden ${className ?? CHART_PAIR_HEIGHT}`}
+    >
+      <div className="px-4 pb-1 pt-3.5 sm:px-5">
+        <h3 className="text-sm font-extrabold text-[var(--color-text-primary)] sm:text-base">
+          Media Evaluation Overview
+        </h3>
+        <p className="mt-0.5 text-[11px] leading-snug text-[var(--color-text-secondary)] sm:text-xs">
+          Evaluated photos and videos.
+        </p>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 pb-4 sm:flex-row sm:items-center sm:gap-6 sm:px-5">
+        <MediaEvaluationOverviewDonut photos={photos} videos={videos} />
+        <MediaEvaluationOverviewLegend photos={photos} videos={videos} />
       </div>
     </AdminCard>
   )

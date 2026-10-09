@@ -1,11 +1,10 @@
 import {
   accountStatusKey,
   formatAccountDate,
-  initialsFromName,
   partitionAccounts,
   type AdminAccountUser,
 } from '../../lib/accountManagement'
-import { StatusBadge } from './AccountBadges'
+import { AccountUserAvatar, StatusBadge } from './AccountBadges'
 import { AccountActionsMenu } from './AccountActionsMenu'
 
 interface Props {
@@ -34,6 +33,13 @@ function AccountsTable({
   return (
     <div className="account-mgmt__table-wrap">
       <table className="account-mgmt__table">
+        <colgroup>
+          <col className="account-mgmt__col-name" />
+          <col className="account-mgmt__col-email" />
+          <col className="account-mgmt__col-status" />
+          <col className="account-mgmt__col-date" />
+          <col className="account-mgmt__col-actions" />
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th>
@@ -48,17 +54,15 @@ function AccountsTable({
             <tr key={u.user_id} data-user-id={u.user_id}>
               <td>
                 <div className="account-mgmt__name-cell">
-                  <span className="account-mgmt__avatar" aria-hidden>
-                    {initialsFromName(u.name) || '?'}
-                  </span>
+                  <AccountUserAvatar user={u} />
                   <span className="account-mgmt__name">{u.name}</span>
                 </div>
               </td>
               <td className="account-mgmt__email">{u.email}</td>
-              <td>
+              <td className="account-mgmt__status-cell">
                 <StatusBadge statusKey={accountStatusKey(u)} />
               </td>
-              <td>{formatAccountDate(u.created_at)}</td>
+              <td className="account-mgmt__date-cell">{formatAccountDate(u.created_at)}</td>
               <td className="account-mgmt__actions-cell">
                 <AccountActionsMenu
                   user={u}
@@ -86,10 +90,10 @@ export function AccountsTableSection(props: Props) {
   const sections: { title: string; rows: AdminAccountUser[] }[] = []
 
   if (administrators.length) {
-    sections.push({ title: 'Administrators', rows: administrators })
+    sections.push({ title: 'Administrator', rows: administrators })
   }
   if (members.length) {
-    sections.push({ title: 'Documentation Members', rows: members })
+    sections.push({ title: 'ACCESS Members', rows: members })
   }
   if (requestors.length) {
     sections.push({ title: 'Requestors', rows: requestors })
@@ -102,8 +106,12 @@ export function AccountsTableSection(props: Props) {
       {sections.map((section) => (
         <section key={section.title} className="account-mgmt__card account-mgmt__section">
           <div className="account-mgmt__section-head">
-            <h2 className="account-mgmt__section-title">{section.title}</h2>
-            <span className="account-mgmt__section-count">{section.rows.length}</span>
+            <h2 className="account-mgmt__section-title">
+              {section.title}
+              <span className="account-mgmt__section-count" aria-label={`${section.rows.length} users`}>
+                ({section.rows.length})
+              </span>
+            </h2>
           </div>
           <AccountsTable {...props} rows={section.rows} />
         </section>

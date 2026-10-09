@@ -75,7 +75,12 @@ export function parseAdminAccountUser(raw: Record<string, unknown>): AdminAccoun
     removed_at: raw.removed_at != null ? String(raw.removed_at) : null,
     student_id: raw.student_id != null ? String(raw.student_id) : null,
     contact_number: raw.contact_number != null ? String(raw.contact_number) : null,
-    profile_image: raw.profile_image != null ? String(raw.profile_image) : null,
+    profile_image:
+      raw.profile_image != null && String(raw.profile_image).trim()
+        ? String(raw.profile_image).trim()
+        : raw.profileImage != null && String(raw.profileImage).trim()
+          ? String(raw.profileImage).trim()
+          : null,
     last_active: raw.last_active != null ? String(raw.last_active) : null,
     assigned_tasks: raw.assigned_tasks != null ? Number(raw.assigned_tasks) : undefined,
     completed_tasks: raw.completed_tasks != null ? Number(raw.completed_tasks) : undefined,

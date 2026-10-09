@@ -1,9 +1,37 @@
+import { useState } from 'react'
+import { mediaUrl } from '../../api/media'
 import {
   accountRoleLabel,
+  initialsFromName,
   statusLabel,
   type AccountRole,
   type AccountStatusKey,
+  type AdminAccountUser,
 } from '../../lib/accountManagement'
+
+/** Table/profile avatar: show uploaded photo when available, else initials tile. */
+export function AccountUserAvatar({ user }: { user: AdminAccountUser }) {
+  const [imgFailed, setImgFailed] = useState(false)
+  const avatarUrl = mediaUrl(user.profile_image)
+  const initials = initialsFromName(user.name)
+
+  if (avatarUrl && !imgFailed) {
+    return (
+      <img
+        src={avatarUrl}
+        alt=""
+        className="account-mgmt__avatar account-mgmt__avatar--img"
+        onError={() => setImgFailed(true)}
+      />
+    )
+  }
+
+  return (
+    <span className="account-mgmt__avatar" aria-hidden>
+      {initials || '?'}
+    </span>
+  )
+}
 
 export function RoleBadge({ role }: { role: AccountRole | string }) {
   const cls =
@@ -22,5 +50,7 @@ export function StatusBadge({ statusKey }: { statusKey: AccountStatusKey }) {
       : statusKey === 'suspended'
         ? 'account-mgmt__badge--suspended'
         : 'account-mgmt__badge--inactive'
-  return <span className={`account-mgmt__badge ${cls}`}>{statusLabel(statusKey)}</span>
+  return (
+    <span className={`account-mgmt__badge account-mgmt__status-badge ${cls}`}>{statusLabel(statusKey)}</span>
+  )
 }

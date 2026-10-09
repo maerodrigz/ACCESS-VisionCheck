@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Archive, ChevronDown, Info, Loader2, Maximize2 } from 'lucide-react'
+import { Archive, ChevronDown, Loader2, Maximize2 } from 'lucide-react'
 import { DrawerBackButton } from '../AdminBackButton'
 import { AdminConfirmDialog } from '../AdminConfirmDialog'
 import { MediaLightbox } from '../MediaLightbox'
@@ -13,7 +13,10 @@ import { adminMediaStreamUrl, isVideoMediaPath, mediaUrl } from '../../api/media
 import { MediaPreviewContent } from '../media-library/MediaPreviewContent'
 import { formatScannedDate } from '../../lib/aiDetection'
 import {
+  cameraMetadataStatus,
+  integrityAssessmentSummary,
   integrityReviewReason,
+  INTEGRITY_AI_DISCLAIMER,
   visualAiRiskBand,
   visualAiRiskColor,
   visualAiRiskSummaryLabel,
@@ -199,6 +202,8 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
   const reviewReason = integrityReviewReason(row)
   const visualBand = visualAiRiskBand(row)
   const visualRiskColor = visualAiRiskColor(visualBand)
+  const cameraMeta = cameraMetadataStatus(row.exif_metadata)
+  const assessmentSummary = integrityAssessmentSummary(row)
 
   return (
     <>
@@ -266,7 +271,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                         <span>{visualAiRiskSummaryLabel(row)}</span>
                       </span>
                     </AssessmentRow>
-                    <AssessmentRow label="Overall Review Status">
+                    <AssessmentRow label="Review Status">
                       <ReviewStatusBadge status={row.review_status} />
                     </AssessmentRow>
                     {reviewReason ? (
@@ -276,13 +281,21 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                         </span>
                       </AssessmentRow>
                     ) : null}
+                    <AssessmentRow label="Camera Metadata">{cameraMeta}</AssessmentRow>
                     <AssessmentRow label="Scan Date">{formatScannedDate(row.scanned_at)}</AssessmentRow>
                   </dl>
 
-                  <p className="mt-2 flex gap-1.5 text-[11px] leading-snug text-[var(--color-text-muted)]">
-                    <Info size={12} className="mt-0.5 shrink-0" />
-                    Automated detection is an indicator, not proof. Review the media and supporting evidence before
-                    deciding.
+                  <div className="mt-2 rounded-lg bg-[var(--color-surface-muted)] px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                      Assessment Summary
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-primary)]">
+                      {assessmentSummary}
+                    </p>
+                  </div>
+
+                  <p className="mt-2 text-[11px] leading-snug text-[var(--color-text-muted)]">
+                    {INTEGRITY_AI_DISCLAIMER}
                   </p>
                 </section>
 

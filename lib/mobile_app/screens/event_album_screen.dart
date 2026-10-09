@@ -663,169 +663,142 @@ class _MemberEventDetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final padding = mobilePagePaddingOf(context);
     final compact = MediaQuery.sizeOf(context).width < 360;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(padding, compact ? 4 : 6, padding, compact ? 6 : 8),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-          border: Border.all(color: kBorder),
-          boxShadow: [
-            BoxShadow(
-              color: kMemberDashboardAccent.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+    return ColoredBox(
+      color: kSurface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Top bar: back arrow · event name · optional spacer ───────────
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              compact ? 8 : 10,
+              compact ? 6 : 8,
+              compact ? 8 : 10,
+              0,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                height: 3,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [kMemberDashboardAccent, Color(0xFF4DD4EE)],
+            child: Row(
+              children: [
+                // Back button
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onBack,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.arrow_back_rounded,
+                        size: compact ? 22 : 24,
+                        color: kTextPrimary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  compact ? 10 : 12,
-                  compact ? 10 : 12,
-                  compact ? 12 : 14,
-                  compact ? 12 : 14,
+                const SizedBox(width: 4),
+                // Event name — fills available space, truncates
+                Expanded(
+                  child: Text(
+                    album.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: kTextPrimary,
+                      fontSize: compact ? 16 : 17,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+          ),
+
+          // ── Compact meta block ────────────────────────────────────────────
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              compact ? 14 : 16,
+              compact ? 10 : 12,
+              compact ? 14 : 16,
+              compact ? 12 : 14,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date row
+                Row(
                   children: [
-                    _EventDetailBackButton(onBack: onBack, compact: compact),
-                    SizedBox(width: compact ? 10 : 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            album.name,
-                            style: memberDashboardSectionTitleStyle.copyWith(
-                              fontSize: compact ? 17 : 18,
-                              height: 1.2,
-                            ),
-                          ),
-                          SizedBox(height: compact ? 4 : 6),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_outlined,
-                                size: compact ? 13 : 14,
-                                color: kMemberDashboardAccent,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  album.dateLabel,
-                                  style: memberDashboardMetaStyle.copyWith(
-                                    fontSize: compact ? 12 : 13,
-                                    color: kTextSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (album.eventCategory != null) ...[
-                            SizedBox(height: compact ? 6 : 8),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: compact ? 7 : 8,
-                                  vertical: compact ? 3 : 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: kMemberDashboardAccentLight,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: kMemberDashboardAccent.withValues(alpha: 0.2),
-                                  ),
-                                ),
-                                child: Text(
-                                  album.eventCategory!,
-                                  style: memberDashboardMetaStyle.copyWith(
-                                    fontSize: compact ? 11 : 12,
-                                    color: kMemberDashboardTitle,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                          if (description != null) ...[
-                            SizedBox(height: compact ? 8 : 10),
-                            Text(
-                              description!,
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                              style: memberDashboardBodyStyle.copyWith(
-                                fontSize: compact ? 12 : 13,
-                                height: 1.45,
-                                color: kTextSecondary,
-                              ),
-                            ),
-                          ],
-                          SizedBox(height: compact ? 8 : 10),
-                          _EventDetailMediaSummary(album: album, compact: compact),
-                        ],
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: compact ? 13 : 14,
+                      color: kAccent,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      album.dateLabel,
+                      style: TextStyle(
+                        color: kTextSecondary,
+                        fontSize: compact ? 12 : 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
-class _EventDetailBackButton extends StatelessWidget {
-  const _EventDetailBackButton({
-    required this.onBack,
-    required this.compact,
-  });
+                // Category badge
+                if (album.eventCategory != null) ...[
+                  SizedBox(height: compact ? 8 : 10),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 8 : 9,
+                      vertical: compact ? 3 : 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kAccent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: kAccent.withValues(alpha: 0.2)),
+                    ),
+                    child: Text(
+                      album.eventCategory!,
+                      style: TextStyle(
+                        color: kAccent,
+                        fontSize: compact ? 11 : 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
 
-  final VoidCallback onBack;
-  final bool compact;
+                // Description
+                if (description != null) ...[
+                  SizedBox(height: compact ? 8 : 10),
+                  Text(
+                    description!,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: kTextSecondary,
+                      fontSize: compact ? 12 : 13,
+                      height: 1.45,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
 
-  @override
-  Widget build(BuildContext context) {
-    final size = compact ? 38.0 : 40.0;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onBack,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: kMemberDashboardAccentLight,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: kMemberDashboardAccent.withValues(alpha: 0.2),
+                // Media count summary
+                SizedBox(height: compact ? 10 : 12),
+                _EventDetailMediaSummary(album: album, compact: compact),
+              ],
             ),
           ),
-          child: Icon(
-            Icons.arrow_back_rounded,
-            color: kMemberDashboardAccent,
-            size: compact ? 19 : 20,
-          ),
-        ),
+
+          // Thin divider separating header from filter tabs
+          Divider(height: 1, thickness: 1, color: kBorder.withValues(alpha: 0.7)),
+        ],
       ),
     );
   }
@@ -842,63 +815,40 @@ class _EventDetailMediaSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        if (album.photoCount > 0)
-          _SummaryChip(
-            icon: Icons.photo_outlined,
-            label: '${album.photoCount} Photo${album.photoCount == 1 ? '' : 's'}',
-            compact: compact,
-          ),
-        if (album.photoCount > 0 && album.videoCount > 0)
-          Text('•', style: memberDashboardMetaStyle.copyWith(color: kTextSecondary)),
-        if (album.videoCount > 0)
-          _SummaryChip(
-            icon: Icons.videocam_outlined,
-            label: '${album.videoCount} Video${album.videoCount == 1 ? '' : 's'}',
-            compact: compact,
-            accent: kMemberDashboardTitle,
-          ),
-      ],
-    );
-  }
-}
+    final parts = <String>[];
+    if (album.photoCount > 0) {
+      parts.add('${album.photoCount} Photo${album.photoCount == 1 ? '' : 's'}');
+    }
+    if (album.videoCount > 0) {
+      parts.add('${album.videoCount} Video${album.videoCount == 1 ? '' : 's'}');
+    }
+    if (parts.isEmpty) return const SizedBox.shrink();
+    final label = parts.join(' • ');
 
-class _SummaryChip extends StatelessWidget {
-  const _SummaryChip({
-    required this.icon,
-    required this.label,
-    required this.compact,
-    this.accent = kMemberDashboardAccent,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool compact;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: compact ? 14 : 15, color: accent),
-        const SizedBox(width: 4),
+        Icon(
+          Icons.photo_library_outlined,
+          size: compact ? 14 : 15,
+          color: kAccent,
+        ),
+        const SizedBox(width: 5),
         Text(
           label,
-          style: dashText(TextStyle(
-            color: accent,
+          style: TextStyle(
+            color: kAccent,
             fontSize: compact ? 12 : 13,
             fontWeight: FontWeight.w700,
-          )),
+            height: 1.2,
+          ),
         ),
       ],
     );
   }
 }
+
+
+
 
 class _EventDetailFilterTabs extends StatelessWidget {
   const _EventDetailFilterTabs({
@@ -927,7 +877,7 @@ class _EventDetailFilterTabs extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 360;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(padding, 4, padding, compact ? 8 : 10),
+      padding: EdgeInsets.fromLTRB(padding, 6, padding, compact ? 8 : 10),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: kSurface,

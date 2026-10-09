@@ -490,7 +490,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             title: 'Recent Events',
                             count: recentAlbums.length,
                             searching: false,
-                            subtitle: 'Last $kGalleryRecentWindowDays days',
                           ),
                         ),
                         SliverToBoxAdapter(
@@ -592,14 +591,12 @@ class _GalleryListSectionHeader extends StatelessWidget {
     required this.title,
     required this.count,
     required this.searching,
-    this.subtitle,
   });
 
   final double padding;
   final String title;
   final int count;
   final bool searching;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -636,16 +633,6 @@ class _GalleryListSectionHeader extends StatelessWidget {
               ),
             ],
           ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 3),
-            Text(
-              subtitle!,
-              style: memberDashboardMetaStyle.copyWith(
-                fontSize: compact ? 10.5 : 11,
-                height: 1.3,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1589,74 +1576,100 @@ class _GalleryMiniHero extends StatelessWidget {
         _ => 'all media',
       };
 
+  String _buildSummary() {
+    if (albumCount == 0) {
+      if (searching) return 'No albums match your search';
+      if (myWorkOnly) return 'No albums with your work';
+      return 'No event albums yet';
+    }
+    final parts = <String>[];
+    parts.add('$albumCount Album${albumCount == 1 ? '' : 's'}');
+    if (photoCount > 0) parts.add('$photoCount Photo${photoCount == 1 ? '' : 's'}');
+    if (videoCount > 0) parts.add('$videoCount Video${videoCount == 1 ? '' : 's'}');
+    final base = parts.join(' • ');
+    return filter != _GalleryFilter.all ? '$base ($_filterLabel)' : base;
+  }
+
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final summary = _buildSummary();
+    final hasSummary = albumCount > 0;
 
-    final detail = albumCount == 0
-        ? (searching
-            ? 'No albums match your search'
-            : myWorkOnly
-                ? 'No albums with your work'
-                : 'No event albums yet')
-        : '$albumCount album${albumCount == 1 ? '' : 's'} · '
-            '$photoCount photo${photoCount == 1 ? '' : 's'} · '
-            '$videoCount video${videoCount == 1 ? '' : 's'}'
-            '${filter != _GalleryFilter.all ? ' ($_filterLabel)' : ''}';
-
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return ColoredBox(
+      color: kSurface,
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(padding, 6, padding - 4, 12),
+          padding: EdgeInsets.fromLTRB(padding, compact ? 10 : 12, padding - 4, compact ? 10 : 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Title + summary
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      requestorMode ? 'Event Gallery' : 'Your Gallery',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: dashText(const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
+                      'Gallery',
+                      style: TextStyle(
+                        color: kTextPrimary,
+                        fontSize: compact ? 22 : 24,
                         fontWeight: FontWeight.w800,
-                        height: 1.2,
-                        letterSpacing: -0.2,
-                      )),
+                        height: 1.15,
+                        letterSpacing: -0.4,
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: dashText(TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
-                      )),
-                    ),
+                    if (hasSummary) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: kAccent.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: kAccent.withValues(alpha: 0.18)),
+                            ),
+                            child: Text(
+                              summary,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: kAccent,
+                                fontSize: compact ? 10.5 : 11,
+                                fontWeight: FontWeight.w600,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: kTextSecondary,
+                          fontSize: compact ? 11 : 12,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              MemberDarkHeroNotificationButton(onTap: onNotificationsTap),
+              const SizedBox(width: 4),
+              // Notifications (light variant)
+              MemberPageNotificationButton(onTap: onNotificationsTap),
+              // Profile avatar (light variant)
               if (!requestorMode)
-                MemberDarkHeroProfileAvatar(onTap: onProfileTap, compact: true),
+                MemberPageProfileAvatar(onTap: onProfileTap),
             ],
           ),
         ),

@@ -21,10 +21,21 @@ import {
   type AnalyticsSnapshot,
   type AnalyticsTab,
 } from '../lib/analytics'
-import { buildRecentActivityList, defaultDateRange } from '../lib/analyticsOverview'
+import {
+  buildRecentActivityList,
+  dateRangeForPeriod,
+  type ReportingPeriod,
+} from '../lib/analyticsOverview'
+import {
+  AnalyticsOverviewSection,
+  ReportingPeriodSelect,
+} from '../components/analytics/AnalyticsOverviewSection'
+
+const ANALYTICS_PAGE_SUBTITLE =
+  'Monitor documentation activities, media evaluations, and member performance.'
 
 const TAB_SUBTITLES: Record<AnalyticsTab, string> = {
-  overview: 'Overview of system performance and multimedia documentation insights.',
+  overview: ANALYTICS_PAGE_SUBTITLE,
   participation: 'Member participation, uploads, and quality scores.',
   rankings: 'Leaderboard summary and top performers.',
   feedback: 'Requester ratings and satisfaction trends.',
@@ -42,7 +53,11 @@ export function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const { showToast } = useToast()
-  const range = useMemo(() => defaultDateRange(), [])
+  const [reportingPeriod, setReportingPeriod] = useState<ReportingPeriod>('this_month')
+  const range = useMemo(
+    () => dateRangeForPeriod(reportingPeriod, data),
+    [reportingPeriod, data],
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -88,13 +103,18 @@ export function AnalyticsPage() {
   const tabLabel = ANALYTICS_TABS.find((t) => t.id === tab)?.label ?? 'Analytics'
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className={`pb-8 ${tab === 'overview' ? 'space-y-2' : 'space-y-5'}`}>
       <AdminPageHeader
-        title="Analytics"
-        subtitle={TAB_SUBTITLES[tab]}
+        subtitle={tab === 'overview' ? ANALYTICS_PAGE_SUBTITLE : TAB_SUBTITLES[tab]}
         backTo="/"
+        compact={tab === 'overview'}
         actions={
           <>
+            <ReportingPeriodSelect
+              period={reportingPeriod}
+              onPeriodChange={setReportingPeriod}
+              disabled={Boolean(error) && !data}
+            />
             <button
               type="button"
               onClick={exportReport}
@@ -117,6 +137,16 @@ export function AnalyticsPage() {
         <AdminErrorBanner>{error}</AdminErrorBanner>
       )}
 
+      {tab === 'overview' ? (
+        <AnalyticsOverviewSection
+          data={data}
+          range={range}
+          period={reportingPeriod}
+          loading={loading}
+          unavailable={Boolean(error) && !data}
+        />
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         {ANALYTICS_TABS.map((t) => (
           <button
@@ -135,7 +165,7 @@ export function AnalyticsPage() {
         ))}
       </div>
 
-      {loading && !data ? (
+      {loading && !data && tab !== 'overview' ? (
         <div className="flex justify-center py-16">
           <Loader2 className="animate-spin text-[var(--color-text-muted)]" size={28} />
         </div>

@@ -1,4 +1,5 @@
 import {
+  fetchAiDetectionList,
   fetchDashboardStats,
   fetchEvaluations,
   fetchEvents,
@@ -7,6 +8,15 @@ import {
   fetchServiceRequests,
   fetchTasks,
 } from '../api/admin'
+import type { AiDetectionRow } from '../api/media'
+import {
+  aiReviewRiskTier,
+  isProbeSmokeTestRow,
+  matchesIntegrityInbox,
+  parseAiDetectionRow,
+  sortDetectionRows,
+  type AiReviewRiskTier,
+} from './aiDetection'
 import { fetchNotifications } from '../api/notifications'
 import type { DashboardStats } from '../types/auth'
 import { formatTimeAgo, parseNotification, type AdminNotification } from './notifications'
@@ -32,6 +42,17 @@ export interface TodayScheduleItem {
   eventName: string
   assignedMembers: string
   status: string
+}
+
+export interface UpcomingEventItem {
+  id: number
+  monthLabel: string
+  dayLabel: string
+  eventName: string
+  timeRange: string
+  location: string
+  memberNames: string[]
+  memberCount: number
 }
 
 export interface ActivityItem {
@@ -94,10 +115,30 @@ export interface ActiveDocumenterSnapshot {
   breakdown: CompetencyBreakdown[]
 }
 
+export interface AiReviewQueueRecentItem {
+  id: number
+  mediaId: number
+  fileName: string
+  timeAgo: string
+  riskTier: AiReviewRiskTier
+}
+
+export type { AiReviewRiskTier }
+
+export interface AiReviewQueueSnapshot {
+  highRisk: number
+  suspicious: number
+  lowRisk: number
+  totalForReview: number
+  recentItems: AiReviewQueueRecentItem[]
+  available: boolean
+}
+
 export interface HomeDashboardSnapshot {
   overview: HomeOverviewStats
   pendingRequests: PendingRequestItem[]
   todaySchedule: TodayScheduleItem[]
+  upcomingEvents: UpcomingEventItem[]
   recentActivity: ActivityItem[]
   notifications: AdminNotification[]
   mediaQueue: MediaQueueSnapshot
@@ -107,6 +148,7 @@ export interface HomeDashboardSnapshot {
   actionCenterItems: ActionCenterItem[]
   evalOverview: EvalOverviewStats
   evalTrend: EvaluationTrendPoint[]
+  aiReviewQueue: AiReviewQueueSnapshot
   activeDocumenters: ActiveDocumenterSnapshot
 }
 
@@ -143,6 +185,48 @@ function titleCase(s: string): string {
     .join(' ')
 }
 
+function buildAiReviewQueue(rows: AiDetectionRow[]): AiReviewQueueSnapshot {
+  const pending = rows.filter(
+    (r) => !isProbeSmokeTestRow(r) && matchesIntegrityInbox(r, 'needs_action'),
+  )
+  let highRisk = 0
+  let suspicious = 0
+  let lowRisk = 0
+  for (const r of pending) {
+    const tier = aiReviewRiskTier(r)
+    if (tier === 'high') highRisk++
+    else if (tier === 'suspicious') suspicious++
+    else lowRisk++
+  }
+  const recentItems = sortDetectionRows(pending)
+    .slice(0, 3)
+    .map((r) => ({
+      id: r.id,
+      mediaId: r.media_id,
+      fileName: r.media_name,
+      timeAgo: formatTimeAgo(r.scanned_at),
+      riskTier: aiReviewRiskTier(r),
+    }))
+
+  return {
+    highRisk,
+    suspicious,
+    lowRisk,
+    totalForReview: pending.length,
+    recentItems,
+    available: true,
+  }
+}
+
+const EMPTY_AI_REVIEW_QUEUE: AiReviewQueueSnapshot = {
+  highRisk: 0,
+  suspicious: 0,
+  lowRisk: 0,
+  totalForReview: 0,
+  recentItems: [],
+  available: false,
+}
+
 function mapPendingRequest(r: Record<string, unknown>): PendingRequestItem {
   return {
     id: Number(r.request_id ?? r.id ?? 0),
@@ -150,6 +234,55 @@ function mapPendingRequest(r: Record<string, unknown>): PendingRequestItem {
     requestor: String(r.requester_name ?? r.organization_name ?? 'Unknown'),
     requestedDate: formatDate(r.created_at),
     status: String(r.status ?? 'Pending'),
+  }
+}
+
+const MONTH_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+function formatTimeRange(startRaw: unknown, endRaw: unknown): string {
+  const startStr = startRaw != null ? String(startRaw) : ''
+  const endStr = endRaw != null ? String(endRaw) : ''
+  const start = startStr ? formatTime(startStr.includes('T') ? startStr.split('T')[1] ?? startStr : startStr) : ''
+  const end = endStr ? formatTime(endStr.includes('T') ? endStr.split('T')[1] ?? endStr : endStr) : ''
+  if (start && end && start !== end) return `${start} – ${end}`
+  if (start) return start
+  return 'All day'
+}
+
+function assignedMemberNames(eventId: number, tasks: Record<string, unknown>[]): string[] {
+  return tasks
+    .filter((t) => Number(t.event_id) === eventId)
+    .map((t) => String(t.member_name ?? t.assignee_name ?? '').trim())
+    .filter(Boolean)
+}
+
+function isUpcomingApprovedEvent(e: Record<string, unknown>, today: Date): boolean {
+  const d = parseDate(e.event_date)
+  if (!d) return false
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  if (day.getTime() < today.getTime()) return false
+  const status = String(e.status ?? '').toLowerCase()
+  if (status === 'cancelled' || status === 'canceled') return false
+  const reqStatus = String(e.request_status ?? '').toLowerCase()
+  if (reqStatus && reqStatus !== 'approved') return false
+  return true
+}
+
+function mapUpcomingEvent(e: Record<string, unknown>, tasks: Record<string, unknown>[]): UpcomingEventItem {
+  const eventId = Number(e.id)
+  const members = assignedMemberNames(eventId, tasks)
+  const d = parseDate(e.event_date)!
+  const location = String(e.location ?? e.venue ?? '').trim()
+
+  return {
+    id: eventId,
+    monthLabel: MONTH_LABELS[d.getMonth()] ?? 'N/A',
+    dayLabel: String(d.getDate()),
+    eventName: String(e.title ?? e.event_name ?? 'Event'),
+    timeRange: formatTimeRange(e.start_time ?? e.event_time, e.end_time),
+    location: location || 'N/A',
+    memberNames: members,
+    memberCount: members.length,
   }
 }
 
@@ -557,7 +690,7 @@ export function buildDailySummary(snap: HomeDashboardSnapshot): string {
 }
 
 export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
-  const [stats, requests, events, evaluations, media, notificationsRaw, tasks, rankings] =
+  const [stats, requests, events, evaluations, media, notificationsRaw, tasks, rankings, aiDetectionRaw] =
     await Promise.all([
       fetchDashboardStats(),
       fetchServiceRequests(),
@@ -567,6 +700,7 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
       fetchNotifications(),
       fetchTasks(),
       fetchRankings(),
+      fetchAiDetectionList().catch(() => null),
     ])
 
   const now = new Date()
@@ -589,6 +723,19 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
     .map((e) => mapTodayEvent(e, tasks))
     .sort((a, b) => a.timeLabel.localeCompare(b.timeLabel))
 
+  const upcomingEvents = events
+    .filter((e) => isUpcomingApprovedEvent(e, today))
+    .sort((a, b) => {
+      const da = parseDate(a.event_date)?.getTime() ?? 0
+      const db = parseDate(b.event_date)?.getTime() ?? 0
+      if (da !== db) return da - db
+      const ta = String(a.start_time ?? a.event_time ?? '')
+      const tb = String(b.start_time ?? b.event_time ?? '')
+      return ta.localeCompare(tb)
+    })
+    .slice(0, 4)
+    .map((e) => mapUpcomingEvent(e, tasks))
+
   const evaluatedMediaIds = new Set(
     evaluations.map((e) => Number(e.media_id)).filter((id) => id > 0),
   )
@@ -610,6 +757,11 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
 
   const unread = notifications.filter((n) => n.unread).length
 
+  const aiReviewQueue =
+    aiDetectionRaw == null
+      ? EMPTY_AI_REVIEW_QUEUE
+      : buildAiReviewQueue(aiDetectionRaw.map((m) => parseAiDetectionRow(m)))
+
   const overview: HomeOverviewStats = {
     pendingRequests: stats.pending_requests ?? pendingRequests.length,
     todayEvents: todayEvents.length,
@@ -622,6 +774,7 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
     overview,
     pendingRequests: pendingRequests.slice(0, 6),
     todaySchedule: todayEvents.slice(0, 5),
+    upcomingEvents,
     recentActivity: buildRecentActivity(requests, media, evaluations, notificationsRaw),
     notifications: notifications.slice(0, 5),
     mediaQueue: { pendingCount: pendingMedia, completedToday },
@@ -636,6 +789,7 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
     }),
     evalOverview: buildEvalOverview(evaluations, today),
     evalTrend: buildEvalTrend(evaluations, today),
+    aiReviewQueue,
     activeDocumenters: buildActiveDocumenters(rankings, stats),
   }
 }

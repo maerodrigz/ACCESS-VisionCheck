@@ -26,7 +26,10 @@ export function CompetencyMemberCard({ member, onViewProfile }: Props) {
       as="article"
       hover
       padding="md"
-      className={['flex h-full flex-col', highlight ? 'border-amber-200/80' : ''].join(' ')}
+      className={[
+        'flex h-full flex-col',
+        highlight ? 'border-[color-mix(in_srgb,var(--color-warning)_45%,transparent)]' : '',
+      ].join(' ')}
     >
       <div className="flex items-start gap-3">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-blue)]/15 text-lg font-extrabold text-[var(--color-accent-blue)]">

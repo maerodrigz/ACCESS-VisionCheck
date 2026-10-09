@@ -7,16 +7,19 @@ import type { MemberUploadPreview } from '../../lib/teamMembers'
 interface Props {
   memberName: string
   uploads: MemberUploadPreview[]
+  emptyMessage?: string
 }
 
-export function MemberRecentUploadsSection({ memberName, uploads }: Props) {
+export function MemberRecentUploadsSection({
+  memberName,
+  uploads,
+  emptyMessage = 'No photos or videos uploaded yet. Practice evaluations and event coverage will appear here.',
+}: Props) {
   const [preview, setPreview] = useState<MemberUploadPreview | null>(null)
 
   if (uploads.length === 0) {
     return (
-      <p className="text-xs text-[var(--color-text-secondary)]">
-        No photos or videos uploaded yet. Practice evaluations and event coverage will appear here.
-      </p>
+      <p className="text-xs text-[var(--color-text-secondary)]">{emptyMessage}</p>
     )
   }
 

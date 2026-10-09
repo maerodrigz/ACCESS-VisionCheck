@@ -23,10 +23,13 @@ export type CompetencyFilterChip =
 
 export type CompetencySortOption = 'name' | 'performance' | 'competency' | 'tasksCompleted' | 'acceptanceRate'
 
+export type CriterionStatus = 'met' | 'not_met' | 'insufficient_data'
+
 export interface CompetencyCriterion {
   label: string
   met: boolean
   detail: string
+  status: CriterionStatus
 }
 
 export interface CompetencyAssessment {
@@ -47,6 +50,8 @@ export interface CompetencyMember {
   trainingRecommendations: string[]
   featuredMediaCount: number
   mediaAcceptanceRate: number
+  /** Upload count from rankings API (0 when none on record). */
+  mediaUploadTotal: number
   eventsCovered: number
   integritySummary: string
   integrityViolations: number
@@ -220,34 +225,57 @@ function buildAssessment(
       aiAuthenticityScore: ranking?.aiAuthenticityScore ?? 100,
     })
 
+  const participationDetail = (() => {
+    const assigned = profile.assignedTasks
+    if (assigned <= 0 && completed <= 0) return 'No assigned tasks yet'
+    if (assigned <= 0) {
+      return `${completed} completed task${completed === 1 ? '' : 's'} (none currently assigned)`
+    }
+    const pct = Math.round((completed / assigned) * 100)
+    return `${pct}%: ${completed} of ${assigned} assigned tasks completed`
+  })()
+
   const criteria: CompetencyCriterion[] = [
     {
       label: 'Completed 25+ documentation requests',
       met: completed >= 25,
-      detail: `${completed} completed`,
+      detail: `${completed} completed request${completed === 1 ? '' : 's'}`,
+      status: completed >= 25 ? 'met' : 'not_met',
     },
     {
       label: 'High media acceptance rate',
       met: acceptance >= 75 || (ranking?.approvedUploadsScore ?? 0) >= 75,
-      detail: total > 0 ? `${Math.round(acceptance)}% accepted` : 'No uploads yet',
+      detail: total > 0 ? `${Math.round(acceptance)}% accepted (${approved} of ${total} uploads)` : 'No uploads yet',
+      status: total > 0 ? (acceptance >= 75 ? 'met' : 'not_met') : 'insufficient_data',
     },
     {
       label: 'No integrity violations',
       met: violations === 0,
-      detail: violations === 0 ? 'Clean integrity record' : `${violations} confirmed violation${violations === 1 ? '' : 's'}`,
+      detail:
+        violations === 0
+          ? 'No confirmed violations on record'
+          : `${violations} confirmed violation${violations === 1 ? '' : 's'}`,
+      status: violations === 0 ? 'met' : 'not_met',
     },
     {
       label: 'Consistent participation',
       met: taskPart >= 70 || (profile.assignedTasks > 0 && completed / profile.assignedTasks >= 0.7),
-      detail:
-        profile.assignedTasks > 0
-          ? `${Math.round((completed / profile.assignedTasks) * 100)}% task completion`
-          : `${completed} tasks completed`,
+      detail: participationDetail,
+      status:
+        profile.assignedTasks <= 0 && completed <= 0
+          ? 'insufficient_data'
+          : taskPart >= 70 || (profile.assignedTasks > 0 && completed / profile.assignedTasks >= 0.7)
+            ? 'met'
+            : 'not_met',
     },
     {
       label: 'Strong documentation portfolio',
       met: portfolioCount >= 3 && mediaQ >= 70,
-      detail: `${portfolioCount} event${portfolioCount === 1 ? '' : 's'} · ${Math.round(mediaQ)}% avg quality`,
+      detail:
+        portfolioCount === 0 && total === 0
+          ? 'No evaluated event media yet'
+          : `${portfolioCount} event${portfolioCount === 1 ? '' : 's'} covered · ${total > 0 ? `${Math.round(mediaQ)}% avg quality` : 'quality pending uploads'}`,
+      status: portfolioCount === 0 && total === 0 ? 'insufficient_data' : portfolioCount >= 3 && mediaQ >= 70 ? 'met' : 'not_met',
     },
   ]
 
@@ -268,14 +296,14 @@ function buildAssessment(
       break
     default:
       explanation =
-        'This member is building experience — assign smaller events first while monitoring acceptance rates and integrity indicators.'
+        'This member is building experience. Assign smaller events first while monitoring acceptance rates and integrity indicators.'
   }
 
   if (metCount < 3 && level === 'advanced') {
     return {
       recommendedLevel: 'intermediate',
       explanation:
-        'Performance indicators suggest intermediate competency — several advanced criteria are not yet consistently met.',
+        'Performance indicators suggest intermediate competency. Several advanced criteria are not yet consistently met.',
       criteria,
       skillScore,
     }
@@ -292,25 +320,37 @@ function eventRecommendation(level: CompetencyLevel, performance: number): Event
 
 function strengths(profile: TeamMemberProfile, ranking: RankingRow | undefined): string[] {
   const out: string[] = []
+  const totalUp = ranking?.totalUploads ?? 0
+  const hasEvaluatedMedia = totalUp > 0 || profile.recentUploads.length > 0
   const q = profile.averageQualityScore
   const isPhoto = profile.coverageRole === 'photographer'
 
   if (profile.completedTasks >= 3) out.push(isPhoto ? 'Event Photography' : 'Event Videography')
-  if (q >= 72) out.push('Composition')
-  if (q >= 68) out.push(isPhoto ? 'Lighting' : 'Storytelling')
-  if ((ranking?.approvedUploadsScore ?? 0) >= 70 || profile.onTimeRate >= 75) out.push('Timely Submissions')
+  if (hasEvaluatedMedia && q >= 72) out.push('Composition')
+  if (hasEvaluatedMedia && q >= 68) out.push(isPhoto ? 'Lighting' : 'Storytelling')
+  if (
+    (ranking?.approvedUploadsScore ?? 0) >= 70 ||
+    (profile.assignedTasks > 0 && profile.onTimeRate >= 75)
+  ) {
+    out.push('Timely Submissions')
+  }
   if (profile.portfolio.length >= 2) out.push('Documentation Portfolio')
-  if (out.length === 0) out.push(isPhoto ? 'Developing photography fundamentals' : 'Developing videography fundamentals')
   return out.slice(0, 5)
 }
 
 function improvements(profile: TeamMemberProfile, ranking: RankingRow | undefined): string[] {
+  const totalUp = ranking?.totalUploads ?? 0
+  const hasEvaluatedMedia = totalUp > 0 || profile.recentUploads.length > 0
+  if (!hasEvaluatedMedia) {
+    return ['Build documentation portfolio', 'Gain practical experience']
+  }
+
   const out: string[] = []
   const isPhoto = profile.coverageRole === 'photographer'
 
   if (profile.averageQualityScore < 70) out.push(isPhoto ? 'Lighting consistency' : 'Video stabilization')
-  if (profile.onTimeRate < 70) out.push('Submission timelines')
-  if ((ranking?.totalUploads ?? 0) < 5) out.push('Portfolio depth')
+  if (profile.onTimeRate < 70 && profile.assignedTasks > 0) out.push('Submission timelines')
+  if (totalUp < 5) out.push('Portfolio depth')
   if (!isPhoto && profile.averageQualityScore < 75) out.push('Camera movement')
   if (isPhoto && profile.averageQualityScore < 75) out.push('Night photography')
   if ((ranking?.aiAuthenticityScore ?? 100) < 90) out.push('Media authenticity practices')
@@ -319,9 +359,19 @@ function improvements(profile: TeamMemberProfile, ranking: RankingRow | undefine
 }
 
 function training(profile: TeamMemberProfile, ranking: RankingRow | undefined): string[] {
-  const out: string[] = []
+  const totalUp = ranking?.totalUploads ?? 0
+  const hasEvaluatedMedia = totalUp > 0 || profile.recentUploads.length > 0
   const isPhoto = profile.coverageRole === 'photographer'
 
+  if (!hasEvaluatedMedia) {
+    return [
+      'Participate in practical documentation activities.',
+      `Build an initial ${isPhoto ? 'photography' : 'videography'} portfolio.`,
+      'Complete media evaluations to establish a performance baseline.',
+    ]
+  }
+
+  const out: string[] = []
   if (profile.averageQualityScore < 70) {
     out.push(isPhoto ? 'Improve low-light photography.' : 'Improve video stabilization and camera movement.')
   }
@@ -356,8 +406,8 @@ function acceptanceRate(ranking: RankingRow | undefined, profile: TeamMemberProf
 
 function integritySummary(violations: number, warnings: number): string {
   if (violations > 0) return `${violations} confirmed violation${violations === 1 ? '' : 's'} on record`
-  if (warnings > 0) return `${warnings} integrity warning${warnings === 1 ? '' : 's'} — no confirmed violations`
-  return 'Clean integrity record'
+  if (warnings > 0) return `${warnings} pending integrity review${warnings === 1 ? '' : 's'} (not confirmed violations)`
+  return 'No Recorded Integrity Violations'
 }
 
 function computeStats(members: CompetencyMember[]): CompetencyOverviewStats {
@@ -427,6 +477,7 @@ export function buildCompetencyDashboard(input: {
       trainingRecommendations: training(profile, ranking),
       featuredMediaCount: featuredCount(profile),
       mediaAcceptanceRate: acceptanceRate(ranking, profile),
+      mediaUploadTotal: ranking?.totalUploads ?? 0,
       eventsCovered: profile.portfolio.length,
       integritySummary: integritySummary(violations, warnings),
       integrityViolations: violations,
@@ -511,7 +562,7 @@ export function countByChip(members: CompetencyMember[], chip: CompetencyFilterC
 
 export function buildExportReport(data: CompetencyDashboardData): string {
   const lines: string[] = [
-    'ACCESS VisionCheck — Competency Management Report',
+    'ACCESS VisionCheck: Competency Management Report',
     `Generated: ${new Date().toLocaleString()}`,
     '',
     'Overview',

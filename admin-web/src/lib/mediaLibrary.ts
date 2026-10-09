@@ -331,6 +331,23 @@ export function computeMediaStats(assets: MediaAsset[], albums: MediaAlbum[]): M
   return { totalPhotos: photos, totalVideos: videos, totalAlbums: albums.length, storageUsedLabel }
 }
 
+function mediaSearchText(a: MediaAsset): string {
+  return [
+    a.fileName,
+    a.eventName,
+    a.albumName,
+    a.uploaderName,
+    a.mediaTypeLabel,
+    a.eventDescription,
+    a.eventDate,
+    a.uploadDateLabel,
+    a.requestId != null ? String(a.requestId) : '',
+  ]
+    .filter((s) => s != null && String(s).trim() !== '')
+    .join(' ')
+    .toLowerCase()
+}
+
 export function filterMedia(
   items: MediaAsset[],
   search: string,
@@ -342,6 +359,7 @@ export function filterMedia(
   },
 ): MediaAsset[] {
   const q = search.trim().toLowerCase()
+  const tokens = q ? q.split(/\s+/).filter(Boolean) : []
   return items.filter((a) => {
     if (albumId && albumId !== albumKey(a.albumName, a.requestId)) return false
     if (opts?.mediaCategory && opts.mediaCategory !== 'all' && a.mediaCategory !== opts.mediaCategory) return false
@@ -353,16 +371,19 @@ export function filterMedia(
       a.facebookPublishStatus !== opts.facebookPublishStatus
     )
       return false
-    if (!q) return true
-    const hit = (s: string | null | undefined) => s != null && s.toLowerCase().includes(q)
-    return (
-      hit(a.fileName) ||
-      hit(a.eventName) ||
-      hit(a.albumName) ||
-      hit(a.uploaderName) ||
-      hit(a.mediaTypeLabel) ||
-      (a.uploadedAt != null && formatMediaDate(a.uploadedAt).toLowerCase().includes(q))
-    )
+    if (tokens.length === 0) return true
+    const haystack = mediaSearchText(a)
+    return tokens.every((token) => haystack.includes(token))
+  })
+}
+
+export function filterAlbumsBySearch(albums: MediaAlbum[], search: string): MediaAlbum[] {
+  const q = search.trim().toLowerCase()
+  if (!q) return albums
+  const tokens = q.split(/\s+/).filter(Boolean)
+  return albums.filter((album) => {
+    const haystack = [album.name, album.requestId != null ? String(album.requestId) : ''].join(' ').toLowerCase()
+    return tokens.every((token) => haystack.includes(token))
   })
 }
 

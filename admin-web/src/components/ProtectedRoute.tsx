@@ -15,5 +15,9 @@ export function ProtectedRoute() {
   }
 
   if (!user) return <Navigate to="/login" replace />
-  return <Outlet />
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      <Outlet />
+    </div>
+  )
 }

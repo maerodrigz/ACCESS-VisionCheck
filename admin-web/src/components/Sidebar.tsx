@@ -11,7 +11,7 @@ interface SidebarNavProps {
 export function SidebarBrand({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex h-full items-center px-3">
-      <AccessBrand linkToHome compact markSize={compact ? 30 : 32} />
+      <AccessBrand linkToHome compact markSize={compact ? 36 : 40} />
     </div>
   )
 }
@@ -54,7 +54,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                       >
                         <item.icon size={14} strokeWidth={2} />
                       </span>
-                      <span className="min-w-0 truncate">{item.label}</span>
+                      <span className="min-w-0 whitespace-nowrap">{item.label}</span>
                     </>
                   )}
                 </NavLink>
@@ -74,7 +74,7 @@ export function Sidebar({ onNavigate }: SidebarNavProps) {
       style={{ width: 'var(--sidebar-width)' }}
     >
       <div className="flex h-[var(--topbar-height)] shrink-0 items-center border-b border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] px-3">
-        <AccessBrand linkToHome compact markSize={32} />
+        <AccessBrand linkToHome compact markSize={40} />
       </div>
       <SidebarNav onNavigate={onNavigate} />
     </aside>

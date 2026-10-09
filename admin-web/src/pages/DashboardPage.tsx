@@ -13,8 +13,7 @@ import { DashboardOverviewStrip } from '../components/dashboard/DashboardOvervie
 import {
   ActionCenterPanel,
   ActiveDocumentersPanel,
-  EvaluationTrendPanel,
-  MediaEvaluationOverviewPanel,
+  AiReviewQueuePanel,
   TodayScheduleTimelinePanel,
 } from '../components/dashboard/DashboardSep29Panels'
 import { WelcomeHeader } from '../components/dashboard/DashboardPanels'
@@ -46,7 +45,7 @@ export function DashboardPage() {
   const o = data?.overview
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5">
+    <div className="w-full max-w-[1400px] space-y-4">
       <WelcomeHeader adminName={user?.name ?? 'Admin'} onRefresh={load} loading={loading} />
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
@@ -106,18 +105,13 @@ export function DashboardPage() {
 
       {data ? (
         <>
-          <div className="grid items-stretch gap-4 lg:grid-cols-[1.25fr_1fr]">
-            <ActionCenterPanel
-              items={data.actionCenterItems}
-              pendingCount={data.overview.pendingRequests}
-              mediaPendingCount={data.overview.mediaPendingEvaluation}
-            />
-            <TodayScheduleTimelinePanel items={data.todaySchedule} />
+          <div className="grid items-stretch gap-3 lg:grid-cols-[1.45fr_0.85fr]">
+            <ActionCenterPanel requests={data.pendingRequests} />
+            <TodayScheduleTimelinePanel items={data.upcomingEvents} />
           </div>
 
-          <div className="grid items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            <MediaEvaluationOverviewPanel stats={data.evalOverview} />
-            <EvaluationTrendPanel points={data.evalTrend} />
+          <div className="grid items-start gap-3 lg:grid-cols-[1.45fr_0.85fr]">
+            <AiReviewQueuePanel snapshot={data.aiReviewQueue} />
             <ActiveDocumentersPanel snapshot={data.activeDocumenters} />
           </div>
         </>

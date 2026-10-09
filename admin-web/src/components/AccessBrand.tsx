@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { AccessBrandMark } from './AccessBrandMark'
+import { AccessLogo } from './AccessLogo'
 
 const APP_TITLE = 'ACCESS'
 const APP_SUBTITLE = 'VisionCheck'
@@ -44,6 +45,12 @@ export function AccessBrand({
     </div>
   )
 
+  const mark = compact ? (
+    <AccessLogo size={markSize} circular />
+  ) : (
+    <AccessBrandMark size={markSize} />
+  )
+
   const content =
     variant === 'stacked' ? (
       <div className={`flex flex-col items-center gap-4 ${className}`}>
@@ -51,8 +58,8 @@ export function AccessBrand({
         {wordmark}
       </div>
     ) : (
-      <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'} ${className}`}>
-        <AccessBrandMark size={markSize} />
+      <div className={`flex items-center ${compact ? 'gap-2.5' : 'gap-3'} ${className}`}>
+        {mark}
         {wordmark}
       </div>
     )

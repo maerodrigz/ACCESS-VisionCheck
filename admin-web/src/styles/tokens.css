@@ -20,6 +20,7 @@
   --dashboard-stats-gradient: linear-gradient(135deg, #0052d4 0%, #0066ff 100%);
 
   /* Sizing */
+  /* Fits longest nav labels (Documentation Requests, Competency Management) */
   --sidebar-width: 228px;
   --card-radius: 16px;
   --topbar-height: 64px;

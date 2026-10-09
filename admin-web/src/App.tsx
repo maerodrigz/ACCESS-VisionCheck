@@ -52,6 +52,7 @@ function LegacyMediaRedirect() {
 
 export default function App() {
   return (
+    <div className="flex h-full min-h-0 flex-col">
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
@@ -74,5 +75,6 @@ export default function App() {
         </Route>
       </Route>
     </Routes>
+    </div>
   )
 }

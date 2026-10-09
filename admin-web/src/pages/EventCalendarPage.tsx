@@ -221,10 +221,12 @@ export function EventCalendarPage() {
           <Loader2 className="animate-spin text-[var(--color-text-muted)]" size={28} />
         </div>
       ) : (
-        <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.78fr)]">
-          <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[0_1px_2px_rgba(15,39,68,0.04)] md:p-4">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">{monthLabel}</h2>
+        <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.78fr)] xl:items-stretch">
+          <section className="min-h-0 rounded-xl border border-[color-mix(in_srgb,var(--color-accent-blue)_12%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent-blue)_5%,var(--color-surface))] p-3 shadow-[0_1px_2px_rgba(15,39,68,0.04)] md:p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-2xl">
+                {monthLabel}
+              </h2>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -252,14 +254,14 @@ export function EventCalendarPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            <div className="mb-2 grid grid-cols-7 rounded-lg bg-[color-mix(in_srgb,var(--color-accent-blue)_7%,var(--color-surface))] px-1 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)] sm:px-2 sm:py-3 sm:text-xs">
               {WEEKDAYS.map((d) => (
-                <div key={d} className="py-1">
+                <div key={d} className="px-0.5">
                   {d}
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 items-start gap-1">
               {monthDays.map((day) => {
                 const inMonth = day.getMonth() === focusedMonth.getMonth()
                 const isToday = sameDay(day, new Date())
@@ -271,7 +273,7 @@ export function EventCalendarPage() {
                     type="button"
                     onClick={() => setSelectedDay(day)}
                     className={[
-                      'flex min-h-[52px] flex-col rounded-md border px-1 py-1 text-left transition sm:min-h-[64px]',
+                      'flex min-h-[4.5rem] w-full flex-col rounded-md border px-1 py-1 text-left transition sm:min-h-[5rem]',
                       inMonth
                         ? 'border-[var(--color-border)] bg-[var(--color-surface)]'
                         : 'border-transparent bg-transparent',
@@ -281,7 +283,7 @@ export function EventCalendarPage() {
                   >
                     <span
                       className={[
-                        'mb-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold',
+                        'mb-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
                         isToday
                           ? 'bg-[var(--color-accent-blue)] text-white'
                           : inMonth
@@ -291,22 +293,17 @@ export function EventCalendarPage() {
                     >
                       {day.getDate()}
                     </span>
-                    <div className="space-y-0.5">
-                      {dayEvents.slice(0, 2).map((ev) => (
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      {dayEvents.map((ev) => (
                         <span
                           key={ev.id}
-                          className="block truncate rounded px-1 text-[9px] font-semibold leading-4 text-white"
+                          className="block w-full rounded px-1 py-0.5 text-[10px] font-semibold leading-snug text-white whitespace-normal break-words sm:text-[11px]"
                           style={{ backgroundColor: eventStatusColor(ev.status) }}
                           title={ev.title}
                         >
                           {ev.title}
                         </span>
                       ))}
-                      {dayEvents.length > 2 ? (
-                        <span className="px-0.5 text-[9px] font-semibold text-[var(--color-text-secondary)]">
-                          +{dayEvents.length - 2}
-                        </span>
-                      ) : null}
                     </div>
                   </button>
                 )
@@ -315,8 +312,8 @@ export function EventCalendarPage() {
             <EventStatusLegend />
           </section>
 
-          <aside className="flex min-h-0 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_1px_2px_rgba(15,39,68,0.04)]">
-            <section className="border-b border-[var(--color-border)] p-3">
+          <aside className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_1px_2px_rgba(15,39,68,0.04)] xl:max-h-[calc(100dvh-var(--topbar-height)-10.5rem)]">
+            <section className="flex min-h-0 flex-col border-b border-[var(--color-border)] p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h2 className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-accent-blue)]">
@@ -330,7 +327,7 @@ export function EventCalendarPage() {
                   {selectedDayEvents.length} event{selectedDayEvents.length === 1 ? '' : 's'}
                 </span>
               </div>
-              <div className="mt-2 max-h-[280px] space-y-1.5 overflow-y-auto">
+              <div className="mt-2 min-h-0 max-h-[min(280px,36dvh)] space-y-1.5 overflow-y-auto overscroll-y-contain">
                 {selectedDayEvents.length === 0 ? (
                   <SelectedDayEmpty />
                 ) : (
@@ -341,12 +338,12 @@ export function EventCalendarPage() {
               </div>
             </section>
 
-            <section className="p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
+            <section className="flex min-h-0 flex-1 flex-col p-3">
+              <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
                 <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Upcoming Events</h2>
                 <span className="text-[11px] font-semibold text-[var(--color-text-secondary)]">{upcoming.length}</span>
               </div>
-              <div className="max-h-[280px] overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain xl:max-h-[min(280px,36dvh)]">
                 <EventUpcomingCards events={upcoming.slice(0, 15)} onSelect={setSelectedEvent} />
               </div>
             </section>

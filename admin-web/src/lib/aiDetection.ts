@@ -176,11 +176,14 @@ function confidenceText(label: AiResultLabel, score: number): string {
 }
 
 export function formatScannedDate(iso?: string): string {
-  if (!iso) return '—'
+  if (!iso) return 'N/A'
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  if (Number.isNaN(d.getTime())) return 'N/A'
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(d)
 }
 
 export function summaryFromRows(rows: AiDetectionRow[]): AiDetectionSummary {
@@ -220,6 +223,21 @@ const RESOLVED_STATUSES: ReviewStatus[] = [
   'rejected',
   'automated_low_ai_risk',
 ]
+
+export type AiReviewRiskTier = 'high' | 'suspicious' | 'low'
+
+export function aiReviewRiskTier(row: AiDetectionRow): AiReviewRiskTier {
+  const risk = String(row.exif_metadata?.visual_risk_level ?? '').toLowerCase()
+  if (row.ai_label === 'ai_generated' || risk === 'high') return 'high'
+  if (row.ai_label === 'suspicious') return 'suspicious'
+  return 'low'
+}
+
+export function aiReviewRiskLabel(tier: AiReviewRiskTier): string {
+  if (tier === 'high') return 'High Risk'
+  if (tier === 'suspicious') return 'Suspicious'
+  return 'Low Risk'
+}
 
 export function matchesIntegrityInbox(row: AiDetectionRow, filter: IntegrityInboxFilter): boolean {
   if (filter === 'all') return true

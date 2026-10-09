@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Award, Download, Loader2, Search } from 'lucide-react'
+import { Award, Loader2, Search } from 'lucide-react'
 import {
   fetchEvaluations,
   fetchEvents,
@@ -16,13 +16,12 @@ import { AdminCard } from '../components/AdminCard'
 import { AdminSelect } from '../components/AdminSelect'
 import { AdminErrorBanner } from '../components/AdminAlert'
 import { AdminPageHeader } from '../components/AdminPageHeader'
-import { pageToolbarBtnClass, PageToolbarRefreshButton } from '../components/PageToolbar'
+import { PageToolbarRefreshButton } from '../components/PageToolbar'
 import { useToast } from '../context/ToastContext'
 import { CompetencyMembersTable } from '../components/competency/CompetencyMembersTable'
 import { CompetencyProfileDrawer } from '../components/competency/CompetencyProfileDrawer'
 import {
   buildCompetencyDashboard,
-  buildExportReport,
   competencyLevelToApiLabel,
   countByChip,
   filterAndSortCompetency,
@@ -150,12 +149,6 @@ export function CompetencyManagementPage() {
     showToast(msg)
   }
 
-  function exportReport() {
-    if (!data) return
-    void navigator.clipboard.writeText(buildExportReport(data))
-    showMsg('Competency report copied to clipboard')
-  }
-
   async function handleSendNotesToMember(notes: string): Promise<boolean> {
     if (!selected) return false
     const trimmed = notes.trim()
@@ -202,15 +195,7 @@ export function CompetencyManagementPage() {
         title="Competency Management"
         subtitle="See who ranks highest, track performance and skill level, override competency when needed, and decide who fits each event scale."
         backTo="/"
-        actions={
-          <>
-            <button type="button" onClick={exportReport} disabled={!data} className={pageToolbarBtnClass}>
-              <Download size={16} className="shrink-0 text-[var(--color-text-secondary)]" strokeWidth={2} />
-              Export report
-            </button>
-            <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
-          </>
-        }
+        actions={<PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />}
       />
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
@@ -227,7 +212,7 @@ export function CompetencyManagementPage() {
               }}
               className={[
                 'rounded-full px-4 py-1.5 text-xs font-bold transition',
-                chip === id && levelFilter === 'all'
+                chip === id
                   ? 'bg-[var(--color-accent-blue)] text-white'
                   : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]',
               ].join(' ')}

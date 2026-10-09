@@ -37,10 +37,7 @@ export function CompetencyMembersTable({ members, onViewProfile }: Props) {
             return (
               <tr
                 key={m.id}
-                className={[
-                  'border-b border-[var(--color-border-subtle)] transition last:border-0 hover:bg-[var(--color-surface-hover)]',
-                  needsReview ? 'bg-[var(--color-surface-muted)]' : '',
-                ].join(' ')}
+                className="border-b border-[var(--color-border-subtle)] transition last:border-0 hover:bg-[var(--color-surface-hover)]"
               >
                 <td className="px-4 py-3">
                   <div className="flex min-w-0 items-center gap-3">

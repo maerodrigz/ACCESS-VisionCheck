@@ -57,7 +57,7 @@ export function AdminLayout() {
 
   return (
     <ToastProvider>
-      <div className="flex h-screen flex-col overflow-hidden bg-[var(--color-content-bg)]">
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[var(--color-content-bg)]">
         {offline && (
           <div className="shrink-0 bg-amber-600 px-4 py-2 text-center text-sm font-semibold text-white">
             Backend offline — start the API with{' '}
@@ -85,7 +85,7 @@ export function AdminLayout() {
             <SidebarNav />
           </div>
 
-          <main className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-5 md:p-7">
+          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-3 py-4 md:px-4 md:py-5">
             <Suspense fallback={<PageLoader />}>
               <Outlet />
             </Suspense>

@@ -48,6 +48,7 @@ import {
   buildAlbums,
   canPublishToFacebook,
   computeMediaStats,
+  filterAlbumsBySearch,
   filterMedia,
   parseEventMediaRows,
   pendingBestShots,
@@ -171,16 +172,19 @@ export function MediaLibraryPage() {
     [bestPickItems],
   )
 
+  const searchActive = search.trim().length > 0
+
   const filtered = useMemo(() => {
     const items = filterMedia(all, search, selectedAlbumId, {
       mediaCategory: 'event_documentation',
       facebookPublishStatus: fbFilter === 'all' ? 'all' : fbFilter,
     })
-    if (fbFilter === 'all') {
+    // Default gallery hides published items; keep them visible when searching or filtering by status.
+    if (fbFilter === 'all' && !searchActive) {
       return items.filter((a) => a.facebookPublishStatus !== 'published')
     }
     return items
-  }, [all, search, selectedAlbumId, fbFilter])
+  }, [all, search, selectedAlbumId, fbFilter, searchActive])
 
   const galleryPool = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -198,9 +202,14 @@ export function MediaLibraryPage() {
     [galleryPool],
   )
 
-  const galleryItems = useMemo(
-    () => galleryPool.filter((a) => (galleryKind === 'photos' ? a.isPhoto : a.isVideo)),
-    [galleryPool, galleryKind],
+  const galleryItems = useMemo(() => {
+    if (searchActive) return galleryPool
+    return galleryPool.filter((a) => (galleryKind === 'photos' ? a.isPhoto : a.isVideo))
+  }, [galleryPool, galleryKind, searchActive])
+
+  const visibleAlbums = useMemo(
+    () => (searchActive ? filterAlbumsBySearch(albums, search) : albums),
+    [albums, search, searchActive],
   )
 
   const selectedItems = useMemo(() => all.filter((a) => selectedIds.has(a.id)), [all, selectedIds])
@@ -209,7 +218,9 @@ export function MediaLibraryPage() {
   const fbCanPublish =
     isAdmin && (fbConfig?.browser_share_available ?? fbConfig?.publishing_enabled ?? true)
 
-  const showGallerySections = !selectedAlbumId && !search.trim() && fbFilter === 'all'
+  const showAlbumStrip =
+    !selectedAlbumId && fbFilter === 'all' && (!searchActive || visibleAlbums.length > 0)
+  const showBestPicks = !selectedAlbumId && fbFilter === 'all' && !searchActive
 
   const galleryTitle = search.trim() ? 'Search results' : 'Event media'
 
@@ -760,36 +771,36 @@ export function MediaLibraryPage() {
         </div>
       ) : (
         <>
-          {showGallerySections && (
-            <>
-              <EventAlbumsSection
-                albums={albums}
-                selectedAlbumId={selectedAlbumId}
-                isAdmin={isAdmin}
-                onAlbumTap={(a) => {
-                  setSelectedAlbumId(a.id)
-                  setSelectedAlbumName(a.name)
-                }}
-                onClearAlbum={() => {
-                  setSelectedAlbumId(null)
-                  setSelectedAlbumName(null)
-                }}
-                onDeleteAlbum={requestDeleteAlbum}
-                onArchiveAlbum={requestArchiveAlbum}
-              />
+          {showAlbumStrip ? (
+            <EventAlbumsSection
+              albums={visibleAlbums}
+              selectedAlbumId={selectedAlbumId}
+              isAdmin={isAdmin}
+              onAlbumTap={(a) => {
+                setSelectedAlbumId(a.id)
+                setSelectedAlbumName(a.name)
+              }}
+              onClearAlbum={() => {
+                setSelectedAlbumId(null)
+                setSelectedAlbumName(null)
+              }}
+              onDeleteAlbum={requestDeleteAlbum}
+              onArchiveAlbum={requestArchiveAlbum}
+            />
+          ) : null}
 
-              <BestPicksSection
-                items={bestPickItems}
-                isAdmin={isAdmin}
-                onPreview={setPreviewItem}
-                onToggleBestShot={handleToggleBestShot}
-                onPublishAll={() => openPublishModal(bestPickItems.filter(canPublishToFacebook))}
-                publishReadyCount={bestPickPublishReady}
-                facebookReady={fbCanPublish}
-                facebookGraphReady={fbGraphReady}
-              />
-            </>
-          )}
+          {showBestPicks ? (
+            <BestPicksSection
+              items={bestPickItems}
+              isAdmin={isAdmin}
+              onPreview={setPreviewItem}
+              onToggleBestShot={handleToggleBestShot}
+              onPublishAll={() => openPublishModal(bestPickItems.filter(canPublishToFacebook))}
+              publishReadyCount={bestPickPublishReady}
+              facebookReady={fbCanPublish}
+              facebookGraphReady={fbGraphReady}
+            />
+          ) : null}
 
           <div>
             {selectedAlbumId ? (
@@ -831,6 +842,7 @@ export function MediaLibraryPage() {
               )}
             </div>
 
+            {!searchActive ? (
             <div
               className="mb-2 inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5"
               role="tablist"
@@ -860,6 +872,11 @@ export function MediaLibraryPage() {
                 )
               })}
             </div>
+            ) : (
+              <p className="mb-2 text-xs text-[var(--color-text-secondary)]">
+                Showing photos and videos matching your search.
+              </p>
+            )}
 
             {galleryItems.length === 0 ? (
               <AdminCard dashed padding="lg" className="text-center">
@@ -892,7 +909,7 @@ export function MediaLibraryPage() {
             )}
           </div>
 
-          {showGallerySections && (
+          {showBestPicks && (
             <FacebookHistoryCollapsible
               items={publishedItems}
               failedHistory={fbHistory.filter((row) => row.status === 'failed')}

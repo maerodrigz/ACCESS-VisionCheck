@@ -29,10 +29,13 @@ from app.schemas.common import MessageResponse
 router = APIRouter(prefix="/admin", tags=["Admin Integrations"])
 
 
-class BroadcastBody(BaseModel):
+class MemberAnnouncementBody(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     message: str = Field(min_length=1)
-    audience: str = Field(default="all", description="all | member | organization | admin")
+    audience: str | None = Field(
+        default=None,
+        description="Ignored. Announcements are always delivered to approved members only.",
+    )
 
 
 @router.get("/notifications")
@@ -92,18 +95,22 @@ def admin_clear_read_notifications(
 
 @router.post("/notifications/broadcast", response_model=MessageResponse)
 def broadcast_notifications(
-    body: BroadcastBody,
+    body: MemberAnnouncementBody,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    audience = body.audience.strip().lower()
-    q = select(User.id).where(User.status == UserStatus.APPROVED)
-    if audience == "member":
-        q = q.where(User.role.has(Role.role_name == RoleName.MEMBER))
-    elif audience == "organization":
-        q = q.where(User.role.has(Role.role_name == RoleName.ORGANIZATION))
-    elif audience == "admin":
-        q = q.where(User.role.has(Role.role_name == RoleName.ADMIN))
+    if body.audience is not None:
+        requested = body.audience.strip().lower()
+        if requested not in ("", "member"):
+            raise HTTPException(
+                status_code=400,
+                detail="Announcements are sent to approved members only.",
+            )
+    q = (
+        select(User.id)
+        .where(User.status == UserStatus.APPROVED)
+        .where(User.role.has(Role.role_name == RoleName.MEMBER))
+    )
     user_ids = list(db.scalars(q))
     count = 0
     announcement = announcement_crud.create(
@@ -125,10 +132,10 @@ def broadcast_notifications(
     audit_crud.create(
         db,
         user_id=admin.id,
-        action="notification_broadcast",
-        description=f"Sent to {count} users ({audience})",
+        action="member_announcement",
+        description=f"Sent to {count} members",
     )
-    return MessageResponse(message=f"Broadcast sent to {count} users")
+    return MessageResponse(message=f"Announcement sent to {count} members")
 
 
 @router.get("/system-monitor")

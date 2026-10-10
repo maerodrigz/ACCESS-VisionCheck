@@ -167,7 +167,7 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: LoginPageTokens.maxFormWidth),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 26),
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
         decoration: BoxDecoration(
           color: LoginPageTokens.surface,
           borderRadius: BorderRadius.circular(24),
@@ -200,7 +200,7 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Access your member account',
+              'Access your account',
               style: TextStyle(
                 color: LoginPageTokens.textSecondary.withValues(alpha: 0.95),
                 fontSize: 13,
@@ -275,6 +275,24 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
                 ),
               ),
             ],
+            const SizedBox(height: 20),
+            const LegalFooterLinks(useLoginTokens: true),
+            const SizedBox(height: 10),
+            const Text(
+              '© 2026 ACCESS VisionCheck',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: LoginPageTokens.textSecondary, fontSize: 11),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              'USTP Oroquieta Campus',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: LoginPageTokens.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),

@@ -5,9 +5,20 @@ from __future__ import annotations
 import threading
 
 from app.models.enums import RoleName
+from app.services.email_branding import branded_html, esc, product_name
 from app.services.email_delivery import is_email_configured, send_email
 
-_PRODUCT = "ACCESS VisionCheck"
+
+_NO_REPLY_PLAIN = (
+    "\n\nThis is an automated message. You do not need to reply. "
+    "For help, contact your ACCESS administrator through official campus channels."
+)
+_NO_REPLY_HTML = (
+    '<p style="margin-top:16px;font-size:12px;color:#64748b;line-height:1.45;">'
+    "This is an automated message. You do not need to reply. "
+    "For help, contact your ACCESS administrator through official campus channels."
+    "</p>"
+)
 
 
 def _role_label(role_name: str | None) -> str:
@@ -17,67 +28,75 @@ def _role_label(role_name: str | None) -> str:
 
 
 def send_registration_received(*, to_email: str, fullname: str, role_name: str | None) -> bool:
-    name = (fullname or "there").strip()
-    role = _role_label(role_name)
-    subject = f"{_PRODUCT}: registration received"
+    name = esc(fullname or "there")
+    role = esc(_role_label(role_name))
+    product = esc(product_name())
+    subject = f"{product_name()}: registration received"
     plain = (
-        f"Hello {name},\n\n"
-        f"We received your {role} registration for {_PRODUCT}.\n"
+        f"Hello {fullname or 'there'},\n\n"
+        f"We received your {_role_label(role_name)} registration for {product_name()}.\n"
         "An administrator will review your application. "
         "You will receive another email when your account is approved or declined.\n\n"
         "You cannot sign in until an administrator approves your account.\n\n"
-        f"— {_PRODUCT}\n"
+        f"— {product_name()}\n"
         "USTP Oroquieta Campus"
+        f"{_NO_REPLY_PLAIN}"
     )
-    html = f"""
+    inner = f"""
     <p>Hello {name},</p>
-    <p>We received your <strong>{role}</strong> registration for {_PRODUCT}.</p>
+    <p>We received your <strong>{role}</strong> registration for {product}.</p>
     <p>An administrator will review your application. You will receive another email when your account is approved or declined.</p>
     <p>You cannot sign in until an administrator approves your account.</p>
-    <p>— {_PRODUCT}<br>USTP Oroquieta Campus</p>
+    {_NO_REPLY_HTML}
     """
-    return send_email(to_email, subject, plain, html_body=html)
+    return send_email(to_email, subject, plain, html_body=branded_html(inner), automated=True)
 
 
 def send_registration_approved(*, to_email: str, fullname: str) -> bool:
-    name = (fullname or "there").strip()
-    subject = f"{_PRODUCT}: registration approved"
+    name = esc(fullname or "there")
+    product = esc(product_name())
+    subject = f"{product_name()}: registration approved"
     plain = (
-        f"Hello {name},\n\n"
-        f"Your {_PRODUCT} account was approved.\n"
+        f"Hello {fullname or 'there'},\n\n"
+        f"Your {product_name()} account was approved.\n"
         "Open the mobile app and sign in with the email and password you registered.\n\n"
-        f"— {_PRODUCT}\n"
+        f"— {product_name()}\n"
         "USTP Oroquieta Campus"
+        f"{_NO_REPLY_PLAIN}"
     )
-    html = f"""
+    inner = f"""
     <p>Hello {name},</p>
-    <p>Your <strong>{_PRODUCT}</strong> account was <strong>approved</strong>.</p>
+    <p>Your <strong>{product}</strong> account was <strong style="color:#059669;">approved</strong>.</p>
     <p>Open the mobile app and sign in with the email and password you registered.</p>
-    <p>— {_PRODUCT}<br>USTP Oroquieta Campus</p>
+    {_NO_REPLY_HTML}
     """
-    return send_email(to_email, subject, plain, html_body=html)
+    return send_email(to_email, subject, plain, html_body=branded_html(inner), automated=True)
 
 
 def send_registration_rejected(*, to_email: str, fullname: str, reason: str) -> bool:
-    name = (fullname or "there").strip()
-    reason_text = (reason or "").strip() or "No reason was provided. Contact your administrator."
-    subject = f"{_PRODUCT}: registration declined"
+    name = esc(fullname or "there")
+    reason_text = esc((reason or "").strip() or "No reason was provided. Contact your administrator.")
+    product = esc(product_name())
+    subject = f"{product_name()}: registration declined"
     plain = (
-        f"Hello {name},\n\n"
-        f"Your {_PRODUCT} registration was not approved.\n\n"
-        f"Administrator note: {reason_text}\n\n"
+        f"Hello {fullname or 'there'},\n\n"
+        f"Your {product_name()} registration was not approved.\n\n"
+        f"Administrator note: {(reason or '').strip() or 'No reason was provided.'}\n\n"
         "If you sign in, the app will show this message as well.\n\n"
-        f"— {_PRODUCT}\n"
+        f"— {product_name()}\n"
         "USTP Oroquieta Campus"
+        f"{_NO_REPLY_PLAIN}"
     )
-    html = f"""
+    inner = f"""
     <p>Hello {name},</p>
-    <p>Your <strong>{_PRODUCT}</strong> registration was <strong>not approved</strong>.</p>
-    <p><strong>Administrator note:</strong> {reason_text}</p>
+    <p>Your <strong>{product}</strong> registration was <strong style="color:#dc2626;">not approved</strong>.</p>
+    <p style="background:#f8fafc;border-left:4px solid #0052D4;padding:12px 14px;border-radius:8px;">
+      <strong>Administrator note:</strong><br />{reason_text}
+    </p>
     <p>If you sign in, the app will show this message as well.</p>
-    <p>— {_PRODUCT}<br>USTP Oroquieta Campus</p>
+    {_NO_REPLY_HTML}
     """
-    return send_email(to_email, subject, plain, html_body=html)
+    return send_email(to_email, subject, plain, html_body=branded_html(inner), automated=True)
 
 
 def _fire_and_forget(fn, **kwargs) -> None:

@@ -41,7 +41,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   String _searchQuery = '';
   bool _searchExpanded = false;
   bool _showAllUpcoming = false;
-  bool _myCoverageOnly = false;
+  bool _myAssignmentsOnly = false;
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
 
@@ -117,8 +117,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   List<CalendarEvent> get _visibleEvents {
     var list = appState.events;
-    if (_myCoverageOnly) {
-      list = list.where(memberIsAssignedToEvent).toList();
+    if (_myAssignmentsOnly) {
+      list = list.where(memberHasActiveTaskForEvent).toList();
     }
     return list.where(_matchesSearch).toList();
   }
@@ -137,8 +137,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ..sort((a, b) => a.startDate.compareTo(b.startDate));
   }
 
-  bool _dayHasMyAssignment(DateTime day) =>
-      _eventsForDay(day).any(memberIsAssignedToEvent);
+  bool _dayHasMyAssignment(DateTime day) {
+    final dayEvents = appState.events.where((e) => _sameDay(e.startDate, day));
+    return dayEvents.any(memberHasActiveTaskForEvent);
+  }
+
+  bool _dayHasGeneralEvent(DateTime day) {
+    if (_myAssignmentsOnly) return false;
+    final dayEvents = appState.events.where((e) => _sameDay(e.startDate, day));
+    return dayEvents.any((e) => !memberHasActiveTaskForEvent(e));
+  }
 
   void _goToToday() {
     final now = DateTime.now();
@@ -163,7 +171,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
     final startWeekday = (firstDay.weekday + 6) % 7;
-    final rows = ((startWeekday + daysInMonth) / 7).ceil();
+    final rowCount = ((startWeekday + daysInMonth) / 7).ceil();
 
     return ColoredBox(
       color: kBg,
@@ -177,8 +185,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onProfileTap: widget.onProfileTap,
           ),
           _CalendarFilterTabs(
-            myCoverageOnly: _myCoverageOnly,
-            onChanged: (value) => setState(() => _myCoverageOnly = value),
+            myAssignmentsOnly: _myAssignmentsOnly,
+            onChanged: (value) => setState(() => _myAssignmentsOnly = value),
             onSearchTap: _toggleSearch,
             searchActive: _hasActiveSearch || _searchExpanded,
           ),
@@ -250,9 +258,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             },
                             child: Container(
                               decoration: BoxDecoration(
-                                color: kSurface,
+                                color: kBlueDim.withValues(alpha: 0.35),
                                 borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
-                                border: Border.all(color: kBorder),
+                                border: Border.all(color: kAccent.withValues(alpha: 0.12)),
                                 boxShadow: [
                                   BoxShadow(
                                     color: kMemberCyan.withValues(alpha: 0.06),
@@ -276,24 +284,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         onTap: _prevMonth,
                                       ),
                                       Expanded(
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              _monthNames[_focusedMonth.month - 1],
-                                              style: memberDashboardSectionTitleStyle.copyWith(
-                                                fontSize: 16,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                            Text(
-                                              '${_focusedMonth.year}',
-                                              style: memberDashboardMetaStyle.copyWith(
-                                                color: kAccent,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
+                                        child: Text(
+                                          '${_monthNames[_focusedMonth.month - 1]} ${_focusedMonth.year}',
+                                          style: memberDashboardSectionTitleStyle.copyWith(
+                                            fontSize: 16,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       _TodayPill(onTap: _goToToday),
@@ -323,15 +321,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         )
                                         .toList(),
                                   ),
-                                  const SizedBox(height: 6),
-                                  ...List.generate(rows, (row) {
+                                  const SizedBox(height: 4),
+                                  ...List.generate(rowCount, (row) {
                                     return Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
+                                      padding: const EdgeInsets.only(bottom: 2),
                                       child: Row(
                                         children: List.generate(7, (col) {
                                           final dayNum = row * 7 + col - startWeekday + 1;
                                           if (dayNum < 1 || dayNum > daysInMonth) {
-                                            return const Expanded(child: SizedBox(height: 38));
+                                            return const Expanded(child: SizedBox(height: 40));
                                           }
                                           final date = DateTime(
                                             _focusedMonth.year,
@@ -340,14 +338,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           );
                                           final isSelected = _sameDay(_selectedDay, date);
                                           final isToday = _sameDay(today, date);
-                                          final eventsOnDay = _eventsForDay(date);
                                           return Expanded(
                                             child: _CalendarDayCell(
                                               day: dayNum,
                                               isSelected: isSelected,
                                               isToday: isToday,
-                                              eventCount: eventsOnDay.length,
                                               hasMyAssignment: _dayHasMyAssignment(date),
+                                              hasGeneralEvent: _dayHasGeneralEvent(date),
                                               onTap: () => setState(() => _selectedDay = date),
                                             ),
                                           );
@@ -355,13 +352,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       ),
                                     );
                                   }),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(height: 4),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       _CalendarLegendDot(color: kCyan, label: 'Event'),
                                       const SizedBox(width: 12),
-                                      _CalendarLegendDot(color: kAccent, label: 'Your coverage'),
+                                      _CalendarLegendDot(color: kAccent, label: 'Assigned'),
                                     ],
                                   ),
                                 ],
@@ -372,10 +369,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: EdgeInsets.fromLTRB(padding, 10, padding, 6),
+                          padding: EdgeInsets.fromLTRB(padding, 8, padding, 4),
                           child: Row(
                             children: [
-                              Icon(Icons.event_rounded, size: 18, color: kAccent),
+                              Icon(Icons.event_rounded, size: 17, color: kAccent),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
@@ -388,7 +385,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     Text(
                                       dayEvents.isEmpty
                                           ? 'No events scheduled'
-                                          : '${dayEvents.length} event${dayEvents.length == 1 ? '' : 's'} scheduled',
+                                          : '${dayEvents.length} event${dayEvents.length == 1 ? '' : 's'}',
                                       style: memberDashboardMetaStyle.copyWith(fontSize: 12),
                                     ),
                                   ],
@@ -408,11 +405,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     title: 'No matching events',
                                     subtitle: 'Try a different search or date.',
                                   )
-                                : _CalendarNoEventsEmptyState(
-                                    onViewGallery: widget.onViewGallery,
-                                    onViewAssignments: widget.onViewAssignments,
-                                    myCoverageOnly: _myCoverageOnly,
-                                  ),
+                                : const _CalendarNoEventsEmptyState(),
                           ),
                         )
                       else
@@ -434,22 +427,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       if (upcoming.isNotEmpty) ...[
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: EdgeInsets.fromLTRB(padding, 8, padding, 10),
+                            padding: EdgeInsets.fromLTRB(padding, 6, padding, 8),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Text(
                                     'Upcoming Events',
-                                    style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
+                                    style: memberDashboardSectionTitleStyle.copyWith(fontSize: 15),
                                   ),
                                 ),
                                 if (upcoming.length > _upcomingPreviewLimit)
                                   TextButton(
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
                                     onPressed: () => setState(
                                       () => _showAllUpcoming = !_showAllUpcoming,
                                     ),
                                     child: Text(
-                                      _showAllUpcoming ? 'Show Less' : 'See All',
+                                      _showAllUpcoming ? 'Show less' : 'See all',
                                       style: const TextStyle(
                                         color: kAccent,
                                         fontWeight: FontWeight.w700,
@@ -461,57 +459,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                           ),
                         ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(padding, 0, padding, 32),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: kSurface,
-                                borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
-                                border: Border.all(color: kBorder),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.04),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: Column(
-                                children: [
-                                  for (var i = 0; i < upcomingVisible.length; i++) ...[
-                                    if (i > 0)
-                                      Divider(
-                                        height: 1,
-                                        thickness: 1,
-                                        color: kBorder.withValues(alpha: 0.85),
-                                        indent: 14,
-                                        endIndent: 14,
-                                      ),
-                                    MemberCalendarUpcomingCard(
-                                      event: upcomingVisible[i],
-                                      inGroup: true,
-                                      onTap: () {
-                                        final event = upcomingVisible[i];
-                                        setState(() {
-                                          _selectedDay = _dayOnly(event.startDate);
-                                          _focusedMonth = DateTime(
-                                            event.startDate.year,
-                                            event.startDate.month,
-                                          );
-                                        });
-                                        showMemberEventDetail(
-                                          context,
-                                          event,
-                                          onViewGallery: widget.onViewGallery,
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(padding, 0, padding, 24),
+                          sliver: SliverList.separated(
+                            itemCount: upcomingVisible.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            itemBuilder: (_, i) {
+                              final event = upcomingVisible[i];
+                              return MemberCalendarUpcomingCard(
+                                event: event,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedDay = _dayOnly(event.startDate);
+                                    _focusedMonth = DateTime(
+                                      event.startDate.year,
+                                      event.startDate.month,
+                                    );
+                                  });
+                                  showMemberEventDetail(
+                                    context,
+                                    event,
+                                    onViewGallery: widget.onViewGallery,
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -590,75 +562,37 @@ class _CalendarSearchBar extends StatelessWidget {
 }
 
 class _CalendarNoEventsEmptyState extends StatelessWidget {
-  const _CalendarNoEventsEmptyState({
-    this.onViewGallery,
-    this.onViewAssignments,
-    this.myCoverageOnly = false,
-  });
-
-  final VoidCallback? onViewGallery;
-  final VoidCallback? onViewAssignments;
-  final bool myCoverageOnly;
+  const _CalendarNoEventsEmptyState();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       decoration: BoxDecoration(
         color: kSurface,
         borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
         border: Border.all(color: kBorder),
       ),
-      child: Column(
+      child: Row(
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: kMemberDashboardAccentLight,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: kMemberCyan.withValues(alpha: 0.2)),
             ),
-            child: const Icon(Icons.event_busy_rounded, color: kAccent, size: 28),
+            child: const Icon(Icons.event_busy_outlined, color: kAccent, size: 18),
           ),
-          const SizedBox(height: 14),
-          Text(
-            myCoverageOnly ? 'No assigned coverage on this day' : 'No events on this day',
-            style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'No events scheduled',
+              style: memberDashboardSectionTitleStyle.copyWith(fontSize: 14),
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            myCoverageOnly
-                ? 'Try turning off My coverage or pick another date.'
-                : 'Pick another date or swipe the month grid to browse.',
-            textAlign: TextAlign.center,
-            style: memberDashboardMetaStyle.copyWith(height: 1.4),
-          ),
-          if (onViewAssignments != null || onViewGallery != null) ...[
-            const SizedBox(height: 14),
-            if (onViewAssignments != null)
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onViewAssignments,
-                  icon: const Icon(Icons.assignment_outlined, size: 18),
-                  label: const Text('My Assignments'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kAccent,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(42),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            if (onViewGallery != null) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: onViewGallery,
-                child: const Text('View event gallery'),
-              ),
-            ],
-          ],
         ],
       ),
     );
@@ -667,13 +601,13 @@ class _CalendarNoEventsEmptyState extends StatelessWidget {
 
 class _CalendarFilterTabs extends StatelessWidget {
   const _CalendarFilterTabs({
-    required this.myCoverageOnly,
+    required this.myAssignmentsOnly,
     required this.onChanged,
     required this.onSearchTap,
     required this.searchActive,
   });
 
-  final bool myCoverageOnly;
+  final bool myAssignmentsOnly;
   final ValueChanged<bool> onChanged;
   final VoidCallback onSearchTap;
   final bool searchActive;
@@ -688,9 +622,9 @@ class _CalendarFilterTabs extends StatelessWidget {
           Expanded(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: kSurfaceAlt,
+                color: kBlueDim.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kBorder),
+                border: Border.all(color: kAccent.withValues(alpha: 0.1)),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(3),
@@ -698,15 +632,15 @@ class _CalendarFilterTabs extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _CalendarFilterTab(
-                        label: 'My Coverage',
-                        selected: myCoverageOnly,
+                        label: 'My Assignments',
+                        selected: myAssignmentsOnly,
                         onTap: () => onChanged(true),
                       ),
                     ),
                     Expanded(
                       child: _CalendarFilterTab(
                         label: 'All Events',
-                        selected: !myCoverageOnly,
+                        selected: !myAssignmentsOnly,
                         onTap: () => onChanged(false),
                       ),
                     ),
@@ -717,7 +651,7 @@ class _CalendarFilterTabs extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Material(
-            color: kSurface,
+            color: kBlueDim.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
               onTap: onSearchTap,
@@ -730,8 +664,8 @@ class _CalendarFilterTabs extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: searchActive
-                        ? kAccent.withValues(alpha: 0.45)
-                        : kBorder,
+                        ? kAccent.withValues(alpha: 0.35)
+                        : kAccent.withValues(alpha: 0.12),
                   ),
                 ),
                 child: Icon(
@@ -773,14 +707,8 @@ class _CalendarFilterTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? kSurface : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 6,
-                      offset: const Offset(0, 1),
-                    ),
-                  ]
+            border: selected
+                ? Border.all(color: kAccent.withValues(alpha: 0.15))
                 : null,
           ),
           child: Text(
@@ -807,7 +735,7 @@ class _MonthNavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: kSurface,
+      color: kSurface.withValues(alpha: 0.85),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -817,9 +745,9 @@ class _MonthNavButton extends StatelessWidget {
           height: 36,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kBorder),
+            border: Border.all(color: kAccent.withValues(alpha: 0.12)),
           ),
-          child: Icon(icon, color: kTextSecondary, size: 20),
+          child: Icon(icon, color: kAccent.withValues(alpha: 0.75), size: 20),
         ),
       ),
     );
@@ -831,23 +759,23 @@ class _CalendarDayCell extends StatelessWidget {
     required this.day,
     required this.isSelected,
     required this.isToday,
-    required this.eventCount,
     required this.hasMyAssignment,
+    required this.hasGeneralEvent,
     required this.onTap,
   });
 
   final int day;
   final bool isSelected;
   final bool isToday;
-  final int eventCount;
   final bool hasMyAssignment;
+  final bool hasGeneralEvent;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final dotColor = isSelected
-        ? Colors.white
-        : (hasMyAssignment ? kAccent : kCyan);
+    final showDots = hasMyAssignment || hasGeneralEvent;
+    final assignedDot = isSelected ? Colors.white : kAccent;
+    final generalDot = isSelected ? Colors.white.withValues(alpha: 0.85) : kCyan;
 
     return GestureDetector(
       onTap: onTap,
@@ -855,19 +783,19 @@ class _CalendarDayCell extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
-        height: 38,
-        margin: const EdgeInsets.symmetric(horizontal: 1),
+        height: 40,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           color: isSelected
-              ? kAccent
+              ? kAccent.withValues(alpha: 0.88)
               : isToday
-                  ? kAccent.withValues(alpha: 0.08)
-                  : Colors.transparent,
+                  ? kAccent.withValues(alpha: 0.1)
+                  : Colors.white.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(10),
           border: isToday && !isSelected
-              ? Border.all(color: kAccent, width: 1.5)
+              ? Border.all(color: kAccent.withValues(alpha: 0.45))
               : hasMyAssignment && !isSelected
-                  ? Border.all(color: kAccent.withValues(alpha: 0.35))
+                  ? Border.all(color: kAccent.withValues(alpha: 0.25))
                   : null,
         ),
         child: Column(
@@ -883,27 +811,33 @@ class _CalendarDayCell extends StatelessWidget {
                         : kTextPrimary,
                 fontSize: 13,
                 fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w500,
+                height: 1.1,
               ),
             ),
-            const SizedBox(height: 2),
-            if (eventCount > 0)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  eventCount.clamp(0, 3),
-                  (_) => Container(
-                    width: 3,
-                    height: 3,
-                    margin: const EdgeInsets.symmetric(horizontal: 1),
-                    decoration: BoxDecoration(
-                      color: dotColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              )
-            else
-              const SizedBox(height: 3),
+            SizedBox(
+              height: 8,
+              child: showDots
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (hasGeneralEvent)
+                          Container(
+                            width: 4,
+                            height: 4,
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            decoration: BoxDecoration(color: generalDot, shape: BoxShape.circle),
+                          ),
+                        if (hasMyAssignment)
+                          Container(
+                            width: 4,
+                            height: 4,
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            decoration: BoxDecoration(color: assignedDot, shape: BoxShape.circle),
+                          ),
+                      ],
+                    )
+                  : null,
+            ),
           ],
         ),
       ),
@@ -919,7 +853,7 @@ class _TodayPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: kAccent.withValues(alpha: 0.1),
+      color: kAccent.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -928,9 +862,9 @@ class _TodayPill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kAccent.withValues(alpha: 0.35)),
+            border: Border.all(color: kAccent.withValues(alpha: 0.22)),
           ),
-          child: const Icon(Icons.today_rounded, size: 17, color: kAccent),
+          child: Icon(Icons.today_rounded, size: 17, color: kAccent.withValues(alpha: 0.85)),
         ),
       ),
     );
@@ -954,9 +888,9 @@ class _CalendarPageHeader extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(padding, 8, padding, 6),
+        padding: EdgeInsets.fromLTRB(padding, 4, padding, 2),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Column(
@@ -966,18 +900,18 @@ class _CalendarPageHeader extends StatelessWidget {
                     'Calendar',
                     style: dashText(const TextStyle(
                       color: kTextPrimary,
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      height: 1.1,
+                      letterSpacing: -0.4,
+                      height: 1.15,
                     )),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: memberDashboardMetaStyle.copyWith(fontSize: 14),
+                    style: memberDashboardMetaStyle.copyWith(fontSize: 13, height: 1.25),
                   ),
                 ],
               ),

@@ -6,7 +6,6 @@ import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/screens/registration_choice_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
-import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
 import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
@@ -157,7 +156,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     final wide = MediaQuery.sizeOf(context).width >= 900;
 
     return Scaffold(
-      backgroundColor: LoginPageTokens.background,
+      backgroundColor: wide ? LoginPageTokens.background : const Color(0xFF0C3340),
       resizeToAvoidBottomInset: true,
       body: wide ? _wideLayout() : _narrowLayout(),
     );
@@ -189,12 +188,14 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Widget _narrowLayout() {
-    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final topInset = MediaQuery.paddingOf(context).top;
 
     final card = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Center(
         child: LoginFormPanel(
+          key: const ValueKey('mobile-login-card'),
           cardStyle: true,
           emailController: _emailCtrl,
           passwordController: _passCtrl,
@@ -212,33 +213,35 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       ),
     );
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(gradient: LoginPageTokens.heroGradient),
-      child: SafeArea(
-        top: false,
-        child: keyboardOpen
-            ? SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top + 20, bottom: 20),
-                child: card,
-              )
-            : Column(
+    final minContentHeight = MediaQuery.sizeOf(context).height - topInset - bottomInset;
+
+    // Full-screen gradient behind scroll content (no white strip under the hero).
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(gradient: LoginPageTokens.heroGradient),
+        ),
+        SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.only(top: topInset + 8, bottom: 16 + bottomInset),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: minContentHeight),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Expanded(flex: 5, child: LoginBrandPanel(compact: true)),
+                  const LoginBrandPanel(compact: true),
+                  const SizedBox(height: 8),
                   card,
-                  const Spacer(flex: 2),
-                  const LegalFooterLinks(onDarkBackground: true),
-                  const SizedBox(height: 4),
-                  Text(
-                    '© 2026 ACCESS VisionCheck · USTP Oroquieta Campus',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 24),
                 ],
               ),
-      ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

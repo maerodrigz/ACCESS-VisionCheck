@@ -8,6 +8,10 @@ export const pageToolbarBtnClass =
 
   'inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-2 text-sm font-medium text-[var(--color-text-primary)] shadow-sm transition hover:bg-[var(--color-surface-hover)] disabled:opacity-50'
 
+/** Primary action (Announcement, Send) — do not mix with pageToolbarBtnClass (conflicting bg utilities). */
+export const pageToolbarPrimaryBtnClass =
+  'inline-flex items-center gap-2 rounded-full border border-[#0052D4] bg-[#0052D4] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#0052D4]/30 transition hover:bg-[#0046b8] hover:border-[#0046b8] disabled:opacity-50'
+
 
 
 /** Icon-only control — use for prev/next, not refresh. */

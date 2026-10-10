@@ -14,8 +14,8 @@ const CHART_ROW_HEIGHT = 'h-[320px]'
 export function AnalyticsOverviewDashboard({
   data,
   range,
-  onViewAllMembers,
-  onViewAllActivity,
+  onViewAllMembers: _onViewAllMembers,
+  onViewAllActivity: _onViewAllActivity,
 }: {
   data: AnalyticsSnapshot
   range: DateRange

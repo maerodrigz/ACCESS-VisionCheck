@@ -313,7 +313,10 @@ class MemberDataController extends ChangeNotifier {
 
   Future<void> _ensureCalendarTabImpl() async {
     final ctx = _MemberSyncContext();
-    await _runSection(ctx, 'Events', _syncEventsSection);
+    await _runSectionsParallel(ctx, [
+      ('Events', _syncEventsSection),
+      if (appState.challenges.isEmpty) ('Tasks', _syncTasksSection),
+    ]);
     calendarTabError = _syncErrorFromContext(ctx, sectionPrefix: 'Events');
     if (calendarTabError == null) {
       calendarTabSynced = true;

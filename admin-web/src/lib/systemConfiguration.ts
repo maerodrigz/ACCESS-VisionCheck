@@ -99,7 +99,7 @@ export const NOTIFICATION_ITEMS: {
   {
     key: 'notify_new_announcement',
     label: 'New Announcement',
-    hint: 'Deliver in-app alerts when administrators broadcast a platform announcement.',
+    hint: 'Deliver in-app alerts to members when administrators post a new announcement.',
   },
   {
     key: 'notify_system_alerts',

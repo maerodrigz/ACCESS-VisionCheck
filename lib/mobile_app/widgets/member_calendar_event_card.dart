@@ -14,6 +14,11 @@ class MemberCalendarEventCard extends StatelessWidget {
   final CalendarEvent event;
   final VoidCallback? onTap;
 
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
   @override
   Widget build(BuildContext context) {
     final muted = event.isPast;
@@ -36,9 +41,9 @@ class MemberCalendarEventCard extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: (isMine ? accent : Colors.black).withValues(alpha: isMine ? 0.08 : 0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: (isMine ? accent : Colors.black).withValues(alpha: isMine ? 0.06 : 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -47,25 +52,25 @@ class MemberCalendarEventCard extends StatelessWidget {
             children: [
               Container(height: 3, color: isMine ? accent : kMemberCyan.withValues(alpha: 0.45)),
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
                         color: muted ? kSurfaceAlt : accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: accent.withValues(alpha: muted ? 0.1 : 0.22)),
                       ),
                       child: Icon(
                         isMine ? Icons.assignment_ind_rounded : Icons.event_note_rounded,
                         color: muted ? kIconInactive : accent,
-                        size: 24,
+                        size: 22,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,50 +83,28 @@ class MemberCalendarEventCard extends StatelessWidget {
                                   event.title,
                                   style: memberDashboardCardTitleStyle.copyWith(
                                     color: muted ? kTextSecondary : kDashTextPrimary,
-                                    fontSize: 15,
+                                    fontSize: 14,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              _StatusBadge(event: event),
+                              const SizedBox(width: 6),
+                              _AssignmentKindPill(assigned: isMine),
                             ],
                           ),
-                          if (isMine) ...[
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: kMemberPrimary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: kMemberPrimary.withValues(alpha: 0.22)),
-                              ),
-                              child: Text(
-                                'YOUR COVERAGE',
-                                style: dashText(const TextStyle(
-                                  color: kMemberPrimary,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                )),
-                              ),
-                            ),
-                          ],
                           const SizedBox(height: 6),
-                          Text(
-                            event.tag,
-                            style: memberDashboardMetaStyle.copyWith(
-                              color: muted ? kIconInactive : accent,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          _MetaRow(
+                            icon: Icons.calendar_today_outlined,
+                            text: _formatDate(event.startDate),
+                            muted: muted,
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 3),
                           _MetaRow(
                             icon: Icons.schedule_rounded,
                             text: event.timeLabel ?? 'Time TBA',
                             muted: muted,
                           ),
                           if (event.location.isNotEmpty) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
                             _MetaRow(
                               icon: Icons.location_on_outlined,
                               text: event.location,
@@ -140,92 +123,72 @@ class MemberCalendarEventCard extends StatelessWidget {
       ),
     );
   }
+
+  String _formatDate(DateTime d) {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return '${weekdays[d.weekday - 1]}, ${_months[d.month - 1]} ${d.day}';
+  }
 }
 
-/// Compact agenda row for the upcoming events list.
+/// Compact card for the upcoming events list.
 class MemberCalendarUpcomingCard extends StatelessWidget {
   const MemberCalendarUpcomingCard({
     super.key,
     required this.event,
     this.onTap,
-    this.showDateBadge = true,
     this.inGroup = false,
   });
 
   final CalendarEvent event;
   final VoidCallback? onTap;
-  final bool showDateBadge;
-  final bool inGroup;
 
-  static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  /// Legacy grouped list styling; calendar screen uses separate cards.
+  final bool inGroup;
 
   @override
   Widget build(BuildContext context) {
     final isMine = memberIsAssignedToEvent(event);
     final accent = isMine ? kAccent : kCyan;
-    final iconBg = isMine ? kBlueDim : kCyanDim;
 
     final content = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: inGroup ? 14 : 12,
-        vertical: inGroup ? 12 : 11,
+        vertical: inGroup ? 12 : 10,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (showDateBadge) ...[
-            _DateColumn(date: event.startDate, accent: accent),
-            const SizedBox(width: 12),
-          ] else ...[
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(
-                isMine ? Icons.assignment_ind_outlined : Icons.event_outlined,
-                color: accent,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-          ],
+          _DateColumn(date: event.startDate, accent: accent),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   event.title,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: memberDashboardCardTitleStyle.copyWith(fontSize: 13),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  _subtitle(event, includeDate: !showDateBadge),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: memberDashboardBodyStyle.copyWith(fontSize: 11),
-                ),
+                const SizedBox(height: 4),
+                if ((event.timeLabel ?? '').trim().isNotEmpty)
+                  _CompactMeta(
+                    icon: Icons.schedule_rounded,
+                    text: event.timeLabel!.trim(),
+                  ),
+                if (event.location.trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  _CompactMeta(
+                    icon: Icons.location_on_outlined,
+                    text: event.location.trim(),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                _AssignmentKindPill(assigned: isMine, compact: true),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          if (isMine)
-            _AgendaPill(
-              label: 'Yours',
-              color: kAccent,
-              background: kBlueDim,
-            )
-          else if (event.tag.trim().isNotEmpty)
-            _AgendaPill(
-              label: event.tag,
-              color: kCyan,
-              background: kCyanDim,
-            ),
+          const SizedBox(width: 4),
           Icon(Icons.chevron_right_rounded, color: kIconInactive, size: 18),
         ],
       ),
@@ -240,19 +203,19 @@ class MemberCalendarUpcomingCard extends StatelessWidget {
 
     return Material(
       color: kSurface,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
             border: Border.all(color: kBorder),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
+                blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -263,23 +226,6 @@ class MemberCalendarUpcomingCard extends StatelessWidget {
     );
   }
 
-  String _subtitle(CalendarEvent event, {required bool includeDate}) {
-    final parts = <String>[];
-    if (includeDate) {
-      parts.add(_formatDay(event.startDate));
-    }
-    final time = event.timeLabel?.trim();
-    if (time != null && time.isNotEmpty) parts.add(time);
-    final location = event.location.trim();
-    if (location.isNotEmpty) parts.add(location);
-    return parts.isEmpty ? 'Details TBA' : parts.join(' · ');
-  }
-
-  String _formatDay(DateTime date) {
-    final weekday = _weekdays[(date.weekday - 1) % 7];
-    final month = _months[date.month - 1];
-    return '$weekday, $month ${date.day}';
-  }
 }
 
 class _DateColumn extends StatelessWidget {
@@ -296,7 +242,7 @@ class _DateColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 38,
+      width: 36,
       child: Column(
         children: [
           Text(
@@ -305,17 +251,16 @@ class _DateColumn extends StatelessWidget {
               color: accent,
               fontSize: 9,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
+              letterSpacing: 0.4,
             )),
           ),
-          const SizedBox(height: 1),
           Text(
             '${date.day}',
             style: dashText(const TextStyle(
               color: kTextPrimary,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
-              height: 1,
+              height: 1.05,
               letterSpacing: -0.5,
             )),
           ),
@@ -325,35 +270,61 @@ class _DateColumn extends StatelessWidget {
   }
 }
 
-class _AgendaPill extends StatelessWidget {
-  const _AgendaPill({
-    required this.label,
-    required this.color,
-    required this.background,
+class _AssignmentKindPill extends StatelessWidget {
+  const _AssignmentKindPill({
+    required this.assigned,
+    this.compact = false,
   });
 
-  final String label;
-  final Color color;
-  final Color background;
+  final bool assigned;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final color = assigned ? kAccent : kCyan;
+    final bg = assigned ? kBlueDim : kCyanDim;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 7 : 8,
+        vertical: compact ? 2 : 3,
+      ),
       decoration: BoxDecoration(
-        color: background,
+        color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        assigned ? 'Assigned' : 'Event',
         style: dashText(TextStyle(
           color: color,
-          fontSize: 9.5,
+          fontSize: compact ? 9 : 9.5,
           fontWeight: FontWeight.w700,
         )),
       ),
+    );
+  }
+}
+
+class _CompactMeta extends StatelessWidget {
+  const _CompactMeta({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: kTextSecondary),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: memberDashboardBodyStyle.copyWith(fontSize: 11),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -385,32 +356,6 @@ class _MetaRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.event});
-
-  final CalendarEvent event;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: event.statusColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        event.status.toUpperCase(),
-        style: TextStyle(
-          color: event.statusColor,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-      ),
     );
   }
 }

@@ -5,8 +5,12 @@ from __future__ import annotations
 import logging
 import smtplib
 from email.message import EmailMessage
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from app.config import settings
+from app.services.email_branding import LOGO_CID, logo_path, product_name
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +25,71 @@ def is_email_configured() -> bool:
     return True
 
 
+def _from_header() -> str:
+    from_addr = settings.email_from.strip()
+    from_name = product_name()
+    return f"{from_name} <{from_addr}>" if from_name else from_addr
+
+
+def _build_message(
+    to: str,
+    subject: str,
+    plain_body: str,
+    html_body: str | None,
+    *,
+    automated: bool = False,
+) -> EmailMessage | MIMEMultipart:
+    from_hdr = _from_header()
+    reply_to = "" if automated else (settings.email_reply_to or "").strip()
+
+    logo = logo_path()
+    embed_logo = html_body and logo is not None
+
+    if not embed_logo:
+        msg = EmailMessage()
+        msg["From"] = from_hdr
+        msg["To"] = to
+        msg["Subject"] = subject.strip()[:200]
+        if reply_to:
+            msg["Reply-To"] = reply_to
+        if automated:
+            msg["Auto-Submitted"] = "auto-generated"
+        msg.set_content(plain_body.strip())
+        if html_body:
+            msg.add_alternative(html_body.strip(), subtype="html")
+        return msg
+
+    root = MIMEMultipart("mixed")
+    root["From"] = from_hdr
+    root["To"] = to
+    root["Subject"] = subject.strip()[:200]
+    if reply_to:
+        root["Reply-To"] = reply_to
+    if automated:
+        root["Auto-Submitted"] = "auto-generated"
+
+    related = MIMEMultipart("related")
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(plain_body.strip(), "plain", "utf-8"))
+    alt.attach(MIMEText(html_body.strip(), "html", "utf-8"))
+    related.attach(alt)
+
+    img_bytes = logo.read_bytes()
+    mime_img = MIMEImage(img_bytes, _subtype="png")
+    mime_img.add_header("Content-ID", f"<{LOGO_CID}>")
+    mime_img.add_header("Content-Disposition", "inline", filename="access_logo.png")
+    related.attach(mime_img)
+    root.attach(related)
+    return root
+
+
 def send_email(
     to_address: str,
     subject: str,
     plain_body: str,
     *,
     html_body: str | None = None,
+    automated: bool = False,
 ) -> bool:
     """Send one message. Returns True on success, False if skipped or failed."""
     to = (to_address or "").strip().lower()
@@ -37,15 +100,7 @@ def send_email(
         logger.debug("email skipped: SMTP not configured (set EMAIL_ENABLED and SMTP_* in .env)")
         return False
 
-    msg = EmailMessage()
-    from_addr = settings.email_from.strip()
-    from_name = (settings.email_from_name or "ACCESS VisionCheck").strip()
-    msg["From"] = f"{from_name} <{from_addr}>" if from_name else from_addr
-    msg["To"] = to
-    msg["Subject"] = subject.strip()[:200]
-    msg.set_content(plain_body.strip())
-    if html_body:
-        msg.add_alternative(html_body.strip(), subtype="html")
+    msg = _build_message(to, subject, plain_body, html_body, automated=automated)
 
     try:
         with smtplib.SMTP(settings.smtp_host.strip(), settings.smtp_port, timeout=30) as smtp:

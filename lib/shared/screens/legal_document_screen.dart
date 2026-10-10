@@ -3,21 +3,35 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/shared/legal/access_legal_content.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-void openAccessLegalDocument(BuildContext context, AccessLegalDocument document) {
+void openAccessLegalDocument(
+  BuildContext context,
+  AccessLegalDocument document, {
+  RegistrationLegalAudience? registrationAudience,
+}) {
   Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => LegalDocumentScreen(document: document)),
+    MaterialPageRoute<void>(
+      builder: (_) => LegalDocumentScreen(
+        document: document,
+        registrationAudience: registrationAudience,
+      ),
+    ),
   );
 }
 
 /// Scrollable legal document (Terms, Privacy, Content Standards).
 class LegalDocumentScreen extends StatelessWidget {
-  const LegalDocumentScreen({super.key, required this.document});
+  const LegalDocumentScreen({
+    super.key,
+    required this.document,
+    this.registrationAudience,
+  });
 
   final AccessLegalDocument document;
+  final RegistrationLegalAudience? registrationAudience;
 
   @override
   Widget build(BuildContext context) {
-    final sections = accessLegalSections(document);
+    final sections = accessLegalSections(document, registrationAudience: registrationAudience);
 
     return Scaffold(
       backgroundColor: kBg,
@@ -27,7 +41,9 @@ class LegalDocumentScreen extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         title: Text(
-          document.title,
+          registrationAudience != null
+              ? document.registrationTitle(registrationAudience!)
+              : document.title,
           style: dashText(const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
         ),
       ),
@@ -49,7 +65,7 @@ class LegalDocumentScreen extends StatelessWidget {
   }
 }
 
-class _LegalSectionBlock extends StatelessWidget {
+                'Written for ${registrationAudienceLabel(registrationAudience!)} registration.',
   const _LegalSectionBlock({required this.section});
 
   final AccessLegalSection section;

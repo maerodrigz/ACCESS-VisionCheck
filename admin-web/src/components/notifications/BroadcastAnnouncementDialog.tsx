@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Loader2, Megaphone, X } from 'lucide-react'
-import { broadcastNotification } from '../../api/adminIntegrations'
+import { sendMemberAnnouncement } from '../../api/adminIntegrations'
 import { AdminErrorBanner } from '../AdminAlert'
 
 interface Props {
@@ -9,17 +9,9 @@ interface Props {
   onSent: () => void
 }
 
-const AUDIENCE_OPTIONS = [
-  { value: 'all', label: 'All approved users' },
-  { value: 'member', label: 'Members only' },
-  { value: 'organization', label: 'Organizations only' },
-  { value: 'admin', label: 'Administrators only' },
-] as const
-
-export function BroadcastAnnouncementDialog({ open, onClose, onSent }: Props) {
+export function MemberAnnouncementDialog({ open, onClose, onSent }: Props) {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
-  const [audience, setAudience] = useState<(typeof AUDIENCE_OPTIONS)[number]['value']>('all')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,18 +22,16 @@ export function BroadcastAnnouncementDialog({ open, onClose, onSent }: Props) {
     setBusy(true)
     setError(null)
     try {
-      await broadcastNotification({
+      await sendMemberAnnouncement({
         title: title.trim(),
         message: message.trim(),
-        audience,
       })
       setTitle('')
       setMessage('')
-      setAudience('all')
       onSent()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Broadcast failed')
+      setError(e instanceof Error ? e.message : 'Could not send announcement')
     } finally {
       setBusy(false)
     }
@@ -51,14 +41,14 @@ export function BroadcastAnnouncementDialog({ open, onClose, onSent }: Props) {
     <>
       <button
         type="button"
-        aria-label="Close broadcast dialog"
+        aria-label="Close announcement dialog"
         className="fixed inset-0 z-[60] bg-black/40"
         onClick={busy ? undefined : onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="broadcast-dialog-title"
+        aria-labelledby="member-announcement-dialog-title"
         className="fixed left-1/2 top-1/2 z-[70] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
       >
         <div className="flex items-start justify-between border-b border-[var(--color-border)] px-5 py-4">
@@ -67,11 +57,12 @@ export function BroadcastAnnouncementDialog({ open, onClose, onSent }: Props) {
               <Megaphone size={20} />
             </span>
             <div>
-              <h2 id="broadcast-dialog-title" className="text-base font-extrabold text-[var(--color-text-primary)]">
-                Broadcast announcement
+              <h2 id="member-announcement-dialog-title" className="text-base font-extrabold text-[var(--color-text-primary)]">
+                New announcement
               </h2>
               <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
-                Sends an in-app notification when announcements are enabled in System Configuration.
+                Delivers an in-app alert to approved members only. Also appears on the member home feed when
+                &quot;New Announcement&quot; is enabled in System Configuration.
               </p>
             </div>
           </div>
@@ -89,49 +80,35 @@ export function BroadcastAnnouncementDialog({ open, onClose, onSent }: Props) {
         <div className="space-y-3 px-5 py-4">
           {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
 
-          <div>
-            <label htmlFor="broadcast-audience" className="text-xs font-bold text-[var(--color-text-primary)]">
-              Audience
-            </label>
-            <select
-              id="broadcast-audience"
-              value={audience}
-              onChange={(e) => setAudience(e.target.value as typeof audience)}
-              className="admin-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
-            >
-              {AUDIENCE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+            <span className="font-bold text-[var(--color-text-primary)]">Audience:</span> Members only
+          </p>
 
           <div>
-            <label htmlFor="broadcast-title" className="text-xs font-bold text-[var(--color-text-primary)]">
+            <label htmlFor="announcement-title" className="text-xs font-bold text-[var(--color-text-primary)]">
               Title
             </label>
             <input
-              id="broadcast-title"
+              id="announcement-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
               className="admin-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
-              placeholder="Platform maintenance tonight"
+              placeholder="Practice schedule update"
             />
           </div>
 
           <div>
-            <label htmlFor="broadcast-message" className="text-xs font-bold text-[var(--color-text-primary)]">
+            <label htmlFor="announcement-message" className="text-xs font-bold text-[var(--color-text-primary)]">
               Message
             </label>
             <textarea
-              id="broadcast-message"
+              id="announcement-message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
               className="admin-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
-              placeholder="Share details members and organizations should know…"
+              placeholder="Share details documentation team members should know…"
             />
           </div>
         </div>
@@ -152,10 +129,13 @@ export function BroadcastAnnouncementDialog({ open, onClose, onSent }: Props) {
             className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Megaphone size={16} />}
-            Send broadcast
+            Send announcement
           </button>
         </div>
       </div>
     </>
   )
 }
+
+/** @deprecated Use MemberAnnouncementDialog */
+export const BroadcastAnnouncementDialog = MemberAnnouncementDialog

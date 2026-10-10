@@ -9,10 +9,14 @@ import {
 } from '../api/notifications'
 import { AdminErrorBanner } from '../components/AdminAlert'
 import { AdminPageHeader } from '../components/AdminPageHeader'
-import { BroadcastAnnouncementDialog } from '../components/notifications/BroadcastAnnouncementDialog'
+import { MemberAnnouncementDialog } from '../components/notifications/BroadcastAnnouncementDialog'
 import { NotificationsTable } from '../components/notifications/NotificationsTable'
 import { useToast } from '../context/ToastContext'
-import { pageToolbarBtnClass, PageToolbarRefreshButton } from '../components/PageToolbar'
+import {
+  pageToolbarBtnClass,
+  pageToolbarPrimaryBtnClass,
+  PageToolbarRefreshButton,
+} from '../components/PageToolbar'
 import { emitNotificationsChanged } from '../lib/notificationEvents'
 import {
   categoryLabel,
@@ -48,7 +52,7 @@ export function NotificationCenterPage() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const [items, setItems] = useState<AdminNotification[]>([])
-  const [showBroadcast, setShowBroadcast] = useState(false)
+  const [showAnnouncement, setShowAnnouncement] = useState(false)
   const [chip, setChip] = useState<NotificationFilterChip>('unread')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -142,11 +146,11 @@ export function NotificationCenterPage() {
           <>
             <button
               type="button"
-              onClick={() => setShowBroadcast(true)}
-              className={`${pageToolbarBtnClass} bg-[var(--color-accent-blue)] text-white hover:opacity-95`}
+              onClick={() => setShowAnnouncement(true)}
+              className={pageToolbarPrimaryBtnClass}
             >
-              <Megaphone size={16} />
-              Broadcast
+              <Megaphone size={18} strokeWidth={2.25} />
+              New announcement
             </button>
             <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
           </>
@@ -157,19 +161,6 @@ export function NotificationCenterPage() {
         <AdminErrorBanner>{error}</AdminErrorBanner>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {FILTER_CHIPS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setChip(f.id)}
-            className={[
-              'rounded-full px-4 py-1.5 text-xs font-bold transition',
-              chip === f.id
-                ? 'bg-[var(--color-accent-blue)] text-white'
-                : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]',
-            ].join(' ')}
-          >
             {f.label} ({chipCounts[f.id] ?? 0})
           </button>
         ))}

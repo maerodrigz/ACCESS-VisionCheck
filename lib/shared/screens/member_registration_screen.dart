@@ -5,6 +5,7 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
+import 'package:access_mobile/shared/legal/access_legal_content.dart';
 import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
 
 /// Self-service member registration (pending admin approval).
@@ -44,7 +45,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedLegal) {
-      setState(() => _error = 'Please agree to the Terms and Conditions and Privacy Policy.');
+      setState(() => _error = 'Please agree to the Terms, Privacy Policy, and Content Standards.');
       return;
     }
     setState(() {
@@ -213,6 +214,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
               const SizedBox(height: 18),
               LegalAgreementCheckbox(
                 value: _acceptedLegal,
+                registrationAudience: RegistrationLegalAudience.member,
                 onChanged: (v) => setState(() {
                   _acceptedLegal = v;
                   if (v) _error = null;
@@ -228,7 +230,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: _loading ? null : _submit,
+                  onPressed: _loading || !_acceptedLegal ? null : _submit,
                   child: _loading
                       ? const SizedBox(
                           width: 22,

@@ -19,11 +19,8 @@ export function fetchSystemMonitor() {
   return apiRequest<SystemMonitorPayload>('/admin/system-monitor')
 }
 
-export function broadcastNotification(body: {
-  title: string
-  message: string
-  audience: 'all' | 'member' | 'organization' | 'admin'
-}) {
+/** Post an in-app announcement to approved members only. */
+export function sendMemberAnnouncement(body: { title: string; message: string }) {
   return apiRequest<{ message: string }>('/admin/notifications/broadcast', {
     method: 'POST',
     body: JSON.stringify(body),

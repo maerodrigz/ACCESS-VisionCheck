@@ -284,6 +284,26 @@ Challenge? memberAssignmentForEvent(CalendarEvent event) {
   return null;
 }
 
+/// True when this event matches an active documentation task for the logged-in member.
+bool memberHasActiveTaskForEvent(CalendarEvent event) {
+  final requestId = event.requestId;
+  for (final task in appState.challenges) {
+    final status = task.status.toLowerCase();
+    if (status == 'cancelled' ||
+        status == 'canceled' ||
+        status == 'declined' ||
+        status == 'completed' ||
+        status == 'done') {
+      continue;
+    }
+    if (requestId != null && task.requestId == requestId) return true;
+    if (task.title.trim().toLowerCase() == event.title.trim().toLowerCase()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /// True when this calendar event matches one of the member's active assignments.
 bool memberIsAssignedToEvent(CalendarEvent event) {
   final requestId = event.requestId;

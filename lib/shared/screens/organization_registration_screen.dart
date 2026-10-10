@@ -6,6 +6,7 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
+import 'package:access_mobile/shared/legal/access_legal_content.dart';
 import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
 
 /// Self-service requestor registration (pending admin approval).
@@ -234,13 +235,13 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
               if (_isOrganizationType) ...[
                 const SizedBox(height: 14),
                 RegistrationFormField(
-                  label: 'Adviser or Representative Name',
+                  label: 'Admin or Representative Name',
                   controller: _adviserCtrl,
                   hint: 'Prof. Maria Santos',
                   icon: Icons.person_outline,
                   validator: (v) => RegistrationValidators.required(
                     v,
-                    label: 'Adviser or representative name',
+                    label: 'Admin or representative name',
                   ),
                   textInputAction: TextInputAction.next,
                 ),
@@ -298,6 +299,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
               const SizedBox(height: 18),
               LegalAgreementCheckbox(
                 value: _acceptedLegal,
+                registrationAudience: RegistrationLegalAudience.requestor,
                 onChanged: (v) => setState(() {
                   _acceptedLegal = v;
                   if (v) _error = null;
@@ -315,7 +317,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: _loading ? null : _submit,
+                  onPressed: _loading || !_acceptedLegal ? null : _submit,
                   child: _loading
                       ? const SizedBox(
                           width: 22,

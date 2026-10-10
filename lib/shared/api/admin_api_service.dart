@@ -279,15 +279,13 @@ class AdminApiService {
     return [];
   }
 
-  Future<int> broadcastNotification({
+  Future<int> sendMemberAnnouncement({
     required String title,
     required String message,
-    String audience = 'all',
   }) async {
     final data = await _api.post('/admin/notifications/broadcast', {
       'title': title,
       'message': message,
-      'audience': audience,
     });
     final msg = (data as Map)['message'] as String? ?? '';
     final match = RegExp(r'(\d+)').firstMatch(msg);

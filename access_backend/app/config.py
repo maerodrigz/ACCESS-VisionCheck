@@ -105,6 +105,8 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
     email_from: str = Field(default="", alias="EMAIL_FROM")
     email_from_name: str = Field(default="ACCESS VisionCheck", alias="EMAIL_FROM_NAME")
+    email_reply_to: str = Field(default="", alias="EMAIL_REPLY_TO")
+    email_logo_path: str = Field(default="", alias="EMAIL_LOGO_PATH")
 
     @model_validator(mode="after")
     def _validate_probe_risk_thresholds(self) -> "Settings":

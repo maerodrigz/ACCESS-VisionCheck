@@ -37,31 +37,40 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    // Compact (phone) sits on the login screen's full-height gradient, so it paints none of its own.
+    // Compact (phone) sits in a scroll view on the parent gradient — must not use expand Stack.
+    if (widget.compact) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: FadeTransition(
+          opacity: _fade,
+          child: SlideTransition(
+            position: _slide,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: _brandContent(),
+            ),
+          ),
+        ),
+      );
+    }
+
     return DecoratedBox(
-      decoration: widget.compact
-          ? const BoxDecoration()
-          : const BoxDecoration(gradient: LoginPageTokens.heroGradient),
+      decoration: const BoxDecoration(gradient: LoginPageTokens.heroGradient),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _HeroGlow(compact: widget.compact),
+          const _HeroGlow(compact: false),
           SafeArea(
             bottom: false,
             child: Align(
               alignment: Alignment.center,
               child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: widget.compact ? 24 : 56,
-                  vertical: widget.compact ? 12 : 0,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 56),
                 child: FadeTransition(
                   opacity: _fade,
                   child: SlideTransition(
                     position: _slide,
-                    child: widget.compact
-                        ? FittedBox(fit: BoxFit.scaleDown, child: _brandContent())
-                        : _brandContent(),
+                    child: _brandContent(),
                   ),
                 ),
               ),

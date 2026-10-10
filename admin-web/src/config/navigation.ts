@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Award,
   BarChart3,
+  Bell,
   Calendar,
   FileText,
   Home,
@@ -49,6 +50,7 @@ export const sidebarSections: NavSection[] = [
   {
     label: 'SYSTEM',
     items: [
+      { id: 'notifications', label: 'Notification Center', path: '/notifications', icon: Bell },
       { id: 'account-management', label: 'Account Management', path: '/account-management', icon: UserCog },
     ],
   },

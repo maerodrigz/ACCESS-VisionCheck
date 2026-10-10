@@ -1,15 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin, require_approved
 from app.crud import member_notification_preference as pref_crud
 from app.crud import notification as notification_crud
+from app.crud import push_device_token as push_token_crud
 from app.database import get_db
+from app.models.enums import RoleName
 from app.models.user import User
 from app.schemas.common import MessageResponse
-from app.schemas.member_api import NotificationOut, NotificationPreferencesOut, NotificationPreferencesUpdate
+from app.schemas.member_api import (
+    NotificationOut,
+    NotificationPreferencesOut,
+    NotificationPreferencesUpdate,
+    PushTokenRegister,
+)
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
+
+
+def _require_mobile_push_role(user: User) -> None:
+    role_name = user.role.role_name if user.role else ""
+    if role_name not in (RoleName.MEMBER, RoleName.ORGANIZATION):
+        raise HTTPException(status_code=403, detail="Push tokens are for member and requestor apps only")
 
 
 def _out(row) -> NotificationOut:
@@ -30,6 +43,29 @@ def _out(row) -> NotificationOut:
 def list_notifications(db: Session = Depends(get_db), current_user: User = Depends(require_approved)):
     rows = notification_crud.list_for_user(db, current_user.id)
     return [_out(n) for n in rows]
+
+
+@router.post("/push-token", response_model=MessageResponse)
+def register_push_token(
+    body: PushTokenRegister,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    _require_mobile_push_role(current_user)
+    platform = body.platform.strip().lower() or "android"
+    push_token_crud.upsert(db, current_user.id, body.token, platform)
+    return MessageResponse(message="Push token registered")
+
+
+@router.delete("/push-token", response_model=MessageResponse)
+def unregister_push_token(
+    token: str = Query(..., min_length=10, max_length=512),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    _require_mobile_push_role(current_user)
+    removed = push_token_crud.delete_token(db, current_user.id, token)
+    return MessageResponse(message=f"Removed {removed} push token(s)")
 
 
 @router.get("/preferences", response_model=NotificationPreferencesOut)

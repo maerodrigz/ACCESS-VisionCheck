@@ -4,6 +4,7 @@ import 'package:access_mobile/mobile_app/controllers/app.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/constants/api_config.dart';
 import 'package:access_mobile/shared/services/firebase_app_init.dart';
+import 'package:access_mobile/shared/services/push_notification_service.dart';
 
 /// Member / requester mobile app — run on a phone or emulator:
 /// `flutter run -t lib/mobile_app/main_mobile.dart`
@@ -15,6 +16,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
   await initializeFirebaseApp();
+  await PushNotificationService.initialize();
   await ApiConfig.clearStaleOverridesWhenCompileTimeHostSet();
   await ApiConfig.loadLastWorkingBaseUrl();
   await ApiConfig.runtimeBaseUrl.load();

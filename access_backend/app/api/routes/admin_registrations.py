@@ -16,6 +16,7 @@ from app.schemas.registration import (
     OrganizationRegistrationOut,
     RegistrationRejectBody,
 )
+from app.services import registration_email
 
 router = APIRouter(prefix="/admin/registrations", tags=["Registration Approvals"])
 
@@ -59,6 +60,10 @@ def _approve(db: Session, user: User, admin: User) -> MessageResponse:
         )
     )
     db.commit()
+    registration_email.notify_registration_approved_async(
+        to_email=user.email,
+        fullname=user.fullname or user.email,
+    )
     return MessageResponse(message="Registration approved")
 
 
@@ -77,6 +82,11 @@ def _reject(db: Session, user: User, admin: User, reason: str) -> MessageRespons
         )
     )
     db.commit()
+    registration_email.notify_registration_rejected_async(
+        to_email=user.email,
+        fullname=user.fullname or user.email,
+        reason=reason,
+    )
     return MessageResponse(message="Registration rejected")
 
 

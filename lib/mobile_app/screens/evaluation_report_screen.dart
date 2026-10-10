@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
@@ -26,6 +27,23 @@ class EvaluationReportScreen extends StatelessWidget {
   final List<PhotoEvaluationResult> comparisonEvaluations;
 
   PhotoEvaluationResult? get _result => evaluationToPhotoResult(evaluation);
+
+  bool get _adminRequestedReupload {
+    final s = (evaluation.reviewStatus ?? '').toLowerCase();
+    return s.contains('reupload');
+  }
+
+  bool get _isVideo => EvaluationMediaThumbnail.isVideoMedia(
+        mediaType: evaluation.mediaType,
+        url: evaluation.imageUrl,
+      );
+
+  void _openReuploadFlow(BuildContext context) {
+    openAiMediaEvaluation(
+      context,
+      mode: _isVideo ? AiMediaEvaluationMode.video : AiMediaEvaluationMode.photo,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +111,15 @@ class EvaluationReportScreen extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 16),
+            if (_adminRequestedReupload) ...[
+              _EvalReportActionButton(
+                label: _isVideo ? 'Re-upload video' : 'Re-upload photo',
+                icon: Icons.upload_rounded,
+                outlined: false,
+                onPressed: () => _openReuploadFlow(context),
+              ),
+              const SizedBox(height: 10),
+            ],
             if (result != null)
               _EvalReportActionButton(
                 label: 'View Detailed Analysis',
@@ -320,7 +347,21 @@ class _EvalReportActionButton extends StatelessWidget {
         ),
       );
     }
-    return const SizedBox.shrink();
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 20),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          backgroundColor: kMemberPrimary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          textStyle: dashText(const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+        ),
+      ),
+    );
   }
 }
 

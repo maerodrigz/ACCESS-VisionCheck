@@ -12,7 +12,6 @@ import type { AuthUser } from '../types/auth'
 import { roleDisplayLabel } from '../lib/roles'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { MyProfileDialog } from './MyProfileDialog'
-import { ThemePreferencePicker } from './ThemePreferencePicker'
 import { MemberAvatar } from './documentation-team/TeamMemberBadges'
 import './profile-dropdown.css'
 
@@ -250,12 +249,6 @@ export function ProfileDropdown({ user, onLogout }: ProfileDropdownProps) {
               </section>
             </>
           )}
-
-          <hr className="profile-dropdown__divider" />
-
-          <section className="profile-dropdown__section profile-dropdown__section--appearance" aria-label="Appearance">
-            <ThemePreferencePicker />
-          </section>
 
           <hr className="profile-dropdown__divider" />
 

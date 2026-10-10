@@ -30,6 +30,7 @@ from app.models.media_comment import MediaComment
 from app.models.announcement import Announcement
 from app.models.system_branding import SystemBranding
 from app.models.system_settings import SystemSettings
+from app.models.push_device_token import PushDeviceToken
 
 __all__ = [
     "Role",
@@ -58,4 +59,5 @@ __all__ = [
     "Announcement",
     "SystemBranding",
     "SystemSettings",
+    "PushDeviceToken",
 ]

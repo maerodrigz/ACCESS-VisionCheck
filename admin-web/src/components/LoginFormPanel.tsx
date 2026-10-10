@@ -89,7 +89,7 @@ export function LoginFormPanel({
 
           <button type="submit" disabled={loading} className="login-btn-primary mt-1">
             {loading && <Loader2 size={18} className="animate-spin" />}
-            Sign In
+            Sign in
           </button>
         </form>
 

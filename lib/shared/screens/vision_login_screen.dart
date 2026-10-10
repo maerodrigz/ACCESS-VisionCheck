@@ -89,8 +89,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       setState(() {
         _loading = false;
         _error = switch (e.code) {
-          'pending' => 'Your account is still pending admin approval.',
-          'rejected' => 'Your account registration was rejected. Please contact the administrator.',
+          'pending' || 'rejected' => e.message,
           'removed' => 'Your account has been removed. Please contact the administrator.',
           _ => e.message,
         };
@@ -207,14 +206,10 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
           onRememberMeChanged: (v) => setState(() => _rememberMe = v),
           onSubmit: _submit,
           onForgotPassword: _forgotPassword,
+          onCreateAccount: kIsWeb ? null : _openRegistration,
           onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
         ),
       ),
-    );
-
-    final links = _MobileLoginLinks(
-      onCreateAccount: kIsWeb ? null : _openRegistration,
-      onSetBackendUrl: kIsWeb ? null : _fixBackendUrl,
     );
 
     return DecoratedBox(
@@ -225,15 +220,13 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
             ? SingleChildScrollView(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top + 20, bottom: 20),
-                child: Column(children: [card, const SizedBox(height: 12), links]),
+                child: card,
               )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Expanded(flex: 5, child: LoginBrandPanel(compact: true)),
                   card,
-                  const SizedBox(height: 14),
-                  links,
                   const Spacer(flex: 2),
                   const LegalFooterLinks(onDarkBackground: true),
                   const SizedBox(height: 4),
@@ -246,54 +239,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
                 ],
               ),
       ),
-    );
-  }
-}
-
-/// Create account and backend setup, shown on the gradient below the floating sign-in card.
-class _MobileLoginLinks extends StatelessWidget {
-  const _MobileLoginLinks({this.onCreateAccount, this.onSetBackendUrl});
-
-  final VoidCallback? onCreateAccount;
-  final VoidCallback? onSetBackendUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final muted = Colors.white.withValues(alpha: 0.7);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (onCreateAccount != null)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text("Don't have an account?", style: TextStyle(color: muted, fontSize: 13)),
-              TextButton(
-                onPressed: onCreateAccount,
-                style: TextButton.styleFrom(
-                  foregroundColor: kCyan,
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text('Create Account', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-        if (onSetBackendUrl != null)
-          TextButton.icon(
-            onPressed: onSetBackendUrl,
-            icon: const Icon(Icons.dns_outlined, size: 14),
-            label: const Text('Set backend URL'),
-            style: TextButton.styleFrom(
-              foregroundColor: muted,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ),
-      ],
     );
   }
 }

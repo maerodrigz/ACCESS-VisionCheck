@@ -30,6 +30,7 @@ from app.schemas.auth import (
     UserOut,
 )
 from app.schemas.common import MessageResponse
+from app.services import registration_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -83,11 +84,15 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
             },
         )
     if user.status == UserStatus.REJECTED:
+        message = "Your account registration was rejected. Please contact the administrator."
+        reason = (user.rejection_reason or "").strip()
+        if reason:
+            message = f"{message} Reason: {reason}"
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={
                 "error": "rejected",
-                "message": "Your account registration was rejected. Please contact the administrator.",
+                "message": message,
             },
         )
 
@@ -177,7 +182,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     if user_crud.get_by_email(db, body.email):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
     assert_password_meets_policy(db, body.password)
-    user_crud.create_user(
+    user = user_crud.create_user(
         db,
         body.name,
         body.email,
@@ -187,5 +192,11 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         contact_number=body.contact_number,
         adviser_name=body.adviser_name,
         skill_level=body.skill_level,
+    )
+    role_name = user.role.role_name if user.role else None
+    registration_email.notify_registration_received_async(
+        to_email=user.email,
+        fullname=user.fullname or user.email,
+        role_name=role_name,
     )
     return MessageResponse(message="Registration submitted. Awaiting admin approval.")

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:access_mobile/shared/api/api_client.dart';
@@ -6,6 +6,7 @@ import 'package:access_mobile/shared/api/auth_service.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/user_model.dart';
+import 'package:access_mobile/shared/services/push_notification_service.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController() {
@@ -94,6 +95,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await PushNotificationService.unregisterCurrent();
     authService.logout();
     _user = null;
     appState.clearMemberProfile();
@@ -105,7 +107,10 @@ class AuthController extends ChangeNotifier {
   }
 
   /// Member/org shells load data on first paint; avoid blocking login with a full sync.
-  Future<void> _syncMemberSession() async {}
+  Future<void> _syncMemberSession() async {
+    if (kIsWeb) return;
+    await PushNotificationService.ensureRegistered();
+  }
 
   Future<void> _persist() async {
     if (_user == null) return;

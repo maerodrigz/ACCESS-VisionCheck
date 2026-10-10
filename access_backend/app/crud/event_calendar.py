@@ -12,6 +12,7 @@ from app.utils.timestamps import first_timestamp_iso
 
 def _event_query():
     return select(EventCalendar).options(
+        joinedload(EventCalendar.request).joinedload(DocumentationRequest.requestor),
         joinedload(EventCalendar.request)
         .joinedload(DocumentationRequest.assignments)
         .joinedload(RequestAssignment.member),
@@ -94,6 +95,10 @@ def event_to_json(e: EventCalendar) -> dict:
     member = e.assigned_member
     req = e.request
     team = _documentation_team(req)
+    requestor = req.requestor if req else None
+    requestor_name = None
+    if requestor is not None:
+        requestor_name = (requestor.fullname or requestor.email or "").strip() or None
     return {
         "id": e.id,
         "request_id": e.request_id,
@@ -112,6 +117,9 @@ def event_to_json(e: EventCalendar) -> dict:
         "assigned_member_name": member.fullname if member else None,
         "documentation_team": team,
         "request_status": req.status if req else None,
+        "requester_id": req.requestor_id if req else None,
+        "requester_name": requestor_name,
+        "requestor_name": requestor_name,
         "admin_remarks": e.admin_remarks,
         "created_at": first_timestamp_iso(e, "created_at"),
         "updated_at": first_timestamp_iso(e, "updated_at", "created_at"),

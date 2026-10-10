@@ -785,12 +785,13 @@ function buildRecentActivity(data: AnalyticsSnapshot, limit = 4): ActivityItem[]
     const st = String(r.status ?? '').toLowerCase()
     const title = String(r.title ?? r.event_name ?? 'Documentation request')
     if (st === 'approved' || st === 'completed') {
+      const requestor = String(r.requester_name ?? r.requestor_name ?? r.requestor ?? '').trim()
       items.push({
         id: `req-${r.request_id ?? r.id}`,
         icon: 'check',
         accentColor: '#3b82f6',
         title: `Documentation request "${title}" approved`,
-        subtitle: `by ${String(r.approved_by ?? r.reviewer_name ?? 'Admin User')}`,
+        subtitle: requestor ? `Requestor: ${requestor}` : undefined,
         timeAgo: formatTimeAgo(d),
         at: d,
       })

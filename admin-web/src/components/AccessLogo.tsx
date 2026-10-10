@@ -7,21 +7,24 @@ import { useBranding } from '../context/BrandingContext'
 /** Ribbon A mark (non-circular surfaces). */
 const BUNDLED_MARK = '/access-brand-a.png?v=1'
 /** Circular launcher / app icon (matches Flutter `access_app_icon`). */
-const BUNDLED_APP_ICON = '/access_logo.png?v=1'
+const BUNDLED_APP_ICON = '/access_logo.png?v=2'
 
 interface Props {
   size: number
   circular?: boolean
   className?: string
+  /** Login hero: always show the bundled launcher icon, not admin-uploaded branding. */
+  bundledOnly?: boolean
 }
 
 /** Official ACCESS logo — server custom image, app icon, or ribbon mark fallback. */
-export function AccessLogo({ size, circular = false, className = '' }: Props) {
+export function AccessLogo({ size, circular = false, className = '', bundledOnly = false }: Props) {
   const { logoUrl } = useBranding()
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
 
-  const bundledDefault = circular ? BUNDLED_APP_ICON : BUNDLED_MARK
-  const primarySrc = logoUrl && failedSrc !== logoUrl ? logoUrl : null
+  const bundledDefault = circular || bundledOnly ? BUNDLED_APP_ICON : BUNDLED_MARK
+  const primarySrc =
+    !bundledOnly && logoUrl && failedSrc !== logoUrl ? logoUrl : null
   const bundledSrc = failedSrc === bundledDefault ? null : bundledDefault
   const src = primarySrc ?? bundledSrc
 

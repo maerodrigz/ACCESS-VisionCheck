@@ -131,6 +131,21 @@ class MemberApiService {
     await apiClient.delete('/notifications/read');
   }
 
+  Future<void> registerPushToken({
+    required String token,
+    required String platform,
+  }) async {
+    await apiClient.post('/notifications/push-token', {
+      'token': token,
+      'platform': platform,
+    });
+  }
+
+  Future<void> unregisterPushToken(String token) async {
+    final encoded = Uri.encodeQueryComponent(token);
+    await apiClient.delete('/notifications/push-token?token=$encoded');
+  }
+
   Future<List<Map<String, dynamic>>> getEventGallery({
     String? search,
     String? fileType,

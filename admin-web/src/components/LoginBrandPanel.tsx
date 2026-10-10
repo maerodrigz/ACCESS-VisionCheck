@@ -1,11 +1,11 @@
 /** Matches Flutter [LoginBrandPanel] — dark gradient hero, no background photo. */
-import { AccessBrandMark } from './AccessBrandMark'
+import { AccessLogo } from './AccessLogo'
 
 const HERO_GRADIENT =
   'linear-gradient(135deg, #050C1C 0%, #0A1628 55%, #0C3340 100%)'
 
 export function LoginBrandPanel({ compact = false }: { compact?: boolean }) {
-  const markSize = compact ? 52 : 88
+  const markSize = compact ? 72 : 120
   const titleSize = compact ? '1.25rem' : '2rem'
   const visionSize = compact ? '1.375rem' : '2.25rem'
   const taglineSize = compact ? '12px' : '15px'
@@ -31,12 +31,12 @@ export function LoginBrandPanel({ compact = false }: { compact?: boolean }) {
           compact ? 'py-1' : 'px-14 py-16',
         ].join(' ')}
       >
-        <div
-          className="login-mark-clip shrink-0"
-          style={{ width: markSize, height: markSize }}
-        >
-          <AccessBrandMark size={markSize} />
-        </div>
+        <AccessLogo
+          size={markSize}
+          circular
+          bundledOnly
+          className="login-app-icon shrink-0 shadow-lg shadow-black/25"
+        />
 
         <div className="mt-2.5 leading-tight sm:mt-6">
           <div

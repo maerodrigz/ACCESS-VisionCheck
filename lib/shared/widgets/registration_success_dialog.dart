@@ -6,7 +6,7 @@ Future<void> showRegistrationSuccessDialog(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmLabel = 'Back to Sign In',
+  String confirmLabel = 'Back to Sign in',
 }) {
   return showDialog<void>(
     context: context,

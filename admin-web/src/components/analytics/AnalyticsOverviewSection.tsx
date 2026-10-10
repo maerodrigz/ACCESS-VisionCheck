@@ -9,15 +9,25 @@ import {
   type OverviewMetricTrend,
   type ReportingPeriod,
 } from '../../lib/analyticsOverview'
-import { AdminCard } from '../AdminCard'
-
 type CardState = 'ready' | 'loading' | 'unavailable'
 
 const CARD_THEMES = {
-  requests: { color: 'var(--color-accent-blue)' },
-  events: { color: '#16a34a' },
-  evaluations: { color: '#7c3aed' },
-  documenters: { color: '#ea580c' },
+  requests: {
+    color: 'var(--color-accent-blue)',
+    bgColor: 'color-mix(in srgb, var(--color-accent-blue) 6%, var(--color-surface))',
+  },
+  events: {
+    color: 'var(--color-success)',
+    bgColor: 'color-mix(in srgb, var(--color-success) 6%, var(--color-surface))',
+  },
+  evaluations: {
+    color: 'var(--color-accent-purple)',
+    bgColor: 'color-mix(in srgb, var(--color-accent-purple) 8%, var(--color-surface))',
+  },
+  documenters: {
+    color: '#ea580c',
+    bgColor: 'color-mix(in srgb, #ea580c 7%, var(--color-surface))',
+  },
 } as const
 
 function metricDisplay(value: number | null, state: CardState): string {
@@ -97,19 +107,22 @@ function PerformanceKpiCard({
   state: CardState
 }) {
   return (
-    <div className="flex min-h-[5rem] items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 shadow-[0_1px_2px_rgba(15,39,68,0.04)]">
+    <div
+      className="flex min-h-[4.75rem] items-center gap-2.5 rounded-xl border border-[var(--color-border)] px-3 py-2 shadow-[0_1px_2px_rgba(15,39,68,0.04)] transition-shadow duration-150 hover:shadow-[var(--color-card-hover-shadow)]"
+      style={{ backgroundColor: theme.bgColor }}
+    >
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
         style={{
-          backgroundColor: `color-mix(in srgb, ${theme.color} 16%, white)`,
+          backgroundColor: `color-mix(in srgb, ${theme.color} 18%, white)`,
           color: theme.color,
         }}
       >
-        <Icon size={18} strokeWidth={2.15} />
+        <Icon size={16} strokeWidth={2.25} />
       </div>
       <div className="min-w-0 flex-1 leading-tight">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-secondary)] sm:text-xs">{label}</p>
-        <p className="mt-1 text-2xl font-extrabold tabular-nums leading-none text-[var(--color-text-primary)]">
+        <p className="truncate text-[11px] font-semibold text-[var(--color-text-primary)] sm:text-xs">{label}</p>
+        <p className="mt-0.5 text-lg font-extrabold tabular-nums leading-none text-[var(--color-text-primary)]">
           {value}
         </p>
         <TrendLine trend={trend} state={state} />
@@ -118,10 +131,11 @@ function PerformanceKpiCard({
   )
 }
 
-function OverviewCardSkeleton() {
+function OverviewCardSkeleton({ bgColor }: { bgColor: string }) {
   return (
     <div
-      className="flex min-h-[4.75rem] animate-pulse items-center gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5"
+      className="flex min-h-[4.75rem] animate-pulse items-center gap-2.5 rounded-xl border border-[var(--color-border)] px-3 py-2.5"
+      style={{ backgroundColor: bgColor }}
       aria-hidden
     >
       <div className="h-9 w-9 shrink-0 rounded-lg bg-[var(--color-surface-muted)]" />
@@ -193,37 +207,35 @@ export function AnalyticsOverviewSection({
   ]
 
   return (
-    <section aria-label="Performance overview">
-      <AdminCard padding="md" className="space-y-3">
-        <div>
-          <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Performance Overview</h2>
-          <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)] sm:text-xs">
-            Summary metrics for the selected reporting period.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
-          {cardState === 'loading' && !bundle
-            ? cards.map((c) => <OverviewCardSkeleton key={c.label} />)
-            : cards.map((c) => (
-                <PerformanceKpiCard
-                  key={c.label}
-                  icon={c.icon}
-                  label={c.label}
-                  value={metricDisplay(c.value, cardState)}
-                  trend={c.trend}
-                  theme={CARD_THEMES[c.key]}
-                  state={cardState}
-                />
-              ))}
-        </div>
-        {!unavailable && data ? (
-          <p className="text-[11px] leading-snug text-[var(--color-text-muted)]">
-            Figures are computed from the loaded analytics dataset and filtered by date on this device. List
-            endpoints do not accept a period parameter; very large histories may be incomplete if the server
-            truncates results.
-          </p>
-        ) : null}
-      </AdminCard>
+    <section aria-label="Performance overview" className="space-y-2">
+      <div>
+        <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Performance Overview</h2>
+        <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)] sm:text-xs">
+          Summary metrics for the selected reporting period.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {cardState === 'loading' && !bundle
+          ? cards.map((c) => <OverviewCardSkeleton key={c.label} bgColor={CARD_THEMES[c.key].bgColor} />)
+          : cards.map((c) => (
+              <PerformanceKpiCard
+                key={c.label}
+                icon={c.icon}
+                label={c.label}
+                value={metricDisplay(c.value, cardState)}
+                trend={c.trend}
+                theme={CARD_THEMES[c.key]}
+                state={cardState}
+              />
+            ))}
+      </div>
+      {!unavailable && data ? (
+        <p className="text-[11px] leading-snug text-[var(--color-text-muted)]">
+          Figures are computed from the loaded analytics dataset and filtered by date on this device. List
+          endpoints do not accept a period parameter; very large histories may be incomplete if the server
+          truncates results.
+        </p>
+      ) : null}
     </section>
   )
 }

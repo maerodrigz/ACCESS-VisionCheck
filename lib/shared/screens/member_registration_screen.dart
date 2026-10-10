@@ -67,7 +67,8 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
         title: 'Registration submitted',
         message:
             'Your member account is pending administrator approval. '
-            'You will be able to sign in once an admin approves your registration.',
+            'We will email you at $email when an administrator approves or declines your registration. '
+            'Until then, Sign in will show that your account is still pending.',
       );
       if (!mounted) return;
       Navigator.pop(context, email);

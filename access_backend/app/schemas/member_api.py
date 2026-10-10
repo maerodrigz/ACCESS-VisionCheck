@@ -75,6 +75,15 @@ class NotificationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PushTokenRegister(BaseModel):
+    token: str = Field(min_length=10, max_length=512)
+    platform: str = Field(default="android", max_length=16)
+
+
+class PushTokenUnregister(BaseModel):
+    token: str = Field(min_length=10, max_length=512)
+
+
 class NotificationPreferencesOut(BaseModel):
     evaluation_feedback: bool = True
     event_calendar: bool = True

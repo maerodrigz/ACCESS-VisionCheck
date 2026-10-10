@@ -47,6 +47,7 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     UserSession,
     SystemBranding,
     SystemSettings,
+    PushDeviceToken,
 )
 
 

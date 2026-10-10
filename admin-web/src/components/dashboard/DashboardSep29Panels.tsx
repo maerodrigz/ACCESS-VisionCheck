@@ -252,6 +252,9 @@ export function TodayScheduleTimelinePanel({ items }: { items: UpcomingEventItem
                       <p className="line-clamp-2 text-sm font-bold leading-snug text-[var(--color-text-primary)]">
                         {item.eventName}
                       </p>
+                      <p className="mt-0.5 truncate text-[11px] font-medium text-[var(--color-text-secondary)]">
+                        Requestor: {item.requestorName}
+                      </p>
                       <p className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-[var(--color-text-secondary)]">
                         <span>{item.timeRange}</span>
                         <span className="text-[var(--color-text-muted)]">|</span>

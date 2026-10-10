@@ -96,6 +96,16 @@ class Settings(BaseSettings):
 
     max_media_evaluation_workers: int = Field(default=1, alias="MAX_MEDIA_EVALUATION_WORKERS")
 
+    # Outbound email (SMTP) — registration approve/reject and related alerts
+    email_enabled: bool = Field(default=False, alias="EMAIL_ENABLED")
+    smtp_host: str = Field(default="", alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+    smtp_username: str = Field(default="", alias="SMTP_USERNAME")
+    smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
+    email_from: str = Field(default="", alias="EMAIL_FROM")
+    email_from_name: str = Field(default="ACCESS VisionCheck", alias="EMAIL_FROM_NAME")
+
     @model_validator(mode="after")
     def _validate_probe_risk_thresholds(self) -> "Settings":
         low = float(self.probe_low_risk_threshold)

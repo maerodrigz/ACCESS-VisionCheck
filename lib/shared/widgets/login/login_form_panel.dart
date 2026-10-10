@@ -36,8 +36,7 @@ class LoginFormPanel extends StatefulWidget {
   final VoidCallback? onFixBackendConnection;
   final bool compact;
 
-  /// Phone layout: a floating white card holding only the sign-in essentials.
-  /// Create account, backend URL, and legal links are rendered by the screen.
+  /// Phone layout: white card with sign-in form plus create-account / backend links.
   final bool cardStyle;
 
   @override
@@ -168,7 +167,7 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: LoginPageTokens.maxFormWidth),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 26),
         decoration: BoxDecoration(
           color: LoginPageTokens.surface,
           borderRadius: BorderRadius.circular(24),
@@ -199,6 +198,15 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
                 height: 1.1,
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Access your member account',
+              style: TextStyle(
+                color: LoginPageTokens.textSecondary.withValues(alpha: 0.95),
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
             const SizedBox(height: 16),
             ..._errorBlock(spacing: 12),
             TextField(
@@ -225,6 +233,48 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
               onSubmit: widget.onSubmit,
               useHover: kIsWeb,
             ),
+            if (widget.onCreateAccount != null) ...[
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Don't have an account?",
+                    style: TextStyle(color: LoginPageTokens.textSecondary, fontSize: 13),
+                  ),
+                  TextButton(
+                    onPressed: widget.onCreateAccount,
+                    style: TextButton.styleFrom(
+                      foregroundColor: LoginPageTokens.secondary,
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Create Account',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (!kIsWeb && widget.onFixBackendConnection != null) ...[
+              const SizedBox(height: 4),
+              Center(
+                child: TextButton.icon(
+                  onPressed: widget.onFixBackendConnection,
+                  icon: const Icon(Icons.dns_outlined, size: 14),
+                  label: const Text('Set backend URL'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: LoginPageTokens.textSecondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -390,7 +440,7 @@ class _SignInButtonState extends State<_SignInButton> {
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
-            : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            : const Text('Sign in', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
       ),
     );
 

@@ -49,6 +49,7 @@ export interface UpcomingEventItem {
   monthLabel: string
   dayLabel: string
   eventName: string
+  requestorName: string
   timeRange: string
   location: string
   memberNames: string[]
@@ -231,7 +232,7 @@ function mapPendingRequest(r: Record<string, unknown>): PendingRequestItem {
   return {
     id: Number(r.request_id ?? r.id ?? 0),
     eventTitle: String(r.event_name ?? r.title ?? 'Documentation request'),
-    requestor: String(r.requester_name ?? r.organization_name ?? 'Unknown'),
+    requestor: String(r.requester_name ?? r.requestor_name ?? r.organization_name ?? 'Unknown'),
     requestedDate: formatDate(r.created_at),
     status: String(r.status ?? 'Pending'),
   }
@@ -268,7 +269,35 @@ function isUpcomingApprovedEvent(e: Record<string, unknown>, today: Date): boole
   return true
 }
 
-function mapUpcomingEvent(e: Record<string, unknown>, tasks: Record<string, unknown>[]): UpcomingEventItem {
+function resolveEventRequestorName(
+  e: Record<string, unknown>,
+  requestorByRequestId: Map<number, string>,
+): string {
+  const fromEvent = String(e.requester_name ?? e.requestor_name ?? '').trim()
+  if (fromEvent) return fromEvent
+  const reqId = Number(e.request_id ?? e.documentation_request_id ?? 0)
+  if (reqId > 0) {
+    const fromRequest = requestorByRequestId.get(reqId)
+    if (fromRequest) return fromRequest
+  }
+  return 'N/A'
+}
+
+function buildRequestorByRequestId(requests: Record<string, unknown>[]): Map<number, string> {
+  const map = new Map<number, string>()
+  for (const r of requests) {
+    const id = Number(r.request_id ?? r.id ?? 0)
+    const name = String(r.requester_name ?? r.requestor_name ?? r.organization_name ?? '').trim()
+    if (id > 0 && name) map.set(id, name)
+  }
+  return map
+}
+
+function mapUpcomingEvent(
+  e: Record<string, unknown>,
+  tasks: Record<string, unknown>[],
+  requestorByRequestId: Map<number, string>,
+): UpcomingEventItem {
   const eventId = Number(e.id)
   const members = assignedMemberNames(eventId, tasks)
   const d = parseDate(e.event_date)!
@@ -279,6 +308,7 @@ function mapUpcomingEvent(e: Record<string, unknown>, tasks: Record<string, unkn
     monthLabel: MONTH_LABELS[d.getMonth()] ?? 'N/A',
     dayLabel: String(d.getDate()),
     eventName: String(e.title ?? e.event_name ?? 'Event'),
+    requestorName: resolveEventRequestorName(e, requestorByRequestId),
     timeRange: formatTimeRange(e.start_time ?? e.event_time, e.end_time),
     location: location || 'N/A',
     memberNames: members,
@@ -706,6 +736,8 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
+  const requestorByRequestId = buildRequestorByRequestId(requests)
+
   const pendingRequests = requests
     .filter((r) => String(r.status ?? 'Pending').toLowerCase() === 'pending')
     .map(mapPendingRequest)
@@ -734,7 +766,7 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
       return ta.localeCompare(tb)
     })
     .slice(0, 4)
-    .map((e) => mapUpcomingEvent(e, tasks))
+    .map((e) => mapUpcomingEvent(e, tasks, requestorByRequestId))
 
   const evaluatedMediaIds = new Set(
     evaluations.map((e) => Number(e.media_id)).filter((id) => id > 0),

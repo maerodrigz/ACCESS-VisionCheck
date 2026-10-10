@@ -28,10 +28,13 @@ extension AccessLegalDocumentMeta on AccessLegalDocument {
             RegistrationLegalAudience.member => 'Privacy Policy (Members)',
             RegistrationLegalAudience.requestor => 'Privacy Policy (Requestors)',
           },
-        AccessLegalDocument.contentStandards => 'Content Standards (Members)',
+        AccessLegalDocument.contentStandards => switch (audience) {
+            RegistrationLegalAudience.member => 'Content Standards (Members)',
+            RegistrationLegalAudience.requestor => 'Content Standards (Requestors)',
+          },
       };
 
-  String get lastUpdated => 'August 30, 2026';
+  String get lastUpdated => 'October 10, 2026';
 }
 
 class AccessLegalSection {
@@ -55,7 +58,10 @@ List<AccessLegalSection> accessLegalSections(
           RegistrationLegalAudience.member => _memberPrivacySections,
           RegistrationLegalAudience.requestor => _requestorPrivacySections,
         },
-      AccessLegalDocument.contentStandards => _memberContentStandardsSections,
+      AccessLegalDocument.contentStandards => switch (registrationAudience) {
+          RegistrationLegalAudience.member => _memberContentStandardsSections,
+          RegistrationLegalAudience.requestor => _requestorContentStandardsSections,
+        },
     };
   }
   return switch (document) {
@@ -91,7 +97,8 @@ const _termsSectionsGeneral = [
     body:
         'Practice evaluations use automated quality scoring and optional AI feedback. Uploads may be '
         'reviewed by administrators for authenticity, policy compliance, and documentation standards. '
-        'Daily evaluation limits, XP, and rankings are governed by ACCESS admin configuration.',
+        'When review is required, the app may hold scores and show administrator messages or re-upload '
+        'requests. Daily evaluation limits, XP, milestones, and rankings are governed by ACCESS admin configuration.',
   ),
   AccessLegalSection(
     heading: '4. Your content',
@@ -263,9 +270,17 @@ const _privacySectionsGeneral = [
   AccessLegalSection(
     heading: '7. Your choices',
     body:
-        'You may update profile details in the app and contact an administrator to request account deactivation '
-        'or clarification about stored media. Some records may be kept as required for documentation audit '
-        'or university policy.',
+        'You may update profile details in the app. Operational notifications (assignments, review outcomes, '
+        'announcements) are delivered in the notification center. Contact an ACCESS administrator to request '
+        'account deactivation or clarification about stored media. '
+        'Some records may be kept as required for documentation audit or university policy.',
+  ),
+  AccessLegalSection(
+    heading: '8. Push and in-app notifications',
+    body:
+        'The platform sends in-app notifications for assignments, review outcomes, and announcements. '
+        'With your permission, the mobile app may also show push alerts on your device. You can control '
+        'push at the OS level; turning off push does not remove items from the in-app notification center.',
   ),
 ];
 
@@ -311,8 +326,16 @@ const _memberPrivacySections = [
   AccessLegalSection(
     heading: '7. Your choices',
     body:
-        'Update profile details in the app. Contact an ACCESS administrator to ask about stored media or account '
-        'deactivation. Some audit records may be retained per university policy.',
+        'Update profile details in the app. You receive in-app notifications for assignments, reviews, and '
+        'announcements. Contact an ACCESS administrator to ask about stored media or account deactivation. '
+        'Some audit records '
+        'may be retained per university policy.',
+  ),
+  AccessLegalSection(
+    heading: '8. Push and in-app notifications',
+    body:
+        'In-app notifications cover assignments, integrity review, and announcements. Push alerts require '
+        'device permission and can be managed in your phone settings.',
   ),
 ];
 
@@ -357,8 +380,15 @@ const _requestorPrivacySections = [
   AccessLegalSection(
     heading: '7. Your choices',
     body:
+        'Update profile details in the app. You receive in-app notifications about your documentation requests. '
         'Contact an ACCESS administrator to ask about your stored requests or account deactivation. Some records '
         'may be retained for documentation audit or university policy.',
+  ),
+  AccessLegalSection(
+    heading: '8. Email, push, and in-app notifications',
+    body:
+        'We may email you about registration and request updates when email is enabled on the server. '
+        'In-app notifications are sent for request status changes. Push alerts follow your device permissions.',
   ),
 ];
 
@@ -386,9 +416,37 @@ const _contentStandardsSectionsGeneral = [
   AccessLegalSection(
     heading: 'Review and enforcement',
     body:
-        'Potentially AI-generated or suspicious media may be flagged for admin review. Serious policy '
-        'violations may be rejected, removed from review queues, and referred to ACCESS administrators. '
-        'Repeated violations can affect account status and XP eligibility.',
+        'Potentially AI-generated or suspicious media may be flagged for admin review. Administrators may '
+        'leave notes or request a re-upload; those messages appear in your evaluation views in the app. '
+        'Serious policy violations may be rejected and referred to ACCESS administrators. Repeated violations '
+        'can affect account status and XP eligibility.',
+  ),
+];
+
+const _requestorContentStandardsSections = [
+  AccessLegalSection(
+    heading: '1. Content standards for requestors',
+    body:
+        'Documentation requests and feedback must be accurate, respectful, and appropriate for USTP Oroquieta '
+        'campus activities.',
+  ),
+  AccessLegalSection(
+    heading: '2. Documentation requests',
+    body:
+        'Provide truthful event titles, dates, locations, and descriptions. Do not request coverage for '
+        'unauthorized or non-university events.',
+  ),
+  AccessLegalSection(
+    heading: '3. Feedback on completed work',
+    body:
+        'Ratings and comments about member coverage must be constructive and professional. Do not misuse '
+        'gallery media or share it outside approved campus documentation use.',
+  ),
+  AccessLegalSection(
+    heading: '4. Prohibited conduct',
+    body:
+        'Do not submit false requests, harass members, or attempt to bypass platform security. Violations '
+        'may result in rejected requests or account suspension.',
   ),
 ];
 
@@ -420,5 +478,8 @@ const _memberContentStandardsSections = [
   AccessLegalSection(
     heading: '5. Integrity review',
     body:
-        'Suspicious or AI-flagged media may be held for administrator review. You must comply with outcomes, '
-        'including re-upload requests. Serious violations can affect XP and account status.',
+        'Suspicious or AI-flagged media may be held for administrator review. Outcomes and administrator '
+        'messages appear in the app on the evaluation report. You must comply with re-upload requests. Serious '
+        'violations can affect XP and account status.',
+  ),
+];

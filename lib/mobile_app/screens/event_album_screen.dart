@@ -71,7 +71,8 @@ class _EventAlbumScreenState extends State<EventAlbumScreen> {
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
-    final description = _eventDescription;
+    // Request notes / coverage instructions live on Calendar and My Assignments, not gallery browse.
+    final description = widget.requestorMode ? _eventDescription : null;
     final facebookLink = widget.requestorMode
         ? resolveEventGalleryFacebookLink(_albumMedia)
         : null;
@@ -205,7 +206,6 @@ class _EventDetailHeader extends StatelessWidget {
     }
     return _MemberEventDetailHeader(
       album: album,
-      description: description,
       onBack: onBack,
     );
   }
@@ -653,81 +653,93 @@ class _RequestorMediaStatTile extends StatelessWidget {
 class _MemberEventDetailHeader extends StatelessWidget {
   const _MemberEventDetailHeader({
     required this.album,
-    required this.description,
     required this.onBack,
   });
 
   final EventGalleryAlbum album;
-  final String? description;
   final VoidCallback onBack;
+
+  static const _coverAspectRatio = 16 / 9;
 
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
+    final padding = mobilePagePaddingOf(context);
+    final coverUrl = album.coverUrl.trim();
 
     return ColoredBox(
-      color: kSurface,
+      color: kBg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Top bar: back arrow · event name · optional spacer ───────────
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              compact ? 8 : 10,
-              compact ? 6 : 8,
-              compact ? 8 : 10,
-              0,
-            ),
+            padding: EdgeInsets.fromLTRB(padding, compact ? 4 : 6, padding, 8),
             child: Row(
               children: [
-                // Back button
                 Material(
-                  color: Colors.transparent,
+                  color: kSurface,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: onBack,
-                    borderRadius: BorderRadius.circular(10),
                     child: Padding(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(8),
                       child: Icon(
                         Icons.arrow_back_rounded,
-                        size: compact ? 22 : 24,
+                        size: compact ? 20 : 22,
                         color: kTextPrimary,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
-                // Event name — fills available space, truncates
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    album.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: kTextPrimary,
-                      fontSize: compact ? 16 : 17,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                      letterSpacing: -0.2,
+                    'Event album',
+                    style: memberDashboardMetaStyle.copyWith(
+                      fontSize: compact ? 12 : 13,
+                      fontWeight: FontWeight.w600,
+                      color: kTextSecondary,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // ── Compact meta block ────────────────────────────────────────────
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: padding),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: AspectRatio(
+                aspectRatio: _coverAspectRatio,
+                child: coverUrl.isNotEmpty
+                    ? Image.network(
+                        coverUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const _MemberAlbumCoverFallback(),
+                      )
+                    : const _MemberAlbumCoverFallback(),
+              ),
+            ),
+          ),
           Padding(
             padding: EdgeInsets.fromLTRB(
-              compact ? 14 : 16,
+              padding,
               compact ? 10 : 12,
-              compact ? 14 : 16,
-              compact ? 12 : 14,
+              padding,
+              compact ? 10 : 12,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Date row
+                Text(
+                  album.name,
+                  style: memberDashboardSectionTitleStyle.copyWith(
+                    fontSize: compact ? 17 : 18,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Icon(
@@ -742,20 +754,14 @@ class _MemberEventDetailHeader extends StatelessWidget {
                         color: kTextSecondary,
                         fontSize: compact ? 12 : 13,
                         fontWeight: FontWeight.w500,
-                        height: 1.2,
                       ),
                     ),
                   ],
                 ),
-
-                // Category badge
                 if (album.eventCategory != null) ...[
-                  SizedBox(height: compact ? 8 : 10),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 8 : 9,
-                      vertical: compact ? 3 : 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: kAccent.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
@@ -767,38 +773,31 @@ class _MemberEventDetailHeader extends StatelessWidget {
                         color: kAccent,
                         fontSize: compact ? 11 : 12,
                         fontWeight: FontWeight.w600,
-                        height: 1.2,
                       ),
                     ),
                   ),
                 ],
-
-                // Description
-                if (description != null) ...[
-                  SizedBox(height: compact ? 8 : 10),
-                  Text(
-                    description!,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: kTextSecondary,
-                      fontSize: compact ? 12 : 13,
-                      height: 1.45,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-
-                // Media count summary
-                SizedBox(height: compact ? 10 : 12),
+                const SizedBox(height: 10),
                 _EventDetailMediaSummary(album: album, compact: compact),
               ],
             ),
           ),
-
-          // Thin divider separating header from filter tabs
           Divider(height: 1, thickness: 1, color: kBorder.withValues(alpha: 0.7)),
         ],
+      ),
+    );
+  }
+}
+
+class _MemberAlbumCoverFallback extends StatelessWidget {
+  const _MemberAlbumCoverFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: kSurfaceAlt,
+      child: Center(
+        child: Icon(Icons.photo_library_outlined, size: 40, color: kIconInactive.withValues(alpha: 0.8)),
       ),
     );
   }

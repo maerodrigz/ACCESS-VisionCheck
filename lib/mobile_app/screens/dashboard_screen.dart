@@ -16,6 +16,7 @@ class DashboardScreen extends StatelessWidget {
     this.onViewRankings,
     this.onViewNotifications,
     this.onProfileTap,
+    this.onViewAllRequestorFeedback,
   });
 
   final String userName;
@@ -26,6 +27,7 @@ class DashboardScreen extends StatelessWidget {
   final VoidCallback? onViewRankings;
   final VoidCallback? onViewNotifications;
   final VoidCallback? onProfileTap;
+  final VoidCallback? onViewAllRequestorFeedback;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,7 @@ class DashboardScreen extends StatelessWidget {
             onViewRankings: onViewRankings,
             onViewNotifications: onViewNotifications,
             onProfileTap: onProfileTap,
+            onViewAllRequestorFeedback: onViewAllRequestorFeedback,
             onRefresh: () => memberDataController.refreshHomeTab(),
           );
         },

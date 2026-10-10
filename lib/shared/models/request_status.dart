@@ -11,7 +11,7 @@ enum RequestStatus {
   String get label => switch (this) {
         RequestStatus.pending => 'Pending',
         RequestStatus.approved => 'Approved',
-        RequestStatus.rejected => 'Rejected',
+        RequestStatus.rejected => 'Declined',
         RequestStatus.completed => 'Completed',
       };
 
@@ -87,7 +87,7 @@ const requestStatusFilters = [
   (RequestStatus.pending, 'Pending'),
   (RequestStatus.approved, 'Approved'),
   (RequestStatus.completed, 'Completed'),
-  (RequestStatus.rejected, 'Rejected'),
+  (RequestStatus.rejected, 'Declined'),
 ];
 
 Color requestFilterTint(RequestStatus? status) {
@@ -116,20 +116,20 @@ String emptyStateTitle(RequestStatus? filter, {required bool hasAnyRequests}) {
     RequestStatus.pending => 'No pending requests',
     RequestStatus.approved => 'No approved requests',
     RequestStatus.completed => 'No completed requests',
-    RequestStatus.rejected => 'No rejected requests',
+    RequestStatus.rejected => 'No declined requests',
     null => 'No requests found',
   };
 }
 
 String emptyStateSubtitle(RequestStatus? filter, {required bool hasAnyRequests}) {
   if (filter == null && !hasAnyRequests) {
-    return 'Your documentation requests will appear here.';
+    return 'Your documentation requests will appear here once submitted.';
   }
   return switch (filter) {
     RequestStatus.pending => "You don't have any requests awaiting review.",
     RequestStatus.approved => 'Approved documentation requests will show here.',
     RequestStatus.completed => 'Completed event documentation will appear here.',
-    RequestStatus.rejected => 'Rejected requests will be listed here if any.',
+    RequestStatus.rejected => 'Declined requests will be listed here if any.',
     null => 'Try a different filter to see your requests.',
   };
 }

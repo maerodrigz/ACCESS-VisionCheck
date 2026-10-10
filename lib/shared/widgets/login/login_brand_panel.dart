@@ -5,9 +5,15 @@ import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
 
 /// Branding panel — gradient, ribbon mark, and product identity (no background photo).
 class LoginBrandPanel extends StatefulWidget {
-  const LoginBrandPanel({super.key, this.compact = false});
+  const LoginBrandPanel({
+    super.key,
+    this.compact = false,
+    this.dense = false,
+  });
 
   final bool compact;
+  /// Shorter header when the software keyboard is open (mobile sign-in).
+  final bool dense;
 
   @override
   State<LoginBrandPanel> createState() => _LoginBrandPanelState();
@@ -37,18 +43,18 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    // Compact (phone) sits in a scroll view on the parent gradient — must not use expand Stack.
+    // Compact (phone): parent sizes the slot and may scale down with [FittedBox].
     if (widget.compact) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: widget.dense ? 0 : 2,
+        ),
         child: FadeTransition(
           opacity: _fade,
           child: SlideTransition(
             position: _slide,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: _brandContent(),
-            ),
+            child: _brandContent(),
           ),
         ),
       );
@@ -82,15 +88,22 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
   }
 
   Widget _brandContent() {
-    final sealSize = widget.compact ? 108.0 : 168.0;
-    final titleSize = widget.compact ? 20.0 : 32.0;
+    final dense = widget.compact && widget.dense;
+    final sealSize = dense ? 64.0 : (widget.compact ? 132.0 : 168.0);
+    final titleSize = dense ? 17.0 : (widget.compact ? 22.0 : 32.0);
     final subtitleSize = widget.compact ? 11.0 : 14.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AccessOrgSealLogo(size: sealSize),
-        SizedBox(height: widget.compact ? 10 : 20),
+        AccessOrgSealLogo(
+          size: sealSize,
+          showWhitePlate: !widget.compact,
+          paddingFraction: widget.compact ? 0 : 0.05,
+          imageFit: widget.compact ? BoxFit.cover : BoxFit.contain,
+          showShadow: !dense && widget.compact,
+        ),
+        SizedBox(height: dense ? 4 : (widget.compact ? 8 : 20)),
         Text(
           'ACCESS',
           textAlign: TextAlign.center,
@@ -114,17 +127,19 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
             height: 1.05,
           ),
         ),
-        SizedBox(height: widget.compact ? 6 : 18),
-        Text(
-          'Campus Documentation Platform',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.88),
-            fontSize: subtitleSize + 1,
-            fontWeight: FontWeight.w500,
-            height: 1.25,
+        if (!dense) ...[
+          SizedBox(height: widget.compact ? 4 : 18),
+          Text(
+            'Campus Documentation Platform',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontSize: subtitleSize + 1,
+              fontWeight: FontWeight.w500,
+              height: 1.25,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

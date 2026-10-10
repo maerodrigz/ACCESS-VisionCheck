@@ -54,18 +54,38 @@ class LegalDocumentScreen extends StatelessWidget {
             'Last updated: ${document.lastUpdated}',
             style: dashText(const TextStyle(color: kTextSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
           ),
+          if (registrationAudience != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Written for ${registrationAudienceLabel(registrationAudience!)} registration.',
+              style: dashText(const TextStyle(color: kTextSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+            ),
+          ],
           const SizedBox(height: 20),
           for (var i = 0; i < sections.length; i++) ...[
             if (i > 0) const SizedBox(height: 18),
             _LegalSectionBlock(section: sections[i]),
           ],
+          const SizedBox(height: 24),
+          Text(
+            registrationAudience != null
+                ? 'This document applies to ${registrationAudienceLabel(registrationAudience!)} accounts. '
+                    'For other roles, see the combined policies linked at login or ask an administrator.'
+                : 'For role-specific terms, open Legal from your Profile after sign-in.',
+            style: dashText(const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45)),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Questions? Contact your ACCESS administrator at USTP Oroquieta Campus.',
+            style: dashText(const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45)),
+          ),
         ],
       ),
     );
   }
 }
 
-                'Written for ${registrationAudienceLabel(registrationAudience!)} registration.',
+class _LegalSectionBlock extends StatelessWidget {
   const _LegalSectionBlock({required this.section});
 
   final AccessLegalSection section;

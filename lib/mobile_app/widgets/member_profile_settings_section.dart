@@ -16,12 +16,40 @@ class MemberProfileSettingsSection extends StatelessWidget {
 
   final bool forRequestor;
 
+  RegistrationLegalAudience get _legalAudience => forRequestor
+      ? RegistrationLegalAudience.requestor
+      : RegistrationLegalAudience.member;
+
+  void _openAccountSettings(BuildContext context) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AccountSettingsScreen(forRequestor: forRequestor),
+      ),
+    );
+  }
+
+  void _openLegal(BuildContext context, AccessLegalDocument document) {
+    openAccessLegalDocument(
+      context,
+      document,
+      registrationAudience: _legalAudience,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const AccessSectionHeader(title: 'Account & Settings'),
+        const SizedBox(height: 4),
+        Text(
+          forRequestor
+              ? 'Manage your requestor account and sign-in.'
+              : 'Manage your member account and sign-in.',
+          style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.35),
+        ),
         const SizedBox(height: 12),
         MemberDashboardCard(
           padding: EdgeInsets.zero,
@@ -30,11 +58,8 @@ class MemberProfileSettingsSection extends StatelessWidget {
               _SettingsRow(
                 icon: Icons.settings_rounded,
                 title: 'Account Settings',
-                description: 'Profile, email, and connection options',
-                onTap: () => Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AccountSettingsScreen()),
-                ),
+                description: 'Profile summary, edit profile, backend URL',
+                onTap: () => _openAccountSettings(context),
               ),
               const Divider(height: 1, indent: 56),
               _SettingsRow(
@@ -51,6 +76,13 @@ class MemberProfileSettingsSection extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         const AccessSectionHeader(title: 'Legal'),
+        const SizedBox(height: 4),
+        Text(
+          forRequestor
+              ? 'Policies for requestor accounts at USTP Oroquieta.'
+              : 'Policies for documentation members and practice uploads.',
+          style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.35),
+        ),
         const SizedBox(height: 12),
         MemberDashboardCard(
           padding: EdgeInsets.zero,
@@ -58,27 +90,36 @@ class MemberProfileSettingsSection extends StatelessWidget {
             children: [
               _SettingsRow(
                 icon: Icons.description_outlined,
-                title: 'Terms and Conditions',
+                title: forRequestor ? 'Terms (Requestors)' : 'Terms (Members)',
                 description: 'Platform rules and acceptable use',
-                onTap: () => openAccessLegalDocument(context, AccessLegalDocument.terms),
+                onTap: () => _openLegal(context, AccessLegalDocument.terms),
               ),
               const Divider(height: 1, indent: 56),
               _SettingsRow(
                 icon: Icons.privacy_tip_outlined,
-                title: 'Privacy Policy',
+                title: forRequestor ? 'Privacy (Requestors)' : 'Privacy (Members)',
                 description: 'How your data and media are handled',
-                onTap: () => openAccessLegalDocument(context, AccessLegalDocument.privacy),
+                onTap: () => _openLegal(context, AccessLegalDocument.privacy),
               ),
               const Divider(height: 1, indent: 56),
               _SettingsRow(
                 icon: Icons.policy_outlined,
                 title: 'Content Standards',
                 description: forRequestor
-                    ? 'Documentation quality and platform standards'
+                    ? 'Requests, feedback, and documentation use'
                     : 'Upload rules for evaluations and coverage',
-                onTap: () => openAccessLegalDocument(context, AccessLegalDocument.contentStandards),
+                onTap: () => _openLegal(context, AccessLegalDocument.contentStandards),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Last updated ${AccessLegalDocument.terms.lastUpdated}. '
+            'Contact your ACCESS administrator at USTP Oroquieta for questions.',
+            style: memberDashboardMetaStyle.copyWith(fontSize: 11, height: 1.4),
           ),
         ),
         const SizedBox(height: 20),

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:access_mobile/mobile_app/navigation/requestor_shell_navigation.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/member_team_rating_section.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_list_skeleton.dart';
-import 'package:access_mobile/mobile_app/widgets/requestor/requestor_tab_hero.dart';
+import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/api/member_api_service.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
@@ -113,14 +114,24 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
     }
   }
 
-  void _applyInitialSelection() {
+  void _applyInitialSelection({Set<int>? ratedIds}) {
     final id = widget.initialRequestId;
-    if (id == null) return;
-    final match = _rateableRequests(appState.serviceRequests)
-        .where((r) => r.requestId == id)
+    if (id != null) {
+      final match = _rateableRequests(appState.serviceRequests)
+          .where((r) => r.requestId == id)
+          .firstOrNull;
+      if (match != null) {
+        _selectedKey = _requestKey(match);
+        return;
+      }
+    }
+    if (_selectedKey != null) return;
+    final rated = ratedIds ?? _ratedRequestIds(appState.feedbacks);
+    final firstOpen = _rateableRequests(appState.serviceRequests)
+        .where((r) => r.requestId != null && !rated.contains(r.requestId))
         .firstOrNull;
-    if (match != null) {
-      _selectedKey = _requestKey(match);
+    if (firstOpen != null) {
+      _selectedKey = _requestKey(firstOpen);
     }
   }
 
@@ -134,19 +145,29 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
     await memberDataController.refreshAll();
     try {
       final rows = await memberApiService.getMemberRatings();
-      if (mounted) setState(() => _memberRatingsMine = rows);
+      if (!mounted) return;
+      final rated = _ratedRequestIds(appState.feedbacks);
+      for (final row in rows) {
+        final rid = (row['request_id'] as num?)?.toInt();
+        if (rid != null) rated.add(rid);
+      }
+      setState(() {
+        _memberRatingsMine = rows;
+        _applyInitialSelection(ratedIds: rated);
+      });
     } catch (_) {
-      if (mounted) setState(() => _memberRatingsMine = []);
+      if (!mounted) return;
+      setState(() {
+        _memberRatingsMine = [];
+        _applyInitialSelection();
+      });
     }
   }
 
   List<ServiceRequest> _rateableRequests(List<ServiceRequest> all) {
     return all
         .where(
-          (r) =>
-              r.requestId != null &&
-              (r.requestStatus == RequestStatus.approved ||
-                  r.requestStatus == RequestStatus.completed),
+          (r) => r.requestId != null && r.requestStatus == RequestStatus.completed,
         )
         .toList()
       ..sort((a, b) => b.eventDate.compareTo(a.eventDate));
@@ -226,7 +247,13 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
       _selectedKey = null;
       _rating = 0;
       _type = 'Documentation quality';
+      _applyInitialSelection();
     });
+  }
+
+  bool _requestFullyRated(ServiceRequest r, Set<int> ratedIds) {
+    final id = r.requestId;
+    return id != null && ratedIds.contains(id);
   }
 
   @override
@@ -236,13 +263,9 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          RequestorTabHero(
-            title: 'Feedback',
-            subtitle:
-                'Rate each photographer and videographer assigned to your event, then share overall feedback.',
-            onNotifications: widget.onNotificationsTap,
+          _FeedbackPageHeader(
+            onNotificationsTap: widget.onNotificationsTap,
             onProfileTap: widget.onProfileTap,
-            mini: true,
           ),
           Expanded(
             child: ListenableBuilder(
@@ -253,6 +276,11 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
           final past = appState.feedbacks.map(_displayFeedback).toList();
           final selected = _requestFromKey(_selectedKey);
           final loading = memberDataController.isLoading && appState.serviceRequests.isEmpty;
+          final syncing = memberDataController.isLoading && appState.serviceRequests.isNotEmpty;
+          final deepLinkMiss = widget.initialRequestId != null &&
+              !_sent &&
+              rateable.isNotEmpty &&
+              selected == null;
 
           if (loading) {
             return const FeedbackFormSkeleton();
@@ -272,12 +300,31 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                 56,
               ),
               children: [
+                if (syncing)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: LinearProgressIndicator(
+                      minHeight: 3,
+                      color: kAccent,
+                      backgroundColor: kBorder,
+                    ),
+                  ),
                 if (_sent) ...[
                   _SuccessBanner(onNew: _reset),
                   const SizedBox(height: 20),
                 ] else if (rateable.isEmpty)
                   _NoEventsCard(onRefresh: _reload)
-                else
+                else ...[
+                  if (deepLinkMiss)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _DeepLinkMissCard(requestId: widget.initialRequestId!),
+                    ),
+                  if (widget.initialRequestId != null && selected != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _PreselectedEventBanner(eventName: selected.eventName),
+                    ),
                   _FeedbackFormCard(
                     msgCtrl: _msgCtrl,
                     type: _type,
@@ -289,7 +336,21 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                     rateable: rateable,
                     ratedIds: ratedIds,
                     onTypeChanged: (t) => setState(() => _type = t),
-                    onEventChanged: (k) => setState(() => _selectedKey = k),
+                    onEventChanged: (k) {
+                      final req = _requestFromKey(k);
+                      if (req != null && _requestFullyRated(req, ratedIds)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'You already submitted feedback for this event. Pick another completed event.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
+                      setState(() => _selectedKey = k);
+                    },
                     onRatingChanged: (r) => setState(() => _rating = r),
                     submitting: _submitting,
                     requestKey: _requestKey,
@@ -299,6 +360,7 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                     },
                     onSubmittingChanged: (v) => setState(() => _submitting = v),
                   ),
+                ],
                 if (past.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -325,6 +387,70 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FeedbackPageHeader extends StatelessWidget {
+  const _FeedbackPageHeader({
+    this.onNotificationsTap,
+    this.onProfileTap,
+  });
+
+  final VoidCallback? onNotificationsTap;
+  final VoidCallback? onProfileTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final padding = mobilePagePaddingOf(context);
+    return Material(
+      color: kSurface,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FBFF),
+          border: Border(bottom: BorderSide(color: kBorder.withValues(alpha: 0.9))),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(padding, 6, padding, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Feedback',
+                        style: dashText(const TextStyle(
+                          color: kTextPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          height: 1.15,
+                        )),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Rate your documentation team and share how coverage went.',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: memberDashboardMetaStyle.copyWith(
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                MemberPageNotificationButton(onTap: onNotificationsTap),
+                MemberPageProfileAvatar(onTap: onProfileTap),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -405,14 +531,90 @@ class _NoEventsCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Once a documentation request is approved or completed, you can rate the coverage here.',
+            'After documentation is completed for your event, you can rate the team and share feedback here.',
             style: memberDashboardBodyStyle,
           ),
           const SizedBox(height: 16),
           MemberDashboardPrimaryButton(
             label: 'Refresh',
             icon: Icons.refresh_rounded,
+            color: kAccent,
             onPressed: () => onRefresh(),
+          ),
+          if (RequestorShellNavigation.openRequests != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: RequestorShellNavigation.openRequests,
+                icon: const Icon(Icons.description_outlined, size: 18),
+                label: const Text('View my requests'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kAccent,
+                  side: const BorderSide(color: kAccent),
+                  minimumSize: Size.fromHeight(kMobileMinTouch),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PreselectedEventBanner extends StatelessWidget {
+  const _PreselectedEventBanner({required this.eventName});
+
+  final String eventName;
+
+  @override
+  Widget build(BuildContext context) {
+    return MemberDashboardCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Icon(Icons.event_available_rounded, color: kAccent.withValues(alpha: 0.9), size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Rating coverage for $eventName',
+              style: memberDashboardBodyStyle.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeepLinkMissCard extends StatelessWidget {
+  const _DeepLinkMissCard({required this.requestId});
+
+  final int requestId;
+
+  @override
+  Widget build(BuildContext context) {
+    return MemberDashboardCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: kYellow.withValues(alpha: 0.95), size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Request #$requestId is not completed yet, or feedback was already submitted. '
+              'Choose a completed event below.',
+              style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.35),
+            ),
           ),
         ],
       ),
@@ -537,6 +739,15 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       return;
     }
     final requestId = int.tryParse(widget.selectedKey!.split('|').first);
+    if (requestId != null && widget.ratedIds.contains(requestId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Feedback was already submitted for this event.'),
+          backgroundColor: kRed,
+        ),
+      );
+      return;
+    }
     if (requestId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid event selection'), backgroundColor: kRed),
@@ -887,7 +1098,9 @@ class _EventPickerList extends StatelessWidget {
             child: InkWell(
               onTap: () => onEventChanged(key),
               borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-              child: Container(
+              child: Opacity(
+                opacity: alreadyRated ? 0.72 : 1,
+                child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
                 decoration: BoxDecoration(
@@ -959,6 +1172,7 @@ class _EventPickerList extends StatelessWidget {
                       ),
                   ],
                 ),
+              ),
               ),
             ),
           ),

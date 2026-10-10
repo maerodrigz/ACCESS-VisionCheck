@@ -16,6 +16,7 @@ from app.models.ai_detection_result import AiDetectionResult
 from app.models.ai_review_history import AiReviewHistory
 from app.models.feedback import Feedback
 from app.models.assignment_member_feedback import AssignmentMemberFeedback
+from app.models.member_milestone import MemberMilestone
 from app.models.member_ranking import MemberRanking
 from app.models.notification import Notification
 from app.models.member_notification_preference import MemberNotificationPreference
@@ -45,6 +46,7 @@ __all__ = [
     "AiReviewHistory",
     "Feedback",
     "AssignmentMemberFeedback",
+    "MemberMilestone",
     "MemberRanking",
     "Notification",
     "MemberNotificationPreference",

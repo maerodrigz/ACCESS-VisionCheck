@@ -5,12 +5,11 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/access_branding.dart';
 import 'package:access_mobile/mobile_app/screens/my_assignments_screen.dart';
 import 'package:access_mobile/mobile_app/sheets/event_detail_sheet.dart';
-import 'package:access_mobile/mobile_app/sheets/evaluation_detail_sheet.dart';
 import 'package:access_mobile/mobile_app/widgets/gallery_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_announcements.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
-import 'package:access_mobile/mobile_app/widgets/member_dashboard_latest_feedback.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
+import 'package:access_mobile/mobile_app/widgets/member_profile_requestor_feedback.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 
@@ -39,6 +38,7 @@ class MemberHomeDashboard extends StatelessWidget {
     this.onViewRankings,
     this.onViewNotifications,
     this.onProfileTap,
+    this.onViewAllRequestorFeedback,
     this.onRefresh,
   });
 
@@ -51,6 +51,7 @@ class MemberHomeDashboard extends StatelessWidget {
   final VoidCallback? onViewRankings;
   final VoidCallback? onViewNotifications;
   final VoidCallback? onProfileTap;
+  final VoidCallback? onViewAllRequestorFeedback;
   final Future<void> Function()? onRefresh;
 
   static int _activeTaskCount() {
@@ -134,7 +135,7 @@ class MemberHomeDashboard extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
                       _HomeRecentUploadsSection(
-                        onViewGallery: onViewEventGallery,
+                        onViewEventGallery: onViewEventGallery,
                         onViewPortfolio: onViewPortfolio,
                       ),
                       const SizedBox(height: 22),
@@ -142,8 +143,11 @@ class MemberHomeDashboard extends StatelessWidget {
                       const SizedBox(height: 22),
                       _HomeSkillProgressSection(onViewRankings: onViewRankings),
                       const SizedBox(height: 22),
-                      const _HomeLatestFeedbackSection(),
-                      const SizedBox(height: 22),
+                      if (onViewAllRequestorFeedback != null)
+                        MemberDashboardRequestorFeedbackSection(
+                          onViewAll: onViewAllRequestorFeedback!,
+                        ),
+                      if (onViewAllRequestorFeedback != null) const SizedBox(height: 22),
                       const _HomeAnnouncementsSection(),
                     ],
                   ),
@@ -315,25 +319,30 @@ class _HomeTopBar extends StatelessWidget {
     final displayName = authController.user?.name ?? userName;
     final initials = _initials(displayName);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        const Expanded(
-          child: AccessBrandLockup(markSize: 40, compact: true),
-        ),
-        _HeroIconButton(
-          icon: appState.unreadCount > 0
-              ? Icons.notifications_rounded
-              : Icons.notifications_outlined,
-          badgeCount: appState.unreadCount,
-          onTap: onNotifications,
-        ),
-        _HeroProfileAvatar(
-          initials: initials,
-          imageUrl: appState.profileImageUrl,
-          onTap: onProfileTap,
-        ),
-      ],
+    return ListenableBuilder(
+      listenable: Listenable.merge([appState, memberDataController]),
+      builder: (context, _) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Expanded(
+              child: AccessBrandLockup(markSize: 40, compact: true),
+            ),
+            _HeroIconButton(
+              icon: appState.unreadCount > 0
+                  ? Icons.notifications_rounded
+                  : Icons.notifications_outlined,
+              badgeCount: appState.unreadCount,
+              onTap: onNotifications,
+            ),
+            _HeroProfileAvatar(
+              initials: initials,
+              imageUrl: appState.profileImageUrl,
+              onTap: onProfileTap,
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1073,11 +1082,11 @@ class _HomeTaskRow extends StatelessWidget {
 
 class _HomeRecentUploadsSection extends StatelessWidget {
   const _HomeRecentUploadsSection({
-    this.onViewGallery,
+    this.onViewEventGallery,
     this.onViewPortfolio,
   });
 
-  final VoidCallback? onViewGallery;
+  final VoidCallback? onViewEventGallery;
   final VoidCallback? onViewPortfolio;
 
   static const _tileWidth = 118.0;
@@ -1112,14 +1121,14 @@ class _HomeRecentUploadsSection extends StatelessWidget {
                   ),
                 ),
                 TextButton(
-                  onPressed: onViewGallery,
+                  onPressed: onViewPortfolio,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
-                    'View Gallery',
+                    'View Evaluation',
                     style: dashText(const TextStyle(
                       color: kAccent,
                       fontWeight: FontWeight.w700,
@@ -1209,7 +1218,7 @@ class _HomeRecentUploadsSection extends StatelessWidget {
                           context,
                           item,
                           onViewPortfolio: onViewPortfolio,
-                          onViewEventGallery: onViewGallery,
+                          onViewEventGallery: onViewEventGallery,
                         ),
                       ),
                     );
@@ -1679,147 +1688,31 @@ class _HomeSkillProgressSection extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: SizedBox(
-                          height: 8,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              ColoredBox(color: kBorder.withValues(alpha: 0.45)),
-                              FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: snapshot.progress.clamp(0.0, 1.0),
-                                child: const ColoredBox(color: kAccent),
-                              ),
-                            ],
+                      if (snapshot.progressUsesSkillScore) ...[
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: SizedBox(
+                            height: 8,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ColoredBox(color: kBorder.withValues(alpha: 0.45)),
+                                FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: snapshot.progress.clamp(0.0, 1.0),
+                                  child: const ColoredBox(color: kAccent),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 8),
                       Text(
-                        snapshot.isMaxLevel
-                            ? 'Maximum skill tier reached'
-                            : snapshot.nextLevelName != null
-                                ? '${_formatXp(snapshot.remainingPoints)} XP to ${snapshot.nextLevelName}'
-                                : 'Keep practicing to level up',
+                        snapshot.progressSubtitle,
                         style: memberDashboardMetaStyle.copyWith(fontSize: 11),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// ── Latest admin feedback ─────────────────────────────────────────────────────
-
-class _HomeLatestFeedbackSection extends StatelessWidget {
-  const _HomeLatestFeedbackSection();
-
-  void _openFeedback(BuildContext context, LatestAdminFeedback item) {
-    if (item.evaluation != null) {
-      showEvaluationDetail(context, item.evaluation!);
-      return;
-    }
-    showAdminFeedbackSheet(context, item);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([appState, memberDataController]),
-      builder: (context, _) {
-        final latest = LatestAdminFeedback.fromAppState();
-        if (latest == null) return const SizedBox.shrink();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.rate_review_outlined, size: 20, color: kAccent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Latest Feedback',
-                    style: dashText(const TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                    )),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => _openFeedback(context, latest),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    'View Feedback',
-                    style: dashText(const TextStyle(
-                      color: kAccent,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    )),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _openFeedback(context, latest),
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: kSurface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: kBorder),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        latest.eventName,
-                        style: memberDashboardMetaStyle.copyWith(
-                          color: kAccent,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '"${latest.preview}"',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: memberDashboardBodyStyle.copyWith(
-                          fontSize: 12,
-                          height: 1.4,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(latest.date, style: memberDashboardMetaStyle.copyWith(fontSize: 10)),
                     ],
                   ),
                 ),

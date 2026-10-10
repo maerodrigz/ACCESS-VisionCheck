@@ -1,5 +1,3 @@
-import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
-
 /// Configurable XP rules mirrored from the ACCESS backend pipeline.
 class MemberXpConfig {
   const MemberXpConfig._();
@@ -16,18 +14,18 @@ class MemberXpConfig {
     return (normalized.clamp(0.0, 1.0) * 100).round();
   }
 
-  /// Skill tier thresholds (same as [MemberCompetencyTier.tiers] on the dashboard).
-  static List<MemberCompetencyTier> get skillTiers => MemberCompetencyTier.tiers;
-
   /// Skill score weights from `access_backend/app/services/skill_scoring.py`.
   static const skillScoreWeights = <({String label, String weight})>[
     (label: 'Media quality', weight: '70%'),
     (label: 'Media integrity', weight: '30%'),
   ];
 
+  static const collapsedXpHint = 'Earn XP through eligible media evaluations.';
+
   static const howXpIntro =
       'XP comes from practice AI evaluations. Strong scores and a clean integrity record '
-      'help you climb the leaderboard and improve your skill label.';
+      'help you climb the leaderboard and improve your skill label. '
+      'Leaderboard XP is separate from your skill tier score.';
 
   static const skillLevelIntro =
       'Your skill label (Beginner, Intermediate, Advanced, Expert) comes from your average '
@@ -67,7 +65,7 @@ class MemberXpConfig {
       'Violations may be rejected, removed from review, and referred to ACCESS advisers.';
 
   static const contentStandardsCheckbox =
-      'I confirm this file meets ACCESS content standards and is my own work for documentation practice.';
+      'I confirm that this media is my own work and follows ACCESS Content Standards.';
 
   static const List<({String title, String body})> earningRules = [
     (
@@ -91,7 +89,8 @@ class MemberXpConfig {
     (
       title: 'Authentic media',
       body:
-          'AI-confirmed generated media may reduce XP by $aiConfirmedPenalty points as part of the integrity review process.',
+          'Integrity risk flags send media to review. They are not automatic proof of AI-generated content. '
+          'If an admin confirms AI-generated media, XP may be reduced by $aiConfirmedPenalty points.',
     ),
     (
       title: 'Appropriate content',

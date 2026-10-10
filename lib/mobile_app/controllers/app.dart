@@ -33,6 +33,7 @@ import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_splash_gate.dart';
 import 'package:access_mobile/mobile_app/widgets/member_bottom_nav.dart';
 import 'package:access_mobile/shared/constants/app_constants.dart';
+import 'package:access_mobile/shared/navigation/app_navigator.dart';
 import 'package:access_mobile/web_admin/controllers/web_admin_shell.dart';
 class AccessApp extends StatefulWidget {
   const AccessApp({super.key});
@@ -49,6 +50,7 @@ class _AccessAppState extends State<AccessApp> {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) => MaterialApp(
+        navigatorKey: rootNavigatorKey,
         debugShowCheckedModeBanner: false,
         title: AppConstants.appName,
         theme: buildAccessLightTheme(),
@@ -328,9 +330,6 @@ class _RequesterShellState extends State<RequesterShell> {
               userName: widget.userName,
               onOpenRequestTab: _openRequestTab,
               onOpenFeedback: _openFeedback,
-              onViewGallery: () => _goToTab(RequestorShellTabs.gallery),
-              onViewCalendar: () => _goToTab(RequestorShellTabs.calendar),
-              onViewFeedback: _openFeedback,
               onNotificationsTap: () => showNotifications(context),
               onProfileTap: _openProfile,
             ),
@@ -361,9 +360,6 @@ class _RequesterShellState extends State<RequesterShell> {
               userName: widget.userName,
               onOpenRequestTab: _openRequestTab,
               onOpenFeedback: _openFeedback,
-              onViewGallery: () => _goToTab(RequestorShellTabs.gallery),
-              onViewCalendar: () => _goToTab(RequestorShellTabs.calendar),
-              onViewFeedback: _openFeedback,
               onNotificationsTap: () => showNotifications(context),
               onProfileTap: _openProfile,
             ),

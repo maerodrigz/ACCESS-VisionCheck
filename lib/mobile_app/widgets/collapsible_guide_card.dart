@@ -15,6 +15,7 @@ class CollapsibleGuideCard extends StatefulWidget {
     this.showSubtitleWhenCollapsed = true,
     this.darkShell = false,
     this.leading,
+    this.compact = false,
     this.padding = const EdgeInsets.fromLTRB(
       kMemberDashboardPagePadding,
       16,
@@ -31,6 +32,7 @@ class CollapsibleGuideCard extends StatefulWidget {
   final bool showSubtitleWhenCollapsed;
   final bool darkShell;
   final Widget? leading;
+  final bool compact;
   final EdgeInsetsGeometry padding;
   final List<Widget> children;
 
@@ -97,22 +99,27 @@ class _CollapsibleGuideCardState extends State<CollapsibleGuideCard>
             ],
           )
         : BoxDecoration(
-            color: kDashCardBg,
+            color: const Color(0xFFF8FBFF),
             borderRadius: BorderRadius.circular(kEvalCardRadius),
             border: Border.all(color: kDashBorder.withValues(alpha: 0.85)),
           );
 
     final titleStyle = widget.darkShell
         ? evalGuideDarkTitleStyle
-        : dashText(const TextStyle(
-            color: Color(0xFF1E293B),
-            fontSize: 17,
+        : dashText(TextStyle(
+            color: const Color(0xFF1E293B),
+            fontSize: widget.compact ? 15 : 17,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.2,
           ));
     final subtitleStyle = widget.darkShell
         ? evalGuideDarkSubtitleStyle
-        : evalSectionSubtitleStyle.copyWith(fontSize: 13);
+        : evalSectionSubtitleStyle.copyWith(fontSize: widget.compact ? 12 : 13);
+    final headerPadding = widget.compact
+        ? const EdgeInsets.fromLTRB(12, 10, 10, 10)
+        : const EdgeInsets.fromLTRB(16, 13, 12, 13);
+    final chevronSize = widget.compact ? 22.0 : 26.0;
+    final actionFontSize = widget.compact ? 11.0 : 12.0;
     final actionColor = widget.darkShell ? kMemberCyan : kEvalSecondary;
     final dividerColor = widget.darkShell
         ? Colors.white.withValues(alpha: 0.12)
@@ -137,13 +144,13 @@ class _CollapsibleGuideCardState extends State<CollapsibleGuideCard>
               child: InkWell(
                 onTap: _toggle,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+                  padding: headerPadding,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      if (widget.leading != null && _expanded) ...[
+                      if (widget.leading != null) ...[
                         widget.leading!,
-                        const SizedBox(width: 12),
+                        SizedBox(width: widget.compact ? 10 : 12),
                       ],
                       Expanded(
                         child: Column(
@@ -154,31 +161,35 @@ class _CollapsibleGuideCardState extends State<CollapsibleGuideCard>
                               style: titleStyle,
                             ),
                             if (widget.showSubtitleWhenCollapsed || _expanded) ...[
-                              const SizedBox(height: 4),
+                              SizedBox(height: widget.compact ? 2 : 4),
                               Text(
                                 widget.subtitle,
                                 style: subtitleStyle,
+                                maxLines: widget.compact && !_expanded ? 1 : null,
+                                overflow: widget.compact && !_expanded
+                                    ? TextOverflow.ellipsis
+                                    : null,
                               ),
                             ],
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: widget.compact ? 4 : 8),
                       Text(
                         actionLabel,
                         style: dashText(TextStyle(
                           color: actionColor,
-                          fontSize: 12,
+                          fontSize: actionFontSize,
                           fontWeight: FontWeight.w700,
                         )),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 2),
                       RotationTransition(
                         turns: _chevronTurns,
                         child: Icon(
                           Icons.keyboard_arrow_down_rounded,
                           color: actionColor,
-                          size: 26,
+                          size: chevronSize,
                         ),
                       ),
                     ],
@@ -193,12 +204,17 @@ class _CollapsibleGuideCardState extends State<CollapsibleGuideCard>
               clipBehavior: Clip.hardEdge,
               child: _expanded
                   ? Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                      padding: EdgeInsets.fromLTRB(
+                        widget.compact ? 12 : 18,
+                        0,
+                        widget.compact ? 12 : 18,
+                        widget.compact ? 12 : 18,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Divider(height: 1, color: dividerColor),
-                          const SizedBox(height: 14),
+                          SizedBox(height: widget.compact ? 10 : 14),
                           ...widget.children,
                         ],
                       ),

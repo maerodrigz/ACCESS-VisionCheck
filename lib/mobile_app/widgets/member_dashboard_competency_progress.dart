@@ -23,7 +23,8 @@ class MemberCompetencyTier {
     MemberCompetencyTier('Master', 1200, null),
   ];
 
-  static const skillTrackLevels = ['Beginner', 'Intermediate', 'Advanced'];
+  /// Backend skill tiers (`skill_scoring.effective_skill_level`).
+  static const skillTrackLevels = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
 
   static MemberCompetencyTier forPoints(int points) {
     var current = tiers.first;
@@ -141,6 +142,7 @@ class MemberProfileSkillProgressSection extends StatelessWidget {
                       );
                     }).toList(),
                   ),
+                  if (snapshot.progressUsesSkillScore) ...[
                   const SizedBox(height: 16),
                   TweenAnimationBuilder<double>(
                     key: ValueKey('profile-skill-${snapshot.points}-${snapshot.progress}'),
@@ -168,15 +170,14 @@ class MemberProfileSkillProgressSection extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 12),
+                  ],
                   Text(
                     '${_formatXp(snapshot.points)} XP',
                     style: memberDashboardCardTitleStyle.copyWith(fontSize: 20),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    snapshot.isMaxLevel
-                        ? 'You have reached the highest skill tier'
-                        : '${_formatXp(snapshot.remainingPoints)} XP to ${snapshot.nextLevelName}',
+                    snapshot.progressSubtitle,
                     style: memberDashboardMetaStyle.copyWith(
                       color: snapshot.isMaxLevel
                           ? kTextSecondary
@@ -237,6 +238,59 @@ class MemberProfileSkillProgressSection extends StatelessWidget {
   }
 }
 
+/// Evaluation minimums before higher tiers unlock (`skill_scoring.py`).
+class MemberSkillEvalGates {
+  MemberSkillEvalGates._();
+
+  static const minForIntermediate = 3;
+  static const minForAdvanced = 6;
+  static const minForExpert = 10;
+
+  static int minEvaluationsForTierIndex(int tierIndex) {
+    switch (tierIndex.clamp(0, 3)) {
+      case 1:
+        return minForIntermediate;
+      case 2:
+        return minForAdvanced;
+      case 3:
+        return minForExpert;
+      default:
+        return 0;
+    }
+  }
+}
+
+/// Authoritative backend skill bands (`skill_level_from_score`).
+class MemberBackendSkillTier {
+  MemberBackendSkillTier._();
+
+  static const order = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+  static const thresholds = [0, 60, 75, 90];
+
+  static int indexForLevel(String level) {
+    final normalized = level.trim().toLowerCase();
+    for (var i = order.length - 1; i >= 0; i--) {
+      if (normalized.contains(order[i].toLowerCase())) return i;
+    }
+    if (normalized.contains('novice')) return 0;
+    if (normalized.contains('master')) return 3;
+    return 0;
+  }
+
+  static String nameAt(int index) =>
+      order[index.clamp(0, order.length - 1)];
+
+  static int minScoreForIndex(int index) =>
+      thresholds[index.clamp(0, thresholds.length - 1)];
+
+  static int? nextMinScoreForIndex(int index) {
+    if (index >= order.length - 1) return null;
+    return thresholds[index + 1];
+  }
+}
+
+enum SkillTierTrackState { completed, current, upcoming }
+
 class MemberCompetencySnapshot {
   const MemberCompetencySnapshot({
     required this.levelName,
@@ -245,6 +299,9 @@ class MemberCompetencySnapshot {
     required this.remainingPoints,
     required this.nextLevelName,
     required this.isMaxLevel,
+    this.skillScore,
+    this.progressUsesSkillScore = false,
+    this.evaluationsCount,
   });
 
   final String levelName;
@@ -253,41 +310,113 @@ class MemberCompetencySnapshot {
   final int remainingPoints;
   final String? nextLevelName;
   final bool isMaxLevel;
+  final double? skillScore;
+  final bool progressUsesSkillScore;
+  final int? evaluationsCount;
+
+  /// When eval count blocks the next tier despite score (`effective_skill_level`).
+  String? get evalGateHint {
+    if (!progressUsesSkillScore || isMaxLevel || nextLevelName == null) {
+      return null;
+    }
+    final idx = MemberBackendSkillTier.indexForLevel(levelName);
+    if (idx >= MemberBackendSkillTier.order.length - 1) return null;
+    final nextIdx = idx + 1;
+    final required = MemberSkillEvalGates.minEvaluationsForTierIndex(nextIdx);
+    final count = evaluationsCount ?? 0;
+    if (count >= required) return null;
+    final need = required - count;
+    return 'Complete $need more evaluated '
+        '${need == 1 ? 'submission' : 'submissions'} to unlock $nextLevelName';
+  }
+
+  String get progressSubtitle {
+    if (isMaxLevel) {
+      if (skillScore != null) {
+        return 'Maximum skill tier reached (${skillScore!.round()} skill score)';
+      }
+      return 'Maximum skill tier reached';
+    }
+    if (!progressUsesSkillScore) {
+      return 'Visit Rankings to load skill score progress';
+    }
+    final gate = evalGateHint;
+    if (gate != null) return gate;
+    if (nextLevelName == null) return 'Keep practicing to improve your skill score';
+    final scoreNote =
+        skillScore != null ? ' · ${skillScore!.round()} skill score now' : '';
+    return '$remainingPoints skill score pts to $nextLevelName$scoreNote';
+  }
+
+  List<({String name, SkillTierTrackState state})> get skillTrackStates {
+    final idx = MemberBackendSkillTier.indexForLevel(levelName);
+    return [
+      for (var i = 0; i < MemberBackendSkillTier.order.length; i++)
+        (
+          name: MemberBackendSkillTier.order[i],
+          state: i < idx
+              ? SkillTierTrackState.completed
+              : i == idx
+                  ? SkillTierTrackState.current
+                  : SkillTierTrackState.upcoming,
+        ),
+    ];
+  }
 
   factory MemberCompetencySnapshot.fromAppState() {
     final points = appState.profilePoints;
-    final tier = MemberCompetencyTier.forPoints(points);
     final levelName = appState.profileSkillLevel?.trim().isNotEmpty == true
         ? appState.profileSkillLevel!.trim()
-        : tier.name;
+        : 'Beginner';
+    final score = appState.profileSkillScore;
+    final evalCount = appState.profileEvaluationsCount;
 
-    if (tier.nextMinPoints == null) {
+    if (score != null) {
+      final idx = MemberBackendSkillTier.indexForLevel(levelName);
+      if (idx >= MemberBackendSkillTier.order.length - 1) {
+        return MemberCompetencySnapshot(
+          levelName: levelName,
+          points: points,
+          progress: 1,
+          remainingPoints: 0,
+          nextLevelName: null,
+          isMaxLevel: true,
+          skillScore: score,
+          progressUsesSkillScore: true,
+          evaluationsCount: evalCount,
+        );
+      }
+
+      final currentMin = MemberBackendSkillTier.minScoreForIndex(idx);
+      final nextMin = MemberBackendSkillTier.nextMinScoreForIndex(idx)!;
+      final span = nextMin - currentMin;
+      final earned = (score - currentMin).clamp(0.0, span.toDouble());
+      final progress = span > 0 ? earned / span : 0.0;
+      final remaining = (nextMin - score).ceil().clamp(0, span);
+
       return MemberCompetencySnapshot(
-        levelName: tier.name,
+        levelName: levelName,
         points: points,
-        progress: 1,
-        remainingPoints: 0,
-        nextLevelName: null,
-        isMaxLevel: true,
+        progress: progress.clamp(0.0, 1.0),
+        remainingPoints: remaining,
+        nextLevelName: MemberBackendSkillTier.nameAt(idx + 1),
+        isMaxLevel: false,
+        skillScore: score,
+        progressUsesSkillScore: true,
+        evaluationsCount: evalCount,
       );
     }
 
-    final span = tier.nextMinPoints! - tier.minPoints;
-    final earned = (points - tier.minPoints).clamp(0, span);
-    final progress = span > 0 ? earned / span : 0.0;
-    final remaining = (tier.nextMinPoints! - points).clamp(0, span);
-    final nextIndex = MemberCompetencyTier.tiers.indexOf(tier) + 1;
-    final nextName = nextIndex < MemberCompetencyTier.tiers.length
-        ? MemberCompetencyTier.tiers[nextIndex].name
-        : null;
-
+    // Fallback when skill score is not loaded yet: XP totals only (no tier progress bar).
     return MemberCompetencySnapshot(
       levelName: levelName,
       points: points,
-      progress: progress.clamp(0.0, 1.0),
-      remainingPoints: remaining,
-      nextLevelName: nextName,
+      progress: 0,
+      remainingPoints: 0,
+      nextLevelName: null,
       isMaxLevel: false,
+      evaluationsCount: evalCount,
+      progressUsesSkillScore: false,
     );
   }
 }
@@ -367,6 +496,7 @@ class MemberDashboardCompetencyProgress extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
+                if (snapshot.progressUsesSkillScore)
                 TweenAnimationBuilder<double>(
                   key: ValueKey('${snapshot.points}-${snapshot.progress}'),
                   tween: Tween(begin: 0, end: snapshot.progress),
@@ -438,12 +568,13 @@ class MemberDashboardCompetencyProgress extends StatelessWidget {
                               )
                             else
                               Text(
-                                '${(value * 100).round()}% to ${snapshot.nextLevelName}',
+                                snapshot.evalGateHint ??
+                                    '${(value * 100).round()}% toward ${snapshot.nextLevelName}',
                                 style: memberDashboardMetaStyle,
                               ),
-                            if (!snapshot.isMaxLevel)
+                            if (!snapshot.isMaxLevel && snapshot.evalGateHint == null)
                               Text(
-                                '${snapshot.remainingPoints} XP left',
+                                '${snapshot.remainingPoints} pts left',
                                 style: dashText(const TextStyle(
                                   color: kMemberPrimary,
                                   fontSize: 12,
@@ -455,23 +586,36 @@ class MemberDashboardCompetencyProgress extends StatelessWidget {
                       ],
                     );
                   },
-                ),
+                )
+                else
+                  Text(
+                    snapshot.progressSubtitle,
+                    style: memberDashboardMetaStyle,
+                  ),
                 const SizedBox(height: 18),
                 Row(
                   children: [
                     Expanded(
                       child: _XpTile(
-                        label: 'Current XP',
+                        label: 'Leaderboard XP',
                         value: _formatXp(snapshot.points),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _XpTile(
-                        label: snapshot.isMaxLevel ? 'Status' : 'XP to Next Level',
+                        label: snapshot.isMaxLevel
+                            ? 'Status'
+                            : snapshot.progressUsesSkillScore
+                                ? 'Skill score gap'
+                                : 'Skill progress',
                         value: snapshot.isMaxLevel
                             ? 'Max tier'
-                            : _formatXp(snapshot.remainingPoints),
+                            : snapshot.progressUsesSkillScore
+                                ? (snapshot.evalGateHint != null
+                                    ? 'Evals needed'
+                                    : '${snapshot.remainingPoints} pts')
+                                : 'See Rankings',
                       ),
                     ),
                   ],

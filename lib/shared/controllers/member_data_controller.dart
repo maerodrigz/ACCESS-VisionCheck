@@ -7,7 +7,9 @@ import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/models/app_notification_mapper.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
+import 'package:access_mobile/mobile_app/widgets/member_milestone_celebration.dart';
 import 'package:access_mobile/shared/models/event_gallery.dart';
+import 'package:access_mobile/shared/models/member_milestone.dart';
 import 'package:access_mobile/shared/models/media_upload_response.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
@@ -45,6 +47,10 @@ class MemberDataController extends ChangeNotifier {
   int requestorRatingCount = 0;
   double? requestorRatingAverage;
   bool requestorRatingsLoaded = false;
+  String? requestorRatingsLoadError;
+
+  List<MemberMilestone> memberMilestones = [];
+  List<MemberMilestone> unacknowledgedMilestones = [];
 
   /// Per-tab lazy load flags (avoid blocking home on every endpoint).
   bool evaluationsTabLoading = false;
@@ -80,6 +86,9 @@ class MemberDataController extends ChangeNotifier {
     requestorRatingCount = 0;
     requestorRatingAverage = null;
     requestorRatingsLoaded = false;
+    requestorRatingsLoadError = null;
+    memberMilestones = [];
+    unacknowledgedMilestones = [];
     _bootstrapFuture = null;
     appState.isSyncingMemberData = false;
     appState.memberSyncError = null;
@@ -393,6 +402,8 @@ class MemberDataController extends ChangeNotifier {
     await _runSectionsParallel(ctx, [
       ('Announcements', _syncAnnouncementsSection),
       ('Notifications', refreshNotifications),
+      if (!_isOrganizationUser)
+        ('Requestor ratings', refreshRequestorRatings),
     ]);
     notifyListeners();
     appState.notifyListeners();
@@ -427,6 +438,7 @@ class MemberDataController extends ChangeNotifier {
       ('Rankings', _syncRankingsSection),
       ('Service requests', _syncServiceRequestsSection),
       if (_isOrganizationUser) ('Feedback', _syncFeedbackSection),
+      if (!_isOrganizationUser) ('Requestor ratings', refreshRequestorRatings),
     ]);
 
     if (ctx.sessionExpired) {
@@ -636,6 +648,19 @@ class MemberDataController extends ChangeNotifier {
     }
   }
 
+  /// Reloads requestor ratings for the logged-in documentation member.
+  Future<void> refreshRequestorRatings() async {
+    if (_isOrganizationUser) return;
+    try {
+      await _syncRequestorRatings();
+      requestorRatingsLoadError = null;
+      notifyListeners();
+    } catch (_) {
+      requestorRatingsLoadError = 'Unable to load requestor feedback';
+      notifyListeners();
+    }
+  }
+
   Future<void> _syncRequestorRatings() async {
     final data = await memberApiService.getReceivedRequestorRatings();
     requestorRatingCount = data['count'] as int? ?? 0;
@@ -645,6 +670,7 @@ class MemberDataController extends ChangeNotifier {
         ? rows.map((e) => Map<String, dynamic>.from(e as Map)).toList()
         : [];
     requestorRatingsLoaded = true;
+    requestorRatingsLoadError = null;
   }
 
   Future<void> _syncParticipationSection() async {
@@ -776,6 +802,65 @@ class MemberDataController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Loads rankings when Profile needs skill score (no-op if already synced).
+  Future<void> syncRankingsForProfileIfNeeded() async {
+    if (!authController.isLoggedIn || _isOrganizationUser) return;
+    if (appState.profileSkillScore != null) return;
+    if (rankingsLoading) return;
+    await refreshRankings(notify: true);
+  }
+
+  Future<void> refreshMilestones({bool unacknowledgedOnly = false}) async {
+    if (!authController.isLoggedIn || _isOrganizationUser) return;
+    try {
+      final rows = await memberApiService.getMilestones(unacknowledgedOnly: unacknowledgedOnly);
+      final parsed = rows.map(MemberMilestone.fromApi).where((m) => m.id > 0).toList();
+      if (unacknowledgedOnly) {
+        unacknowledgedMilestones = parsed;
+      } else {
+        memberMilestones = parsed;
+        unacknowledgedMilestones =
+            parsed.where((m) => !m.isAcknowledged).toList();
+      }
+      notifyListeners();
+    } catch (_) {
+      // Non-blocking; profile still works without milestones API.
+    }
+  }
+
+  Future<void> acknowledgeMilestone(int milestoneId) async {
+    if (milestoneId <= 0) return;
+    await memberApiService.acknowledgeMilestone(milestoneId);
+    unacknowledgedMilestones =
+        unacknowledgedMilestones.where((m) => m.id != milestoneId).toList();
+    memberMilestones = memberMilestones.map((m) {
+      if (m.id != milestoneId) return m;
+      return MemberMilestone(
+        id: m.id,
+        kind: m.kind,
+        key: m.key,
+        title: m.title,
+        message: m.message,
+        earnedAt: m.earnedAt,
+        acknowledgedAt: DateTime.now(),
+      );
+    }).toList();
+    notifyListeners();
+  }
+
+  Future<void> celebratePendingMilestones(BuildContext context) async {
+    if (unacknowledgedMilestones.isEmpty) {
+      await refreshMilestones(unacknowledgedOnly: true);
+    }
+    if (!context.mounted || unacknowledgedMilestones.isEmpty) return;
+    final pending = [...unacknowledgedMilestones];
+    await celebrateUnacknowledgedMilestones(
+      context,
+      milestones: pending,
+      onAcknowledge: (m) => acknowledgeMilestone(m.id),
+    );
+  }
+
   /// Reloads the member leaderboard from `/api/rankings`.
   Future<void> refreshRankings({bool notify = true}) async {
     if (!authController.isLoggedIn) return;
@@ -788,25 +873,7 @@ class MemberDataController extends ChangeNotifier {
 
     try {
       final rankings = await memberApiService.getRankings();
-      final userId = authController.user?.id;
-      final userName = authController.user?.name ?? appState.profileName;
-      String? adminRemarks;
-      appState.members
-        ..clear()
-        ..addAll(rankings.map((r) {
-          final name = r['name'] as String? ?? r['member_name'] as String? ?? '';
-          final id = r['user_id'] as int? ?? r['id'] as int?;
-          if (adminRemarks == null &&
-              ((userId != null && id == userId) ||
-                  (userName.isNotEmpty && name == userName))) {
-            final remarks = r['admin_remarks'] as String?;
-            if (remarks != null && remarks.trim().isNotEmpty) {
-              adminRemarks = remarks.trim();
-            }
-          }
-          return _memberFromRankingRow(r);
-        }));
-      appState.profileAdminRemarks = adminRemarks;
+      _applyRankingsRows(rankings);
       rankingsError = null;
       appState.notifyListeners();
     } catch (e) {
@@ -1062,6 +1129,8 @@ class MemberDataController extends ChangeNotifier {
       final rankings = (results[2] as List).cast<Map<String, dynamic>>();
       _applyRankingsRows(rankings);
 
+      unawaited(refreshMilestones(unacknowledgedOnly: true));
+
       final media = (results[3] as List).cast<Map<String, dynamic>>();
       appState.gallery
         ..clear()
@@ -1130,16 +1199,43 @@ class MemberDataController extends ChangeNotifier {
       ..addAll(rankings.map((r) {
         final name = r['name'] as String? ?? r['member_name'] as String? ?? '';
         final id = r['user_id'] as int? ?? r['id'] as int?;
-        if (adminRemarks == null &&
-            ((userId != null && id == userId) || (userName.isNotEmpty && name == userName))) {
-          final remarks = r['admin_remarks'] as String?;
-          if (remarks != null && remarks.trim().isNotEmpty) {
-            adminRemarks = remarks.trim();
+        final isSelf = (userId != null && id == userId) ||
+            (userName.isNotEmpty && name.trim() == userName.trim());
+        if (isSelf) {
+          _applySelfRankingMetrics(r);
+          if (adminRemarks == null) {
+            final remarks = r['admin_remarks'] as String?;
+            if (remarks != null && remarks.trim().isNotEmpty) {
+              adminRemarks = remarks.trim();
+            }
           }
         }
         return _memberFromRankingRow(r);
       }));
     appState.profileAdminRemarks = adminRemarks;
+  }
+
+  void _applySelfRankingMetrics(Map<String, dynamic> r) {
+    final score = r['skill_score'];
+    if (score is num) {
+      appState.profileSkillScore = score.toDouble();
+    }
+    final evalCount = r['evaluation_count'];
+    if (evalCount is int) {
+      appState.profileEvaluationsCount = evalCount;
+    }
+    final level = r['skill_level'] as String?;
+    if (level != null && level.trim().isNotEmpty) {
+      appState.profileSkillLevel = level.trim();
+    }
+    final points = r['points'] ?? r['good_evaluations'];
+    if (points is int) {
+      appState.profilePoints = points;
+    }
+    final rankPos = r['rank_position'] ?? r['rank'];
+    if (rankPos is int) {
+      appState.profileRankPosition = rankPos;
+    }
   }
 
   Future<void> uploadMedia({

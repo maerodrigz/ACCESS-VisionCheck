@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ~92 logical px — matches Flutter boot splash icon size -->
+    <dimen name="splash_icon_size">88dp</dimen>
+</resources>

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/constants/app_constants.dart';
+import 'package:access_mobile/shared/navigation/app_navigator.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/widgets/auth_gate.dart';
 import 'package:access_mobile/web_admin/controllers/web_admin_shell.dart';
@@ -14,6 +15,7 @@ class VisionWebApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: brandingController,
       builder: (_, __) => MaterialApp(
+      navigatorKey: rootNavigatorKey,
       debugShowCheckedModeBanner: false,
       title: brandingController.webAdminTitle,
       theme: AdminTheme.materialTheme(),

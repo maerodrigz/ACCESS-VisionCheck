@@ -4,14 +4,26 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
 import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
+import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
+import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_result_action_bar.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+
+String _adminRemarksForPanel(String? reviewStatus, String? adminRemarks) {
+  final r = adminRemarks?.trim() ?? '';
+  if (r.isNotEmpty) return r;
+  if (MemberReviewStatus.isReuploadRequested(reviewStatus)) {
+    return 'An administrator requested a new upload. Submit a replacement from Evaluations.';
+  }
+  return '';
+}
 
 class EvaluationResultMedia {
   const EvaluationResultMedia({
@@ -43,6 +55,7 @@ class EvaluationResultScreen extends StatefulWidget {
     this.submissionTitle,
     this.evaluationAlreadySaved = false,
     this.adminReviewStatus,
+    this.adminRemarks,
   });
 
   final EvaluationResultMedia media;
@@ -56,6 +69,7 @@ class EvaluationResultScreen extends StatefulWidget {
   final String? submissionTitle;
   final bool evaluationAlreadySaved;
   final String? adminReviewStatus;
+  final String? adminRemarks;
 
   @override
   State<EvaluationResultScreen> createState() => _EvaluationResultScreenState();
@@ -63,6 +77,15 @@ class EvaluationResultScreen extends StatefulWidget {
 
 class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      memberDataController.celebratePendingMilestones(context);
+    });
+  }
 
   String get _formattedDate {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -132,13 +155,23 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
               IntegrityOnlyMessageCard(
                 result: widget.result,
                 layout: IntegrityOnlyCardLayout.resultCompact,
+                reviewStatus: widget.adminReviewStatus,
+                adminRemarks: widget.adminRemarks,
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (showQuality &&
+                (MemberReviewStatus.isReuploadRequested(widget.adminReviewStatus) ||
+                    (widget.adminRemarks?.trim().isNotEmpty ?? false))) ...[
+              AdminReviewRemarksPanel(
+                remarks: _adminRemarksForPanel(widget.adminReviewStatus, widget.adminRemarks),
               ),
               const SizedBox(height: 8),
             ],
             AiDetectionBanner(
               aiDetection: widget.result.aiDetection,
               compact: true,
-              minimal: true,
+              minimal: !showQuality || heldForReview,
               practiceFinalCopy: widget.evaluationAlreadySaved,
               adminReviewStatus: widget.adminReviewStatus,
             ),
@@ -233,11 +266,17 @@ class _ResultTopCard extends StatelessWidget {
             fileName: media.name,
             filePath: media.filePath,
             previewBytes: media.previewBytes,
+            aspectRatio: kEvalPreviewAspectRatio,
+            showFullThumbnail: true,
             onTap: onViewOriginal,
           )
-        : AspectRatio(
-            aspectRatio: 16 / 10,
-            child: Image.memory(media.bytes, fit: BoxFit.cover),
+        : EvalPhotoPreviewTile(
+            bytes: media.bytes,
+            fileName: media.name,
+            aspectRatio: kEvalPreviewAspectRatio,
+            showFullImage: true,
+            showTapHint: false,
+            onTap: onViewOriginal,
           );
 
     return Container(
@@ -259,7 +298,7 @@ class _ResultTopCard extends StatelessWidget {
         children: [
           preview,
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -289,22 +328,20 @@ class _ResultTopCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 40,
-                  child: OutlinedButton.icon(
-                    onPressed: onViewOriginal,
-                    icon: Icon(
-                      media.isVideo ? Icons.play_circle_outline_rounded : Icons.open_in_full_rounded,
-                      size: 17,
-                    ),
-                    label: Text(media.isVideo ? 'Play Video' : 'View Original'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kAccent,
-                      side: BorderSide(color: kAccent.withValues(alpha: 0.35)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      textStyle: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    ),
+                OutlinedButton.icon(
+                  onPressed: onViewOriginal,
+                  icon: Icon(
+                    media.isVideo ? Icons.play_circle_outline_rounded : Icons.open_in_full_rounded,
+                    size: 17,
+                  ),
+                  label: Text(media.isVideo ? 'Play Video' : 'View Original'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kAccent,
+                    side: BorderSide(color: kAccent.withValues(alpha: 0.35)),
+                    minimumSize: const Size.fromHeight(40),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    textStyle: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                   ),
                 ),
               ],
@@ -362,6 +399,7 @@ void openEvaluationResultScreen(
   String? submissionTitle,
   bool evaluationAlreadySaved = false,
   String? adminReviewStatus,
+  String? adminRemarks,
 }) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
@@ -377,6 +415,7 @@ void openEvaluationResultScreen(
         submissionTitle: submissionTitle,
         evaluationAlreadySaved: evaluationAlreadySaved,
         adminReviewStatus: adminReviewStatus,
+        adminRemarks: adminRemarks,
       ),
     ),
   );

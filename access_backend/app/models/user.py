@@ -77,6 +77,11 @@ class User(TimestampMixin, Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    member_milestones = relationship(
+        "MemberMilestone",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     push_device_tokens = relationship(
         "PushDeviceToken",
         back_populates="user",

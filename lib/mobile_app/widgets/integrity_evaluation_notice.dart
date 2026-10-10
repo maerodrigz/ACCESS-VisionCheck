@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
+import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
@@ -55,27 +56,44 @@ class IntegrityOnlyMessageCard extends StatelessWidget {
     super.key,
     required this.result,
     this.layout = IntegrityOnlyCardLayout.standard,
+    this.reviewStatus,
+    this.adminRemarks,
   });
 
   final PhotoEvaluationResult result;
   final IntegrityOnlyCardLayout layout;
+  final String? reviewStatus;
+  final String? adminRemarks;
 
   @override
   Widget build(BuildContext context) {
     final held = result.scoresHeldForReview && !result.aiDetection.isAiGenerated;
     final compact = layout == IntegrityOnlyCardLayout.resultCompact;
-    final message = held
-        ? (result.reviewGateMessage ??
-            'Scores and coaching stay hidden until an administrator completes review.')
-        : (result.memberIntegrityMessageEffective.isNotEmpty
-            ? result.memberIntegrityMessageEffective
-            : result.feedback);
+    final reupload = MemberReviewStatus.isReuploadRequested(reviewStatus);
+    final remarks = adminRemarks?.trim() ?? '';
 
-    final title = held ? 'Media Under Review' : 'Integrity review required';
-    final subtitle = held
-        ? 'Quality scores and coaching are held until review completes.'
-        : 'Quality coaching is paused until an officer reviews this upload.';
-    final accent = held ? kYellow : kRed;
+    final message = reupload
+        ? (remarks.isNotEmpty
+            ? remarks
+            : 'An administrator reviewed this upload and needs a new file. Upload again from Evaluations.')
+        : held
+            ? (result.reviewGateMessage ??
+                'Scores and coaching stay hidden until an administrator completes review.')
+            : (result.memberIntegrityMessageEffective.isNotEmpty
+                ? result.memberIntegrityMessageEffective
+                : result.feedback);
+
+    final title = reupload
+        ? 'Re-upload requested'
+        : held
+            ? 'Media under review'
+            : 'Integrity review required';
+    final subtitle = reupload
+        ? 'Replace this file to continue skill progress.'
+        : held
+            ? 'Quality scores and coaching are held until review completes.'
+            : 'Quality coaching is paused until an officer reviews this upload.';
+    final accent = reupload ? kAccent : (held ? kYellow : kRed);
 
     return Container(
       width: double.infinity,
@@ -128,6 +146,27 @@ class IntegrityOnlyMessageCard extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
+          if (!reupload && remarks.isNotEmpty) ...[
+            SizedBox(height: compact ? 10 : 12),
+            Text(
+              'Administrator notes',
+              style: TextStyle(
+                color: kTextSecondary,
+                fontSize: compact ? 10 : 11,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              remarks,
+              style: TextStyle(
+                color: kTextPrimary,
+                fontSize: compact ? 12 : 13,
+                height: 1.45,
+              ),
+            ),
+          ],
           if (result.xpPendingEffective && result.xpPointsPreviewEffective > 0) ...[
             SizedBox(height: compact ? 8 : 12),
             Container(

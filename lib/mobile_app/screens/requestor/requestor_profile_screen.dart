@@ -7,10 +7,13 @@ import 'package:access_mobile/mobile_app/widgets/member_profile_settings_section
 import 'package:access_mobile/mobile_app/widgets/member_profile_skeleton.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
+import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-/// Requestor profile — account settings without member-only performance sections.
+const _kSectionGap = 20.0;
+
+/// Requestor profile — light layout aligned with member profile, requestor settings only.
 class RequestorProfileScreen extends StatefulWidget {
   const RequestorProfileScreen({super.key});
 
@@ -31,263 +34,309 @@ class _RequestorProfileScreenState extends State<RequestorProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBg,
-      body: ListenableBuilder(
-        listenable: Listenable.merge([appState, memberDataController]),
-        builder: (context, _) {
-          final loading =
-              memberDataController.isLoading && !memberDataController.profileLoaded;
+    return ListenableBuilder(
+      listenable: Listenable.merge([appState, memberDataController]),
+      builder: (context, _) {
+        final compact = MediaQuery.sizeOf(context).width < 360;
+        final pagePadding = mobilePagePaddingOf(context);
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (loading)
-                const RequestorProfileHeroSkeleton()
-              else
-                _RequestorProfileMiniHero(
-                  onEdit: _openEditProfile,
-                ),
-              Expanded(
-                child: loading
-                    ? const SizedBox.shrink()
-                    : RefreshIndicator(
-                        color: kMemberPrimary,
-                        onRefresh: () => memberDataController.refreshAll(),
-                        child: ListView(
-                          physics: const AlwaysScrollableScrollPhysics(
-                            parent: BouncingScrollPhysics(),
-                          ),
-                          padding: const EdgeInsets.fromLTRB(
-                            kMemberDashboardPagePadding,
-                            14,
-                            kMemberDashboardPagePadding,
-                            36,
-                          ),
-                          children: const [
-                            MemberProfileSettingsSection(forRequestor: true),
-                            SizedBox(height: kMemberDashboardSectionGap),
-                            MemberProfileLogoutSection(),
-                          ],
-                        ),
-                      ),
+        final profileLoadFailed = memberDataController.profileLoadError != null &&
+            !memberDataController.isLoading &&
+            !memberDataController.profileLoaded;
+        final profileLoading = !memberDataController.profileLoaded &&
+            !profileLoadFailed &&
+            (memberDataController.isLoading || !memberDataController.profileLoadAttempted);
+
+        return Scaffold(
+          backgroundColor: kBg,
+          body: RefreshIndicator(
+            color: kAccent,
+            onRefresh: () => memberDataController.refreshAll(),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-            ],
-          );
-        },
-      ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: profileLoading
+                      ? const RequestorProfileHeroSkeleton()
+                      : profileLoadFailed
+                          ? Padding(
+                              padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 0),
+                              child: MemberProfileLoadError(
+                                onRetry: memberDataController.refreshProfile,
+                              ),
+                            )
+                          : _RequestorProfileHeader(
+                              onEdit: _openEditProfile,
+                              compact: compact,
+                            ),
+                ),
+                if (profileLoading)
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(pagePadding, 14, pagePadding, 36),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate(const [
+                        MemberProfileActionRowSkeleton(),
+                        SizedBox(height: 20),
+                        MemberProfileAchievementsSkeleton(),
+                      ]),
+                    ),
+                  )
+                else if (!profileLoadFailed)
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(pagePadding, 14, pagePadding, 36),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        const MemberProfileSettingsSection(forRequestor: true),
+                        const SizedBox(height: _kSectionGap),
+                        const MemberProfileLogoutSection(),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10, bottom: 4),
+                          child: Center(
+                            child: Text(
+                              '${brandingController.appName} · ${brandingController.organization}',
+                              textAlign: TextAlign.center,
+                              style: memberDashboardMetaStyle.copyWith(fontSize: 10),
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-/// Single dark hero — identity only, no duplicate stats or second gradient card.
-class _RequestorProfileMiniHero extends StatelessWidget {
-  const _RequestorProfileMiniHero({
+class _RequestorProfileHeader extends StatelessWidget {
+  const _RequestorProfileHeader({
     required this.onEdit,
+    required this.compact,
   });
 
   final VoidCallback onEdit;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 360;
+    final padding = mobilePagePaddingOf(context);
     final displayName = appState.profileName.trim().isNotEmpty
         ? appState.profileName.trim()
-        : (authController.user?.name ?? 'Requestor');
+        : (authController.user?.name ?? 'Organization');
     final email = appState.profileEmail.trim().isNotEmpty
         ? appState.profileEmail.trim()
         : (authController.user?.email ?? '');
     final imageUrl = appState.profileImageUrl;
     final initials = memberDisplayInitials(displayName);
-    final avatarSize = compact ? 68.0 : 80.0;
-    final badgeLabel = compact ? 'Org requestor' : 'Organization requestor';
 
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-        ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FBFF),
+        border: Border(bottom: BorderSide(color: kBorder.withValues(alpha: 0.9))),
       ),
-      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         bottom: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(18, 4, 18, compact ? 12 : 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(compact ? 6 : 8, 4, padding - 4, 0),
+              child: Row(
                 children: [
                   if (Navigator.canPop(context))
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => Navigator.pop(context),
-                        customBorder: const CircleBorder(),
-                        child: SizedBox(
-                          width: kMobileMinTouch,
-                          height: kMobileMinTouch,
-                          child: Icon(
-                            Icons.arrow_back_rounded,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            size: 22,
-                          ),
-                        ),
-                      ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      color: kTextSecondary,
+                      iconSize: 22,
+                      style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
                     ),
                   Expanded(
                     child: Text(
-                      'Your profile',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: dashText(TextStyle(
-                        color: Colors.white.withValues(alpha: 0.62),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.2,
+                      'Profile',
+                      style: dashText(const TextStyle(
+                        color: kTextSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       )),
                     ),
                   ),
-                  _ProfileEditButton(compact: compact, onTap: onEdit),
                 ],
               ),
-              SizedBox(height: compact ? 12 : 14),
-              Row(
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(padding, 8, padding, 14),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: avatarSize,
-                    height: avatarSize,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.14),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-                        image: imageUrl != null && imageUrl.isNotEmpty
-                            ? DecorationImage(
-                                image: NetworkImage(imageUrl),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                      ),
-                      child: imageUrl == null || imageUrl.isEmpty
-                          ? Center(
-                              child: Text(
-                                initials,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: compact ? 20 : 24,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            )
-                          : null,
-                    ),
+                  _RequestorProfileAvatar(
+                    initials: initials,
+                    imageUrl: imageUrl,
+                    compact: compact,
                   ),
-                  SizedBox(width: compact ? 10 : 14),
+                  SizedBox(width: compact ? 12 : 14),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           displayName,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: dashText(const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
+                          style: dashText(TextStyle(
+                            color: kTextPrimary,
+                            fontSize: compact ? 18 : 20,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
                             height: 1.15,
+                            letterSpacing: -0.3,
                           )),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.business_outlined, size: 13, color: kAccent),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Organization requestor',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: dashText(const TextStyle(
+                                  color: kAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                )),
+                              ),
+                            ),
+                          ],
                         ),
                         if (email.isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text(
-                            email,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: dashText(TextStyle(
-                              color: Colors.white.withValues(alpha: 0.62),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            )),
+                          Row(
+                            children: [
+                              const Icon(Icons.email_outlined, size: 13, color: kTextSecondary),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  email,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: dashText(const TextStyle(
+                                    color: kTextSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                  )),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Material(
+                            color: kAccent.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              onTap: onEdit,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.edit_outlined,
+                                      size: compact ? 14 : 15,
+                                      color: kAccent,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Edit profile',
+                                      style: dashText(const TextStyle(
+                                        color: kAccent,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      )),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.business_rounded,
-                      size: 13,
-                      color: Colors.white.withValues(alpha: 0.88),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        badgeLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: dashText(TextStyle(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        )),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _ProfileEditButton extends StatelessWidget {
-  const _ProfileEditButton({
+class _RequestorProfileAvatar extends StatelessWidget {
+  const _RequestorProfileAvatar({
+    required this.initials,
     required this.compact,
-    required this.onTap,
+    this.imageUrl,
   });
 
+  final String initials;
   final bool compact;
-  final VoidCallback onTap;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
-    final size = compact ? 34.0 : 36.0;
+    final size = compact ? 64.0 : 72.0;
 
-    return Material(
-      color: Colors.white.withValues(alpha: 0.14),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Icon(
-            Icons.edit_rounded,
-            size: compact ? 17 : 20,
-            color: Colors.white,
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: kAccent.withValues(alpha: 0.35), width: 2),
+      ),
+      child: ClipOval(
+        child: imageUrl != null && imageUrl!.isNotEmpty
+            ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                width: size,
+                height: size,
+                errorBuilder: (_, __, ___) => _InitialsPlate(initials: initials),
+              )
+            : _InitialsPlate(initials: initials),
+      ),
+    );
+  }
+}
+
+class _InitialsPlate extends StatelessWidget {
+  const _InitialsPlate({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: kAccent.withValues(alpha: 0.1),
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: kAccent,
+            fontWeight: FontWeight.w800,
+            fontSize: 22,
           ),
         ),
       ),

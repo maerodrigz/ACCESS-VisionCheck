@@ -138,11 +138,13 @@ class _RankingsScreenState extends State<RankingsScreen> {
                             profileImageUrl: appState.profileImageUrl,
                             totalXp: appState.profilePoints,
                             periodXp: myXp,
-                            periodLabel: monthly ? 'this month' : 'all time',
+                            monthlyPeriod: monthly,
                             progress: snapshot.progress,
                             remainingXp: snapshot.remainingPoints,
                             nextLevel: snapshot.nextLevelName,
                             isMaxLevel: snapshot.isMaxLevel,
+                            skillScore: snapshot.skillScore,
+                            progressUsesSkillScore: snapshot.progressUsesSkillScore,
                           ),
                         ),
                       ),
@@ -349,12 +351,14 @@ class _MyRankingCard extends StatelessWidget {
     required this.achievedTitle,
     required this.totalXp,
     required this.periodXp,
-    required this.periodLabel,
+    required this.monthlyPeriod,
     required this.progress,
     required this.remainingXp,
     required this.nextLevel,
     required this.isMaxLevel,
     this.profileImageUrl,
+    this.skillScore,
+    this.progressUsesSkillScore = false,
   });
 
   final int rank;
@@ -364,11 +368,13 @@ class _MyRankingCard extends StatelessWidget {
   final String? profileImageUrl;
   final int totalXp;
   final int periodXp;
-  final String periodLabel;
+  final bool monthlyPeriod;
   final double progress;
   final int remainingXp;
   final String? nextLevel;
   final bool isMaxLevel;
+  final double? skillScore;
+  final bool progressUsesSkillScore;
 
   static String _fmtXp(int v) {
     final s = v.abs().toString();
@@ -441,7 +447,7 @@ class _MyRankingCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      achievedTitle,
+                      skillLevel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -451,10 +457,11 @@ class _MyRankingCard extends StatelessWidget {
                         height: 1.2,
                       ),
                     ),
-                    if (achievedTitle != skillLevel) ...[
+                    if (achievedTitle.trim().isNotEmpty &&
+                        achievedTitle.trim().toLowerCase() != skillLevel.trim().toLowerCase()) ...[
                       const SizedBox(height: 1),
                       Text(
-                        skillLevel,
+                        achievedTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -497,71 +504,83 @@ class _MyRankingCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          // ── XP summary row ───────────────────────────────────────────
           Row(
             children: [
-              _XpPill(
-                icon: Icons.bolt_rounded,
-                label: '${_fmtXp(totalXp)} XP total',
-                color: kAccent,
-                bgColor: kAccent.withValues(alpha: 0.08),
+              Expanded(
+                child: _XpPill(
+                  icon: monthlyPeriod ? Icons.calendar_today_rounded : Icons.bolt_rounded,
+                  label: monthlyPeriod
+                      ? '${_fmtXp(periodXp)} XP this month'
+                      : '${_fmtXp(totalXp)} XP all time',
+                  color: monthlyPeriod ? kCyan : kAccent,
+                  bgColor: (monthlyPeriod ? kCyan : kAccent).withValues(alpha: 0.08),
+                ),
               ),
-              const SizedBox(width: 8),
-              _XpPill(
-                icon: Icons.calendar_today_rounded,
-                label: '${_fmtXp(periodXp)} XP $periodLabel',
-                color: kCyan,
-                bgColor: kCyan.withValues(alpha: 0.08),
-              ),
+              if (!monthlyPeriod && periodXp > 0 && periodXp != totalXp) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _XpPill(
+                    icon: Icons.calendar_today_rounded,
+                    label: '${_fmtXp(periodXp)} XP this month',
+                    color: kCyan,
+                    bgColor: kCyan.withValues(alpha: 0.08),
+                  ),
+                ),
+              ] else if (monthlyPeriod && totalXp != periodXp) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _XpPill(
+                    icon: Icons.bolt_rounded,
+                    label: '${_fmtXp(totalXp)} XP all time',
+                    color: kAccent,
+                    bgColor: kAccent.withValues(alpha: 0.08),
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 12),
-          // ── Progress bar ──────────────────────────────────────────────
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: SizedBox(
-              height: 6,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ColoredBox(color: kBorder),
-                  FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: progress.clamp(0.0, 1.0),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [kCyan, kAccent],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
+          if (progressUsesSkillScore) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 6,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: kBorder),
+                    FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: progress.clamp(0.0, 1.0),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [kCyan, kAccent],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Builder(
+              builder: (context) {
+                final subtitle = MemberCompetencySnapshot.fromAppState().progressSubtitle;
+                return Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: isMaxLevel ? kAccent : kTextSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 6),
-          // ── Progress label ────────────────────────────────────────────
-          if (isMaxLevel)
-            Text(
-              'Maximum skill tier reached',
-              style: TextStyle(
-                color: kAccent,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            )
-          else
-            Text(
-              '${_fmtXp(remainingXp)} XP to reach ${nextLevel ?? 'next level'}',
-              style: TextStyle(
-                color: kTextSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          ],
         ],
       ),
     );
@@ -591,17 +610,20 @@ class _XpPill extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
             ),
           ),
         ],
@@ -978,10 +1000,12 @@ class _PodiumSlot extends StatelessWidget {
         const SizedBox(height: 4),
         // XP
         Text(
-          '$xp XP',
+          monthly ? '$xp XP (month)' : '$xp XP',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: dashText(TextStyle(
             color: podiumColor,
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w800,
             height: 1.2,
           )),
@@ -993,11 +1017,7 @@ class _PodiumSlot extends StatelessWidget {
           decoration: BoxDecoration(
             color: podiumColor.withValues(alpha: 0.15),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            border: Border(
-              top: BorderSide(color: podiumColor.withValues(alpha: 0.5), width: 1.5),
-              left: BorderSide(color: podiumColor.withValues(alpha: 0.25)),
-              right: BorderSide(color: podiumColor.withValues(alpha: 0.25)),
-            ),
+            border: Border.all(color: podiumColor.withValues(alpha: 0.35)),
           ),
           alignment: Alignment.center,
           child: Text(
@@ -1136,10 +1156,10 @@ class _LeaderboardRow extends StatelessWidget {
                 )),
               ),
               Text(
-                'XP',
+                monthly ? 'XP (month)' : 'XP (all time)',
                 style: dashText(const TextStyle(
                   color: kTextSecondary,
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w500,
                   height: 1.2,
                 )),
@@ -1179,10 +1199,11 @@ class _SkillProgressCard extends StatelessWidget {
 
   final MemberCompetencySnapshot snapshot;
 
-  static const _trackLevels = ['Beginner', 'Intermediate', 'Advanced'];
-
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final track = snapshot.skillTrackStates;
+
     return Container(
       decoration: BoxDecoration(
         color: kSurface,
@@ -1196,23 +1217,23 @@ class _SkillProgressCard extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(compact ? 14 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: kAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: kAccent.withValues(alpha: 0.18)),
                 ),
-                child: const Icon(Icons.workspace_premium_rounded, color: kAccent, size: 20),
+                child: const Icon(Icons.workspace_premium_rounded, color: kAccent, size: 19),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1222,7 +1243,8 @@ class _SkillProgressCard extends StatelessWidget {
                       style: memberDashboardSectionTitleStyle.copyWith(fontSize: 15),
                     ),
                     Text(
-                      'Where ${snapshot.levelName} sits on the member path',
+                      'Current: ${snapshot.levelName}'
+                      '${snapshot.skillScore != null ? ' · ${snapshot.skillScore!.round()} score' : ''}',
                       style: memberDashboardMetaStyle.copyWith(fontSize: 11),
                     ),
                   ],
@@ -1230,45 +1252,21 @@ class _SkillProgressCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: _trackLevels.map((label) {
-              final active = _levelMatches(snapshot.levelName, label);
-              return Expanded(
-                child: Column(
-                  children: [
-                    Container(
-                      width: active ? 11 : 9,
-                      height: active ? 11 : 9,
-                      decoration: BoxDecoration(
-                        color: active ? kAccent : kBorder,
-                        shape: BoxShape.circle,
-                        boxShadow: active
-                            ? [
-                                BoxShadow(
-                                  color: kAccent.withValues(alpha: 0.25),
-                                  blurRadius: 5,
-                                ),
-                              ]
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      style: memberDashboardMetaStyle.copyWith(
-                        fontSize: 10,
-                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                        color: active ? kAccent : kTextSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
           const SizedBox(height: 12),
+          Row(
+            children: track
+                .map(
+                  (step) => Expanded(
+                    child: _SkillTrackNode(
+                      label: step.name,
+                      state: step.state,
+                      compact: compact,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 10),
           TextButton.icon(
             onPressed: () => showMemberSkillLevelGuideSheet(context),
             style: TextButton.styleFrom(
@@ -1291,17 +1289,57 @@ class _SkillProgressCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  bool _levelMatches(String current, String trackLabel) {
-    final c = current.toLowerCase();
-    final t = trackLabel.toLowerCase();
-    if (c.contains(t)) return true;
-    if (t == 'beginner' && (c.contains('novice') || c.contains('beginner'))) return true;
-    if (t == 'advanced' &&
-        (c.contains('advanced') || c.contains('expert') || c.contains('master'))) {
-      return true;
-    }
-    return false;
+class _SkillTrackNode extends StatelessWidget {
+  const _SkillTrackNode({
+    required this.label,
+    required this.state,
+    required this.compact,
+  });
+
+  final String label;
+  final SkillTierTrackState state;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCurrent = state == SkillTierTrackState.current;
+    final isCompleted = state == SkillTierTrackState.completed;
+    final dotColor = isCurrent
+        ? kAccent
+        : isCompleted
+            ? kAccent.withValues(alpha: 0.55)
+            : kBorder;
+
+    return Column(
+      children: [
+        Container(
+          width: isCurrent ? 12 : 10,
+          height: isCurrent ? 12 : 10,
+          decoration: BoxDecoration(
+            color: dotColor,
+            shape: BoxShape.circle,
+            border: isCurrent ? Border.all(color: kAccent.withValues(alpha: 0.35), width: 2) : null,
+            boxShadow: isCurrent
+                ? [BoxShadow(color: kAccent.withValues(alpha: 0.22), blurRadius: 4)]
+                : null,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: memberDashboardMetaStyle.copyWith(
+            fontSize: compact ? 9 : 10,
+            fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+            color: isCurrent ? kAccent : kTextSecondary,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -1365,7 +1403,9 @@ class _HowXpWorksSection extends StatelessWidget {
                             style: memberDashboardSectionTitleStyle.copyWith(fontSize: 14),
                           ),
                           Text(
-                            'Learn how you earn XP',
+                            expanded
+                                ? 'Rules for practice evaluations and skill tiers'
+                                : MemberXpConfig.collapsedXpHint,
                             style: memberDashboardMetaStyle.copyWith(fontSize: 11),
                           ),
                         ],
@@ -1430,18 +1470,19 @@ class _HowXpWorksSection extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Skill tiers',
+                        'Skill tier score bands',
                         style: memberDashboardCardTitleStyle.copyWith(fontSize: 13),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        MemberXpConfig.skillLevelIntro,
+                        style: memberDashboardBodyStyle.copyWith(fontSize: 12),
                       ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
-                        children: MemberXpConfig.skillTiers.map((tier) {
-                          final next = tier.nextMinPoints;
-                          final label = next == null
-                              ? '${tier.name} (${tier.minPoints}+ XP)'
-                              : '${tier.name} (${tier.minPoints}–${next - 1} XP)';
+                        children: MemberXpConfig.skillLevelTiers.map((tier) {
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                             decoration: BoxDecoration(
@@ -1450,7 +1491,7 @@ class _HowXpWorksSection extends StatelessWidget {
                               border: Border.all(color: kCyan.withValues(alpha: 0.2)),
                             ),
                             child: Text(
-                              label,
+                              '${tier.name} (${tier.range})',
                               style: dashText(const TextStyle(
                                 color: kAccent,
                                 fontSize: 11,

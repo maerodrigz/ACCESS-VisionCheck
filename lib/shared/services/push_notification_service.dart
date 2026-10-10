@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 
@@ -19,9 +20,25 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// Registers FCM tokens for member and requestor mobile sessions.
 abstract final class PushNotificationService {
   static String? _lastRegisteredToken;
+  static Future<void> Function()? _inboxSyncHandler;
 
   static bool get isAvailable =>
       !kIsWeb && isFirebaseStorageReady && FirebaseConfig.messagingSenderId.isNotEmpty;
+
+  /// Called when a push arrives or the user opens the app from a notification.
+  static void bindInboxSyncHandler(Future<void> Function() handler) {
+    _inboxSyncHandler = handler;
+  }
+
+  static Future<void> _syncInboxFromPush() async {
+    final handler = _inboxSyncHandler;
+    if (handler == null) return;
+    try {
+      await handler();
+    } catch (e, st) {
+      developer.log('Inbox sync after push failed', name: _logName, error: e, stackTrace: st);
+    }
+  }
 
   static Future<void> initialize() async {
     if (!isAvailable) return;
@@ -29,6 +46,21 @@ abstract final class PushNotificationService {
     FirebaseMessaging.instance.onTokenRefresh.listen((token) {
       _registerToken(token);
     });
+    FirebaseMessaging.onMessage.listen((_) {
+      unawaited(_syncInboxFromPush());
+    });
+    FirebaseMessaging.onMessageOpenedApp.listen((_) {
+      unawaited(_syncInboxFromPush());
+    });
+  }
+
+  /// Refresh inbox when the app was opened from a terminated state via push.
+  static Future<void> syncInboxIfOpenedFromPush() async {
+    if (!isAvailable) return;
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) {
+      await _syncInboxFromPush();
+    }
   }
 
   static Future<void> ensureRegistered() async {

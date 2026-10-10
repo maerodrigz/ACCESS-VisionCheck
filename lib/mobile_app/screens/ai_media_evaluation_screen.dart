@@ -346,6 +346,8 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         );
       }
 
+      await memberDataController.refreshMilestones(unacknowledgedOnly: true);
+
       openEvaluationResultScreen(
         context,
         media: EvaluationResultMedia(
@@ -360,6 +362,8 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         geminiFeedback: feedback,
         qualityWarnings: warnings,
         evaluationAlreadySaved: true,
+        adminReviewStatus: evalRow['review_status'] as String?,
+        adminRemarks: evalRow['admin_remarks'] as String?,
         atLimit: appState.evaluationsTodayCount >= appState.dailyEvaluationLimit,
         onSave: () async {},
         onEvaluateAgain: () {
@@ -417,9 +421,9 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                   titleController: _labelController,
                   onRemove: () => setState(_resetResults),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                   decoration: BoxDecoration(
                     color: kSurface,
                     borderRadius: BorderRadius.circular(14),
@@ -431,13 +435,17 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                       EvaluationContentStandardsCheckbox(
                         value: _contentStandardsAccepted,
                         onChanged: (v) => setState(() => _contentStandardsAccepted = v),
+                        compact: true,
                       ),
-                      const SizedBox(height: 8),
-                      const LegalUploadFootnote(),
+                      const SizedBox(height: 6),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: LegalUploadFootnote(),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _StartEvaluationButton(
                   atLimit: atLimit,
                   enabled: _contentStandardsAccepted,
@@ -491,6 +499,15 @@ class _UploadPageBody extends StatelessWidget {
 
   bool get _cameraEnabled => !kIsWeb && !isVideo;
 
+  String get _heroTitle => isVideo ? 'Select a video to upload' : 'Select a photo to upload';
+
+  String get _heroSubtitle {
+    if (kIsWeb) {
+      return webDragging ? 'Drop your file here' : 'Tap to browse or drag and drop a file';
+    }
+    return 'Tap to browse files on your device';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -505,7 +522,7 @@ class _UploadPageBody extends StatelessWidget {
                 value: supportedFormats,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Expanded(
               child: _UploadInfoCard(
                 icon: Icons.sd_storage_rounded,
@@ -516,35 +533,45 @@ class _UploadPageBody extends StatelessWidget {
           ],
         ),
         if (isVideo) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _UploadInfoCard(
             icon: Icons.timer_outlined,
             label: 'Max length',
             value: maxVideoLengthLabel,
           ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         Material(
-          color: kSurface,
+          color: Colors.transparent,
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             side: BorderSide(
-              color: webDragging ? kCyan : kBorder,
+              color: webDragging ? kCyan : kAccent.withValues(alpha: 0.14),
               width: webDragging ? 1.5 : 1,
             ),
           ),
           child: InkWell(
             onTap: onChooseFile,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 26),
               decoration: BoxDecoration(
-                color: webDragging ? kCyan.withValues(alpha: 0.06) : kSurface,
-                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: webDragging
+                      ? [kCyanDim, const Color(0xFFF8FBFF)]
+                      : [
+                          const Color(0xFFEAF6FD),
+                          const Color(0xFFF4FAFF),
+                          kSurface,
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 children: [
@@ -557,27 +584,31 @@ class _UploadPageBody extends StatelessWidget {
                       border: Border.all(color: kAccent.withValues(alpha: 0.2)),
                     ),
                     child: Icon(
-                      Icons.cloud_upload_outlined,
+                      isVideo ? Icons.videocam_outlined : Icons.cloud_upload_outlined,
                       size: 28,
                       color: kAccent,
                     ),
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    'Select media to upload',
+                    _heroTitle,
+                    textAlign: TextAlign.center,
                     style: dashText(const TextStyle(
                       color: kTextPrimary,
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
+                      height: 1.25,
                     )),
                   ),
-                  if (kIsWeb) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      webDragging ? 'Drop your file here' : 'Or drag and drop a file',
-                      style: memberDashboardMetaStyle.copyWith(fontSize: 12),
+                  const SizedBox(height: 6),
+                  Text(
+                    _heroSubtitle,
+                    textAlign: TextAlign.center,
+                    style: memberDashboardMetaStyle.copyWith(
+                      fontSize: 12.5,
+                      height: 1.35,
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -588,7 +619,7 @@ class _UploadPageBody extends StatelessWidget {
           children: [
             Expanded(
               child: _CompactSourceButton(
-                icon: Icons.photo_library_outlined,
+                icon: Icons.collections_rounded,
                 label: 'Gallery',
                 onTap: onGallery,
               ),
@@ -596,7 +627,7 @@ class _UploadPageBody extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: _CompactSourceButton(
-                icon: Icons.photo_camera_outlined,
+                icon: Icons.photo_camera_rounded,
                 label: 'Camera',
                 onTap: _cameraEnabled ? onCamera : null,
                 enabled: _cameraEnabled,
@@ -623,17 +654,17 @@ class _UploadInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
+        color: kCyanDim,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kAccent.withValues(alpha: 0.1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: kAccent),
-          const SizedBox(width: 8),
+          Icon(icon, size: 20, color: kMemberCyan),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,15 +674,16 @@ class _UploadInfoCard extends StatelessWidget {
                   style: memberDashboardMetaStyle.copyWith(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
+                    color: kTextSecondary,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   value,
                   style: dashText(const TextStyle(
                     color: kTextPrimary,
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     height: 1.25,
                   )),
                 ),
@@ -679,15 +711,17 @@ class _CompactSourceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = enabled ? kAccent : kTextSecondary.withValues(alpha: 0.55);
+    final fg = enabled ? kMemberCyan : kTextSecondary.withValues(alpha: 0.55);
     return OutlinedButton(
       onPressed: enabled ? onTap : null,
       style: OutlinedButton.styleFrom(
         foregroundColor: fg,
         backgroundColor: kSurface,
-        side: BorderSide(color: enabled ? kBorder : kBorder.withValues(alpha: 0.6)),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        side: BorderSide(
+          color: enabled ? kAccent.withValues(alpha: 0.22) : kBorder.withValues(alpha: 0.6),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -710,6 +744,7 @@ class _CompactSourceButton extends StatelessWidget {
 
 // ── Preview before evaluation ────────────────────────────────────────────────
 
+/// ~12% shorter than 16:10 while keeping aspect ratio (no stretch).
 class _MediaPreviewCard extends StatelessWidget {
   const _MediaPreviewCard({
     required this.media,
@@ -729,10 +764,13 @@ class _MediaPreviewCard extends StatelessWidget {
             fileName: media.name,
             filePath: media.filePath,
             previewBytes: media.previewBytes,
+            aspectRatio: kEvalPreviewAspectRatio,
           )
         : EvalPhotoPreviewTile(
             bytes: media.bytes,
             fileName: media.name,
+            aspectRatio: kEvalPreviewAspectRatio,
+            showFullImage: true,
           );
 
     return Column(
@@ -745,23 +783,27 @@ class _MediaPreviewCard extends StatelessWidget {
               preview,
               if (onRemove != null)
                 Positioned(
-                  top: 10,
-                  right: 10,
+                  top: 8,
+                  right: 8,
                   child: Material(
                     color: kSurface.withValues(alpha: 0.92),
                     shape: const CircleBorder(),
-                    child: IconButton(
-                      icon: const Icon(Icons.close_rounded, color: kTextSecondary, size: 20),
-                      onPressed: onRemove,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: onRemove,
+                      child: const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: Icon(Icons.close_rounded, color: kTextSecondary, size: 18),
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: kSurface,
             borderRadius: BorderRadius.circular(14),
@@ -775,9 +817,26 @@ class _MediaPreviewCard extends StatelessWidget {
             ],
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _CompactMetaLine(label: 'File name', value: media.name),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _CompactMetaLine(
+                      label: 'File name',
+                      value: media.name,
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _CompactMetaLine(
+                      label: 'Media type',
+                      value: media.isVideo ? 'Video' : 'Photo',
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -788,7 +847,7 @@ class _MediaPreviewCard extends StatelessWidget {
                       value: media.resolution ?? 'N/A',
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: _CompactMetaLine(
                       label: 'File size',
@@ -797,17 +856,12 @@ class _MediaPreviewCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              _CompactMetaLine(
-                label: 'Media type',
-                value: media.isVideo ? 'Video' : 'Photo',
-              ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
           decoration: BoxDecoration(
             color: kSurface,
             borderRadius: BorderRadius.circular(14),
@@ -820,9 +874,10 @@ class _MediaPreviewCard extends StatelessWidget {
                 'Title (optional)',
                 style: memberDashboardMetaStyle.copyWith(fontSize: 11, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               TextField(
                 controller: titleController,
+                maxLines: 1,
                 style: dashText(const TextStyle(
                   color: kTextPrimary,
                   fontSize: 14,
@@ -830,20 +885,21 @@ class _MediaPreviewCard extends StatelessWidget {
                 )),
                 decoration: InputDecoration(
                   hintText: media.name.replaceAll(RegExp(r'\.[^.]+$'), ''),
-                  hintStyle: memberDashboardMetaStyle.copyWith(fontSize: 14),
+                  hintStyle: memberDashboardMetaStyle.copyWith(fontSize: 13),
+                  isDense: true,
                   filled: true,
                   fillColor: kBg,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: kBorder),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: kBorder),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: kAccent.withValues(alpha: 0.55)),
                   ),
                 ),
@@ -857,10 +913,15 @@ class _MediaPreviewCard extends StatelessWidget {
 }
 
 class _CompactMetaLine extends StatelessWidget {
-  const _CompactMetaLine({required this.label, required this.value});
+  const _CompactMetaLine({
+    required this.label,
+    required this.value,
+    this.maxLines = 2,
+  });
 
   final String label;
   final String value;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -874,7 +935,7 @@ class _CompactMetaLine extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           value,
-          maxLines: 2,
+          maxLines: maxLines,
           overflow: TextOverflow.ellipsis,
           style: dashText(const TextStyle(
             color: kTextPrimary,
@@ -924,7 +985,7 @@ class _StartEvaluationButton extends StatelessWidget {
           onTap: _canTap ? onPressed : null,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -935,14 +996,14 @@ class _StartEvaluationButton extends StatelessWidget {
                           ? Icons.check_box_outlined
                           : Icons.auto_awesome_rounded,
                   color: _canTap ? Colors.white : kTextSecondary,
-                  size: 22,
+                  size: 20,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Text(
                   atLimit ? 'Daily limit reached' : 'Start AI Evaluation',
                   style: dashText(TextStyle(
                     color: _canTap ? Colors.white : kTextSecondary,
-                    fontSize: 17,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                   )),
                 ),

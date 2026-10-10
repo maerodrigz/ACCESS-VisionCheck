@@ -200,6 +200,33 @@ class _LegalAgreementText extends StatelessWidget {
               Text('.', style: style),
             ],
           ),
+        ],
+      ],
+    );
+  }
+}
+
+class _LegalLinkButton extends StatelessWidget {
+  const _LegalLinkButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+        child: Text(
+          label,
+          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700, height: 1.4),
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
@@ -12,7 +14,6 @@ import 'package:access_mobile/mobile_app/widgets/member_profile_settings_section
 import 'package:access_mobile/mobile_app/widgets/member_profile_logout_section.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_skeleton.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_achievements.dart';
-import 'package:access_mobile/mobile_app/screens/my_assignments_screen.dart';
 
 const _kSectionGap = 20.0;
 
@@ -26,11 +27,13 @@ class ProfileScreen extends StatefulWidget {
     this.onViewRankings,
     this.onViewEvaluations,
     this.onNotificationsTap,
+    this.scrollToRequestorFeedback = false,
   });
 
   final VoidCallback? onViewRankings;
   final VoidCallback? onViewEvaluations;
   final VoidCallback? onNotificationsTap;
+  final bool scrollToRequestorFeedback;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -38,6 +41,50 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _scrollController = ScrollController();
+  final _requestorFeedbackSectionKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(memberDataController.syncRankingsForProfileIfNeeded());
+      unawaited(memberDataController.refreshMilestones());
+    });
+    if (widget.scrollToRequestorFeedback) {
+      _scheduleScrollToRequestorFeedback();
+    }
+  }
+
+  void _scheduleScrollToRequestorFeedback() {
+    var attempts = 0;
+    void attempt() {
+      if (!mounted || attempts > 90) return;
+      attempts++;
+      if (memberDataController.requestorRatingsLoaded) {
+        _scrollToRequestorFeedback();
+        return;
+      }
+      if (memberDataController.profileLoadError != null) return;
+      if (memberDataController.profileLoaded &&
+          !memberDataController.requestorRatingsLoaded) {
+        return;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) => attempt());
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => attempt());
+  }
+
+  void _scrollToRequestorFeedback() {
+    final target = _requestorFeedbackSectionKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+      alignment: 0.08,
+    );
+  }
 
   Future<void> _openEditProfile() async {
     final saved = await Navigator.push<bool>(
@@ -106,8 +153,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: const [
-                          MemberProfileActionRowSkeleton(),
-                          SizedBox(height: _kSectionGap),
                           MemberProfileAchievementsSkeleton(),
                         ],
                       ),
@@ -124,19 +169,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _PerformanceSummaryCard(compact: compact),
                           const SizedBox(height: _kSectionGap),
 
-                          // Quick links row
-                          _ProfileQuickLinks(
-                            compact: compact,
-                            onAssignments: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MyAssignmentsScreen(),
-                              ),
-                            ),
-                            onRankings: widget.onViewRankings,
-                          ),
-                          const SizedBox(height: _kSectionGap),
-
                           // Achievements (badges strip + View All)
                           _ProfileAchievementsSection(
                             onViewRankings: widget.onViewRankings,
@@ -145,7 +177,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: _kSectionGap),
 
                           // Requester feedback
-                          _ProfileFeedbackSection(),
+                          KeyedSubtree(
+                            key: _requestorFeedbackSectionKey,
+                            child: const _ProfileFeedbackSection(),
+                          ),
                         ],
                       ),
                     ),
@@ -230,14 +265,13 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
     final displayName = appState.profileName.trim();
-    final role = appState.profileRole;          // e.g. "Senior Documenter"
     final email = appState.profileEmail.trim();
     final rawStatus = appState.profileStatus.trim();
     final statusLabel = rawStatus.isNotEmpty ? _accountStatusLabel(rawStatus) : '';
     final isActive = _isActiveStatus(rawStatus);
     final rank = appState.profileRank;
-    // Competency level from backend skill level (source of truth)
     final competencyLevel = memberDashboardCompetencyLevel();
+    final titleLabel = appState.profileTitleLabel;
     final imageUrl = appState.profileImageUrl;
 
     return DecoratedBox(
@@ -309,29 +343,25 @@ class _ProfileHeader extends StatelessWidget {
                               letterSpacing: -0.3,
                             )),
                           ),
-                        // Role/Title — clearly labelled
-                        if (role.isNotEmpty) ...[
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              const Icon(Icons.badge_outlined, size: 13, color: kAccent),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  role,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: dashText(const TextStyle(
-                                    color: kAccent,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  )),
-                                ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            const Icon(Icons.badge_outlined, size: 13, color: kAccent),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Title: $titleLabel',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: dashText(const TextStyle(
+                                  color: kAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                )),
                               ),
-                            ],
-                          ),
-                        ],
-                        // Competency level — separate from role
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 3),
                         Row(
                           children: [
@@ -341,13 +371,17 @@ class _ProfileHeader extends StatelessWidget {
                               color: kTextSecondary,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              competencyLevel,
-                              style: dashText(const TextStyle(
-                                color: kTextSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              )),
+                            Flexible(
+                              child: Text(
+                                'Skill: $competencyLevel',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: dashText(const TextStyle(
+                                  color: kTextSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                )),
+                              ),
                             ),
                           ],
                         ),
@@ -571,7 +605,11 @@ class _PerformanceSummaryCard extends StatelessWidget {
         final xp = appState.profilePoints;
 
         final stats = [
-          (rank > 0 ? '#$rank' : '-', 'Rank', Icons.leaderboard_outlined),
+          (
+            rank > 0 ? '#$rank' : '-',
+            appState.profileRankStatLabel,
+            Icons.leaderboard_outlined,
+          ),
           (_fmt(xp), 'Total XP', Icons.bolt_rounded),
           ('${summary.completedCount}', 'Evaluations', Icons.fact_check_outlined),
           (
@@ -628,7 +666,17 @@ class _PerformanceSummaryCard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                 child: snapshot.isMaxLevel
                     ? _MaxLevelBadge()
-                    : _XpProgressRow(snapshot: snapshot),
+                    : snapshot.progressUsesSkillScore
+                        ? _XpProgressRow(snapshot: snapshot)
+                        : Text(
+                            snapshot.progressSubtitle,
+                            textAlign: TextAlign.center,
+                            style: dashText(const TextStyle(
+                              color: kTextSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            )),
+                          ),
               ),
             ],
           ),
@@ -686,17 +734,6 @@ class _XpProgressRow extends StatelessWidget {
 
   final MemberCompetencySnapshot snapshot;
 
-  static String _fmt(int v) {
-    final s = v.abs().toString();
-    if (s.length <= 3) return s;
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -733,26 +770,13 @@ class _XpProgressRow extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Row(
-          children: [
-            Text(
-              snapshot.levelName,
-              style: dashText(const TextStyle(
-                color: kAccent,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              )),
-            ),
-            const Spacer(),
-            Text(
-              '${_fmt(snapshot.remainingPoints)} XP to ${snapshot.nextLevelName ?? 'next level'}',
-              style: dashText(const TextStyle(
-                color: kTextSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              )),
-            ),
-          ],
+        Text(
+          snapshot.progressSubtitle,
+          style: dashText(const TextStyle(
+            color: kTextSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          )),
         ),
       ],
     );
@@ -789,118 +813,6 @@ class _MaxLevelBadge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Quick links — compact two-button row
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ProfileQuickLinks extends StatelessWidget {
-  const _ProfileQuickLinks({
-    required this.compact,
-    required this.onAssignments,
-    required this.onRankings,
-  });
-
-  final bool compact;
-  final VoidCallback onAssignments;
-  final VoidCallback? onRankings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickLinkButton(
-            icon: Icons.assignment_outlined,
-            label: 'My Assignments',
-            color: kAccent,
-            bgColor: kAccent.withValues(alpha: 0.07),
-            borderColor: kAccent.withValues(alpha: 0.18),
-            onTap: onAssignments,
-            compact: compact,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _QuickLinkButton(
-            icon: Icons.leaderboard_outlined,
-            label: 'Leaderboard',
-            color: kCyan,
-            bgColor: kCyan.withValues(alpha: 0.07),
-            borderColor: kCyan.withValues(alpha: 0.18),
-            onTap: onRankings ?? () {},
-            compact: compact,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickLinkButton extends StatelessWidget {
-  const _QuickLinkButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.bgColor,
-    required this.borderColor,
-    required this.onTap,
-    required this.compact,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final Color bgColor;
-  final Color borderColor;
-  final VoidCallback onTap;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: bgColor,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: borderColor),
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 12 : 14,
-            vertical: compact ? 10 : 12,
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: dashText(TextStyle(
-                    color: color,
-                    fontSize: compact ? 12 : 13,
-                    fontWeight: FontWeight.w700,
-                  )),
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 12,
-                color: color.withValues(alpha: 0.7),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Achievements — badge strip with View All, no duplicate detail list
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -926,7 +838,9 @@ class _ProfileAchievementsSectionState extends State<_ProfileAchievementsSection
     return ListenableBuilder(
       listenable: Listenable.merge([appState, memberDataController]),
       builder: (context, _) {
-        final achievements = MemberAchievementsResolver.resolve();
+        final achievements = MemberAchievementsResolver.resolve(
+          serverMilestones: memberDataController.memberMilestones,
+        );
 
         if (achievements.isEmpty) {
           return Column(
@@ -1017,8 +931,16 @@ class _ProfileAchievementsSectionState extends State<_ProfileAchievementsSection
                   ),
               ],
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Milestone badges from your evaluation history. Official skill tier is shown above.',
+              style: dashText(const TextStyle(
+                color: kTextSecondary,
+                fontSize: 11,
+                height: 1.35,
+              )),
+            ),
             const SizedBox(height: 10),
-            // Horizontal badge strip
             SizedBox(
               height: 100,
               child: ListView.separated(
@@ -1095,13 +1017,72 @@ class _CompactBadgeTile extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ProfileFeedbackSection extends StatelessWidget {
+  const _ProfileFeedbackSection();
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: memberDataController,
       builder: (context, _) {
         if (!memberDataController.requestorRatingsLoaded) {
-          return const SizedBox.shrink();
+          final err = memberDataController.requestorRatingsLoadError;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _SectionLabel(title: 'Requester Feedback'),
+              const SizedBox(height: 10),
+              if (err != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+                    border: Border.all(color: kBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 18, color: kRed),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          err,
+                          style: dashText(const TextStyle(
+                            color: kTextSecondary,
+                            fontSize: 12,
+                          )),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: memberDataController.refreshRequestorRatings,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+                    border: Border.all(color: kBorder),
+                  ),
+                  child: const Row(
+                    children: [
+                      MemberProfileSkeletonBone(height: 18, width: 18, radius: 4),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: MemberProfileSkeletonBone(
+                          height: 12,
+                          width: double.infinity,
+                          radius: 4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
         }
 
         final count = memberDataController.requestorRatingCount;

@@ -161,6 +161,19 @@ export function NotificationCenterPage() {
         <AdminErrorBanner>{error}</AdminErrorBanner>
       )}
 
+      <div className="flex flex-wrap gap-2">
+        {FILTER_CHIPS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setChip(f.id)}
+            className={[
+              'rounded-full px-4 py-1.5 text-xs font-bold transition',
+              chip === f.id
+                ? 'bg-[var(--color-accent-blue)] text-white'
+                : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]',
+            ].join(' ')}
+          >
             {f.label} ({chipCounts[f.id] ?? 0})
           </button>
         ))}

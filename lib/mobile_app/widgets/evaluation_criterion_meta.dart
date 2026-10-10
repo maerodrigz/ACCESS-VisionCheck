@@ -71,3 +71,18 @@ Color qualityBucketColor(String bucket) => switch (bucket) {
       'Good' => kAccent,
       _ => const Color(0xFFF97316),
     };
+
+/// Overall 0–100 band colors aligned with backend 1–5 thresholds (2.5 / 3.5 / 4.5).
+Color qualityPercentBandColor(int percent) {
+  if (percent >= 90) return kGreen;
+  if (percent >= 70) return kBlue;
+  if (percent >= 50) return kOrange;
+  return kRed;
+}
+
+const kQualityPercentLegend = [
+  (color: kRed, label: 'Needs Improvement', range: '0–49'),
+  (color: kOrange, label: 'Fair', range: '50–69'),
+  (color: kBlue, label: 'Good', range: '70–89'),
+  (color: kGreen, label: 'Excellent', range: '90–100'),
+];

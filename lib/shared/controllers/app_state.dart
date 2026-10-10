@@ -742,6 +742,8 @@ class AppState extends ChangeNotifier {
   int profileUploads = 0;
   Color profileColor = const Color(0xFF3B82F6);
   String? profileSkillLevel;
+  /// Composite skill score 0–100 from rankings API (quality + integrity).
+  double? profileSkillScore;
   int profilePoints = 0;
   int? profileRankPosition;
   int profileAssignmentsCompleted = 0;
@@ -763,6 +765,7 @@ class AppState extends ChangeNotifier {
     profileYear = 'ACCESS Member';
     profileUploads = 0;
     profileSkillLevel = null;
+    profileSkillScore = null;
     profilePoints = 0;
     profileRankPosition = null;
     profileAssignmentsCompleted = 0;
@@ -869,6 +872,17 @@ class AppState extends ChangeNotifier {
     final sorted = [...members]..sort((a, b) => b.goodEvaluations.compareTo(a.goodEvaluations));
     final i = sorted.indexWhere((m) => m.name == profileName);
     return i < 0 ? sorted.length + 1 : i + 1;
+  }
+
+  /// Profile stat label: skill-based rank after `/rankings` sync, else DB XP rank.
+  String get profileRankStatLabel =>
+      profileSkillScore != null ? 'Skill rank' : 'XP rank';
+
+  /// Earned photographer title for display (not the backend skill tier).
+  String get profileTitleLabel {
+    final title = profileTitle;
+    if (title != null && title.trim().isNotEmpty) return title.trim();
+    return 'Not earned yet';
   }
 
   /// Rank within the current monthly XP leaderboard.

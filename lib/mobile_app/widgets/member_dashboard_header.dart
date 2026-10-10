@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
+import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';import 'package:access_mobile/shared/widgets/access_branding.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
@@ -88,7 +89,7 @@ class MemberDashboardHeader extends StatelessWidget {
                     ),
                   ),
                   ListenableBuilder(
-                    listenable: appState,
+                    listenable: Listenable.merge([appState, memberDataController]),
                     builder: (context, _) {
                       return _HeaderIconButton(
                         icon: appState.unreadCount > 0

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/stat_card.dart';
+import 'package:access_mobile/shared/themes/theme.dart';
 
 /// Shimmer-style bone used across profile skeleton placeholders.
 class MemberProfileSkeletonBone extends StatefulWidget {
@@ -154,47 +155,39 @@ class MemberProfileHeroSkeleton extends StatelessWidget {
   }
 }
 
-/// Requestor profile hero placeholder — no member XP/stats strip.
+/// Requestor profile header placeholder (light theme).
 class RequestorProfileHeroSkeleton extends StatelessWidget {
   const RequestorProfileHeroSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
+    final padding = mobilePagePaddingOf(context);
 
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-        ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FBFF),
+        border: Border(bottom: BorderSide(color: kBorder.withValues(alpha: 0.9))),
       ),
-      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(18, 6, 18, compact ? 12 : 14),
+          padding: EdgeInsets.fromLTRB(padding, 8, padding, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              FractionallySizedBox(
-                widthFactor: 0.34,
-                alignment: Alignment.centerLeft,
-                child: MemberProfileSkeletonBone(
-                  height: 11,
-                  width: double.infinity,
-                  radius: 4,
-                ),
+              MemberProfileSkeletonBone(
+                height: 11,
+                width: compact ? 56 : 64,
+                radius: 4,
               ),
               SizedBox(height: compact ? 12 : 14),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   MemberProfileSkeletonBone(
-                    height: compact ? 72 : 80,
-                    width: compact ? 72 : 80,
+                    height: compact ? 64 : 72,
+                    width: compact ? 64 : 72,
                     radius: 999,
                   ),
                   SizedBox(width: compact ? 12 : 14),
@@ -213,21 +206,26 @@ class RequestorProfileHeroSkeleton extends StatelessWidget {
                           width: double.infinity,
                           radius: 4,
                         ),
+                        const SizedBox(height: 6),
+                        FractionallySizedBox(
+                          widthFactor: 0.65,
+                          alignment: Alignment.centerLeft,
+                          child: MemberProfileSkeletonBone(
+                            height: 12,
+                            width: double.infinity,
+                            radius: 4,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        MemberProfileSkeletonBone(
+                          height: 28,
+                          width: compact ? 100 : 112,
+                          radius: 8,
+                        ),
                       ],
                     ),
                   ),
-                  const MemberProfileSkeletonBone(height: 36, width: 36, radius: 10),
                 ],
-              ),
-              const SizedBox(height: 10),
-              FractionallySizedBox(
-                widthFactor: 0.48,
-                alignment: Alignment.centerLeft,
-                child: MemberProfileSkeletonBone(
-                  height: 24,
-                  width: double.infinity,
-                  radius: 999,
-                ),
               ),
             ],
           ),

@@ -11,6 +11,12 @@ const String kAccessBrandMarkAsset = 'assets/images/access-brand-a.png';
 /// Official circular ACCESS org seal (mobile + login branding).
 const String kAccessOrgSealAsset = 'assets/images/access-org-seal.jpg';
 
+/// Home-screen launcher artwork (store icon source file).
+const String kAccessAppIconAsset = 'assets/images/access_app_icon.png';
+
+/// Adaptive icon foreground (same artwork as the circular launcher icon).
+const String kAccessLauncherForegroundAsset = 'assets/images/access_launcher_foreground.png';
+
 /// Official ACCESS logo — server custom image or bundled [kAccessLogoAsset].
 class AccessLogoImage extends StatelessWidget {
   const AccessLogoImage({

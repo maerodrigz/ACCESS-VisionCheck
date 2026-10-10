@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
+import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/user_model.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
@@ -241,7 +242,7 @@ String formatTaskRole(String role) {
 String memberDashboardCompetencyLevel() {
   final skill = appState.profileSkillLevel?.trim();
   if (skill != null && skill.isNotEmpty) return skill;
-  return 'Novice';
+  return 'Beginner';
 }
 
 Challenge? memberActiveAssignment() {
@@ -302,6 +303,13 @@ bool memberHasActiveTaskForEvent(CalendarEvent event) {
     }
   }
   return false;
+}
+
+/// True when this campus calendar row belongs to the logged-in requestor's service request.
+bool requestorOwnsCalendarEvent(CalendarEvent event) {
+  final requestId = event.requestId;
+  if (requestId == null) return false;
+  return appState.serviceRequests.any((r) => r.requestId == requestId);
 }
 
 /// True when this calendar event matches one of the member's active assignments.
@@ -761,7 +769,7 @@ class MemberDarkHeroNotificationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: appState,
+      listenable: Listenable.merge([appState, memberDataController]),
       builder: (context, _) {
         final badgeCount = appState.unreadCount;
         final icon = badgeCount > 0
@@ -849,7 +857,7 @@ class MemberPageNotificationButton extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 360;
 
     return ListenableBuilder(
-      listenable: appState,
+      listenable: Listenable.merge([appState, memberDataController]),
       builder: (context, _) {
         final badgeCount = appState.unreadCount;
         final size = compact ? 36.0 : 38.0;

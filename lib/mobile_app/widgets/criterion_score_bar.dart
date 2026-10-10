@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-/// Bar color by 0–100 score band.
+/// Bar color by 0–100 score band (matches overall quality legend).
 Color criterionPercentColor(int percent) {
   if (percent >= 90) return kGreen;
-  if (percent >= 75) return kBlue;
-  if (percent >= 60) return kOrange;
+  if (percent >= 70) return kBlue;
+  if (percent >= 50) return kOrange;
   return kRed;
 }
 
@@ -71,7 +71,7 @@ class _CriterionScoreBarState extends State<CriterionScoreBar> with SingleTicker
     final scoreSize = widget.dense ? 11.0 : 13.0;
     final explanationSize = widget.dense ? 11.0 : 12.0;
     final rowGap = widget.dense ? 5.0 : 8.0;
-    final bottomPad = widget.dense ? 10.0 : 16.0;
+    final bottomPad = widget.dense ? 8.0 : 14.0;
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomPad),

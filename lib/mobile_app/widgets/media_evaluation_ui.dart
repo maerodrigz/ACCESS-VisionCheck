@@ -218,12 +218,12 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
           ),
         ],
         if (showFeedbackCard && gf != null) ...[
-          SizedBox(height: dense ? 14 : 18),
+          SizedBox(height: dense ? 10 : 14),
           if (feedbackIsLocalFallback) ...[
             const LocalFeedbackNotice(),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
           ],
-          AiFeedbackCard(feedback: gf),
+          AiFeedbackCard(feedback: gf, dense: dense),
         ],
       ],
     );
@@ -268,15 +268,16 @@ class LocalFeedbackNotice extends StatelessWidget {
 
 /// Card wrapper for Gemini mentor feedback below technical scores.
 class AiFeedbackCard extends StatelessWidget {
-  const AiFeedbackCard({super.key, required this.feedback});
+  const AiFeedbackCard({super.key, required this.feedback, this.dense = false});
 
   final MediaEvaluationFeedback feedback;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      padding: EdgeInsets.fromLTRB(14, dense ? 12 : 14, 14, dense ? 12 : 14),
       decoration: evalCardDecoration(borderColor: kEvalSecondary.withValues(alpha: 0.18)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,35 +285,25 @@ class AiFeedbackCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   gradient: kEvalSoftGradient,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: kEvalSecondary, size: 18),
+                child: const Icon(Icons.auto_awesome_rounded, color: kEvalSecondary, size: 17),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI Feedback',
-                      style: evalCardTitleStyle.copyWith(fontSize: 15),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Personalized guidance from your evaluation scores',
-                      style: evalBodyStyle.copyWith(fontSize: 11),
-                    ),
-                  ],
+                child: Text(
+                  'AI Feedback',
+                  style: evalCardTitleStyle.copyWith(fontSize: dense ? 14 : 15),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          MediaEvaluationFeedbackPanel(feedback: feedback, showTitle: false),
+          const SizedBox(height: 10),
+          MediaEvaluationFeedbackPanel(feedback: feedback, showTitle: false, collapsibleSections: true),
         ],
       ),
     );
@@ -325,13 +316,17 @@ class MediaEvaluationFeedbackPanel extends StatelessWidget {
     super.key,
     required this.feedback,
     this.showTitle = true,
+    this.collapsibleSections = false,
   });
 
   final MediaEvaluationFeedback feedback;
   final bool showTitle;
+  final bool collapsibleSections;
 
   @override
   Widget build(BuildContext context) {
+    final summary = energeticFeedbackText(feedback.explanation);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -342,87 +337,52 @@ class MediaEvaluationFeedbackPanel extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        Text(
-          energeticFeedbackText(feedback.explanation),
-          style: const TextStyle(color: kTextPrimary, fontSize: 13, height: 1.55, fontWeight: FontWeight.w500),
-        ),
-        if (feedback.strengths.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          const Text(
-            'What you\'re doing well',
-            style: TextStyle(color: kTextPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+        if (summary.isNotEmpty)
+          Text(
+            summary,
+            style: const TextStyle(color: kTextPrimary, fontSize: 13, height: 1.5, fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 6),
-          ...feedback.strengths.map(
-            (s) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.check_circle_outline, color: kGreen, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(s, style: const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45))),
-                ],
-              ),
+        if (collapsibleSections) ...[
+          if (feedback.strengths.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _FeedbackCollapsibleSection(
+              title: 'What You Did Well',
+              icon: Icons.check_circle_outline_rounded,
+              iconColor: kGreen,
+              items: feedback.strengths,
             ),
-          ),
-        ],
-        if (feedback.improvements.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          const Text(
-            'Room to grow',
-            style: TextStyle(color: kTextPrimary, fontSize: 12, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          ...feedback.improvements.map(
-            (s) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.trending_up_rounded, color: kOrange, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(s, style: const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45))),
-                ],
-              ),
+          ],
+          if (feedback.improvements.isNotEmpty)
+            _FeedbackCollapsibleSection(
+              title: 'Areas for Improvement',
+              icon: Icons.trending_up_rounded,
+              iconColor: kOrange,
+              items: feedback.improvements,
             ),
-          ),
-        ],
-        if (feedback.tips.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          const Text(
-            'Practical tips',
-            style: TextStyle(color: kTextPrimary, fontSize: 12, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          ...feedback.tips.map(
-            (t) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.lightbulb_outline_rounded, color: kAccent, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(t, style: const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45))),
-                ],
-              ),
+          if (feedback.tips.isNotEmpty)
+            _FeedbackCollapsibleSection(
+              title: 'Practical Tips',
+              icon: Icons.lightbulb_outline_rounded,
+              iconColor: kAccent,
+              items: feedback.tips,
             ),
-          ),
+        ] else ...[
+          ..._flatSections(feedback),
         ],
         if (feedback.closingMessage.isNotEmpty) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: kEvalPrimaryLight,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: kEvalPrimary.withValues(alpha: 0.25)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.favorite_outline_rounded, size: 16, color: kEvalSecondary.withValues(alpha: 0.85)),
+                Icon(Icons.favorite_outline_rounded, size: 15, color: kEvalSecondary.withValues(alpha: 0.85)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -443,6 +403,142 @@ class MediaEvaluationFeedbackPanel extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+
+  List<Widget> _flatSections(MediaEvaluationFeedback feedback) {
+    return [
+      if (feedback.strengths.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        const Text(
+          'What You Did Well',
+          style: TextStyle(color: kTextPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 6),
+        ...feedback.strengths.map((s) => _feedbackBullet(s, Icons.check_circle_outline, kGreen)),
+      ],
+      if (feedback.improvements.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        const Text(
+          'Areas for Improvement',
+          style: TextStyle(color: kTextPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 6),
+        ...feedback.improvements.map((s) => _feedbackBullet(s, Icons.trending_up_rounded, kOrange)),
+      ],
+      if (feedback.tips.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        const Text(
+          'Practical Tips',
+          style: TextStyle(color: kTextPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 6),
+        ...feedback.tips.map((t) => _feedbackBullet(t, Icons.lightbulb_outline_rounded, kAccent)),
+      ],
+    ];
+  }
+
+  Widget _feedbackBullet(String text, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45))),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeedbackCollapsibleSection extends StatefulWidget {
+  const _FeedbackCollapsibleSection({
+    required this.title,
+    required this.icon,
+    required this.iconColor,
+    required this.items,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color iconColor;
+  final List<String> items;
+
+  @override
+  State<_FeedbackCollapsibleSection> createState() => _FeedbackCollapsibleSectionState();
+}
+
+class _FeedbackCollapsibleSectionState extends State<_FeedbackCollapsibleSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: kBg,
+        borderRadius: BorderRadius.circular(10),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(widget.icon, size: 17, color: widget.iconColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: const TextStyle(
+                          color: kTextPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${widget.items.length}',
+                      style: TextStyle(color: kTextSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      _expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                      size: 20,
+                      color: kEvalSecondary,
+                    ),
+                  ],
+                ),
+                if (_expanded) ...[
+                  const SizedBox(height: 8),
+                  ...widget.items.map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6, left: 2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('• ', style: TextStyle(color: widget.iconColor, fontWeight: FontWeight.w700)),
+                          Expanded(
+                            child: Text(
+                              line,
+                              style: const TextStyle(color: kTextSecondary, fontSize: 12, height: 1.45),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

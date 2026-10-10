@@ -116,7 +116,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
             ),
             ),
@@ -126,8 +126,6 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
     );
   }
 }
-
-String _memberFirstName() => memberDashboardFirstName();
 
 // ── Page header ──────────────────────────────────────────────────────────────
 
@@ -142,12 +140,12 @@ class _EvaluationPageHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         kMemberDashboardPagePadding,
-        8,
-        kMemberDashboardPagePadding,
         6,
+        kMemberDashboardPagePadding,
+        4,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
@@ -157,20 +155,21 @@ class _EvaluationPageHeader extends StatelessWidget {
                   'Media Evaluation',
                   style: dashText(const TextStyle(
                     color: kTextPrimary,
-                    fontSize: 28,
+                    fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    height: 1.1,
+                    letterSpacing: -0.45,
+                    height: 1.12,
                   )),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   'Quality Analysis & Feedback',
-                  style: evalSectionSubtitleStyle.copyWith(fontSize: 14),
+                  style: evalSectionSubtitleStyle.copyWith(fontSize: 13.5),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 6),
           MemberPageNotificationButton(onTap: onNotificationsTap),
           MemberPageProfileAvatar(onTap: onProfileTap),
         ],
@@ -227,7 +226,6 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
     return ListenableBuilder(
       listenable: appState,
       builder: (_, __) {
-        final firstName = _memberFirstName();
         final done = appState.evaluationsTodayCount;
         final limit = appState.dailyEvaluationLimit;
         final remaining = appState.evaluationsRemainingToday;
@@ -237,7 +235,7 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
               kMemberDashboardPagePadding,
-              10,
+              8,
               kMemberDashboardPagePadding,
               0,
             ),
@@ -251,12 +249,12 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
               child: Stack(
                 children: [
                   Positioned(
-                    top: -28,
-                    right: -20,
+                    top: -24,
+                    right: -18,
                     child: IgnorePointer(
                       child: Container(
-                        width: 132,
-                        height: 132,
+                        width: 108,
+                        height: 108,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withValues(alpha: 0.1),
@@ -265,12 +263,12 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
                     ),
                   ),
                   Positioned(
-                    bottom: 48,
-                    left: -32,
+                    bottom: 40,
+                    left: -28,
                     child: IgnorePointer(
                       child: Container(
-                        width: 96,
-                        height: 96,
+                        width: 80,
+                        height: 80,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withValues(alpha: 0.07),
@@ -282,7 +280,7 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(22, 22, 16, 20),
+                        padding: const EdgeInsets.fromLTRB(18, 16, 12, 14),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -290,52 +288,35 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.16),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-                                    ),
-                                    child: Text(
-                                      'Hello, $firstName!',
-                                      style: dashText(TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.98),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                      )),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
                                   Text(
                                     'Evaluate your media',
                                     style: dashText(const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 22,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                       height: 1.15,
-                                      letterSpacing: -0.4,
+                                      letterSpacing: -0.35,
                                     )),
                                   ),
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: 8),
                                   Text(
-                                    'Upload a photo or video to analyze its quality and receive detailed feedback for improvement.',
+                                    'Upload photos or videos to check quality and get feedback.',
                                     style: dashText(TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.9),
-                                      fontSize: 13,
+                                      color: Colors.white.withValues(alpha: 0.92),
+                                      fontSize: 12.5,
                                       fontWeight: FontWeight.w500,
-                                      height: 1.5,
+                                      height: 1.45,
                                     )),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Builder(
                               builder: (context) {
-                                final chipSize = MediaQuery.sizeOf(context).width < 360 ? 76.0 : 102.0;
+                                final chipSize = MediaQuery.sizeOf(context).width < 360 ? 62.0 : 84.0;
                                 return Padding(
-                                  padding: const EdgeInsets.only(top: 4),
+                                  padding: const EdgeInsets.only(top: 2),
                                   child: EvalAiChipIllustration(size: chipSize),
                                 );
                               },
@@ -378,7 +359,7 @@ class _EvalHeroDailyFooter extends StatelessWidget {
     final low = !atLimit && remaining <= 1;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 16),
+      padding: const EdgeInsets.fromLTRB(18, 11, 18, 13),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.14),
         border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.14))),
@@ -388,10 +369,10 @@ class _EvalHeroDailyFooter extends StatelessWidget {
         children: [
           Icon(
             atLimit ? Icons.hourglass_disabled_rounded : Icons.speed_rounded,
-            size: 20,
+            size: 18,
             color: Colors.white.withValues(alpha: 0.92),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,11 +383,11 @@ class _EvalHeroDailyFooter extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: dashText(TextStyle(
                     color: Colors.white.withValues(alpha: 0.92),
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                   )),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: progress),
                   duration: const Duration(milliseconds: 750),
@@ -415,7 +396,7 @@ class _EvalHeroDailyFooter extends StatelessWidget {
                     borderRadius: BorderRadius.circular(99),
                     child: LinearProgressIndicator(
                       value: value,
-                      minHeight: 6,
+                      minHeight: 5,
                       backgroundColor: Colors.white.withValues(alpha: 0.2),
                       valueColor: AlwaysStoppedAnimation<Color>(
                         atLimit
@@ -428,9 +409,9 @@ class _EvalHeroDailyFooter extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(10),
@@ -481,7 +462,7 @@ class _EvalOptionsSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         kMemberDashboardPagePadding,
-        18,
+        14,
         kMemberDashboardPagePadding,
         0,
       ),
@@ -489,9 +470,11 @@ class _EvalOptionsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('What would you like to evaluate?', style: evalSectionTitleStyle.copyWith(fontSize: 16)),
-          const SizedBox(height: 14),
-          Row(
-            children: [
+          const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               Expanded(
                 child: _EvalSelectionCard(
                   icon: Icons.photo_camera_rounded,
@@ -502,9 +485,9 @@ class _EvalOptionsSection extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF050C1C),
-                      Color(0xFF0A1628),
-                      Color(0xFF0C3340),
+                      kCyanDim,
+                      Color(0xFFF0FAFF),
+                      kSurface,
                     ],
                   ),
                   onTap: onPhoto,
@@ -521,15 +504,16 @@ class _EvalOptionsSection extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF050C1C),
-                      Color(0xFF0A1628),
-                      Color(0xFF0C1F40),
+                      kBlueDim,
+                      Color(0xFFF0F6FF),
+                      kSurface,
                     ],
                   ),
                   onTap: onVideo,
                 ),
               ),
             ],
+            ),
           ),
         ],
       ),
@@ -574,47 +558,48 @@ class _EvalSelectionCardState extends State<_EvalSelectionCard> {
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOutCubic,
         transform: Matrix4.translationValues(0, _pressed ? -2 : 0, 0),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(11),
         decoration: BoxDecoration(
           gradient: widget.gradient,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: _pressed ? widget.accent.withValues(alpha: 0.55) : widget.accent.withValues(alpha: 0.28),
+            color: _pressed
+                ? widget.accent.withValues(alpha: 0.45)
+                : widget.accent.withValues(alpha: 0.22),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: _pressed ? 0.28 : 0.18),
-              blurRadius: _pressed ? 14 : 10,
-              offset: Offset(0, _pressed ? 5 : 3),
+              color: Colors.black.withValues(alpha: _pressed ? 0.08 : 0.05),
+              blurRadius: _pressed ? 12 : 8,
+              offset: Offset(0, _pressed ? 4 : 2),
             ),
             BoxShadow(
-              color: widget.accent.withValues(alpha: _pressed ? 0.14 : 0.08),
-              blurRadius: 12,
+              color: widget.accent.withValues(alpha: _pressed ? 0.12 : 0.06),
+              blurRadius: 10,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: widget.accent.withValues(alpha: 0.16),
+                    color: widget.accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(11),
-                    border: Border.all(color: widget.accent.withValues(alpha: 0.32)),
+                    border: Border.all(color: widget.accent.withValues(alpha: 0.28)),
                   ),
-                  child: Icon(widget.icon, color: widget.accent, size: 22),
+                  child: Icon(widget.icon, color: widget.accent, size: 21),
                 ),
                 const Spacer(),
                 Container(
-                  width: 28,
-                  height: 28,
+                  width: 26,
+                  height: 26,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: widget.accent,
@@ -626,26 +611,31 @@ class _EvalSelectionCardState extends State<_EvalSelectionCard> {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 15),
+                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 14),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 9),
             Text(
               widget.title,
               style: dashText(TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: widget.accent,
                 height: 1.1,
               )),
             ),
-            const SizedBox(height: 4),
-            Text(
-              widget.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: evalGuideDarkSubtitleStyle.copyWith(fontSize: 11.5, height: 1.35),
+            const SizedBox(height: 3),
+            Expanded(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Text(
+                  widget.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardMetaStyle.copyWith(fontSize: 11, height: 1.35),
+                ),
+              ),
             ),
           ],
         ),
@@ -702,6 +692,53 @@ List<Evaluation> _evaluationsExcluding(
   return _evaluationsNewestFirst(all.where((e) => !ids.contains(e.id)).toList());
 }
 
+class _EvaluationsCompactEmpty extends StatelessWidget {
+  const _EvaluationsCompactEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: kEvalPrimary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.photo_library_outlined, size: 20, color: kEvalPrimary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No evaluations yet',
+                  style: evalCardTitleStyle.copyWith(fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Your recent media evaluations will appear here.',
+                  style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.35),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RecentEvaluationsSection extends StatelessWidget {
   const _RecentEvaluationsSection({
     required this.evaluations,
@@ -730,17 +767,8 @@ class _RecentEvaluationsSection extends StatelessWidget {
         children: [
           if (evaluations.isEmpty) ...[
             Text('Recent Evaluations', style: evalSectionTitleStyle),
-            const SizedBox(height: 4),
-            Text(
-              'Your history will appear here.',
-              style: evalSectionSubtitleStyle,
-            ),
-            const SizedBox(height: 12),
-            MemberDashboardEmptyState(
-              icon: Icons.photo_library_outlined,
-              message: 'No evaluations yet.\nStart your first AI media evaluation above.',
-              iconColor: kEvalPrimary,
-            ),
+            const SizedBox(height: 8),
+            const _EvaluationsCompactEmpty(),
           ] else ...[
             if (showRecentRow) ...[
               Row(

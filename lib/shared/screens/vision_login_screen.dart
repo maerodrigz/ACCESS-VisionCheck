@@ -188,34 +188,27 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Widget _narrowLayout() {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    const cardSideInset = 12.0;
     final topInset = MediaQuery.paddingOf(context).top;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-    final card = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Center(
-        child: LoginFormPanel(
-          key: const ValueKey('mobile-login-card'),
-          cardStyle: true,
-          emailController: _emailCtrl,
-          passwordController: _passCtrl,
-          obscurePassword: _obscure,
-          rememberMe: _rememberMe,
-          loading: _loading,
-          error: _error,
-          onToggleObscure: () => setState(() => _obscure = !_obscure),
-          onRememberMeChanged: (v) => setState(() => _rememberMe = v),
-          onSubmit: _submit,
-          onForgotPassword: _forgotPassword,
-          onCreateAccount: kIsWeb ? null : _openRegistration,
-          onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
-        ),
-      ),
+    final formPanel = LoginFormPanel(
+      key: const ValueKey('mobile-login-card'),
+      cardStyle: true,
+      emailController: _emailCtrl,
+      passwordController: _passCtrl,
+      obscurePassword: _obscure,
+      rememberMe: _rememberMe,
+      loading: _loading,
+      error: _error,
+      onToggleObscure: () => setState(() => _obscure = !_obscure),
+      onRememberMeChanged: (v) => setState(() => _rememberMe = v),
+      onSubmit: _submit,
+      onForgotPassword: _forgotPassword,
+      onCreateAccount: kIsWeb ? null : _openRegistration,
+      onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
     );
 
-    final minContentHeight = MediaQuery.sizeOf(context).height - topInset - bottomInset;
-
-    // Full-screen gradient behind scroll content (no white strip under the hero).
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -224,20 +217,46 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
         ),
         SafeArea(
           top: false,
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.only(top: topInset + 8, bottom: 16 + bottomInset),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: minContentHeight),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const LoginBrandPanel(compact: true),
-                  const SizedBox(height: 8),
-                  card,
-                  const SizedBox(height: 24),
-                ],
-              ),
+          bottom: false,
+          child: Padding(
+            padding: EdgeInsets.only(top: topInset + 4, bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOut,
+                  alignment: Alignment.topCenter,
+                  child: LoginBrandPanel(
+                    compact: true,
+                    dense: keyboardOpen,
+                  ),
+                ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                        physics: const ClampingScrollPhysics(),
+                        padding: const EdgeInsets.only(top: 6),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: constraints.maxHeight - 6),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: cardSideInset),
+                              child: SizedBox(
+                                width: constraints.maxWidth - cardSideInset * 2,
+                                child: formPanel,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ),

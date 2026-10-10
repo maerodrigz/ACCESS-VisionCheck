@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_trophy_illustration.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';

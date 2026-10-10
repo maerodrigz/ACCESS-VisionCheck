@@ -9,10 +9,12 @@ class MemberCalendarEventCard extends StatelessWidget {
     super.key,
     required this.event,
     this.onTap,
+    this.forRequestor = false,
   });
 
   final CalendarEvent event;
   final VoidCallback? onTap;
+  final bool forRequestor;
 
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -22,7 +24,9 @@ class MemberCalendarEventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final muted = event.isPast;
-    final isMine = memberIsAssignedToEvent(event);
+    final isMine = forRequestor
+        ? requestorOwnsCalendarEvent(event)
+        : memberIsAssignedToEvent(event);
     final accent = isMine ? kMemberPrimary : kMemberCyan;
 
     return Material(
@@ -65,7 +69,11 @@ class MemberCalendarEventCard extends StatelessWidget {
                         border: Border.all(color: accent.withValues(alpha: muted ? 0.1 : 0.22)),
                       ),
                       child: Icon(
-                        isMine ? Icons.assignment_ind_rounded : Icons.event_note_rounded,
+                        isMine
+                            ? (forRequestor
+                                ? Icons.description_outlined
+                                : Icons.assignment_ind_rounded)
+                            : Icons.event_note_rounded,
                         color: muted ? kIconInactive : accent,
                         size: 22,
                       ),
@@ -88,7 +96,7 @@ class MemberCalendarEventCard extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              _AssignmentKindPill(assigned: isMine),
+                              _AssignmentKindPill(assigned: isMine, forRequestor: forRequestor),
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -137,6 +145,7 @@ class MemberCalendarUpcomingCard extends StatelessWidget {
     required this.event,
     this.onTap,
     this.inGroup = false,
+    this.forRequestor = false,
   });
 
   final CalendarEvent event;
@@ -144,10 +153,13 @@ class MemberCalendarUpcomingCard extends StatelessWidget {
 
   /// Legacy grouped list styling; calendar screen uses separate cards.
   final bool inGroup;
+  final bool forRequestor;
 
   @override
   Widget build(BuildContext context) {
-    final isMine = memberIsAssignedToEvent(event);
+    final isMine = forRequestor
+        ? requestorOwnsCalendarEvent(event)
+        : memberIsAssignedToEvent(event);
     final accent = isMine ? kAccent : kCyan;
 
     final content = Padding(
@@ -184,7 +196,11 @@ class MemberCalendarUpcomingCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 6),
-                _AssignmentKindPill(assigned: isMine, compact: true),
+                _AssignmentKindPill(
+                  assigned: isMine,
+                  compact: true,
+                  forRequestor: forRequestor,
+                ),
               ],
             ),
           ),
@@ -274,10 +290,12 @@ class _AssignmentKindPill extends StatelessWidget {
   const _AssignmentKindPill({
     required this.assigned,
     this.compact = false,
+    this.forRequestor = false,
   });
 
   final bool assigned;
   final bool compact;
+  final bool forRequestor;
 
   @override
   Widget build(BuildContext context) {
@@ -293,7 +311,9 @@ class _AssignmentKindPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        assigned ? 'Assigned' : 'Event',
+        assigned
+            ? (forRequestor ? 'Your request' : 'Assigned')
+            : (forRequestor ? 'Campus' : 'Event'),
         style: dashText(TextStyle(
           color: color,
           fontSize: compact ? 9 : 9.5,

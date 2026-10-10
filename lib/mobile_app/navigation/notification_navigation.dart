@@ -7,6 +7,8 @@ import 'package:access_mobile/mobile_app/screens/evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/my_assignments_screen.dart';
 import 'package:access_mobile/mobile_app/screens/requestor/request_detail_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_announcements.dart';
+import 'package:access_mobile/mobile_app/widgets/member_milestone_celebration.dart';
+import 'package:access_mobile/shared/models/member_milestone.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
@@ -137,7 +139,9 @@ String? _fallbackAction(AppNotification n) {
   if (!isRequestor && n.category == 'task_assignment') return 'view_task';
   if (!isRequestor && n.category == 'ai_detection') return 'review_media';
   if (!isRequestor && n.category == 'media_evaluation') {
-    return n.actionType == 'view_admin_feedback' ? 'view_admin_feedback' : 'view_result';
+    if (n.actionType == 'milestone') return 'milestone';
+    if (n.actionType == 'view_admin_feedback') return 'view_admin_feedback';
+    return 'view_result';
   }
   if (n.category == 'system_alert' || n.category == 'announcement') {
     return 'view_announcement';
@@ -196,6 +200,27 @@ Future<void> handleNotificationTap(BuildContext context, AppNotification n) asyn
     case 'view_admin_feedback':
       if (!isRequestor) {
         MemberShellNavigation.openHome?.call();
+      }
+      return;
+    case 'milestone':
+      if (!isRequestor && refId != null) {
+        await memberDataController.refreshMilestones(unacknowledgedOnly: false);
+        if (!context.mounted) return;
+        MemberMilestone? match;
+        for (final m in memberDataController.memberMilestones) {
+          if (m.id == refId) {
+            match = m;
+            break;
+          }
+        }
+        if (match != null && !match.isAcknowledged) {
+          await showMemberMilestoneCelebration(context, match);
+          await memberDataController.acknowledgeMilestone(match.id);
+        } else if (match != null) {
+          await showMemberMilestoneCelebration(context, match);
+        } else {
+          await memberDataController.celebratePendingMilestones(context);
+        }
       }
       return;
     default:

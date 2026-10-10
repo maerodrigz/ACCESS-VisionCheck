@@ -10,8 +10,11 @@ import 'package:access_mobile/mobile_app/widgets/member_calendar_event_card.dart
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
 class CalendarScreen extends StatefulWidget {
-  /// When omitted, uses the default member-facing copy.
+  /// When omitted, uses the default member- or requestor-facing copy.
   final String? subtitle;
+
+  /// Requestor shell: same calendar UI with request filters and plan-request action.
+  final bool forRequestor;
 
   /// Switches the member shell to the Gallery tab (index 3).
   final VoidCallback? onViewGallery;
@@ -22,13 +25,18 @@ class CalendarScreen extends StatefulWidget {
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
 
+  /// Requestor: open create-request form with the selected day pre-filled.
+  final void Function(DateTime day)? onPlanRequest;
+
   const CalendarScreen({
     super.key,
     this.subtitle,
+    this.forRequestor = false,
     this.onViewGallery,
     this.onViewAssignments,
     this.onNotificationsTap,
     this.onProfileTap,
+    this.onPlanRequest,
   });
 
   @override
@@ -118,7 +126,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   List<CalendarEvent> get _visibleEvents {
     var list = appState.events;
     if (_myAssignmentsOnly) {
-      list = list.where(memberHasActiveTaskForEvent).toList();
+      list = widget.forRequestor
+          ? list.where(requestorOwnsCalendarEvent).toList()
+          : list.where(memberHasActiveTaskForEvent).toList();
     }
     return list.where(_matchesSearch).toList();
   }
@@ -139,13 +149,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   bool _dayHasMyAssignment(DateTime day) {
     final dayEvents = appState.events.where((e) => _sameDay(e.startDate, day));
-    return dayEvents.any(memberHasActiveTaskForEvent);
+    return widget.forRequestor
+        ? dayEvents.any(requestorOwnsCalendarEvent)
+        : dayEvents.any(memberHasActiveTaskForEvent);
   }
 
   bool _dayHasGeneralEvent(DateTime day) {
     if (_myAssignmentsOnly) return false;
     final dayEvents = appState.events.where((e) => _sameDay(e.startDate, day));
-    return dayEvents.any((e) => !memberHasActiveTaskForEvent(e));
+    return widget.forRequestor
+        ? dayEvents.any((e) => !requestorOwnsCalendarEvent(e))
+        : dayEvents.any((e) => !memberHasActiveTaskForEvent(e));
+  }
+
+  bool _canPlanRequestOnDay(DateTime day) {
+    final today = _dayOnly(DateTime.now());
+    return !_dayOnly(day).isBefore(today);
+  }
+
+  void _openEventDetail(BuildContext context, CalendarEvent event) {
+    if (widget.forRequestor) {
+      showRequestorCampusEventDetail(context, event);
+    } else {
+      showMemberEventDetail(
+        context,
+        event,
+        onViewGallery: widget.onViewGallery,
+      );
+    }
   }
 
   void _goToToday() {
@@ -180,7 +211,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           _CalendarPageHeader(
             subtitle: widget.subtitle ??
-                'Your events and documentation assignments',
+                (widget.forRequestor
+                    ? 'Campus events and your documentation schedule'
+                    : 'Your events and documentation assignments'),
             onNotificationsTap: widget.onNotificationsTap,
             onProfileTap: widget.onProfileTap,
           ),
@@ -189,6 +222,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onChanged: (value) => setState(() => _myAssignmentsOnly = value),
             onSearchTap: _toggleSearch,
             searchActive: _hasActiveSearch || _searchExpanded,
+            primaryTabLabel:
+                widget.forRequestor ? 'My Requests' : 'My Assignments',
+            secondaryTabLabel: 'All Events',
           ),
           if (_searchExpanded)
             _CalendarSearchBar(
@@ -356,9 +392,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      _CalendarLegendDot(color: kCyan, label: 'Event'),
+                                      _CalendarLegendDot(
+                                        color: kCyan,
+                                        label: widget.forRequestor ? 'Campus' : 'Event',
+                                      ),
                                       const SizedBox(width: 12),
-                                      _CalendarLegendDot(color: kAccent, label: 'Assigned'),
+                                      _CalendarLegendDot(
+                                        color: kAccent,
+                                        label: widget.forRequestor ? 'My Request' : 'Assigned',
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -384,7 +426,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ),
                                     Text(
                                       dayEvents.isEmpty
-                                          ? 'No events scheduled'
+                                          ? (widget.forRequestor &&
+                                                  _canPlanRequestOnDay(_selectedDay)
+                                              ? 'No events — open for planning'
+                                              : 'No events scheduled')
                                           : '${dayEvents.length} event${dayEvents.length == 1 ? '' : 's'}',
                                       style: memberDashboardMetaStyle.copyWith(fontSize: 12),
                                     ),
@@ -405,7 +450,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     title: 'No matching events',
                                     subtitle: 'Try a different search or date.',
                                   )
-                                : const _CalendarNoEventsEmptyState(),
+                                : _CalendarNoEventsEmptyState(
+                                    forRequestor: widget.forRequestor,
+                                    canPlan: widget.forRequestor &&
+                                        _canPlanRequestOnDay(_selectedDay),
+                                  ),
                           ),
                         )
                       else
@@ -416,14 +465,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             separatorBuilder: (_, __) => const SizedBox(height: 8),
                             itemBuilder: (_, i) => MemberCalendarEventCard(
                               event: dayEvents[i],
-                              onTap: () => showMemberEventDetail(
-                                context,
-                                dayEvents[i],
-                                onViewGallery: widget.onViewGallery,
-                              ),
+                              forRequestor: widget.forRequestor,
+                              onTap: () => _openEventDetail(context, dayEvents[i]),
                             ),
                           ),
                         ),
+                      if (widget.forRequestor &&
+                          widget.onPlanRequest != null &&
+                          _canPlanRequestOnDay(_selectedDay)) ...[
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(padding, 0, padding, 8),
+                            child: MemberDashboardPrimaryButton(
+                              label: 'Plan request for this date',
+                              icon: Icons.add_rounded,
+                              onPressed: () => widget.onPlanRequest!(_selectedDay),
+                            ),
+                          ),
+                        ),
+                      ],
                       if (upcoming.isNotEmpty) ...[
                         SliverToBoxAdapter(
                           child: Padding(
@@ -468,6 +528,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               final event = upcomingVisible[i];
                               return MemberCalendarUpcomingCard(
                                 event: event,
+                                forRequestor: widget.forRequestor,
                                 onTap: () {
                                   setState(() {
                                     _selectedDay = _dayOnly(event.startDate);
@@ -476,11 +537,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       event.startDate.month,
                                     );
                                   });
-                                  showMemberEventDetail(
-                                    context,
-                                    event,
-                                    onViewGallery: widget.onViewGallery,
-                                  );
+                                  _openEventDetail(context, event);
                                 },
                               );
                             },
@@ -562,10 +619,23 @@ class _CalendarSearchBar extends StatelessWidget {
 }
 
 class _CalendarNoEventsEmptyState extends StatelessWidget {
-  const _CalendarNoEventsEmptyState();
+  const _CalendarNoEventsEmptyState({
+    this.forRequestor = false,
+    this.canPlan = false,
+  });
+
+  final bool forRequestor;
+  final bool canPlan;
 
   @override
   Widget build(BuildContext context) {
+    final title = forRequestor && canPlan
+        ? 'Nothing scheduled this day'
+        : 'No events scheduled';
+    final subtitle = forRequestor && canPlan
+        ? 'Good time to plan documentation. Use the button below to create a request.'
+        : null;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       decoration: BoxDecoration(
@@ -574,6 +644,7 @@ class _CalendarNoEventsEmptyState extends StatelessWidget {
         border: Border.all(color: kBorder),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 36,
@@ -584,13 +655,31 @@ class _CalendarNoEventsEmptyState extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: kMemberCyan.withValues(alpha: 0.2)),
             ),
-            child: const Icon(Icons.event_busy_outlined, color: kAccent, size: 18),
+            child: Icon(
+              forRequestor && canPlan
+                  ? Icons.event_available_outlined
+                  : Icons.event_busy_outlined,
+              color: kAccent,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              'No events scheduled',
-              style: memberDashboardSectionTitleStyle.copyWith(fontSize: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: memberDashboardSectionTitleStyle.copyWith(fontSize: 14),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.35),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -605,12 +694,16 @@ class _CalendarFilterTabs extends StatelessWidget {
     required this.onChanged,
     required this.onSearchTap,
     required this.searchActive,
+    this.primaryTabLabel = 'My Assignments',
+    this.secondaryTabLabel = 'All Events',
   });
 
   final bool myAssignmentsOnly;
   final ValueChanged<bool> onChanged;
   final VoidCallback onSearchTap;
   final bool searchActive;
+  final String primaryTabLabel;
+  final String secondaryTabLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -632,14 +725,14 @@ class _CalendarFilterTabs extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _CalendarFilterTab(
-                        label: 'My Assignments',
+                        label: primaryTabLabel,
                         selected: myAssignmentsOnly,
                         onTap: () => onChanged(true),
                       ),
                     ),
                     Expanded(
                       child: _CalendarFilterTab(
-                        label: 'All Events',
+                        label: secondaryTabLabel,
                         selected: !myAssignmentsOnly,
                         onTap: () => onChanged(false),
                       ),

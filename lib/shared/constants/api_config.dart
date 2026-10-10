@@ -115,6 +115,7 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
+    '192.168.8.98',
     '10.68.93.169',
     '10.93.47.169',
     '192.168.8.99',

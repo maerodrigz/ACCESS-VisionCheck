@@ -188,7 +188,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                         _PreferenceSwitch(
                           icon: Icons.insights_outlined,
                           title: 'Evaluation feedback',
-                          description: 'Scores and results when your media is evaluated',
+                          description:
+                              'Milestones, admin review outcomes, integrity alerts, and evaluation updates',
                           value: _evaluationFeedback,
                           enabled: !_saving,
                           onChanged: (v) => _updatePreference(evaluationFeedback: v),

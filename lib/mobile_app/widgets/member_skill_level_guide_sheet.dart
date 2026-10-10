@@ -143,48 +143,27 @@ void showMemberSkillLevelGuideSheet(BuildContext context) {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _SectionTitle('XP tiers (leaderboard)'),
+                    _SectionTitle('Leaderboard XP'),
                     const SizedBox(height: 8),
                     Text(
                       MemberXpConfig.howXpIntro,
                       style: memberDashboardBodyStyle.copyWith(fontSize: 13),
                     ),
-                    if (!snapshot.isMaxLevel) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        '${snapshot.remainingPoints} XP to reach ${snapshot.nextLevelName}',
-                        style: memberDashboardBodyStyle.copyWith(
-                          fontSize: 13,
-                          color: kMemberPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    const SizedBox(height: 10),
+                    Text(
+                      snapshot.progressSubtitle,
+                      style: memberDashboardBodyStyle.copyWith(
+                        fontSize: 13,
+                        color: kMemberPrimary,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
+                    ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: MemberXpConfig.skillTiers.map((tier) {
-                        final next = tier.nextMinPoints;
-                        final label = next == null
-                            ? '${tier.name} (${tier.minPoints}+ XP)'
-                            : '${tier.name} (${tier.minPoints}–${next - 1} XP)';
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: kSurfaceAlt,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: kBorder),
-                          ),
-                          child: Text(
-                            label,
-                            style: memberDashboardMetaStyle.copyWith(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                    ...MemberXpConfig.earningRules.map(
+                      (rule) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _BulletRow(title: rule.title, body: rule.body),
+                      ),
                     ),
                   ],
                 ),

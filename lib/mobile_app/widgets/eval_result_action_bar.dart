@@ -39,8 +39,8 @@ class EvalResultActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gap = compact ? 8.0 : 12.0;
-    final buttonHeight = compact ? 48.0 : 56.0;
+    final gap = compact ? 6.0 : 10.0;
+    final buttonHeight = compact ? 44.0 : 52.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -55,9 +55,12 @@ class EvalResultActionBar extends StatelessWidget {
           isLoading: isSaving && !evaluationAlreadySaved,
           gradient: atLimit && !evaluationAlreadySaved
               ? null
-              : const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF059669)],
-                ),
+              : (evaluationAlreadySaved
+                  ? kEvalHeroGradient
+                  : const LinearGradient(
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                    )),
+          shadowAccent: evaluationAlreadySaved ? kEvalSecondary : const Color(0xFF10B981),
           backgroundColor: atLimit && !evaluationAlreadySaved ? kDashBorder : null,
           height: buttonHeight,
         ),
@@ -90,6 +93,7 @@ class _PrimaryEvalButton extends StatelessWidget {
     required this.onPressed,
     this.isLoading = false,
     this.gradient,
+    this.shadowAccent,
     this.backgroundColor,
     this.height = 56,
   });
@@ -99,6 +103,7 @@ class _PrimaryEvalButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;
   final LinearGradient? gradient;
+  final Color? shadowAccent;
   final Color? backgroundColor;
   final double height;
 
@@ -122,9 +127,9 @@ class _PrimaryEvalButton extends StatelessWidget {
                 ? null
                 : [
                     BoxShadow(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
+                      color: (shadowAccent ?? const Color(0xFF10B981)).withValues(alpha: 0.28),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
                     ),
                   ],
           ),

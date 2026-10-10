@@ -59,12 +59,12 @@ class AiDetectionBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'AI INTEGRITY RISK',
+                      'AI Authenticity Assessment',
                       style: TextStyle(
                         color: kDashTextSecondary,
                         fontSize: compact ? 10 : 11,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
+                        letterSpacing: 0.2,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -140,7 +140,10 @@ class AiDetectionBanner extends StatelessWidget {
       return 'This is not a claim that the media is AI-generated.';
     }
     if (tierNeedsReviewDisclaimer(model)) {
-      return 'This is a risk assessment, not proof of origin.';
+      return 'This is a risk assessment, not proof of authenticity or human origin.';
+    }
+    if (!ai.isDeferredAuthenticity) {
+      return 'Risk screening only. This is not verification that media is human-generated.';
     }
     return null;
   }

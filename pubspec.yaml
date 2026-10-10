@@ -103,6 +103,7 @@ flutter:
     - assets/images/access-brand-a.png
     - assets/images/access-org-seal.jpg
     - assets/images/access_app_icon.png
+    - assets/images/access_launcher_foreground.png
     - assets/images/access_login_hero.png
 
   # An image asset can refer to one or more resolution-specific "variants", see

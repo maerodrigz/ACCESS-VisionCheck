@@ -1,11 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
-
-/// Large upload illustration for the AI evaluation upload page.
+/// Upload hero illustration for the AI evaluation upload page.
 class EvalUploadIllustration extends StatefulWidget {
-  const EvalUploadIllustration({super.key, required this.isVideo, this.size = 140});
+  const EvalUploadIllustration({super.key, required this.isVideo, this.size = 132});
 
   final bool isVideo;
   final double size;
@@ -21,7 +19,7 @@ class _EvalUploadIllustrationState extends State<EvalUploadIllustration>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 3600))
       ..repeat();
   }
 
@@ -36,12 +34,12 @@ class _EvalUploadIllustrationState extends State<EvalUploadIllustration>
     return AnimatedBuilder(
       animation: _controller,
       builder: (_, __) {
-        final bob = math.sin(_controller.value * math.pi * 2) * 6;
+        final bob = math.sin(_controller.value * math.pi * 2) * 4;
         return Transform.translate(
           offset: Offset(0, bob),
           child: SizedBox(
             width: widget.size,
-            height: widget.size,
+            height: widget.size * 0.92,
             child: CustomPaint(
               painter: _UploadIllustrationPainter(
                 isVideo: widget.isVideo,
@@ -61,101 +59,94 @@ class _UploadIllustrationPainter extends CustomPainter {
   final bool isVideo;
   final double pulse;
 
+  static const _navy = Color(0xFF1E3A5F);
+  static const _circleBlue = Color(0xFF7DD3FC);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
+    final w = size.width;
+    final h = size.height;
+    final baseY = h * 0.58;
 
-    // Soft glow
-    canvas.drawCircle(
-      center,
-      size.width * 0.42,
-      Paint()..color = kEvalPrimary.withValues(alpha: 0.08 + pulse * 0.06),
-    );
+    // Overlapping soft circles
+    void drawCircle(Offset c, double r, double alpha) {
+      canvas.drawCircle(
+        c,
+        r,
+        Paint()..color = _circleBlue.withValues(alpha: alpha + pulse * 0.04),
+      );
+    }
 
-    // Cloud base
-    final cloudPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [kEvalPrimary.withValues(alpha: 0.25), kEvalSecondary.withValues(alpha: 0.18)],
-      ).createShader(Rect.fromCircle(center: center, radius: size.width * 0.3));
+    drawCircle(Offset(w * 0.38, baseY), w * 0.22, 0.35);
+    drawCircle(Offset(w * 0.62, baseY), w * 0.2, 0.28);
+    drawCircle(Offset(w * 0.5, baseY + w * 0.04), w * 0.24, 0.22);
 
-    _drawCloud(canvas, Offset(center.dx, center.dy + 8), size.width * 0.38, cloudPaint);
-
-    // Upload arrow
+    // Upload arrow (below circles)
     final arrowPaint = Paint()
-      ..color = kEvalSecondary.withValues(alpha: 0.85)
-      ..strokeWidth = 3
+      ..color = _navy.withValues(alpha: 0.75)
+      ..strokeWidth = 2.8
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
-    canvas.drawLine(
-      Offset(center.dx, center.dy + size.height * 0.12),
-      Offset(center.dx, center.dy - size.height * 0.06),
-      arrowPaint,
-    );
-    canvas.drawLine(
-      Offset(center.dx, center.dy - size.height * 0.06),
-      Offset(center.dx - 10, center.dy + size.height * 0.02),
-      arrowPaint,
-    );
-    canvas.drawLine(
-      Offset(center.dx, center.dy - size.height * 0.06),
-      Offset(center.dx + 10, center.dy + size.height * 0.02),
-      arrowPaint,
-    );
+    final ax = w * 0.5;
+    final ay = baseY + w * 0.22;
+    canvas.drawLine(Offset(ax, ay + w * 0.08), Offset(ax, ay - w * 0.02), arrowPaint);
+    canvas.drawLine(Offset(ax, ay - w * 0.02), Offset(ax - 9, ay + w * 0.04), arrowPaint);
+    canvas.drawLine(Offset(ax, ay - w * 0.02), Offset(ax + 9, ay + w * 0.04), arrowPaint);
 
-    // Media tile
+    // Device tile (camera / video)
+    final tileW = w * 0.3;
+    final tileH = w * 0.3;
+    final tileCenter = Offset(w * 0.5, h * 0.32);
     final tileRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: Offset(center.dx, center.dy - size.height * 0.18),
-        width: size.width * 0.28,
-        height: size.width * 0.28,
-      ),
-      const Radius.circular(10),
+      Rect.fromCenter(center: tileCenter, width: tileW, height: tileH),
+      Radius.circular(tileW * 0.22),
     );
     canvas.drawRRect(
       tileRect,
       Paint()
-        ..shader = LinearGradient(
-          colors: [kEvalPrimary, kEvalSecondary.withValues(alpha: 0.9)],
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E40AF), _navy],
         ).createShader(tileRect.outerRect),
     );
     canvas.drawRRect(
       tileRect,
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.35)
+        ..color = Colors.white.withValues(alpha: 0.25)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2,
     );
 
+    final iconCenter = tileCenter;
     if (isVideo) {
       final play = Path()
-        ..moveTo(center.dx - 4, center.dy - size.height * 0.22)
-        ..lineTo(center.dx + 8, center.dy - size.height * 0.18)
-        ..lineTo(center.dx - 4, center.dy - size.height * 0.14)
+        ..moveTo(iconCenter.dx - 5, iconCenter.dy - 7)
+        ..lineTo(iconCenter.dx + 9, iconCenter.dy)
+        ..lineTo(iconCenter.dx - 5, iconCenter.dy + 7)
         ..close();
       canvas.drawPath(play, Paint()..color = Colors.white.withValues(alpha: 0.95));
     } else {
       canvas.drawCircle(
-        Offset(center.dx - 4, center.dy - size.height * 0.2),
-        4,
-        Paint()..color = Colors.white.withValues(alpha: 0.9),
+        Offset(iconCenter.dx, iconCenter.dy - 2),
+        tileW * 0.14,
+        Paint()..color = Colors.white.withValues(alpha: 0.92),
       );
-      canvas.drawArc(
-        Rect.fromCenter(center: Offset(center.dx - 4, center.dy - size.height * 0.2), width: 14, height: 10),
-        0.2,
-        math.pi,
-        false,
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.9)
-          ..strokeWidth = 1.6
-          ..style = PaintingStyle.stroke,
+      canvas.drawCircle(
+        Offset(iconCenter.dx, iconCenter.dy - 2),
+        tileW * 0.09,
+        Paint()..color = _navy.withValues(alpha: 0.35),
       );
+      final body = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(iconCenter.dx, iconCenter.dy + tileW * 0.12),
+          width: tileW * 0.38,
+          height: tileW * 0.22,
+        ),
+        const Radius.circular(4),
+      );
+      canvas.drawRRect(body, Paint()..color = Colors.white.withValues(alpha: 0.9));
     }
-  }
-
-  void _drawCloud(Canvas canvas, Offset center, double radius, Paint paint) {
-    canvas.drawCircle(center, radius * 0.55, paint);
-    canvas.drawCircle(Offset(center.dx - radius * 0.45, center.dy + 4), radius * 0.38, paint);
-    canvas.drawCircle(Offset(center.dx + radius * 0.42, center.dy + 6), radius * 0.34, paint);
   }
 
   @override

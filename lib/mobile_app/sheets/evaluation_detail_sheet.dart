@@ -8,6 +8,16 @@ import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart'
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 
+String _detailAdminRemarks(Evaluation ev) {
+  final r = ev.adminRemarks?.trim() ?? '';
+  if (r.isNotEmpty) return r;
+  final s = (ev.reviewStatus ?? '').toLowerCase();
+  if (s.contains('reupload')) {
+    return 'An administrator requested a new upload. Open the full report to re-upload.';
+  }
+  return '';
+}
+
 void showEvaluationDetail(BuildContext context, Evaluation ev) {
   showModalBottomSheet(
     context: context,
@@ -75,9 +85,9 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
                   const AdminReviewStatusBadge(reviewStatus: 'pending_review', compact: true),
               ],
             ),
-            if (ev.adminRemarks != null && ev.adminRemarks!.trim().isNotEmpty) ...[
+            if (_detailAdminRemarks(ev).isNotEmpty) ...[
               const SizedBox(height: 10),
-              AdminReviewRemarksPanel(remarks: ev.adminRemarks!),
+              AdminReviewRemarksPanel(remarks: _detailAdminRemarks(ev)),
             ],
 
             if (ev.imageUrl != null && ev.imageUrl!.isNotEmpty) ...[

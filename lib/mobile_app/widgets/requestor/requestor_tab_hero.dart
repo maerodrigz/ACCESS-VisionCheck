@@ -16,36 +16,17 @@ class RequestorHeroTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final narrow = MediaQuery.sizeOf(context).width < 360;
-    final tight = MediaQuery.sizeOf(context).width < 400;
-
-    return ClipRect(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: tight
-                ? Align(
-                    alignment: Alignment.centerLeft,
-                    child: AccessOrgSealLogo(size: narrow ? 30 : 34, showShadow: false),
-                  )
-                : AccessBrandLockup(
-                    markSize: narrow ? 32 : 38,
-                    compact: true,
-                  ),
-          ),
-          if (onNotifications != null)
-            MemberDarkHeroNotificationButton(
-              onTap: onNotifications,
-              compact: tight,
-            ),
-          if (onProfileTap != null)
-            MemberDarkHeroProfileAvatar(
-              onTap: onProfileTap,
-              compact: tight,
-            ),
-        ],
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Expanded(
+          child: AccessBrandLockup(markSize: 40, compact: true),
+        ),
+        if (onNotifications != null)
+          MemberDarkHeroNotificationButton(onTap: onNotifications),
+        if (onProfileTap != null)
+          MemberDarkHeroProfileAvatar(onTap: onProfileTap),
+      ],
     );
   }
 }
@@ -59,6 +40,7 @@ class RequestorTabHero extends StatelessWidget {
     this.onNotifications,
     this.onProfileTap,
     this.mini = false,
+    this.titleFontWeight = FontWeight.w800,
   });
 
   final String title;
@@ -68,6 +50,7 @@ class RequestorTabHero extends StatelessWidget {
 
   /// Smaller bottom radius/padding (gallery-style mini hero).
   final bool mini;
+  final FontWeight titleFontWeight;
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +86,7 @@ class RequestorTabHero extends StatelessWidget {
                   style: dashText(TextStyle(
                     color: Colors.white,
                     fontSize: mini ? 17 : 20,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: titleFontWeight,
                     height: 1.2,
                     letterSpacing: -0.2,
                   )),

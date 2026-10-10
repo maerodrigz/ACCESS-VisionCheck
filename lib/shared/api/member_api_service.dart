@@ -14,6 +14,22 @@ class MemberApiService {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  Future<List<Map<String, dynamic>>> getMilestones({bool unacknowledgedOnly = false}) async {
+    final data = await apiClient.get(
+      '/member/milestones',
+      queryParameters: {'unacknowledged_only': unacknowledgedOnly},
+    );
+    final map = Map<String, dynamic>.from(data as Map);
+    final rows = map['milestones'];
+    if (rows is! List) return [];
+    return rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> acknowledgeMilestone(int milestoneId) async {
+    final data = await apiClient.patch('/member/milestones/$milestoneId/acknowledge', {});
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<Map<String, dynamic>> getParticipation() async {
     final data = await apiClient.get('/member/participation');
     return Map<String, dynamic>.from(data as Map);

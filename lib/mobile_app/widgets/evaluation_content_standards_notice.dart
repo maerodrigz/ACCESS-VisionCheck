@@ -78,11 +78,13 @@ class EvaluationContentStandardsCheckbox extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.onDarkBackground = false,
+    this.compact = false,
   });
 
   final bool value;
   final ValueChanged<bool> onChanged;
   final bool onDarkBackground;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -91,27 +93,36 @@ class EvaluationContentStandardsCheckbox extends StatelessWidget {
         ? (value ? kMemberCyan.withValues(alpha: 0.45) : kEvalGuideDarkBorder)
         : (value ? kEvalPrimary.withValues(alpha: 0.45) : kDashBorder);
     final textStyle = onDarkBackground
-        ? evalGuideDarkSubtitleStyle.copyWith(fontSize: 12, height: 1.35)
-        : evalBodyStyle.copyWith(fontSize: 12, height: 1.35);
+        ? evalGuideDarkSubtitleStyle.copyWith(
+            fontSize: compact ? 11.5 : 12,
+            height: 1.32,
+          )
+        : evalBodyStyle.copyWith(
+            fontSize: compact ? 11.5 : 12,
+            height: 1.32,
+          );
 
     return Material(
-      color: bgColor,
-      borderRadius: BorderRadius.circular(12),
+      color: compact ? Colors.transparent : bgColor,
+      borderRadius: BorderRadius.circular(compact ? 10 : 12),
       child: InkWell(
         onTap: () => onChanged(!value),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(compact ? 10 : 12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 2 : 12,
+            vertical: compact ? 2 : 10,
+          ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(compact ? 10 : 12),
+            border: compact ? null : Border.all(color: borderColor),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                width: 24,
-                height: 24,
+                width: compact ? 22 : 24,
+                height: compact ? 22 : 24,
                 child: Checkbox(
                   value: value,
                   onChanged: (v) => onChanged(v ?? false),
@@ -120,10 +131,10 @@ class EvaluationContentStandardsCheckbox extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: compact ? 6 : 8),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 2),
+                  padding: EdgeInsets.only(top: compact ? 1 : 2),
                   child: Text(
                     MemberXpConfig.contentStandardsCheckbox,
                     style: textStyle,

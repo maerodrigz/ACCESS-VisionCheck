@@ -6,13 +6,16 @@ import 'package:access_mobile/shared/models/user_model.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/constants/api_config.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/mobile_app/screens/change_password_screen.dart';
 import 'package:access_mobile/mobile_app/screens/edit_profile_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
-/// Account-related settings — reuses [EditProfileScreen] for profile edits.
+/// Account-related settings — profile summary and connection options.
 class AccountSettingsScreen extends StatelessWidget {
-  const AccountSettingsScreen({super.key});
+  const AccountSettingsScreen({super.key, this.forRequestor = false});
+
+  final bool forRequestor;
 
   @override
   Widget build(BuildContext context) {
@@ -34,14 +37,15 @@ class AccountSettingsScreen extends StatelessWidget {
       body: ListenableBuilder(
         listenable: appState,
         builder: (context, _) {
-          final isRequestor = authController.user?.role == AccessRole.organization;
+          final roleFromAuth = authController.user?.role == AccessRole.organization;
+          final isRequestor = forRequestor || roleFromAuth;
           final fallbackName = isRequestor ? 'Requestor' : 'Member';
           final name = appState.profileName.trim().isNotEmpty
               ? appState.profileName.trim()
               : authController.user?.name ?? fallbackName;
           final email = appState.profileEmail.trim().isNotEmpty
               ? appState.profileEmail.trim()
-              : authController.user?.email ?? '—';
+              : authController.user?.email ?? 'N/A';
 
           return ListView(
             padding: mobileScrollPadding(context, top: 12),
@@ -51,7 +55,15 @@ class AccountSettingsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Your account', style: memberDashboardCardTitleStyle.copyWith(fontSize: 15)),
+                    Text(
+                      isRequestor ? 'Requestor account' : 'Member account',
+                      style: memberDashboardCardTitleStyle.copyWith(fontSize: 15),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ACCESS VisionCheck · USTP Oroquieta',
+                      style: memberDashboardMetaStyle.copyWith(fontSize: 11),
+                    ),
                     const SizedBox(height: 14),
                     _InfoRow(label: 'Full name', value: name),
                     const SizedBox(height: 10),
@@ -67,7 +79,9 @@ class AccountSettingsScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
+              Text('Manage', style: memberDashboardSectionTitleStyle.copyWith(fontSize: 13)),
+              const SizedBox(height: 10),
               _ActionTile(
                 icon: Icons.person_outline,
                 title: 'Edit profile',
@@ -82,6 +96,18 @@ class AccountSettingsScreen extends StatelessWidget {
                   }
                 },
               ),
+              const SizedBox(height: 10),
+              _ActionTile(
+                icon: Icons.lock_outline,
+                title: 'Change password',
+                subtitle: 'Requires your current password',
+                onTap: () {
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                  );
+                },
+              ),
               if (!kIsWeb) ...[
                 const SizedBox(height: 10),
                 _ActionTile(
@@ -93,8 +119,8 @@ class AccountSettingsScreen extends StatelessWidget {
               ],
               const SizedBox(height: 16),
               Text(
-                'Email changes require an administrator. Use Edit profile for name, photo, and contact.',
-                style: memberDashboardMetaStyle.copyWith(height: 1.4),
+                'Email address changes require an ACCESS administrator.',
+                style: memberDashboardMetaStyle.copyWith(height: 1.45),
               ),
             ],
           );

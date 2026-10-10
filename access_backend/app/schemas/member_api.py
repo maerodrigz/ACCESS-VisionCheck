@@ -273,3 +273,19 @@ class MemberReceivedRatingsOut(BaseModel):
     count: int
     average_rating: float | None = None
     ratings: list[MemberReceivedRatingOut]
+
+
+class MemberMilestoneOut(BaseModel):
+    id: int
+    milestone_kind: str
+    milestone_key: str
+    title: str
+    message: str
+    earned_at: datetime
+    acknowledged_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class MemberMilestonesOut(BaseModel):
+    milestones: list[MemberMilestoneOut]

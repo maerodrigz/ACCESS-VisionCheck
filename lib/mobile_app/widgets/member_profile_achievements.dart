@@ -5,6 +5,7 @@ import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/stat_card.dart';
+import 'package:access_mobile/shared/models/member_milestone.dart';
 
 /// Milestone definitions aligned with [memberBadge] in app_state.dart.
 class _BadgeMilestone {
@@ -28,37 +29,56 @@ class MemberAchievementsResolver {
   static const _badgeMilestones = [
     _BadgeMilestone(
       goodEvalCount: 1,
-      title: 'Beginner Badge',
-      description: 'Earned Beginner status with your first quality evaluation.',
+      title: '1 quality evaluation',
+      description: 'First practice evaluation scored at 70% or higher.',
       icon: Icons.military_tech_outlined,
     ),
     _BadgeMilestone(
       goodEvalCount: 3,
-      title: 'Intermediate Badge',
-      description: 'Reached Intermediate with 3 quality evaluations.',
+      title: '3 quality evaluations',
+      description: 'Three strong practice scores (local milestone, not skill tier).',
       icon: Icons.workspace_premium_outlined,
     ),
     _BadgeMilestone(
       goodEvalCount: 6,
-      title: 'Advanced Badge',
-      description: 'Advanced badge unlocked with 6 quality evaluations.',
+      title: '6 quality evaluations',
+      description: 'Six strong practice scores logged.',
       icon: Icons.emoji_events_outlined,
     ),
     _BadgeMilestone(
       goodEvalCount: 10,
-      title: 'Expert Badge',
-      description: 'Expert badge unlocked with 10 quality evaluations.',
+      title: '10 quality evaluations',
+      description: 'Ten strong practice scores logged.',
       icon: Icons.stars_rounded,
     ),
     _BadgeMilestone(
       goodEvalCount: 15,
-      title: 'Master Badge',
-      description: 'Master badge unlocked with 15 quality evaluations.',
+      title: '15 quality evaluations',
+      description: 'Fifteen strong practice scores logged.',
       icon: Icons.auto_awesome_rounded,
     ),
   ];
 
-  static List<Achievement> resolve() {
+  static List<Achievement> fromServerMilestones(List<MemberMilestone> milestones) {
+    return [
+      for (final m in milestones)
+        Achievement(
+          title: m.title,
+          description: m.message,
+          icon: m.icon,
+          color: m.accentColor,
+          date: _formatMilestoneDate(m.earnedAt),
+        ),
+    ];
+  }
+
+  static String _formatMilestoneDate(DateTime? dt) {
+    if (dt == null) return '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  static List<Achievement> resolve({List<MemberMilestone> serverMilestones = const []}) {
     final scoredNewestFirst =
         appState.evaluations.where((e) => e.score > 0).toList();
     final goodNewestFirst =
@@ -127,7 +147,12 @@ class MemberAchievementsResolver {
     if (earned.isEmpty) return const [];
 
     earned.sort((a, b) => b.sortOrder.compareTo(a.sortOrder));
-    return earned.map((e) => e.achievement).toList();
+    final local = earned.map((e) => e.achievement).toList();
+    final official = fromServerMilestones(serverMilestones);
+    if (official.isEmpty) return local;
+    if (local.isEmpty) return official;
+    final seen = official.map((a) => a.title.trim().toLowerCase()).toSet();
+    return [...official, ...local.where((a) => !seen.contains(a.title.trim().toLowerCase()))];
   }
 
   static _EarnedAchievement? _improvingCreatorMilestone(

@@ -37,9 +37,9 @@ class AccessRibbonMark extends StatelessWidget {
   }
 }
 
-/// Circular org seal — full artwork visible ([BoxFit.contain]), no square JPEG matte.
-class AccessOrgSealLogo extends StatelessWidget {
-  const AccessOrgSealLogo({
+/// Circular launcher / org mark — same round icon as the home screen (not a white square).
+class AccessLauncherCircleLogo extends StatelessWidget {
+  const AccessLauncherCircleLogo({
     super.key,
     required this.size,
     this.showShadow = true,
@@ -48,44 +48,106 @@ class AccessOrgSealLogo extends StatelessWidget {
 
   final double size;
   final bool showShadow;
-  /// Insets the raster so the outer ring/text stay inside the circle clip.
   final double paddingFraction;
 
   @override
   Widget build(BuildContext context) {
-    final inset = (size * paddingFraction).clamp(2.0, 14.0);
+    return AccessOrgSealLogo(
+      size: size,
+      showShadow: showShadow,
+      paddingFraction: paddingFraction,
+      preferLauncherForeground: true,
+    );
+  }
+}
+
+/// Circular org seal — full artwork visible ([BoxFit.contain]), no square JPEG matte.
+class AccessOrgSealLogo extends StatelessWidget {
+  const AccessOrgSealLogo({
+    super.key,
+    required this.size,
+    this.showShadow = true,
+    this.paddingFraction = 0.05,
+    this.preferLauncherForeground = false,
+    this.showWhitePlate = true,
+    this.imageFit = BoxFit.contain,
+  });
+
+  final double size;
+  final bool showShadow;
+  /// Insets the raster so the outer ring/text stay inside the circle clip.
+  final double paddingFraction;
+  /// Splash + launcher parity: adaptive-icon foreground PNG first.
+  final bool preferLauncherForeground;
+  /// White circle behind the seal (off on login hero so the gradient shows through).
+  final bool showWhitePlate;
+  final BoxFit imageFit;
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = showWhitePlate
+        ? (size * paddingFraction).clamp(2.0, 14.0)
+        : (size * paddingFraction).clamp(0.0, 8.0);
     final inner = size - inset * 2;
 
     Widget sealImage() {
-      return Image.asset(
-        kAccessOrgSealAsset,
-        width: inner,
-        height: inner,
-        fit: BoxFit.contain,
-        alignment: Alignment.center,
-        filterQuality: FilterQuality.high,
-        gaplessPlayback: true,
-        semanticLabel:
-            'ACCESS, Active Certified Computer-Enhance Student Society, USTP Oroquieta',
-        errorBuilder: (_, __, ___) => Center(
-          child: AccessRibbonMark(size: inner * 0.88),
+      Widget ribbonFallback() => Center(child: AccessRibbonMark(size: inner * 0.88));
+
+      Widget loadAsset(String asset, {required Widget Function() onError}) {
+        return Image.asset(
+          asset,
+          width: inner,
+          height: inner,
+          fit: imageFit,
+          alignment: Alignment.center,
+          filterQuality: FilterQuality.high,
+          gaplessPlayback: true,
+          semanticLabel:
+              'ACCESS, Active Certified Computer-Enhance Student Society, USTP Oroquieta',
+          frameBuilder: (context, child, frame, wasSync) {
+            if (wasSync || frame != null) return child;
+            return ribbonFallback();
+          },
+          errorBuilder: (_, __, ___) => onError(),
+        );
+      }
+
+      if (preferLauncherForeground) {
+        return loadAsset(
+          kAccessLauncherForegroundAsset,
+          onError: () => loadAsset(kAccessOrgSealAsset, onError: ribbonFallback),
+        );
+      }
+      return loadAsset(kAccessOrgSealAsset, onError: ribbonFallback);
+    }
+
+    final Widget disk;
+    if (showWhitePlate) {
+      disk = ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: ColoredBox(
+            color: Colors.white,
+            child: Padding(
+              padding: EdgeInsets.all(inset),
+              child: Center(child: sealImage()),
+            ),
+          ),
+        ),
+      );
+    } else {
+      disk = ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Padding(
+            padding: EdgeInsets.all(inset),
+            child: sealImage(),
+          ),
         ),
       );
     }
-
-    final disk = ClipOval(
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: ColoredBox(
-          color: Colors.white,
-          child: Padding(
-            padding: EdgeInsets.all(inset),
-            child: Center(child: sealImage()),
-          ),
-        ),
-      ),
-    );
 
     if (!showShadow) return disk;
 
@@ -124,44 +186,47 @@ class AccessBrandLockup extends StatelessWidget {
     final subtitleSize = compact ? 13.0 : 15.0;
     final gap = compact ? 10.0 : 12.0;
 
-    return Row(
-      mainAxisSize: MainAxisSize.max,
-      crossAxisAlignment: CrossAxisAlignment.center,
+    final wordmark = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        AccessOrgSealLogo(size: markSize, showShadow: false),
-        SizedBox(width: gap),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'ACCESS',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: kCyan,
-                  fontSize: titleSize,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.2,
-                  height: 1.05,
-                ),
-              ),
-              Text(
-                'VisionCheck',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: subtitleSize,
-                  fontWeight: FontWeight.w600,
-                  height: 1.15,
-                ),
-              ),
-            ],
+        Text(
+          'ACCESS',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: kCyan,
+            fontSize: titleSize,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.2,
+            height: 1.05,
+          ),
+        ),
+        Text(
+          'VisionCheck',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: subtitleSize,
+            fontWeight: FontWeight.w600,
+            height: 1.15,
           ),
         ),
       ],
+    );
+
+    // Fill the hero [Expanded] slot so the wordmark column gets horizontal space.
+    return SizedBox(
+      width: double.infinity,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          AccessOrgSealLogo(size: markSize, showShadow: false),
+          SizedBox(width: gap),
+          Expanded(child: wordmark),
+        ],
+      ),
     );
   }
 }

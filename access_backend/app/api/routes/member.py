@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_approved
 from app.crud import assignment_member_feedback as member_rating_crud
 from app.crud import media as media_crud
+from app.crud import member_milestone as milestone_crud
 from app.crud import member_profile as profile_crud
 from app.crud import member_ranking as ranking_crud
 from app.crud import system_settings as settings_crud
@@ -13,6 +14,8 @@ from app.crud import user as user_crud
 from app.database import get_db
 from app.models.user import User
 from app.schemas.member_api import (
+    MemberMilestoneOut,
+    MemberMilestonesOut,
     MemberReceivedRatingOut,
     MemberReceivedRatingsOut,
     ParticipationOut,
@@ -123,6 +126,55 @@ def list_received_requester_ratings(
             )
             for row in rows
         ],
+    )
+
+
+@router.get("/milestones", response_model=MemberMilestonesOut)
+def list_member_milestones(
+    unacknowledged_only: bool = False,
+    limit: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    rows = milestone_crud.list_for_user(
+        db,
+        current_user.id,
+        unacknowledged_only=unacknowledged_only,
+        limit=limit,
+    )
+    return MemberMilestonesOut(
+        milestones=[
+            MemberMilestoneOut(
+                id=row.id,
+                milestone_kind=row.milestone_kind,
+                milestone_key=row.milestone_key,
+                title=row.title,
+                message=row.message,
+                earned_at=row.created_at,
+                acknowledged_at=row.acknowledged_at,
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.patch("/milestones/{milestone_id}/acknowledge", response_model=MemberMilestoneOut)
+def acknowledge_member_milestone(
+    milestone_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    row = milestone_crud.acknowledge(db, current_user.id, milestone_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    return MemberMilestoneOut(
+        id=row.id,
+        milestone_kind=row.milestone_kind,
+        milestone_key=row.milestone_key,
+        title=row.title,
+        message=row.message,
+        earned_at=row.created_at,
+        acknowledged_at=row.acknowledged_at,
     )
 
 

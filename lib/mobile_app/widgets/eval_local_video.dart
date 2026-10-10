@@ -9,6 +9,10 @@ import 'package:access_mobile/mobile_app/widgets/eval_video_playback_stub.dart'
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
+import 'package:access_mobile/shared/themes/theme.dart';
+
+/// Shared preview frame for upload confirmation and evaluation result.
+const kEvalPreviewAspectRatio = 16 / 8.8;
 
 String _formatEvalMediaDuration(Duration duration) {
   final totalSeconds = duration.inSeconds;
@@ -91,20 +95,28 @@ class EvalPhotoPreviewTile extends StatelessWidget {
     required this.bytes,
     required this.fileName,
     this.aspectRatio = 16 / 10,
+    this.showFullImage = false,
+    this.showTapHint = true,
     this.onTap,
   });
 
   final Uint8List bytes;
   final String fileName;
   final double aspectRatio;
+  /// When true, the entire image is shown inside the frame (letterboxed, no crop).
+  final bool showFullImage;
+  /// Bottom-left chip (e.g. "Tap to zoom"). Hide when the screen has its own action button.
+  final bool showTapHint;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final imageFit = showFullImage ? BoxFit.contain : BoxFit.cover;
+
     return AspectRatio(
       aspectRatio: aspectRatio,
       child: Material(
-        color: Colors.transparent,
+        color: showFullImage ? kBg : Colors.transparent,
         child: InkWell(
           onTap: onTap ??
               () => openEvalPhotoPreviewViewer(
@@ -115,45 +127,64 @@ class EvalPhotoPreviewTile extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.memory(bytes, fit: BoxFit.cover),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.02),
-                      Colors.black.withValues(alpha: 0.28),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 12,
-                bottom: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              if (showFullImage)
+                Center(child: Image.memory(bytes, fit: imageFit))
+              else
+                Image.memory(bytes, fit: imageFit),
+              if (!showFullImage)
+                DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.02),
+                        Colors.black.withValues(alpha: 0.28),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.open_in_full_rounded, color: Colors.white, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Tap to zoom',
-                        style: dashText(const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        )),
-                      ),
-                    ],
+                )
+              else
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.35),
+                        Colors.transparent,
+                      ],
+                      stops: const [0, 0.35],
+                    ),
                   ),
                 ),
-              ),
+              if (showTapHint)
+                Positioned(
+                  left: 12,
+                  bottom: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.open_in_full_rounded, color: Colors.white, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Tap to zoom',
+                          style: dashText(const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          )),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -171,6 +202,7 @@ class EvalVideoPreviewTile extends StatelessWidget {
     this.filePath,
     this.previewBytes,
     this.aspectRatio = 16 / 10,
+    this.showFullThumbnail = false,
     this.onTap,
   });
 
@@ -179,12 +211,19 @@ class EvalVideoPreviewTile extends StatelessWidget {
   final String? filePath;
   final Uint8List? previewBytes;
   final double aspectRatio;
+  /// Letterbox thumbnail frame (matches photo [showFullImage] on result screens).
+  final bool showFullThumbnail;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final thumbnail = previewBytes != null
-        ? Image.memory(previewBytes!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+        ? (showFullThumbnail
+            ? ColoredBox(
+                color: kBg,
+                child: Center(child: Image.memory(previewBytes!, fit: BoxFit.contain)),
+              )
+            : Image.memory(previewBytes!, fit: BoxFit.cover, width: double.infinity, height: double.infinity))
         : Container(
             color: kEvalSecondaryLight,
             child: const Center(

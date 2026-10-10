@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/navigation/notification_navigation.dart';
-import 'package:access_mobile/mobile_app/screens/notification_settings_screen.dart';
-import 'package:access_mobile/mobile_app/screens/requestor/requestor_notification_settings_screen.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
+import 'package:access_mobile/shared/models/app_notification_mapper.dart';
 import 'package:access_mobile/shared/models/user_model.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
@@ -12,37 +13,7 @@ import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 
 const _sheetTopRadius = 20.0;
 
-// ── Category accent colors ────────────────────────────────────────────────────
-// Assignment    → kAccent (blue)
-// Evaluation    → kCyan
-// Integrity     → kYellow (amber) — review only, NOT "AI-generated"
-// Approved/done → kGreen
-// Alert/Error   → kRed (only when necessary)
-// Announcement  → kAccent
-
-Color _categoryAccent(String category) => switch (category) {
-      'task_assignment' => kAccent,
-      'documentation_request' => kAccent,
-      'media_evaluation' => kCyan,
-      'ai_detection' => kYellow,
-      'feedback' => kGreen,
-      'announcement' => kAccent,
-      'system_alert' => kAccent,
-      _ => kTextSecondary,
-    };
-
-IconData _categoryIcon(String category) => switch (category) {
-      'task_assignment' => Icons.assignment_outlined,
-      'documentation_request' => Icons.description_outlined,
-      'media_evaluation' => Icons.analytics_outlined,
-      'ai_detection' => Icons.shield_outlined,
-      'feedback' => Icons.star_outline_rounded,
-      'announcement' => Icons.campaign_outlined,
-      'system_alert' => Icons.info_outline_rounded,
-      _ => Icons.notifications_outlined,
-    };
-
-// ── Filter / category label helpers ──────────────────────────────────────────
+// ── Filter helpers ───────────────────────────────────────────────────────────
 
 enum _MemberNotificationFilter { all, unread, assignments, evaluations, alerts }
 
@@ -75,7 +46,10 @@ bool _matchesFilter(
         ? n.category == 'documentation_request'
         : n.category == 'task_assignment' || n.category == 'documentation_request',
     _MemberNotificationFilter.evaluations =>
-      n.category == 'media_evaluation' || n.category == 'ai_detection',
+      n.category == 'media_evaluation' ||
+      n.category == 'ai_detection' ||
+      n.actionType == 'milestone' ||
+      n.actionType == 'view_admin_feedback',
     _MemberNotificationFilter.alerts =>
       n.category == 'system_alert' ||
       n.category == 'feedback' ||
@@ -91,20 +65,6 @@ String _filterLabel(_MemberNotificationFilter filter, {required bool requestor})
       requestor ? 'Requests' : 'Assignments',
     _MemberNotificationFilter.evaluations => 'Evaluations',
     _MemberNotificationFilter.alerts => 'Alerts',
-  };
-}
-
-String _categoryLabel(AppNotification n, {required bool requestor}) {
-  return switch (n.category) {
-    'task_assignment' => 'Assignment',
-    'documentation_request' => requestor ? 'Request update' : 'Documentation',
-    'media_evaluation' => 'Evaluation',
-    // Integrity: never claim "AI-generated" unless confirmed — use review label
-    'ai_detection' => 'Integrity review',
-    'feedback' => 'Feedback',
-    'announcement' => 'Announcement',
-    'system_alert' => 'Announcement',
-    _ => 'Alert',
   };
 }
 
@@ -187,6 +147,7 @@ List<(String, List<AppNotification>)> _groupByTime(List<AppNotification> items) 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 void showNotifications(BuildContext context) {
+  unawaited(memberDataController.refreshNotifications());
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -287,18 +248,6 @@ class _NotificationCenterSheetState extends State<_NotificationCenterSheet> {
     showMobileToast(context, 'Read notifications cleared');
   }
 
-  Future<void> _openSettings() async {
-    final requestor = _isRequestorAccount();
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => requestor
-            ? const RequestorNotificationSettingsScreen()
-            : const NotificationSettingsScreen(),
-      ),
-    );
-  }
-
   Future<void> _onNotificationTap(AppNotification n) async {
     setState(() => _openingNotificationId = n.id);
     try {
@@ -317,7 +266,7 @@ class _NotificationCenterSheetState extends State<_NotificationCenterSheet> {
       expand: false,
       builder: (_, scrollController) {
         return ListenableBuilder(
-          listenable: appState,
+          listenable: Listenable.merge([appState, memberDataController]),
           builder: (context, _) {
             final isRequestor = _isRequestorAccount();
             final all = appState.notifications;
@@ -341,7 +290,6 @@ class _NotificationCenterSheetState extends State<_NotificationCenterSheet> {
                       loading: _loading,
                       onRefresh: _loading ? null : _refresh,
                       onClose: () => Navigator.pop(context),
-                      onSettings: _openSettings,
                     ),
                     Expanded(
                       child: RefreshIndicator(
@@ -504,15 +452,6 @@ class _NotificationCenterSheetState extends State<_NotificationCenterSheet> {
                                         textStyle: const TextStyle(fontSize: 12),
                                       ),
                                     ),
-                                    TextButton.icon(
-                                      onPressed: _openSettings,
-                                      icon: const Icon(Icons.tune_rounded, size: 16),
-                                      label: const Text('Notification preferences'),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: kAccent,
-                                        textStyle: const TextStyle(fontSize: 12),
-                                      ),
-                                    ),
                                   ],
                                 ),
                               ),
@@ -542,7 +481,6 @@ class _NotificationsLightHeader extends StatelessWidget {
     required this.unreadCount,
     required this.loading,
     required this.onClose,
-    required this.onSettings,
     this.onRefresh,
   });
 
@@ -551,7 +489,6 @@ class _NotificationsLightHeader extends StatelessWidget {
   final bool loading;
   final VoidCallback? onRefresh;
   final VoidCallback onClose;
-  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -656,15 +593,6 @@ class _NotificationsLightHeader extends StatelessWidget {
                       tooltip: 'Refresh',
                       style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
                     ),
-                  // Settings
-                  IconButton(
-                    onPressed: onSettings,
-                    icon: const Icon(Icons.settings_outlined),
-                    color: kTextSecondary,
-                    iconSize: 20,
-                    tooltip: 'Notification settings',
-                    style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
-                  ),
                 ],
               ),
             ),
@@ -829,9 +757,10 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = notification;
-    final accent = _categoryAccent(n.category);
-    final icon = _categoryIcon(n.category);
-    final categoryLabel = _categoryLabel(n, requestor: requestor);
+    final presentation = notificationPresentation(n, requestor: requestor);
+    final categoryLabel = presentation.$1;
+    final icon = presentation.$2;
+    final accent = presentation.$3;
     final displayTitle = _displayTitle(n);
     final timeLabel = n.createdAt ?? '';
     final isUnread = !n.read;

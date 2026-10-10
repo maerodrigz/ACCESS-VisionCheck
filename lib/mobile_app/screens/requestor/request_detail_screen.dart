@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:access_mobile/mobile_app/navigation/requestor_shell_navigation.dart';
 import 'package:access_mobile/mobile_app/screens/requestor/reschedule_calendar_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
@@ -6,6 +7,7 @@ import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/models/reschedule_models.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/request_progress_tracker.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
 /// Detailed documentation request view for requestors.
@@ -49,6 +51,41 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  VoidCallback? get _openGallery =>
+      widget.onViewGallery ?? RequestorShellNavigation.openGallery;
+
+  void Function({int? requestId})? get _openFeedback =>
+      widget.onViewFeedback ?? RequestorShellNavigation.openFeedback;
+
+  void _goToGallery(BuildContext context) {
+    final action = _openGallery;
+    if (action == null) {
+      _showNavUnavailable(context);
+      return;
+    }
+    Navigator.pop(context);
+    action();
+  }
+
+  void _goToFeedback(BuildContext context, int? requestId) {
+    final action = _openFeedback;
+    if (action == null) {
+      _showNavUnavailable(context);
+      return;
+    }
+    Navigator.pop(context);
+    action(requestId: requestId);
+  }
+
+  void _showNavUnavailable(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Open this screen from the requestor home tab.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final request = _request;
@@ -83,19 +120,17 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         ),
         children: [
           _RequestDetailHero(request: request, status: status, style: style),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          RequestProgressTracker(request: request),
+          const SizedBox(height: 14),
+          if (status == RequestStatus.pending) const _PendingCallout(),
           if (status == RequestStatus.rejected) _RejectionSection(request: request),
-          if (status == RequestStatus.approved)
-            _ApprovedCallout(
-              request: request,
-              onViewGallery: widget.onViewGallery,
-              onViewFeedback: widget.onViewFeedback,
-            ),
+          if (status == RequestStatus.approved) const _ApprovedCallout(),
           if (status == RequestStatus.completed)
-            _CompletedSection(
+            _CompletedActionsSection(
               request: request,
-              onViewGallery: widget.onViewGallery,
-              onViewFeedback: widget.onViewFeedback,
+              onViewGallery: () => _goToGallery(context),
+              onViewFeedback: () => _goToFeedback(context, request.requestId),
             ),
           _EventInformationCard(
             request: request,
@@ -132,8 +167,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               history: request.rescheduleHistory,
             ),
           ],
-          const SizedBox(height: 14),
-          _StatusHistoryCard(request: request),
         ],
       ),
     );
@@ -402,16 +435,8 @@ class _HeroMetaRow extends StatelessWidget {
   }
 }
 
-class _ApprovedCallout extends StatelessWidget {
-  const _ApprovedCallout({
-    required this.request,
-    this.onViewGallery,
-    this.onViewFeedback,
-  });
-
-  final ServiceRequest request;
-  final VoidCallback? onViewGallery;
-  final void Function({int? requestId})? onViewFeedback;
+class _PendingCallout extends StatelessWidget {
+  const _PendingCallout();
 
   @override
   Widget build(BuildContext context) {
@@ -419,77 +444,80 @@ class _ApprovedCallout extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 14),
       child: MemberDashboardCard(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: kGreenDim,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.check_circle_rounded, color: kGreen, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Approved for documentation',
-                        style: memberDashboardCardTitleStyle.copyWith(color: kGreen, fontSize: 14),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'ACCESS will coordinate member coverage for this event.',
-                        style: memberDashboardBodyStyle.copyWith(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: kAccent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.hourglass_top_rounded, color: kAccent, size: 22),
             ),
-            if (onViewGallery != null || onViewFeedback != null) ...[
-              const SizedBox(height: 14),
-              if (onViewGallery != null)
-                MemberDashboardPrimaryButton(
-                  label: 'View event gallery',
-                  icon: Icons.photo_library_rounded,
-                  onPressed: () {
-                    Navigator.pop(context);
-                    onViewGallery!();
-                  },
-                ),
-              if (onViewFeedback != null) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      onViewFeedback!(requestId: request.requestId);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kAccent,
-                      side: const BorderSide(color: kAccent),
-                      minimumSize: Size.fromHeight(kMobileMinTouch),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
-                      ),
-                    ),
-                    icon: const Icon(Icons.rate_review_outlined, size: 18),
-                    label: const Text(
-                      'Rate coverage',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Awaiting review',
+                    style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
                   ),
-                ),
-              ],
-            ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'An administrator will approve or decline this request. You will be notified in the app.',
+                    style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.35),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ApprovedCallout extends StatelessWidget {
+  const _ApprovedCallout();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: MemberDashboardCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: kGreenDim,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: kGreen, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Approved for documentation',
+                    style: memberDashboardCardTitleStyle.copyWith(color: kGreen, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ACCESS will assign members to cover this event. Gallery and feedback unlock after completion.',
+                    style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.35),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -538,16 +566,16 @@ class _RejectionSection extends StatelessWidget {
   }
 }
 
-class _CompletedSection extends StatelessWidget {
-  const _CompletedSection({
+class _CompletedActionsSection extends StatelessWidget {
+  const _CompletedActionsSection({
     required this.request,
-    this.onViewGallery,
-    this.onViewFeedback,
+    required this.onViewGallery,
+    required this.onViewFeedback,
   });
 
   final ServiceRequest request;
-  final VoidCallback? onViewGallery;
-  final void Function({int? requestId})? onViewFeedback;
+  final VoidCallback onViewGallery;
+  final VoidCallback onViewFeedback;
 
   @override
   Widget build(BuildContext context) {
@@ -577,7 +605,7 @@ class _CompletedSection extends StatelessWidget {
                     children: [
                       Text(
                         'Documentation completed',
-                        style: memberDashboardCardTitleStyle.copyWith(color: kAccent, fontSize: 14),
+                        style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
                       ),
                       Text(
                         formatRequestDate(completion),
@@ -589,40 +617,32 @@ class _CompletedSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            if (onViewGallery != null)
-              MemberDashboardPrimaryButton(
-                label: 'View event gallery',
-                icon: Icons.photo_library_rounded,
-                onPressed: () {
-                  Navigator.pop(context);
-                  onViewGallery!();
-                },
-              ),
-            if (onViewFeedback != null) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    onViewFeedback!(requestId: request.requestId);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: kAccent,
-                    side: const BorderSide(color: kAccent),
-                    minimumSize: Size.fromHeight(kMobileMinTouch),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
-                    ),
-                  ),
-                  icon: const Icon(Icons.rate_review_outlined, size: 18),
-                  label: const Text(
-                    'Rate coverage',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+            MemberDashboardPrimaryButton(
+              label: 'View event gallery',
+              icon: Icons.photo_library_rounded,
+              color: kAccent,
+              onPressed: onViewGallery,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onViewFeedback,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kAccent,
+                  side: const BorderSide(color: kAccent),
+                  minimumSize: Size.fromHeight(kMobileMinTouch),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
                   ),
                 ),
+                icon: const Icon(Icons.rate_review_outlined, size: 18),
+                label: const Text(
+                  'Rate member coverage',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -682,103 +702,6 @@ class _InfoRow extends StatelessWidget {
               height: 1.4,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusHistoryCard extends StatelessWidget {
-  const _StatusHistoryCard({required this.request});
-
-  final ServiceRequest request;
-
-  @override
-  Widget build(BuildContext context) {
-    final submitted = request.submissionDate;
-    final updated = request.updatedAt;
-    final status = request.requestStatus;
-
-    final steps = <(String, DateTime?, Color)>[
-      ('Submitted', submitted, kAccent),
-      if (request.rescheduleHistory.isNotEmpty)
-        ('Rescheduled & resubmitted', request.lastRescheduledAt, kYellow),
-      if (status == RequestStatus.approved || status == RequestStatus.completed)
-        ('Approved', updated, kGreen)
-      else if (status == RequestStatus.rejected)
-        ('Rejected', updated, kRed),
-      if (status == RequestStatus.completed) ('Completed', updated, kCyan),
-      if (status == RequestStatus.pending)
-        ('Awaiting admin review', null, kYellow),
-    ];
-
-    return MemberDashboardCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Status History', style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16)),
-          const SizedBox(height: 14),
-          for (var i = 0; i < steps.length; i++) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: steps[i].$2 != null || i < steps.length - 1
-                            ? steps[i].$3
-                            : kBorder,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    if (i < steps.length - 1)
-                      Container(
-                        width: 2,
-                        height: 28,
-                        color: steps[i + 1].$2 != null
-                            ? steps[i + 1].$3.withValues(alpha: 0.35)
-                            : kBorder,
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: i < steps.length - 1 ? 18 : 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          steps[i].$1,
-                          style: TextStyle(
-                            color: steps[i].$2 != null || i < steps.length - 1
-                                ? kTextPrimary
-                                : kTextSecondary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (steps[i].$2 != null)
-                          Text(
-                            formatRequestShortDate(steps[i].$2!),
-                            style: memberDashboardBodyStyle.copyWith(fontSize: 12),
-                          )
-                        else if (i == steps.length - 1)
-                          Text(
-                            'In progress',
-                            style: memberDashboardMetaStyle.copyWith(fontSize: 12),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );

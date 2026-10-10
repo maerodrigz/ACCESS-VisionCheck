@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
-import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
+import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
@@ -14,6 +14,16 @@ import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
+
+String _reportAdminRemarks(Evaluation evaluation) {
+  final r = evaluation.adminRemarks?.trim() ?? '';
+  if (r.isNotEmpty) return r;
+  final s = (evaluation.reviewStatus ?? '').toLowerCase();
+  if (s.contains('reupload')) {
+    return 'An administrator requested a new upload. Use Re-upload below.';
+  }
+  return '';
+}
 
 /// Full saved evaluation report — opened from Recent Evaluations.
 class EvaluationReportScreen extends StatelessWidget {
@@ -88,18 +98,27 @@ class EvaluationReportScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
               ] else ...[
-                IntegrityOnlyMessageCard(result: result),
+                IntegrityOnlyMessageCard(
+                  result: result,
+                  reviewStatus: evaluation.reviewStatus,
+                  adminRemarks: evaluation.adminRemarks,
+                ),
                 const SizedBox(height: 16),
+              ],
+              if (result.showQualityFeedbackEffective &&
+                  (_adminRequestedReupload ||
+                      (evaluation.adminRemarks?.trim().isNotEmpty ?? false))) ...[
+                AdminReviewRemarksPanel(
+                  remarks: _reportAdminRemarks(evaluation),
+                ),
+                const SizedBox(height: 12),
               ],
               AiDetectionBanner(
                 aiDetection: result.aiDetection,
                 adminReviewStatus: evaluation.reviewStatus,
                 compact: true,
+                minimal: !result.showQualityFeedbackEffective,
               ),
-              if (evaluation.adminRemarks != null && evaluation.adminRemarks!.trim().isNotEmpty) ...[
-                const SizedBox(height: 10),
-                AdminReviewRemarksPanel(remarks: evaluation.adminRemarks!),
-              ],
             ] else ...[
               Container(
                 padding: const EdgeInsets.all(16),

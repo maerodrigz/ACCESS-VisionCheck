@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
@@ -10,7 +11,7 @@ String _formatRole(String? raw) {
   return normalized[0].toUpperCase() + normalized.substring(1).toLowerCase();
 }
 
-String _formatDate(String? raw) {
+String formatRequestorFeedbackDate(String? raw) {
   if (raw == null || raw.trim().isEmpty) return '';
   final dt = DateTime.tryParse(raw.trim());
   if (dt == null) return raw.trim();
@@ -22,8 +23,8 @@ String _formatDate(String? raw) {
   return '${months[local.month - 1]} ${local.day}, ${local.year}';
 }
 
-class _StarRow extends StatelessWidget {
-  const _StarRow({required this.rating, this.size = 18});
+class RequestorFeedbackStarRow extends StatelessWidget {
+  const RequestorFeedbackStarRow({super.key, required this.rating, this.size = 18});
 
   final int rating;
   final double size;
@@ -40,6 +41,293 @@ class _StarRow extends StatelessWidget {
           size: size,
         ),
       ),
+    );
+  }
+}
+
+/// Single requestor rating row (stars, event, comment, date).
+class RequestorFeedbackEntryCard extends StatelessWidget {
+  const RequestorFeedbackEntryCard({
+    super.key,
+    required this.row,
+    this.compact = false,
+    this.showRequestorMeta = true,
+  });
+
+  final Map<String, dynamic> row;
+  final bool compact;
+  final bool showRequestorMeta;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = (row['rating'] as num?)?.toInt() ?? 0;
+    final eventTitle = row['event_title'] as String?;
+    final requestorName = row['requestor_name'] as String?;
+    final taskRole = _formatRole(row['task_role'] as String?);
+    final comment = row['comment'] as String?;
+    final dateLabel = formatRequestorFeedbackDate(row['created_at'] as String?);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                eventTitle?.trim().isNotEmpty == true
+                    ? eventTitle!.trim()
+                    : 'Event #${row['request_id']}',
+                maxLines: compact ? 1 : 2,
+                overflow: TextOverflow.ellipsis,
+                style: memberDashboardCardTitleStyle.copyWith(fontSize: compact ? 13 : 14),
+              ),
+            ),
+            if (dateLabel.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Text(
+                dateLabel,
+                style: memberDashboardMetaStyle.copyWith(fontSize: 11),
+              ),
+            ],
+          ],
+        ),
+        if (showRequestorMeta &&
+            (requestorName?.trim().isNotEmpty == true || taskRole.isNotEmpty)) ...[
+          const SizedBox(height: 2),
+          Text(
+            [
+              if (requestorName?.trim().isNotEmpty == true) requestorName!.trim(),
+              taskRole,
+            ].join(' · '),
+            style: memberDashboardMetaStyle,
+          ),
+        ],
+        SizedBox(height: compact ? 8 : 10),
+        RequestorFeedbackStarRow(
+          rating: rating.clamp(0, 5),
+          size: compact ? 16 : 18,
+        ),
+        if (comment != null && comment.trim().isNotEmpty) ...[
+          SizedBox(height: compact ? 6 : 10),
+          Text(
+            comment.trim(),
+            maxLines: compact ? 3 : null,
+            overflow: compact ? TextOverflow.ellipsis : null,
+            style: memberDashboardBodyStyle.copyWith(
+              color: kTextPrimary,
+              height: 1.4,
+              fontSize: compact ? 12 : 13,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Compact home dashboard block; uses the same [memberDataController] data as Profile.
+class MemberDashboardRequestorFeedbackSection extends StatelessWidget {
+  const MemberDashboardRequestorFeedbackSection({
+    super.key,
+    required this.onViewAll,
+  });
+
+  final VoidCallback onViewAll;
+
+  bool get _isMemberUser =>
+      authController.isLoggedIn && !(authController.user?.role.isOrganization ?? false);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isMemberUser) return const SizedBox.shrink();
+
+    return ListenableBuilder(
+      listenable: memberDataController,
+      builder: (context, _) {
+        final loaded = memberDataController.requestorRatingsLoaded;
+        final loadError = memberDataController.requestorRatingsLoadError;
+        final loading = !loaded &&
+            loadError == null &&
+            (memberDataController.isLoading || !memberDataController.profileLoadAttempted);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.star_rate_rounded, size: 20, color: kAccent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Requestor Feedback',
+                    style: dashText(const TextStyle(
+                      color: kTextPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    )),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onViewAll,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'View All',
+                    style: dashText(const TextStyle(
+                      color: kAccent,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    )),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (loading)
+              _RequestorFeedbackShell(
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: kAccent,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Loading requestor feedback…',
+                      style: memberDashboardMetaStyle,
+                    ),
+                  ],
+                ),
+              )
+            else if (loadError != null && !loaded)
+              _RequestorFeedbackShell(
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded, size: 20, color: kRed),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        loadError,
+                        style: memberDashboardMetaStyle.copyWith(color: kTextPrimary),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => memberDataController.refreshRequestorRatings(),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            else if (!loaded)
+              const SizedBox.shrink()
+            else if (memberDataController.requestorRatingCount <= 0)
+              _RequestorFeedbackShell(
+                child: Row(
+                  children: [
+                    const Icon(Icons.rate_review_outlined, size: 18, color: kTextSecondary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'No requestor feedback yet.',
+                        style: memberDashboardMetaStyle.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: kTextSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              _RequestorFeedbackShell(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          memberDataController.requestorRatingAverage != null
+                              ? memberDataController.requestorRatingAverage!
+                                  .toStringAsFixed(1)
+                              : 'N/A',
+                          style: memberDashboardCardTitleStyle.copyWith(fontSize: 22),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (memberDataController.requestorRatingAverage != null)
+                                RequestorFeedbackStarRow(
+                                  rating: memberDataController.requestorRatingAverage!
+                                      .round()
+                                      .clamp(1, 5),
+                                  size: 14,
+                                ),
+                              const SizedBox(height: 2),
+                              Text(
+                                memberDataController.requestorRatingCount == 1
+                                    ? '1 review received'
+                                    : '${memberDataController.requestorRatingCount} reviews received',
+                                style: memberDashboardMetaStyle.copyWith(fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (memberDataController.requestorRatings.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Divider(height: 1, color: kBorder.withValues(alpha: 0.8)),
+                      ),
+                      RequestorFeedbackEntryCard(
+                        row: memberDataController.requestorRatings.first,
+                        compact: true,
+                        showRequestorMeta: false,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _RequestorFeedbackShell extends StatelessWidget {
+  const _RequestorFeedbackShell({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }
@@ -123,69 +411,20 @@ class MemberProfileRequestorFeedbackSection extends StatelessWidget {
                       ),
                     ),
                     if (average != null)
-                      _StarRow(rating: average.round().clamp(1, 5), size: 20),
+                      RequestorFeedbackStarRow(
+                        rating: average.round().clamp(1, 5),
+                        size: 20,
+                      ),
                   ],
                 ),
               ),
               const SizedBox(height: 10),
               ...ratings.map((row) {
-                final rating = (row['rating'] as num?)?.toInt() ?? 0;
-                final eventTitle = row['event_title'] as String?;
-                final requestorName = row['requestor_name'] as String?;
-                final taskRole = _formatRole(row['task_role'] as String?);
-                final comment = row['comment'] as String?;
-                final dateLabel = _formatDate(row['created_at'] as String?);
-
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: MemberDashboardCard(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    eventTitle?.trim().isNotEmpty == true
-                                        ? eventTitle!.trim()
-                                        : 'Event #${row['request_id']}',
-                                    style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    [
-                                      if (requestorName?.trim().isNotEmpty == true)
-                                        requestorName!.trim(),
-                                      taskRole,
-                                    ].join(' · '),
-                                    style: memberDashboardMetaStyle,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (dateLabel.isNotEmpty)
-                              Text(dateLabel, style: memberDashboardMetaStyle.copyWith(fontSize: 11)),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        _StarRow(rating: rating.clamp(0, 5)),
-                        if (comment != null && comment.trim().isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Text(
-                            comment.trim(),
-                            style: memberDashboardBodyStyle.copyWith(
-                              color: kTextPrimary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                    child: RequestorFeedbackEntryCard(row: row),
                   ),
                 );
               }),

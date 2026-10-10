@@ -239,11 +239,17 @@ def recalculate_skill_level(db: Session, user: User) -> str:
     Respects admin competency overrides until cleared in Competency Management.
     """
     from app.crud.rankings_admin import resolve_member_skill_level
+    from app.services import member_milestones as milestone_service
 
+    old_level = user.skill_level.level_name if user.skill_level else None
     effective, _, _ = resolve_member_skill_level(db, user.id)
     skill_id = _skill_level_id_for_name(db, effective)
     if skill_id:
         user.skill_level_id = skill_id
+    db.flush()
+    milestone_service.on_skill_level_recalculated(
+        db, user.id, old_level=old_level, new_level=effective
+    )
     db.commit()
     return effective
 

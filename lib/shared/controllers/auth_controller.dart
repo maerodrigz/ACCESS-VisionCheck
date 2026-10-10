@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -6,6 +8,7 @@ import 'package:access_mobile/shared/api/auth_service.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/user_model.dart';
+import 'package:access_mobile/shared/navigation/app_navigator.dart';
 import 'package:access_mobile/shared/services/push_notification_service.dart';
 
 class AuthController extends ChangeNotifier {
@@ -95,15 +98,16 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await PushNotificationService.unregisterCurrent();
     authService.logout();
     _user = null;
     appState.clearMemberProfile();
     memberDataController.resetForLogout();
-    // Switch to login immediately. Persisted session is cleared right after.
     notifyListeners();
+    // Profile and other pushed routes sit above [AuthGate]; pop so login is visible.
+    popToAppRoot();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sessionKey);
+    unawaited(PushNotificationService.unregisterCurrent());
   }
 
   /// Member/org shells load data on first paint; avoid blocking login with a full sync.

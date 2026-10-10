@@ -183,6 +183,13 @@ def run_pipeline(
                 user_crud.recalculate_skill_level(db, user)
             elif not payload:
                 user_crud.recalculate_skill_level(db, user)
+            from app.crud import member_profile as profile_crud
+            from app.services import member_milestones as milestone_service
+
+            eval_count, _ = profile_crud.evaluations_stats(db, user.id)
+            milestone_service.on_evaluation_completed(
+                db, user.id, evaluation_count=eval_count
+            )
 
         from app.services import notification_events as notify_events
 

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ system splash: small centered mark (not full-bleed launcher PNG). -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="38%"
+    android:insetTop="38%"
+    android:insetRight="38%"
+    android:insetBottom="38%">
+    <bitmap
+        android:gravity="center"
+        android:src="@drawable/ic_launcher_foreground" />
+</inset>

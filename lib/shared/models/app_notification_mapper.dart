@@ -5,8 +5,13 @@ import 'package:access_mobile/shared/themes/theme.dart';
 /// Maps API notification payloads to in-app [AppNotification] visuals + actions.
 AppNotification appNotificationFromApi(Map<String, dynamic> n) {
   final category = (n['category'] as String? ?? 'system_alert').toLowerCase();
+  final actionType = n['action_type'] as String?;
   final read = n['is_read'] as bool? ?? false;
-  final visuals = _visualsForCategory(category, read: read);
+  final visuals = notificationVisuals(
+    category: category,
+    actionType: actionType,
+    read: read,
+  );
   final iso = n['created_at'] as String?;
   final dt = DateTime.tryParse(iso ?? '')?.toLocal();
   return AppNotification(
@@ -17,11 +22,51 @@ AppNotification appNotificationFromApi(Map<String, dynamic> n) {
     color: visuals.$2,
     read: read,
     category: category,
-    actionType: n['action_type'] as String?,
+    actionType: actionType,
     actionRefId: n['action_ref_id'] as int?,
     createdAt: _formatNotificationTime(iso),
     createdAtDt: dt,
   );
+}
+
+(String, IconData, Color) notificationPresentation(AppNotification n, {required bool requestor}) {
+  final label = notificationCategoryLabel(n, requestor: requestor);
+  final visuals = notificationVisuals(
+    category: n.category,
+    actionType: n.actionType,
+    read: n.read,
+  );
+  return (label, visuals.$1, visuals.$2);
+}
+
+String notificationCategoryLabel(AppNotification n, {required bool requestor}) {
+  if (n.actionType == 'milestone') return 'Milestone';
+  if (n.actionType == 'view_admin_feedback') return 'Admin review';
+  return switch (n.category) {
+    'task_assignment' => 'Assignment',
+    'documentation_request' => requestor ? 'Request update' : 'Documentation',
+    'media_evaluation' => 'Evaluation',
+    'ai_detection' => 'Integrity review',
+    'feedback' => 'Feedback',
+    'announcement' => 'Announcement',
+    'system_alert' => 'Announcement',
+    _ => 'Alert',
+  };
+}
+
+(IconData, Color) notificationVisuals({
+  required String category,
+  required String? actionType,
+  required bool read,
+}) {
+  if (read) return (Icons.notifications_outlined, kTextSecondary);
+  if (actionType == 'milestone') {
+    return (Icons.emoji_events_outlined, kAccent);
+  }
+  if (actionType == 'view_admin_feedback') {
+    return (Icons.admin_panel_settings_outlined, kCyan);
+  }
+  return _visualsForCategory(category, read: read);
 }
 
 String? _formatNotificationTime(String? iso) {

@@ -1,13 +1,15 @@
+import 'package:access_mobile/mobile_app/sheets/admin_review_notice_sheet.dart';
+import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart' hide AiDetectionResult;
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/utils/member_integrity_display.dart';
 
 /// Builds a [PhotoEvaluationResult] from a saved [Evaluation] row.
 PhotoEvaluationResult? evaluationToPhotoResult(Evaluation ev) {
-  if (!ev.hasAiCriteria && ev.score <= 0) return null;
   if (ev.parsedEvaluation != null) {
     return applyAdminReviewToPhotoResult(ev.parsedEvaluation!, ev.reviewStatus);
   }
+  if (!ev.hasAiCriteria && ev.score <= 0) return null;
   final fallback = PhotoEvaluationResult(
     criteria: ev.criteria,
     overallScore: ev.score <= 1.0 ? ev.score * 5 : ev.score,
@@ -25,6 +27,23 @@ PhotoEvaluationResult? evaluationToPhotoResult(Evaluation ev) {
     geminiFeedback: ev.geminiFeedback,
   );
   return applyAdminReviewToPhotoResult(fallback, ev.reviewStatus);
+}
+
+/// Integrity explanation when opening a report from notifications (API body fallback).
+String memberIntegrityReviewReasonFromEvaluation(
+  Evaluation evaluation, {
+  String? notificationMessage,
+}) {
+  final parsed = evaluation.parsedEvaluation ?? evaluationToPhotoResult(evaluation);
+  if (parsed != null) {
+    final fromPayload = memberIntegrityReviewReason(parsed);
+    if (fromPayload.isNotEmpty) return fromPayload;
+  }
+  final remarks = adminRemarksFromNotificationFallback(notificationMessage);
+  if (remarks.isNotEmpty) return remarks;
+  final feedback = evaluation.feedback.trim();
+  if (feedback.isNotEmpty) return feedback;
+  return '';
 }
 
 List<PhotoEvaluationResult> comparisonResultsFromHistory(

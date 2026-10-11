@@ -61,6 +61,9 @@ String memberIntegrityReviewReason(PhotoEvaluationResult result) {
   final detail = result.aiDetection.detail.trim();
   if (detail.isNotEmpty) return detail;
 
+  final gate = result.reviewGateMessage?.trim() ?? '';
+  if (gate.isNotEmpty) return gate;
+
   if (result.aiDetection.requiresReview) {
     return 'Administrative review is required before scores and coaching are released.';
   }

@@ -159,6 +159,30 @@ def main() -> None:
     chk = sub.add_parser("check", help="Test PostgreSQL connection")
     chk.set_defaults(func=cmd_check)
 
+    def cmd_reset_data(args: argparse.Namespace) -> None:
+        from scripts.reset_operational_data import main as reset_main
+
+        sys.argv = ["reset_operational_data.py"]
+        if args.dry_run:
+            sys.argv.append("--dry-run")
+        if args.confirm:
+            sys.argv.append("--confirm")
+        if args.keep_demo_users:
+            sys.argv.append("--keep-demo-users")
+        if args.skip_upload_dir:
+            sys.argv.append("--skip-upload-dir")
+        reset_main()
+
+    reset = sub.add_parser(
+        "reset_data",
+        help="Remove media, requests, notifications; keep Admin + real registered emails",
+    )
+    reset.add_argument("--dry-run", action="store_true", help="Preview only (default)")
+    reset.add_argument("--confirm", action="store_true", help="Apply reset (needs RESET_ACCESS_DATA=YES)")
+    reset.add_argument("--keep-demo-users", action="store_true", help="Keep demo seed accounts")
+    reset.add_argument("--skip-upload-dir", action="store_true", help="Do not delete uploads/ files")
+    reset.set_defaults(func=cmd_reset_data)
+
     args = parser.parse_args()
 
     if not args.command:

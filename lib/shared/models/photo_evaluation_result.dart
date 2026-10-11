@@ -80,7 +80,11 @@ class AiDetectionResult {
   bool get isAuthentic => !isDeferredAuthenticity && !isAiGenerated && !isSuspicious;
   bool get requiresReview =>
       !isDeferredAuthenticity &&
-      (requiresReviewFlag == true || isAiGenerated || isSuspicious || _riskIsElevated);
+      (requiresReviewFlag == true ||
+          isAiGenerated ||
+          isSuspicious ||
+          isSourceUnverified ||
+          _riskIsElevated);
 
   bool get _riskIsElevated {
     final r = (riskLevel ?? '').toLowerCase();

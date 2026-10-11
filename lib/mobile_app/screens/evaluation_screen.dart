@@ -15,6 +15,7 @@ import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_how_it_works_guide.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_ai_chip_illustration.dart';
+import 'package:access_mobile/mobile_app/utils/practice_evaluation_display.dart';
 
 class EvaluationScreen extends StatefulWidget {
   const EvaluationScreen({super.key, this.onNotificationsTap, this.onProfileTap});
@@ -111,8 +112,26 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                   child: MemberDashboardFadeSlide(
                     index: 3,
                     child: _RecentEvaluationsSection(
-                      evaluations: appState.evaluations,
-                      onTap: (ev) => openEvaluationReport(context, ev, allEvaluations: appState.evaluations),
+                      evaluations: practiceEvaluationsForDisplay(
+                        evaluations: appState.evaluations,
+                        practiceMedia: appState.gallery,
+                      ),
+                      onTap: (ev) {
+                        if (ev.isAnalysisInProgress) {
+                          showMobileToast(
+                            context,
+                            'Analysis is still running. Pull down to refresh in a moment.',
+                            success: false,
+                          );
+                          unawaited(memberDataController.refreshEvaluationsTab());
+                          return;
+                        }
+                        openEvaluationReport(
+                          context,
+                          ev,
+                          allEvaluations: appState.evaluations,
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -229,6 +248,7 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
         final done = appState.evaluationsTodayCount;
         final limit = appState.dailyEvaluationLimit;
         final remaining = appState.evaluationsRemainingToday;
+        final resetLabel = evaluationDailyLimitResetLabel(appState.evaluationDailyTimezone);
 
         return FadeTransition(
           opacity: _fadeAnim,
@@ -328,6 +348,7 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
                         done: done,
                         limit: limit,
                         remaining: remaining,
+                        dailyResetLabel: resetLabel,
                       ),
                     ],
                   ),
@@ -346,11 +367,13 @@ class _EvalHeroDailyFooter extends StatelessWidget {
     required this.done,
     required this.limit,
     required this.remaining,
+    required this.dailyResetLabel,
   });
 
   final int done;
   final int limit;
   final int remaining;
+  final String dailyResetLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -385,6 +408,17 @@ class _EvalHeroDailyFooter extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.92),
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
+                  )),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Resets at midnight ($dailyResetLabel)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: dashText(TextStyle(
+                    color: Colors.white.withValues(alpha: 0.78),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
                   )),
                 ),
                 const SizedBox(height: 6),
@@ -965,7 +999,12 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
                     Positioned(
                       left: 8,
                       bottom: 8,
-                      child: _ScoreBadge(percent: pct, pending: ev.isPending, compact: true),
+                      child: _ScoreBadge(
+                        percent: pct,
+                        pending: ev.isPending,
+                        processing: ev.isAnalysisInProgress,
+                        compact: true,
+                      ),
                     ),
                   ],
                 ),
@@ -1102,7 +1141,11 @@ class _RecentEvalCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            _ScoreBadge(percent: pct, pending: ev.isPending),
+            _ScoreBadge(
+              percent: pct,
+              pending: ev.isPending,
+              processing: ev.isAnalysisInProgress,
+            ),
             Icon(Icons.chevron_right_rounded, size: 20, color: kDashTextSecondary.withValues(alpha: 0.55)),
           ],
         ),
@@ -1239,11 +1282,13 @@ class _ScoreBadge extends StatelessWidget {
   const _ScoreBadge({
     required this.percent,
     required this.pending,
+    this.processing = false,
     this.compact = false,
   });
 
   final int percent;
   final bool pending;
+  final bool processing;
   final bool compact;
 
   @override
@@ -1251,6 +1296,34 @@ class _ScoreBadge extends StatelessWidget {
     final size = compact ? 36.0 : 42.0;
     final fontSize = compact ? 12.0 : 14.0;
     final iconSize = compact ? 15.0 : 18.0;
+
+    if (processing) {
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8, vertical: compact ? 4 : 5),
+        decoration: BoxDecoration(
+          color: kSurface.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(compact ? 9 : 11),
+          border: Border.all(color: kAccent.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: iconSize,
+              height: iconSize,
+              child: CircularProgressIndicator(strokeWidth: 2, color: kAccent),
+            ),
+            if (!compact) ...[
+              const SizedBox(width: 6),
+              Text(
+                'Analyzing',
+                style: TextStyle(color: kAccent, fontSize: fontSize - 2, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
 
     if (pending) {
       return Container(

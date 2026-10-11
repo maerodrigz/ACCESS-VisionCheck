@@ -74,6 +74,7 @@ class Evaluation {
   final String? reviewStatus;
   final String? adminRemarks;
   final DateTime? evaluatedAt;
+  final bool isAnalysisInProgress;
   Evaluation({
     required this.id,
     required this.title,
@@ -96,9 +97,10 @@ class Evaluation {
     this.reviewStatus,
     this.adminRemarks,
     this.evaluatedAt,
+    this.isAnalysisInProgress = false,
   });
 
-  bool get isPending => score == 0;
+  bool get isPending => score == 0 && !isAnalysisInProgress;
 
   bool get hasAdminReviewDecision {
     return MemberReviewStatus.isFinalAdminDecision(reviewStatus);
@@ -242,6 +244,7 @@ class GalleryItem {
   final int? requestId;
   final double? overallScore;
   final String? feedback;
+  final String? processingStatus;
   GalleryItem({
     required this.title,
     required this.category,
@@ -257,9 +260,12 @@ class GalleryItem {
     this.requestId,
     this.overallScore,
     this.feedback,
+    this.processingStatus,
   });
 
   bool get isVideo => mediaType == MediaType.video;
+
+  bool get isAnalysisProcessing => processingStatus == 'processing';
 
   String get evalStatus {
     if (aiDetected) return 'Needs review';
@@ -656,6 +662,9 @@ class AppState extends ChangeNotifier {
   /// Max length for practice evaluation videos (seconds).
   int evaluationMaxVideoSeconds = 60;
 
+  /// IANA timezone for daily practice cap (from GET /member/participation).
+  String evaluationDailyTimezone = 'Asia/Manila';
+
   int get evaluationsRemainingToday =>
       (dailyEvaluationLimit - evaluationsTodayCount).clamp(0, dailyEvaluationLimit);
 
@@ -776,6 +785,7 @@ class AppState extends ChangeNotifier {
     dailyEvaluationLimit = 5;
     evaluationMaxUploadMb = 350;
     evaluationMaxVideoSeconds = 60;
+    evaluationDailyTimezone = 'Asia/Manila';
     notifyListeners();
   }
 
@@ -826,6 +836,7 @@ class AppState extends ChangeNotifier {
     int? dailyEvaluationLimit,
     int? evaluationMaxUploadMb,
     int? evaluationMaxVideoSeconds,
+    String? evaluationDailyTimezone,
   }) {
     if (assignmentsCompleted != null) {
       profileAssignmentsCompleted = assignmentsCompleted;
@@ -839,6 +850,9 @@ class AppState extends ChangeNotifier {
     if (evaluationMaxUploadMb != null) this.evaluationMaxUploadMb = evaluationMaxUploadMb;
     if (evaluationMaxVideoSeconds != null) {
       this.evaluationMaxVideoSeconds = evaluationMaxVideoSeconds;
+    }
+    if (evaluationDailyTimezone != null && evaluationDailyTimezone.trim().isNotEmpty) {
+      this.evaluationDailyTimezone = evaluationDailyTimezone.trim();
     }
     notifyListeners();
   }

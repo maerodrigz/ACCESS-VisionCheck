@@ -276,6 +276,9 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
       return;
     }
 
+    if (!await _confirmPracticeSubmit()) return;
+    if (!mounted) return;
+
     if (_isVideo) {
       final duration = await detectEvalVideoDuration(
         bytes: media.bytes,
@@ -403,11 +406,8 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         result: finalResult,
         geminiFeedback: feedback,
         qualityWarnings: warnings,
-        evaluationAlreadySaved: true,
         adminReviewStatus: evalRow['review_status'] as String?,
         adminRemarks: evalRow['admin_remarks'] as String?,
-        atLimit: appState.evaluationsTodayCount >= appState.dailyEvaluationLimit,
-        onSave: () async {},
         onEvaluateAgain: () {
           Navigator.of(context).pop();
           if (mounted) {
@@ -425,6 +425,38 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
     }
   }
 
+  Future<bool> _confirmPracticeSubmit() async {
+    final limit = appState.dailyEvaluationLimit;
+    final nextCount = appState.evaluationsTodayCount + 1;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text(
+          'Submit for evaluation?',
+          style: dashText(const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        ),
+        content: Text(
+          'Your file uploads when you continue. This uses one of your $limit daily practice '
+          'submissions (this will be $nextCount of $limit today). '
+          'ACCESS analyzes quality and integrity on the server. You can return to the Evaluations tab while processing finishes.',
+          style: dashText(const TextStyle(color: kTextSecondary, fontSize: 14, height: 1.45)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final atLimit = appState.evaluationsTodayCount >= appState.dailyEvaluationLimit;
@@ -439,7 +471,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
               elevation: 0,
               scrolledUnderElevation: 0,
               title: Text(
-                _isVideo ? 'Upload Video' : 'Upload Photo',
+                _isVideo ? 'Practice Video Evaluation' : 'Practice Photo Evaluation',
                 style: dashText(const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
               ),
             ),
@@ -493,6 +525,19 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                   enabled: _contentStandardsAccepted,
                   onPressed: _runEvaluation,
                 ),
+                if (!atLimit && _contentStandardsAccepted) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Starting evaluation uploads your file immediately and counts toward today\'s limit.',
+                    textAlign: TextAlign.center,
+                    style: dashText(TextStyle(
+                      color: kTextSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4,
+                    )),
+                  ),
+                ],
               ] else
                 _UploadPageBody(
                   isVideo: _isVideo,

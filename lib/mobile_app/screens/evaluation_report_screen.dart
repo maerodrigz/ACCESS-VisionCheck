@@ -13,7 +13,7 @@ import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
-import 'package:access_mobile/shared/controllers/app_state.dart';
+import 'package:access_mobile/shared/controllers/app_state.dart' hide AiDetectionResult;
 import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 
@@ -68,9 +68,24 @@ class EvaluationReportScreen extends StatelessWidget {
       evaluation,
       notificationMessage: notificationMessage,
     );
-    final reviewPending = parsed != null &&
-        parsed.aiDetection.requiresReview &&
-        !MemberReviewStatus.isFinalAdminDecision(evaluation.reviewStatus);
+    final reviewPending = (parsed != null &&
+            !MemberReviewStatus.isFinalAdminDecision(evaluation.reviewStatus) &&
+            (parsed.aiDetection.requiresReview ||
+                MemberReviewStatus.isReviewPending(evaluation.reviewStatus) ||
+                !parsed.showQualityFeedbackEffective)) ||
+        (parsed == null &&
+            (evaluation.isUnderAdminReview ||
+                memberIntegrityReviewReasonFromEvaluation(
+                  evaluation,
+                  notificationMessage: notificationMessage,
+                ).isNotEmpty));
+
+    final integrityReason = parsed != null
+        ? memberIntegrityReviewReason(parsed)
+        : memberIntegrityReviewReasonFromEvaluation(
+            evaluation,
+            notificationMessage: notificationMessage,
+          );
 
     return Scaffold(
       backgroundColor: kEvalBg,
@@ -88,15 +103,39 @@ class EvaluationReportScreen extends StatelessWidget {
           children: [
             _ReportMediaHeader(
               evaluation: evaluation,
-              integrityReviewReason: reviewPending ? memberIntegrityReviewReason(parsed) : null,
+              integrityReviewReason: reviewPending && integrityReason.isNotEmpty ? integrityReason : null,
             ),
             const SizedBox(height: 14),
-            if (reviewPending) ...[
+            if (reviewPending && parsed != null) ...[
               AiDetectionBanner(
                 aiDetection: parsed.aiDetection,
                 adminReviewStatus: evaluation.reviewStatus,
                 compact: true,
                 minimal: false,
+              ),
+              const SizedBox(height: 14),
+            ] else if (reviewPending && integrityReason.isNotEmpty) ...[
+              IntegrityOnlyMessageCard(
+                result: parsed ??
+                    PhotoEvaluationResult(
+                      criteria: const [],
+                      overallScore: 0,
+                      qualityLevel: evaluation.qualityLevel ?? 'Fair',
+                      feedback: integrityReason,
+                      improvementSuggestions: '',
+                      recommendation: evaluation.recommendation ?? 'For Officer Review',
+                      aiDetection: const AiDetectionResult(
+                        verdict: 'authentic',
+                        confidence: 0.85,
+                        detail: '',
+                      ),
+                      mediaType: evaluation.mediaType ?? 'photo',
+                      scoringModel: evaluation.scoringModel ?? 'efficientnet_b0',
+                      showQualityFeedback: false,
+                      memberIntegrityMessage: integrityReason,
+                    ),
+                reviewStatus: evaluation.reviewStatus,
+                adminRemarks: evaluation.adminRemarks,
               ),
               const SizedBox(height: 14),
             ],

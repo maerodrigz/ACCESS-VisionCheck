@@ -140,6 +140,29 @@ erDiagram
 - **Skill levels:** Novice → Master (score ranges 0.0–1.0)  
 - **Admin user:** `admin@access.edu` / `admin123`
 
+## Reset operational data (keep accounts)
+
+Wipes photos, videos, documentation requests, assignments, notifications, evaluations, rankings points, and local `uploads/` files. **Keeps** all Admin accounts and any user **not** in the built-in demo seed list (`member@access.edu`, `org@access.edu`, sample USTP students from `create_tables.py`).
+
+```powershell
+cd access_backend
+python manage.py reset_data --dry-run
+$env:RESET_ACCESS_DATA="YES"
+python manage.py reset_data --confirm
+```
+
+Optional: preserve specific emails even if they match demo patterns: `KEEP_USER_EMAILS=member@access.edu` in `.env`.
+
+Does **not** delete Firebase Storage objects if you use cloud URLs; clear those in the Firebase console if needed.
+
+To remove **all** member and organization logins and keep only Admin:
+
+```powershell
+python scripts/purge_non_admin_users.py --dry-run
+$env:RESET_ACCESS_DATA="YES"
+python scripts/purge_non_admin_users.py --confirm
+```
+
 ## IDs
 
 All primary keys use **auto-incrementing integers** (`BIGINT` identity in PostgreSQL), which is simple and fast for this scale. UUIDs can be adopted later on selected tables if needed for public APIs.

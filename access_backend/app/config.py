@@ -97,6 +97,9 @@ class Settings(BaseSettings):
 
     max_media_evaluation_workers: int = Field(default=1, alias="MAX_MEDIA_EVALUATION_WORKERS")
 
+    # IANA timezone for practice evaluation daily upload cap (midnight boundary).
+    evaluation_daily_timezone: str = Field(default="Asia/Manila", alias="EVALUATION_DAILY_TIMEZONE")
+
     # Outbound email (SMTP) — registration approve/reject and related alerts
     email_enabled: bool = Field(default=False, alias="EMAIL_ENABLED")
     smtp_host: str = Field(default="", alias="SMTP_HOST")

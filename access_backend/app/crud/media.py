@@ -3,7 +3,10 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import Date, cast, func, or_, select
+from sqlalchemy import func, or_, select
+
+from app.config import settings
+from app.services.evaluation_daily import evaluation_calendar_date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -26,8 +29,10 @@ from app.models.media_file import MediaFile
 
 
 def count_member_evaluations_today(db: Session, user_id: int) -> int:
-    """Practice evaluation uploads today (UTC) — same rule as POST /media daily cap."""
-    today = datetime.now(timezone.utc).date()
+    """Practice evaluation uploads on the current calendar day (EVALUATION_DAILY_TIMEZONE)."""
+    today = evaluation_calendar_date()
+    tz_name = (settings.evaluation_daily_timezone or "UTC").strip()
+    local_upload_day = func.date(func.timezone(tz_name, MediaFile.uploaded_at))
     return (
         db.scalar(
             select(func.count())
@@ -35,7 +40,7 @@ def count_member_evaluations_today(db: Session, user_id: int) -> int:
             .where(
                 MediaFile.uploaded_by == user_id,
                 MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
-                cast(MediaFile.uploaded_at, Date) == today,
+                local_upload_day == today,
             )
         )
         or 0

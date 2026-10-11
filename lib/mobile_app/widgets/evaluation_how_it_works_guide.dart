@@ -11,26 +11,26 @@ class EvaluationHowItWorksGuide extends StatelessWidget {
   static const _steps = [
     (
       icon: Icons.cloud_upload_rounded,
-      title: 'Upload Photo / Video',
-      description: 'Select a photo or video to submit for evaluation.',
+      title: 'Choose Photo or Video',
+      description: 'Pick a file and confirm it meets ACCESS content standards.',
       accent: Color(0xFF0891B2),
     ),
     (
-      icon: Icons.auto_awesome_rounded,
-      title: 'AI Analyzes Quality',
-      description: 'EfficientNet-B0 scores sharpness, blur, noise, brightness, and more.',
+      icon: Icons.play_circle_outline_rounded,
+      title: 'Start AI Evaluation',
+      description: 'Tap Start to upload. This counts as one of your daily practice submissions.',
       accent: Color(0xFF7C3AED),
     ),
     (
-      icon: Icons.insights_rounded,
-      title: 'Get Score & Feedback',
-      description: 'View your quality score and friendly tips from Gemini.',
+      icon: Icons.auto_awesome_rounded,
+      title: 'Server Analysis',
+      description: 'ACCESS scores quality and integrity on the server (EfficientNet-B0 and PROBE).',
       accent: kAccent,
     ),
     (
-      icon: Icons.trending_up_rounded,
-      title: 'Improve Your Skills',
-      description: 'Apply the feedback, practice, and earn XP as you improve.',
+      icon: Icons.insights_rounded,
+      title: 'View Results',
+      description: 'See your score, mentor tips from Gemini, and any admin review status.',
       accent: Color(0xFF16A34A),
     ),
   ];

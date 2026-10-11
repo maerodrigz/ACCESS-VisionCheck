@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_approved
+from app.config import settings
 from app.crud import assignment_member_feedback as member_rating_crud
 from app.crud import media as media_crud
 from app.crud import member_milestone as milestone_crud
@@ -192,6 +193,7 @@ def participation(db: Session = Depends(get_db), current_user: User = Depends(re
         daily_evaluation_limit=settings_crud.max_evaluation_uploads_per_day(db),
         evaluation_max_upload_mb=int(eval_rules["max_upload_mb"]),
         evaluation_max_video_seconds=int(eval_rules["max_video_seconds"]),
+        evaluation_daily_timezone=settings.evaluation_daily_timezone,
         average_score=round(avg, 3),
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,

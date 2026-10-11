@@ -49,11 +49,8 @@ class EvaluationResultScreen extends StatefulWidget {
     this.geminiFeedback,
     this.qualityWarnings = const [],
     required this.evaluatedAt,
-    required this.onSave,
     required this.onEvaluateAgain,
-    this.atLimit = false,
     this.submissionTitle,
-    this.evaluationAlreadySaved = false,
     this.adminReviewStatus,
     this.adminRemarks,
   });
@@ -63,11 +60,8 @@ class EvaluationResultScreen extends StatefulWidget {
   final MediaEvaluationFeedback? geminiFeedback;
   final List<String> qualityWarnings;
   final DateTime evaluatedAt;
-  final Future<void> Function() onSave;
   final VoidCallback onEvaluateAgain;
-  final bool atLimit;
   final String? submissionTitle;
-  final bool evaluationAlreadySaved;
   final String? adminReviewStatus;
   final String? adminRemarks;
 
@@ -76,8 +70,6 @@ class EvaluationResultScreen extends StatefulWidget {
 }
 
 class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
-  bool _isSaving = false;
-
   @override
   void initState() {
     super.initState();
@@ -90,16 +82,6 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
   String get _formattedDate {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[widget.evaluatedAt.month - 1]} ${widget.evaluatedAt.day}, ${widget.evaluatedAt.year}';
-  }
-
-  Future<void> _handleSave() async {
-    if (_isSaving || widget.atLimit) return;
-    setState(() => _isSaving = true);
-    try {
-      await widget.onSave();
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
   }
 
   void _handleDone() {
@@ -172,30 +154,14 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
               aiDetection: widget.result.aiDetection,
               compact: true,
               minimal: showQuality && !heldForReview && !widget.result.aiDetection.requiresReview,
-              practiceFinalCopy: widget.evaluationAlreadySaved,
+              practiceFinalCopy: true,
               adminReviewStatus: widget.adminReviewStatus,
             ),
-            if (showQuality &&
-                !widget.evaluationAlreadySaved &&
-                widget.result.qualityProvisionalEffective &&
-                !heldForReview) ...[
-              const SizedBox(height: 8),
-              IntegrityProvisionalBanner(
-                message: widget.result.memberIntegrityMessageEffective.isNotEmpty
-                    ? widget.result.memberIntegrityMessageEffective
-                    : 'Scores may change after integrity review completes.',
-              ),
-            ],
             const SizedBox(height: 12),
             EvalResultActionBar(
               compact: true,
-              isSaving: _isSaving,
-              atLimit: widget.atLimit,
-              evaluationAlreadySaved: widget.evaluationAlreadySaved,
-              evaluateAgainLabel: widget.evaluationAlreadySaved
-                  ? (widget.media.isVideo ? 'Choose another video' : 'Choose another photo')
-                  : null,
-              onSave: widget.evaluationAlreadySaved ? _handleDone : _handleSave,
+              evaluateAgainLabel: widget.media.isVideo ? 'Choose another video' : 'Choose another photo',
+              onDone: _handleDone,
               onEvaluateAgain: widget.onEvaluateAgain,
               onDetailedAnalysis: showQuality
                   ? () => openEvaluationDetailedAnalysis(
@@ -393,11 +359,8 @@ void openEvaluationResultScreen(
   required PhotoEvaluationResult result,
   MediaEvaluationFeedback? geminiFeedback,
   List<String> qualityWarnings = const [],
-  required Future<void> Function() onSave,
   required VoidCallback onEvaluateAgain,
-  bool atLimit = false,
   String? submissionTitle,
-  bool evaluationAlreadySaved = false,
   String? adminReviewStatus,
   String? adminRemarks,
 }) {
@@ -409,11 +372,8 @@ void openEvaluationResultScreen(
         geminiFeedback: geminiFeedback,
         qualityWarnings: qualityWarnings,
         evaluatedAt: DateTime.now(),
-        onSave: onSave,
         onEvaluateAgain: onEvaluateAgain,
-        atLimit: atLimit,
         submissionTitle: submissionTitle,
-        evaluationAlreadySaved: evaluationAlreadySaved,
         adminReviewStatus: adminReviewStatus,
         adminRemarks: adminRemarks,
       ),

@@ -265,6 +265,7 @@ class MemberDataController extends ChangeNotifier {
   Future<void> ensureEvaluationsTab() {
     if (!authController.isLoggedIn) return Future.value();
     if (evaluationsTabSynced && evaluationsTabError == null) {
+      unawaited(_syncEvaluationsTabLight());
       return Future.value();
     }
     final inFlight = _evaluationsTabFuture;
@@ -282,6 +283,20 @@ class MemberDataController extends ChangeNotifier {
     });
     _evaluationsTabFuture = owned;
     return owned;
+  }
+
+  /// Participation + evaluation list only (no full-tab loading state).
+  Future<void> _syncEvaluationsTabLight() async {
+    if (!authController.isLoggedIn) return;
+    try {
+      await Future.wait<void>([
+        _syncParticipationSection(),
+        _syncEvaluationsSection(),
+        _syncEvaluationMediaSection(),
+      ]);
+      appState.notifyListeners();
+      notifyListeners();
+    } catch (_) {}
   }
 
   Future<void> _ensureEvaluationsTabImpl() async {
@@ -688,6 +703,7 @@ class MemberDataController extends ChangeNotifier {
       dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
       evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 60,
+      evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
     );
   }
 
@@ -1121,6 +1137,7 @@ class MemberDataController extends ChangeNotifier {
         dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
       evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 60,
+      evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
       );
 
       final evaluations = (results[1] as List).cast<Map<String, dynamic>>();
@@ -1454,6 +1471,7 @@ class MemberDataController extends ChangeNotifier {
       requestId: m['request_id'] as int?,
       overallScore: (m['overall_score'] as num?)?.toDouble(),
       feedback: m['feedback'] as String?,
+      processingStatus: m['processing_status'] as String?,
     );
   }
 

@@ -227,6 +227,10 @@ class _MainShellState extends State<MainShell> {
           duration: const Duration(milliseconds: 220),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
+          layoutBuilder: (current, previous) => Stack(
+            fit: StackFit.expand,
+            children: [...previous, if (current != null) current],
+          ),
           child: KeyedSubtree(
             key: ValueKey(_navIndex),
             child: _screen,
@@ -325,60 +329,48 @@ class _RequesterShellState extends State<RequesterShell> {
     }
   }
 
-  Widget get _screen => switch (_navIndex) {
-        RequestorShellTabs.home => RequestorHomeScreen(
-              userName: widget.userName,
-              onOpenRequestTab: _openRequestTab,
-              onOpenFeedback: _openFeedback,
-              onNotificationsTap: () => showNotifications(context),
-              onProfileTap: _openProfile,
-            ),
-        RequestorShellTabs.calendar => RequestorCalendarScreen(
-              onNotificationsTap: () => showNotifications(context),
-              onProfileTap: _openProfile,
-              onPlanRequest: (day) => _openCreateForm(eventDate: day),
-            ),
-        RequestorShellTabs.requests => RequestScreen(
-              key: ValueKey(_requestFilter?.name ?? 'all'),
-              initialFilter: _requestFilter,
-              onViewGallery: () => _goToTab(RequestorShellTabs.gallery),
-              onViewFeedback: _openFeedback,
-              onNotificationsTap: () => showNotifications(context),
-              onProfileTap: _openProfile,
-            ),
-        RequestorShellTabs.gallery => RequestorGalleryScreen(
-              onNotificationsTap: () => showNotifications(context),
-              onProfileTap: _openProfile,
-            ),
-        RequestorShellTabs.feedback => RequestorFeedbackScreen(
-              key: ValueKey('feedback-$_feedbackRequestId'),
-              initialRequestId: _feedbackRequestId,
-              onNotificationsTap: () => showNotifications(context),
-              onProfileTap: _openProfile,
-            ),
-        _ => RequestorHomeScreen(
-              userName: widget.userName,
-              onOpenRequestTab: _openRequestTab,
-              onOpenFeedback: _openFeedback,
-              onNotificationsTap: () => showNotifications(context),
-              onProfileTap: _openProfile,
-            ),
-      };
+  List<Widget> get _tabStack => [
+        RequestorHomeScreen(
+          userName: widget.userName,
+          onOpenRequestTab: _openRequestTab,
+          onOpenFeedback: _openFeedback,
+          onNotificationsTap: () => showNotifications(context),
+          onProfileTap: _openProfile,
+        ),
+        RequestorCalendarScreen(
+          onNotificationsTap: () => showNotifications(context),
+          onProfileTap: _openProfile,
+          onPlanRequest: (day) => _openCreateForm(eventDate: day),
+        ),
+        RequestScreen(
+          key: ValueKey(_requestFilter?.name ?? 'all'),
+          initialFilter: _requestFilter,
+          onViewGallery: () => _goToTab(RequestorShellTabs.gallery),
+          onViewFeedback: _openFeedback,
+          onNotificationsTap: () => showNotifications(context),
+          onProfileTap: _openProfile,
+        ),
+        RequestorGalleryScreen(
+          onNotificationsTap: () => showNotifications(context),
+          onProfileTap: _openProfile,
+        ),
+        RequestorFeedbackScreen(
+          key: ValueKey('feedback-$_feedbackRequestId'),
+          initialRequestId: _feedbackRequestId,
+          onNotificationsTap: () => showNotifications(context),
+          onProfileTap: _openProfile,
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.colors.bg,
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: MobilePageWrapper(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          child: KeyedSubtree(
-            key: ValueKey(_navIndex),
-            child: _screen,
-          ),
+        child: IndexedStack(
+          index: _navIndex,
+          children: _tabStack,
         ),
       ),
       bottomNavigationBar: RequestorBottomNav(

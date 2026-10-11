@@ -4,7 +4,6 @@ import 'package:access_mobile/mobile_app/screens/requestor/documentation_request
 import 'package:access_mobile/mobile_app/screens/requestor/request_detail_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_tab_hero.dart';
-import 'package:access_mobile/mobile_app/widgets/stat_card.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
@@ -74,120 +73,125 @@ class RequestorHomeScreen extends StatelessWidget {
           final feedbackDue =
               _pendingFeedbackRequests(requests, appState.feedbacks).take(3).toList();
 
-          return RefreshIndicator(
-            color: kAccent,
-            displacement: 36,
-            strokeWidth: 2.5,
-            onRefresh: () => memberDataController.refreshAll(),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (syncing)
+                const LinearProgressIndicator(
+                  minHeight: 3,
+                  color: kCyan,
+                  backgroundColor: Color(0xFF1E293B),
+                ),
+              RequestorTabHero(
+                title: 'Welcome back, $displayName!',
+                subtitle:
+                    'Track your documentation requests and upcoming coverage.',
+                titleFontWeight: FontWeight.w700,
+                onNotifications: onNotificationsTap,
+                onProfileTap: onProfileTap,
               ),
-              slivers: [
-                if (syncing)
-                  const SliverToBoxAdapter(
-                    child: LinearProgressIndicator(
-                      minHeight: 3,
-                      color: kCyan,
-                      backgroundColor: Color(0xFF1E293B),
+              Expanded(
+                child: RefreshIndicator(
+                  color: kAccent,
+                  displacement: 36,
+                  strokeWidth: 2.5,
+                  onRefresh: () => memberDataController.refreshAll(),
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-                  ),
-                SliverToBoxAdapter(
-                  child: RequestorTabHero(
-                    title: 'Welcome back, $displayName!',
-                    subtitle:
-                        'Track your documentation requests and upcoming coverage.',
-                    titleFontWeight: FontWeight.w700,
-                    onNotifications: onNotificationsTap,
-                    onProfileTap: onProfileTap,
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(
+                          kMemberDashboardPagePadding,
+                          18,
+                          kMemberDashboardPagePadding,
+                          56,
+                        ),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            _CreateRequestCard(onCreate: () => _openCreateForm(context)),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Request Overview',
+                              style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
+                            ),
+                            const SizedBox(height: 10),
+                            _RequestStatsGrid(
+                              total: total,
+                              pending: pending,
+                              approved: approved,
+                              completed: completed,
+                              onOpenRequestTab: onOpenRequestTab,
+                            ),
+                            const SizedBox(height: 22),
+                            _SectionTitleRow(
+                              title: 'Recent Requests',
+                              actionLabel: requests.isNotEmpty ? 'View All' : null,
+                              onAction: requests.isNotEmpty ? () => onOpenRequestTab() : null,
+                            ),
+                            const SizedBox(height: 10),
+                            if (recent.isEmpty)
+                              const _CompactEmptyCard(
+                                icon: Icons.inbox_outlined,
+                                title: 'No requests yet',
+                                message:
+                                    'Create a request to start tracking documentation coverage.',
+                              )
+                            else
+                              ...recent.map(
+                                (req) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _CompactRequestRow(
+                                    request: req,
+                                    onTap: () => _openDetails(context, req),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 22),
+                            const _SectionTitleRow(title: 'Upcoming Documentation'),
+                            const SizedBox(height: 10),
+                            if (upcoming.isEmpty)
+                              const _CompactEmptyCard(
+                                icon: Icons.event_available_outlined,
+                                title: 'No upcoming coverage',
+                                message:
+                                    'Approved events with future dates will appear here once scheduled.',
+                              )
+                            else
+                              ...upcoming.map(
+                                (req) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _UpcomingEventCard(
+                                    request: req,
+                                    calendar: _calendarForRequest(req.requestId),
+                                    onTap: () => _openDetails(context, req),
+                                  ),
+                                ),
+                              ),
+                            if (feedbackDue.isNotEmpty) ...[
+                              const SizedBox(height: 22),
+                              const _SectionTitleRow(title: 'Pending Feedback'),
+                              const SizedBox(height: 10),
+                              ...feedbackDue.map(
+                                (req) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _FeedbackReminderCard(
+                                    request: req,
+                                    onGiveFeedback: () =>
+                                        onOpenFeedback(requestId: req.requestId),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ]),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    kMemberDashboardPagePadding,
-                    18,
-                    kMemberDashboardPagePadding,
-                    56,
-                  ),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _CreateRequestCard(onCreate: () => _openCreateForm(context)),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Request overview',
-                        style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
-                      ),
-                      const SizedBox(height: 10),
-                      _RequestStatsGrid(
-                        total: total,
-                        pending: pending,
-                        approved: approved,
-                        completed: completed,
-                        onOpenRequestTab: onOpenRequestTab,
-                      ),
-                      const SizedBox(height: 22),
-                      _SectionTitleRow(
-                        title: 'Recent Requests',
-                        actionLabel: requests.isNotEmpty ? 'View All' : null,
-                        onAction: requests.isNotEmpty ? () => onOpenRequestTab() : null,
-                      ),
-                      const SizedBox(height: 10),
-                      if (recent.isEmpty)
-                        const _CompactEmptyCard(
-                          icon: Icons.inbox_outlined,
-                          title: 'No requests yet',
-                          message: 'Create a request to start tracking documentation coverage.',
-                        )
-                      else
-                        ...recent.map(
-                          (req) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _CompactRequestRow(
-                              request: req,
-                              onTap: () => _openDetails(context, req),
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 22),
-                      const _SectionTitleRow(title: 'Upcoming Documentation'),
-                      const SizedBox(height: 10),
-                      if (upcoming.isEmpty)
-                        const _CompactEmptyCard(
-                          icon: Icons.event_available_outlined,
-                          title: 'No upcoming coverage',
-                          message:
-                              'Approved events with future dates will appear here once scheduled.',
-                        )
-                      else
-                        ...upcoming.map(
-                          (req) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _UpcomingEventCard(
-                              request: req,
-                              calendar: _calendarForRequest(req.requestId),
-                              onTap: () => _openDetails(context, req),
-                            ),
-                          ),
-                        ),
-                      if (feedbackDue.isNotEmpty) ...[
-                        const SizedBox(height: 22),
-                        const _SectionTitleRow(title: 'Pending Feedback'),
-                        const SizedBox(height: 10),
-                        ...feedbackDue.map(
-                          (req) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _FeedbackReminderCard(
-                              request: req,
-                              onGiveFeedback: () => onOpenFeedback(requestId: req.requestId),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ]),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -353,7 +357,10 @@ class _CreateRequestCard extends StatelessWidget {
   }
 }
 
-// ── Stats grid ───────────────────────────────────────────────────────────────
+// ── Request overview bento ───────────────────────────────────────────────────
+
+/// Soft blue tile background for total requests (reference bento).
+const _overviewTotalBg = Color(0xFFEAF3FF);
 
 class _RequestStatsGrid extends StatelessWidget {
   const _RequestStatsGrid({
@@ -370,63 +377,216 @@ class _RequestStatsGrid extends StatelessWidget {
   final int completed;
   final void Function({RequestStatus? filter}) onOpenRequestTab;
 
+  static const _outerRadius = 16.0;
+  static const _tileRadius = 14.0;
+  static const _columnGap = 8.0;
+
   @override
   Widget build(BuildContext context) {
-    const gap = 10.0;
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: AccessStatCard(
-                icon: Icons.description_outlined,
-                value: '$total',
-                label: 'Total Requests',
-                iconColor: kAccent,
-                dashboardLayout: true,
-                onTap: () => onOpenRequestTab(),
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final rowH = compact ? 46.0 : 50.0;
+    final stackH = rowH * 3 + _columnGap * 2;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(_outerRadius),
+        border: Border.all(color: kBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _OverviewTotalTile(
+              height: stackH,
+              total: total,
+              compact: compact,
+              onTap: () => onOpenRequestTab(),
+            ),
+          ),
+          const SizedBox(width: _columnGap),
+          Expanded(
+            child: SizedBox(
+              height: stackH,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _OverviewStatusTile(
+                      label: 'Pending',
+                      count: pending,
+                      icon: Icons.schedule_rounded,
+                      background: kYellowDim,
+                      iconColor: kYellow,
+                      compact: compact,
+                      onTap: () => onOpenRequestTab(filter: RequestStatus.pending),
+                    ),
+                  ),
+                  const SizedBox(height: _columnGap),
+                  Expanded(
+                    child: _OverviewStatusTile(
+                      label: 'Approved',
+                      count: approved,
+                      icon: Icons.check_circle_outline_rounded,
+                      background: kGreenDim,
+                      iconColor: kGreen,
+                      compact: compact,
+                      onTap: () => onOpenRequestTab(filter: RequestStatus.approved),
+                    ),
+                  ),
+                  const SizedBox(height: _columnGap),
+                  Expanded(
+                    child: _OverviewStatusTile(
+                      label: 'Completed',
+                      count: completed,
+                      icon: Icons.done_all_rounded,
+                      background: kDashStatPurple,
+                      iconColor: kDashStatPurpleIcon,
+                      compact: compact,
+                      onTap: () => onOpenRequestTab(filter: RequestStatus.completed),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: gap),
-            Expanded(
-              child: AccessStatCard(
-                icon: Icons.schedule_rounded,
-                value: '$pending',
-                label: 'Pending',
-                iconColor: kYellow,
-                dashboardLayout: true,
-                onTap: () => onOpenRequestTab(filter: RequestStatus.pending),
-              ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewTotalTile extends StatelessWidget {
+  const _OverviewTotalTile({
+    required this.height,
+    required this.total,
+    required this.compact,
+    required this.onTap,
+  });
+
+  final double height;
+  final int total;
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final valueSize = compact ? 28.0 : 32.0;
+    final labelSize = compact ? 11.0 : 12.0;
+
+    return SizedBox(
+      height: height,
+      child: Material(
+        color: _overviewTotalBg,
+        borderRadius: BorderRadius.circular(_RequestStatsGrid._tileRadius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(compact ? 10 : 12, compact ? 10 : 12, 8, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.assignment_outlined,
+                  color: kAccent,
+                  size: compact ? 22 : 24,
+                ),
+                const Spacer(),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$total',
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: valueSize,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                      color: kTextPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Total Requests',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: labelSize,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                    color: kTextSecondary,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-        const SizedBox(height: gap),
-        Row(
-          children: [
-            Expanded(
-              child: AccessStatCard(
-                icon: Icons.check_circle_outline_rounded,
-                value: '$approved',
-                label: 'Approved',
-                iconColor: kGreen,
-                dashboardLayout: true,
-                onTap: () => onOpenRequestTab(filter: RequestStatus.approved),
+      ),
+    );
+  }
+}
+
+class _OverviewStatusTile extends StatelessWidget {
+  const _OverviewStatusTile({
+    required this.label,
+    required this.count,
+    required this.icon,
+    required this.background,
+    required this.iconColor,
+    required this.compact,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final IconData icon;
+  final Color background;
+  final Color iconColor;
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(_RequestStatsGrid._tileRadius),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
+          child: Row(
+            children: [
+              Icon(icon, color: iconColor, size: compact ? 18 : 20),
+              SizedBox(width: compact ? 6 : 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 11 : 12,
+                    fontWeight: FontWeight.w600,
+                    color: kTextPrimary,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: gap),
-            Expanded(
-              child: AccessStatCard(
-                icon: Icons.task_alt_rounded,
-                value: '$completed',
-                label: 'Completed',
-                iconColor: kDashStatPurpleIcon,
-                dashboardLayout: true,
-                onTap: () => onOpenRequestTab(filter: RequestStatus.completed),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: compact ? 17 : 19,
+                  fontWeight: FontWeight.w800,
+                  color: kTextPrimary,
+                  height: 1,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }

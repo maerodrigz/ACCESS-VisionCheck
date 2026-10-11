@@ -22,6 +22,7 @@ class RequestorGalleryScreen extends StatelessWidget {
     return GalleryScreen(
       requestorMode: true,
       subtitle: 'Photos and videos from your documented events.',
+      purposeBelowTitle: true,
       onViewRequests: _openRequests,
       onNotificationsTap: onNotificationsTap,
       onProfileTap: onProfileTap,

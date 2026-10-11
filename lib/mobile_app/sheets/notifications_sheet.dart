@@ -151,6 +151,8 @@ void showNotifications(BuildContext context) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    isDismissible: true,
+    enableDrag: true,
     backgroundColor: Colors.transparent,
     builder: (ctx) => const _NotificationCenterSheet(),
   );

@@ -14,6 +14,7 @@ import 'package:access_mobile/shared/models/media_upload_response.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
 import 'package:access_mobile/shared/services/deferred_media_evaluation_poll.dart';
+import 'package:access_mobile/shared/services/push_notification_service.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/models/reschedule_models.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
@@ -180,6 +181,8 @@ class MemberDataController extends ChangeNotifier {
   }
 
   Future<void> _bootstrapMemberAppImpl() async {
+    await PushNotificationService.ensureRegistered();
+    await PushNotificationService.syncInboxIfOpenedFromPush();
     await refreshHomeBootstrap();
     unawaited(refreshDeferredSections());
   }
@@ -799,7 +802,6 @@ class MemberDataController extends ChangeNotifier {
       ..clear()
       ..addAll(rows.map(appNotificationFromApi));
     appState.notifyListeners();
-    notifyListeners();
   }
 
   /// Loads rankings when Profile needs skill score (no-op if already synced).

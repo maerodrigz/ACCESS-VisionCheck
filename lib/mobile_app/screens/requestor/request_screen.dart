@@ -4,6 +4,7 @@ import 'package:access_mobile/mobile_app/screens/requestor/request_detail_screen
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_list_skeleton.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_progress_tracker.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
@@ -76,14 +77,6 @@ class _RequestScreenState extends State<RequestScreen> {
     return sorted.where((r) => r.requestStatus == _filter).toList();
   }
 
-  Map<RequestStatus?, int> _statusCounts(List<ServiceRequest> all) {
-    return {
-      null: all.length,
-      for (final status in RequestStatus.values)
-        status: all.where((r) => r.requestStatus == status).length,
-    };
-  }
-
   Future<void> _openCreateForm() async {
     final created = await Navigator.push<bool>(
       context,
@@ -107,9 +100,15 @@ class _RequestScreenState extends State<RequestScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _RequestsPageHeader(
-            onNotificationsTap: widget.onNotificationsTap,
-            onProfileTap: widget.onProfileTap,
+          RequestorFeatureTitleBar(
+            title: 'My Requests',
+            trailing: [
+              MemberPageNotificationButton(onTap: widget.onNotificationsTap),
+              MemberPageProfileAvatar(onTap: widget.onProfileTap),
+            ],
+          ),
+          const RequestorFeaturePurposeLine(
+            text: 'Manage and track your documentation requests.',
           ),
           Expanded(
             child: ListenableBuilder(
@@ -122,7 +121,9 @@ class _RequestScreenState extends State<RequestScreen> {
                 final requests = _filtered(all);
                 final showFab = _showFloatingNewRequest(all);
 
-                if (loading) return const RequestListSkeleton();
+                if (loading) {
+                  return const RequestListSkeleton();
+                }
 
                 if (error != null && all.isEmpty) {
                   return _ErrorState(message: error, onRetry: _reload);
@@ -150,7 +151,6 @@ class _RequestScreenState extends State<RequestScreen> {
                           SliverToBoxAdapter(
                             child: _FilterBar(
                               selected: _filter,
-                              counts: _statusCounts(all),
                               onSelected: (value) => setState(() => _filter = value),
                             ),
                           ),
@@ -266,61 +266,84 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 }
 
-class _RequestsPageHeader extends StatelessWidget {
-  const _RequestsPageHeader({
-    this.onNotificationsTap,
-    this.onProfileTap,
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({
+    required this.selected,
+    required this.onSelected,
   });
 
-  final VoidCallback? onNotificationsTap;
-  final VoidCallback? onProfileTap;
+  final RequestStatus? selected;
+  final ValueChanged<RequestStatus?> onSelected;
+
+  static IconData _iconFor(RequestStatus? status) {
+    return switch (status) {
+      null => Icons.grid_view_rounded,
+      RequestStatus.pending => Icons.schedule_rounded,
+      RequestStatus.approved => Icons.check_circle_outline_rounded,
+      RequestStatus.completed => Icons.done_all_rounded,
+      RequestStatus.rejected => Icons.cancel_rounded,
+    };
+  }
+
+  static Color _iconColorFor(RequestStatus? status) {
+    return switch (status) {
+      null => kAccent,
+      RequestStatus.pending => kYellow,
+      RequestStatus.approved => kGreen,
+      RequestStatus.completed => kDashStatPurpleIcon,
+      RequestStatus.rejected => kRed,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
-    return Material(
-      color: kSurface,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FBFF),
-          border: Border(bottom: BorderSide(color: kBorder.withValues(alpha: 0.9))),
-        ),
-        child: SafeArea(
-          bottom: false,
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final labelSize = compact ? 10.0 : 11.0;
+    final iconSize = compact ? 20.0 : 21.0;
+
+    const barHeight = 64.0;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(padding, 8, padding, 4),
+      child: SizedBox(
+        height: barHeight,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kBorder.withValues(alpha: 0.95)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: Padding(
-            padding: EdgeInsets.fromLTRB(padding, 6, padding, 10),
+            padding: const EdgeInsets.all(8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'My Requests',
-                        style: dashText(const TextStyle(
-                          color: kTextPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                          height: 1.15,
-                        )),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Manage and track your documentation requests.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: memberDashboardMetaStyle.copyWith(
-                          fontSize: 12,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
+                for (var i = 0; i < requestStatusFilters.length; i++) ...[
+                  if (i > 0)
+                    _SegmentDivider(
+                      visible: selected != requestStatusFilters[i - 1].$1 &&
+                          selected != requestStatusFilters[i].$1,
+                    ),
+                  Expanded(
+                    child: _SegmentFilterItem(
+                      label: requestStatusFilters[i].$2,
+                      icon: _iconFor(requestStatusFilters[i].$1),
+                      inactiveIconColor: _iconColorFor(requestStatusFilters[i].$1),
+                      selected: selected == requestStatusFilters[i].$1,
+                      labelSize: labelSize,
+                      iconSize: iconSize,
+                      onTap: () => onSelected(requestStatusFilters[i].$1),
+                    ),
                   ),
-                ),
-                MemberPageNotificationButton(onTap: onNotificationsTap),
-                MemberPageProfileAvatar(onTap: onProfileTap),
+                ],
               ],
             ),
           ),
@@ -330,93 +353,85 @@ class _RequestsPageHeader extends StatelessWidget {
   }
 }
 
-class _FilterBar extends StatelessWidget {
-  const _FilterBar({
-    required this.selected,
-    required this.counts,
-    required this.onSelected,
-  });
+class _SegmentDivider extends StatelessWidget {
+  const _SegmentDivider({required this.visible});
 
-  final RequestStatus? selected;
-  final Map<RequestStatus?, int> counts;
-  final ValueChanged<RequestStatus?> onSelected;
-
-  static const _chipHeight = 36.0;
+  final bool visible;
 
   @override
   Widget build(BuildContext context) {
-    final padding = mobilePagePaddingOf(context);
-    return SizedBox(
-      height: _chipHeight + 8,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.fromLTRB(padding, 8, padding, 0),
-        clipBehavior: Clip.none,
-        itemCount: requestStatusFilters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, index) {
-          final (value, label) = requestStatusFilters[index];
-          final active = selected == value;
-          final count = counts[value] ?? 0;
+    if (!visible) {
+      return const SizedBox(width: 2);
+    }
+    return Container(
+      width: 1,
+      height: 32,
+      margin: const EdgeInsets.symmetric(horizontal: 1),
+      color: kBorder.withValues(alpha: 0.85),
+    );
+  }
+}
 
-          return Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => onSelected(value),
-              borderRadius: BorderRadius.circular(999),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                height: _chipHeight,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: active ? kAccent : kSurface,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: active ? kAccent : kBorder,
-                    width: active ? 1 : 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: active ? Colors.white : kTextSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        height: 1,
-                      ),
-                    ),
-                    if (count > 0) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: active
-                              ? Colors.white.withValues(alpha: 0.22)
-                              : kAccent.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$count',
-                          style: TextStyle(
-                            color: active ? Colors.white : kAccent,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            height: 1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+class _SegmentFilterItem extends StatelessWidget {
+  const _SegmentFilterItem({
+    required this.label,
+    required this.icon,
+    required this.inactiveIconColor,
+    required this.selected,
+    required this.labelSize,
+    required this.iconSize,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color inactiveIconColor;
+  final bool selected;
+  final double labelSize;
+  final double iconSize;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          decoration: BoxDecoration(
+            color: selected ? kAccent : Colors.transparent,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Icon(
+                icon,
+                size: iconSize,
+                color: selected ? Colors.white : inactiveIconColor,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: labelSize,
+                  fontWeight: FontWeight.w700,
+                  height: 1.05,
+                  color: selected ? Colors.white : kTextSecondary,
                 ),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
     );
   }

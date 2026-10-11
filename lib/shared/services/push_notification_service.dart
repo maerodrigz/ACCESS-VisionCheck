@@ -4,8 +4,10 @@ import 'dart:io' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:access_mobile/shared/api/member_api_service.dart';
-import 'package:access_mobile/shared/constants/firebase_config.dart';
+import 'package:access_mobile/shared/constants/firebase_runtime_config.dart';
 import 'package:access_mobile/shared/services/firebase_app_init.dart';
 
 const _logName = 'ACCESS.push';
@@ -21,9 +23,20 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 abstract final class PushNotificationService {
   static String? _lastRegisteredToken;
   static Future<void> Function()? _inboxSyncHandler;
+  static Timer? _inboxSyncDebounce;
 
-  static bool get isAvailable =>
-      !kIsWeb && isFirebaseStorageReady && FirebaseConfig.messagingSenderId.isNotEmpty;
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
+  static const AndroidNotificationChannel _androidChannel =
+      AndroidNotificationChannel(
+    'access_alerts',
+    'ACCESS alerts',
+    description: 'Documentation requests, assignments, and announcements',
+    importance: Importance.high,
+  );
+
+  static bool get isAvailable => !kIsWeb && isFirebasePushReady;
 
   /// Called when a push arrives or the user opens the app from a notification.
   static void bindInboxSyncHandler(Future<void> Function() handler) {
@@ -40,17 +53,68 @@ abstract final class PushNotificationService {
     }
   }
 
+  static void _scheduleInboxSyncFromPush() {
+    _inboxSyncDebounce?.cancel();
+    _inboxSyncDebounce = Timer(const Duration(milliseconds: 450), () {
+      unawaited(_syncInboxFromPush());
+    });
+  }
+
+  static Future<void> _initLocalNotifications() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    await _localNotifications.initialize(
+      settings: const InitializationSettings(android: androidSettings),
+      onDidReceiveNotificationResponse: (_) {
+        _scheduleInboxSyncFromPush();
+      },
+    );
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.createNotificationChannel(_androidChannel);
+  }
+
+  static Future<void> _showForegroundTrayNotification(RemoteMessage message) async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    final notification = message.notification;
+    final title = notification?.title ?? message.data['title'];
+    final body = notification?.body ?? message.data['message'];
+    if (title == null && body == null) return;
+    await _localNotifications.show(
+      id: message.hashCode,
+      title: title ?? 'ACCESS',
+      body: body ?? '',
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          _androidChannel.id,
+          _androidChannel.name,
+          channelDescription: _androidChannel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+      ),
+    );
+  }
+
   static Future<void> initialize() async {
     if (!isAvailable) return;
+    await _initLocalNotifications();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     FirebaseMessaging.instance.onTokenRefresh.listen((token) {
       _registerToken(token);
     });
-    FirebaseMessaging.onMessage.listen((_) {
-      unawaited(_syncInboxFromPush());
+    FirebaseMessaging.onMessage.listen((message) {
+      developer.log(
+        'Foreground push: ${message.notification?.title ?? message.data}',
+        name: _logName,
+      );
+      unawaited(_showForegroundTrayNotification(message));
+      _scheduleInboxSyncFromPush();
     });
     FirebaseMessaging.onMessageOpenedApp.listen((_) {
-      unawaited(_syncInboxFromPush());
+      _scheduleInboxSyncFromPush();
     });
   }
 
@@ -64,8 +128,30 @@ abstract final class PushNotificationService {
   }
 
   static Future<void> ensureRegistered() async {
+    await FirebaseRuntimeConfig.ensureLoadedFromAsset();
+    if (!FirebaseRuntimeConfig.isPushConfigured) {
+      developer.log(
+        'Push disabled: missing Firebase config. Add config/firebase.json or run with '
+        '--dart-define-from-file=config/firebase.json',
+        name: _logName,
+      );
+      return;
+    }
+    if (!isFirebasePushReady) {
+      developer.log('Push disabled: Firebase not initialized.', name: _logName);
+      return;
+    }
     if (!isAvailable) return;
     try {
+      if (Platform.isAndroid) {
+        final status = await Permission.notification.status;
+        if (!status.isGranted) {
+          final result = await Permission.notification.request();
+          if (!result.isGranted) {
+            developer.log('Android notification permission not granted', name: _logName);
+          }
+        }
+      }
       final messaging = FirebaseMessaging.instance;
       final settings = await messaging.requestPermission(
         alert: true,
@@ -84,9 +170,11 @@ abstract final class PushNotificationService {
         );
       }
       final token = await messaging.getToken();
-      if (token != null && token.isNotEmpty) {
-        await _registerToken(token);
+      if (token == null || token.isEmpty) {
+        developer.log('FCM returned no device token', name: _logName);
+        return;
       }
+      await _registerToken(token);
     } catch (e, st) {
       developer.log('Push registration failed', name: _logName, error: e, stackTrace: st);
     }

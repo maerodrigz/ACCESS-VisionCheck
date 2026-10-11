@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/navigation/requestor_shell_navigation.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/member_team_rating_section.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_list_skeleton.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/api/member_api_service.dart';
@@ -263,9 +264,15 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _FeedbackPageHeader(
-            onNotificationsTap: widget.onNotificationsTap,
-            onProfileTap: widget.onProfileTap,
+          RequestorFeatureTitleBar(
+            title: 'Feedback',
+            trailing: [
+              MemberPageNotificationButton(onTap: widget.onNotificationsTap),
+              MemberPageProfileAvatar(onTap: widget.onProfileTap),
+            ],
+          ),
+          const RequestorFeaturePurposeLine(
+            text: 'Rate your documentation team and share how coverage went.',
           ),
           Expanded(
             child: ListenableBuilder(
@@ -286,6 +293,7 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
             return const FeedbackFormSkeleton();
           }
 
+          final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
           return RefreshIndicator(
             color: kMemberPrimary,
             onRefresh: _reload,
@@ -293,11 +301,11 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 kMemberDashboardPagePadding,
                 14,
                 kMemberDashboardPagePadding,
-                56,
+                56 + bottomInset,
               ),
               children: [
                 if (syncing)
@@ -387,70 +395,6 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FeedbackPageHeader extends StatelessWidget {
-  const _FeedbackPageHeader({
-    this.onNotificationsTap,
-    this.onProfileTap,
-  });
-
-  final VoidCallback? onNotificationsTap;
-  final VoidCallback? onProfileTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final padding = mobilePagePaddingOf(context);
-    return Material(
-      color: kSurface,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FBFF),
-          border: Border(bottom: BorderSide(color: kBorder.withValues(alpha: 0.9))),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(padding, 6, padding, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Feedback',
-                        style: dashText(const TextStyle(
-                          color: kTextPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                          height: 1.15,
-                        )),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Rate your documentation team and share how coverage went.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: memberDashboardMetaStyle.copyWith(
-                          fontSize: 12,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                MemberPageNotificationButton(onTap: onNotificationsTap),
-                MemberPageProfileAvatar(onTap: onProfileTap),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -140,6 +140,9 @@ class RequestListSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
       padding: const EdgeInsets.fromLTRB(
         kMemberDashboardPagePadding,
         10,
@@ -151,17 +154,25 @@ class RequestListSkeleton extends StatelessWidget {
         const SizedBox(height: 6),
         _bar(width: 260, height: 14),
         const SizedBox(height: 14),
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: 5,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, __) => Container(
-              width: 72,
-              decoration: BoxDecoration(
-                color: kSurfaceAlt,
-                borderRadius: BorderRadius.circular(20),
+        Container(
+          height: 64,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kBorder),
+          ),
+          child: Row(
+            children: List.generate(
+              5,
+              (i) => Expanded(
+                child: Container(
+                  margin: EdgeInsets.only(left: i == 0 ? 0 : 4),
+                  decoration: BoxDecoration(
+                    color: kSurfaceAlt,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                ),
               ),
             ),
           ),

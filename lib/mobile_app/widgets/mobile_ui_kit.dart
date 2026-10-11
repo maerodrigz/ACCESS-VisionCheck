@@ -51,23 +51,23 @@ class MobilePageWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: memberDataController,
-      builder: (_, __) {
-        final hasError = appState.memberSyncError != null;
-        final offline = showOffline && hasError && !memberDataController.isLoading;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (offline)
-              MobileOfflineBanner(
-                error: appState.memberSyncError,
-                onRetry: () => memberDataController.refreshAll(),
-              ),
-            Expanded(child: child),
-          ],
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListenableBuilder(
+          listenable: memberDataController,
+          builder: (_, __) {
+            final hasError = appState.memberSyncError != null;
+            final offline = showOffline && hasError && !memberDataController.isLoading;
+            if (!offline) return const SizedBox.shrink();
+            return MobileOfflineBanner(
+              error: appState.memberSyncError,
+              onRetry: () => memberDataController.refreshAll(),
+            );
+          },
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 }

@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import mimetypes
 import uuid
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from app.config import settings
+from app.services.firebase_admin_app import ensure_firebase_admin_app
 
-_FIREBASE_APP = None
+logger = logging.getLogger(__name__)
 
 
 def is_firebase_storage_configured() -> bool:
@@ -26,34 +28,6 @@ def is_firebase_storage_configured() -> bool:
 def _content_type(file_name: str) -> str:
     guessed, _ = mimetypes.guess_type(file_name)
     return guessed or "application/octet-stream"
-
-
-def _ensure_firebase_app():
-    global _FIREBASE_APP
-    if _FIREBASE_APP is not None:
-        return _FIREBASE_APP
-
-    import firebase_admin
-    from firebase_admin import credentials
-
-    bucket = (settings.firebase_storage_bucket or "").strip()
-    if not bucket:
-        return None
-
-    try:
-        _FIREBASE_APP = firebase_admin.get_app()
-        return _FIREBASE_APP
-    except ValueError:
-        pass
-
-    sa_path = (settings.firebase_service_account_json or "").strip()
-    if sa_path and Path(sa_path).is_file():
-        cred = credentials.Certificate(sa_path)
-    else:
-        cred = credentials.ApplicationDefault()
-
-    _FIREBASE_APP = firebase_admin.initialize_app(cred, {"storageBucket": bucket})
-    return _FIREBASE_APP
 
 
 def _download_url(bucket_name: str, object_name: str, token: str) -> str:
@@ -85,7 +59,7 @@ def upload_media_bytes(
     except ImportError:
         return None
 
-    if _ensure_firebase_app() is None:
+    if ensure_firebase_admin_app() is None:
         return None
 
     ext = Path(file_name or "").suffix.lower()
@@ -100,6 +74,7 @@ def upload_media_bytes(
         blob.upload_from_string(content, content_type=_content_type(file_name))
         return _download_url(bucket.name, object_name, token)
     except Exception:
+        logger.exception("Firebase Storage upload failed for %s", object_name)
         return None
 
 
@@ -131,7 +106,7 @@ def delete_firebase_url(url: str | None) -> bool:
     except ImportError:
         return False
 
-    if _ensure_firebase_app() is None:
+    if ensure_firebase_admin_app() is None:
         return False
 
     try:
@@ -140,4 +115,5 @@ def delete_firebase_url(url: str | None) -> bool:
         blob.delete()
         return True
     except Exception:
+        logger.exception("Firebase Storage delete failed for %s", object_path)
         return False

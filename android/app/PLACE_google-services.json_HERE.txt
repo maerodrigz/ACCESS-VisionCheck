@@ -1,0 +1,6 @@
+Download from Firebase Console after adding Android app (package com.accessvisioncheck.mobile).
+
+Save as:
+  android/app/google-services.json
+
+Then delete this placeholder file.

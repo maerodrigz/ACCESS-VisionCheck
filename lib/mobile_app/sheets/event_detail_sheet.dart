@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_meta_icon_color.dart';
 import 'package:access_mobile/mobile_app/widgets/shared_widgets.dart';
 
 /// Read-only campus event detail for requestors (planning calendar only).
@@ -95,7 +96,11 @@ void showRequestorCampusEventDetail(BuildContext context, CalendarEvent event) {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline_rounded, size: 18, color: kTextSecondary),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: requestorMetaIconColor(Icons.info_outline_rounded),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -214,7 +219,11 @@ void showMemberEventDetail(
                     Navigator.pop(ctx);
                     onViewGallery();
                   },
-                  icon: const Icon(Icons.photo_library_outlined, size: 18),
+                  icon: Icon(
+                    Icons.photo_library_outlined,
+                    size: 18,
+                    color: requestorMetaIconColor(Icons.photo_library_outlined),
+                  ),
                   label: const Text('View event gallery'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: kAccent,
@@ -267,7 +276,7 @@ class _DetailRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: kTextSecondary),
+        Icon(icon, size: 16, color: requestorMetaIconColor(icon)),
         const SizedBox(width: 8),
         Expanded(
           child: Column(

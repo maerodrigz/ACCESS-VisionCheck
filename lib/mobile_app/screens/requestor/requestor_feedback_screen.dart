@@ -6,6 +6,7 @@ import 'package:access_mobile/mobile_app/widgets/requestor/member_team_rating_se
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_list_skeleton.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/api/member_api_service.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
@@ -17,26 +18,31 @@ const _kRequestorFeedbackTypes = [
     label: 'Documentation quality',
     subtitle: 'Photo and video clarity, framing, and editing',
     icon: Icons.photo_camera_rounded,
+    accentColor: kAccent,
   ),
   _FeedbackTypeOption(
     label: 'Coverage completeness',
     subtitle: 'Key moments, angles, and deliverables covered',
     icon: Icons.checklist_rounded,
+    accentColor: kGreen,
   ),
   _FeedbackTypeOption(
     label: 'Team responsiveness',
     subtitle: 'Communication, timeliness, and coordination',
     icon: Icons.groups_rounded,
+    accentColor: kCyan,
   ),
   _FeedbackTypeOption(
     label: 'Suggestion',
     subtitle: 'Ideas to improve future documentation',
     icon: Icons.lightbulb_outline_rounded,
+    accentColor: kYellow,
   ),
   _FeedbackTypeOption(
     label: 'Other',
     subtitle: 'General comments not listed above',
     icon: Icons.chat_bubble_outline_rounded,
+    accentColor: kAccent,
   ),
 ];
 
@@ -45,11 +51,13 @@ class _FeedbackTypeOption {
     required this.label,
     required this.subtitle,
     required this.icon,
+    required this.accentColor,
   });
 
   final String label;
   final String subtitle;
   final IconData icon;
+  final Color accentColor;
 
   String get messageHint => switch (label) {
         'Documentation quality' =>
@@ -215,6 +223,51 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
     return ('Feedback', comment);
   }
 
+  List<_TeamRatingGroup> _groupMemberRatingsByRequest(List<Map<String, dynamic>> rows) {
+    final byRequest = <int, List<Map<String, dynamic>>>{};
+    for (final row in rows) {
+      final rid = (row['request_id'] as num?)?.toInt();
+      if (rid == null) continue;
+      byRequest.putIfAbsent(rid, () => []).add(row);
+    }
+    final groups = <_TeamRatingGroup>[];
+    for (final entry in byRequest.entries) {
+      final requestId = entry.key;
+      final eventTitle = entry.value.first['event_title'] as String? ??
+          appState.serviceRequests
+              .where((r) => r.requestId == requestId)
+              .map((r) => r.eventName)
+              .firstOrNull ??
+          'Request #$requestId';
+      String? dateLabel;
+      for (final row in entry.value) {
+        final raw = row['created_at'] as String?;
+        if (raw != null && raw.isNotEmpty) {
+          dateLabel = _formatRatingDate(raw);
+          break;
+        }
+      }
+      groups.add(_TeamRatingGroup(
+        requestId: requestId,
+        eventTitle: eventTitle,
+        dateLabel: dateLabel,
+        rows: entry.value,
+      ));
+    }
+    groups.sort((a, b) => b.requestId.compareTo(a.requestId));
+    return groups;
+  }
+
+  String _formatRatingDate(String iso) {
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return iso;
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
   EventFeedback _displayFeedback(EventFeedback fb) {
     final parsed = _parseComment(fb.message);
     final type = fb.type != 'Service rating' ? fb.type : parsed.$1;
@@ -281,6 +334,7 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
           final rateable = _rateableRequests(appState.serviceRequests);
           final ratedIds = _ratedRequestIds(appState.feedbacks);
           final past = appState.feedbacks.map(_displayFeedback).toList();
+          final teamRatingGroups = _groupMemberRatingsByRequest(_memberRatingsMine);
           final selected = _requestFromKey(_selectedKey);
           final loading = memberDataController.isLoading && appState.serviceRequests.isEmpty;
           final syncing = memberDataController.isLoading && appState.serviceRequests.isNotEmpty;
@@ -369,18 +423,19 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                     onSubmittingChanged: (v) => setState(() => _submitting = v),
                   ),
                 ],
-                if (past.isNotEmpty) ...[
+                if (past.isNotEmpty || teamRatingGroups.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
                     'Your submissions',
                     style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Ratings you have sent for past documentation events.',
-                    style: memberDashboardSectionSubtitleStyle,
-                  ),
                   const SizedBox(height: 12),
+                  ...teamRatingGroups.map(
+                    (g) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _PastTeamRatingsCard(group: g),
+                    ),
+                  ),
                   ...past.map(
                     (fb) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
@@ -714,11 +769,11 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       }
     }
 
-    final hasOverall = widget.rating > 0 && widget.msgCtrl.text.trim().isNotEmpty;
+    final hasOverall = widget.rating > 0;
     if (_teamTargets.isEmpty && !hasOverall) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Rate your assigned team or submit overall event feedback'),
+          content: Text('Rate your assigned team or give an overall star rating'),
           backgroundColor: kRed,
         ),
       );
@@ -741,17 +796,20 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
         );
       }
       if (hasOverall) {
+        final msg = widget.msgCtrl.text.trim();
+        final comment = msg.isEmpty ? widget.type : '${widget.type}: $msg';
         await memberDataController.submitFeedback(
           requestId: requestId,
           rating: widget.rating,
-          comment: '${widget.type}: ${widget.msgCtrl.text.trim()}',
+          comment: comment,
         );
       }
       await widget.onSubmitted();
     } catch (e) {
       if (mounted) {
+        final message = e is ApiException ? e.message : 'Could not submit feedback. Try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: kRed),
+          SnackBar(content: Text(message), backgroundColor: kRed),
         );
       }
     } finally {
@@ -797,7 +855,7 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Share general comments about the documentation service for this event.',
+            'Optional comments about documentation service for this event.',
             style: memberDashboardMetaStyle.copyWith(fontSize: 11),
           ),
           const SizedBox(height: 10),
@@ -947,10 +1005,14 @@ class _FeedbackTypeTile extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
           decoration: BoxDecoration(
-            color: selected ? kAccent.withValues(alpha: 0.08) : kSurfaceAlt,
+            color: selected
+                ? option.accentColor.withValues(alpha: 0.08)
+                : kSurfaceAlt,
             borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
             border: Border.all(
-              color: selected ? kAccent : kBorder,
+              color: selected
+                  ? option.accentColor
+                  : option.accentColor.withValues(alpha: 0.22),
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -961,16 +1023,20 @@ class _FeedbackTypeTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: selected ? kAccent.withValues(alpha: 0.14) : kSurface,
+                  color: selected
+                      ? option.accentColor.withValues(alpha: 0.14)
+                      : option.accentColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(11),
                   border: Border.all(
-                    color: selected ? kAccent.withValues(alpha: 0.35) : kBorder,
+                    color: selected
+                        ? option.accentColor.withValues(alpha: 0.35)
+                        : option.accentColor.withValues(alpha: 0.18),
                   ),
                 ),
                 child: Icon(
                   option.icon,
                   size: 20,
-                  color: selected ? kAccent : kIconInactive,
+                  color: selected ? option.accentColor : option.accentColor.withValues(alpha: 0.85),
                 ),
               ),
               const SizedBox(width: 12),
@@ -983,7 +1049,7 @@ class _FeedbackTypeTile extends StatelessWidget {
                       style: memberDashboardBodyStyle.copyWith(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
-                        color: selected ? kAccent : kTextPrimary,
+                        color: selected ? option.accentColor : kTextPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1001,7 +1067,7 @@ class _FeedbackTypeTile extends StatelessWidget {
               Icon(
                 selected ? Icons.check_circle_rounded : Icons.circle_outlined,
                 size: 22,
-                color: selected ? kAccent : kIconInactive,
+                color: selected ? option.accentColor : option.accentColor.withValues(alpha: 0.35),
               ),
             ],
           ),
@@ -1040,10 +1106,10 @@ class _EventPickerList extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => onEventChanged(key),
+              onTap: alreadyRated ? null : () => onEventChanged(key),
               borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
               child: Opacity(
-                opacity: alreadyRated ? 0.72 : 1,
+                opacity: alreadyRated ? 0.55 : 1,
                 child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
@@ -1175,6 +1241,134 @@ class _SelectedEventPreview extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TeamRatingGroup {
+  const _TeamRatingGroup({
+    required this.requestId,
+    required this.eventTitle,
+    required this.rows,
+    this.dateLabel,
+  });
+
+  final int requestId;
+  final String eventTitle;
+  final List<Map<String, dynamic>> rows;
+  final String? dateLabel;
+}
+
+class _PastTeamRatingsCard extends StatelessWidget {
+  const _PastTeamRatingsCard({required this.group});
+
+  final _TeamRatingGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    return MemberDashboardCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  group.eventTitle,
+                  style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+                ),
+              ),
+              if (group.dateLabel != null)
+                Text(group.dateLabel!, style: memberDashboardMetaStyle.copyWith(fontSize: 11)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: kAccent.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: kAccent.withValues(alpha: 0.15)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.groups_rounded, size: 16, color: kAccent),
+                const SizedBox(width: 8),
+                Text(
+                  'Team member ratings',
+                  style: memberDashboardMetaStyle.copyWith(
+                    color: kAccent,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (final row in group.rows) ...[
+            _PastMemberRatingRow(row: row),
+            if (row != group.rows.last) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PastMemberRatingRow extends StatelessWidget {
+  const _PastMemberRatingRow({required this.row});
+
+  final Map<String, dynamic> row;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = row['member_name'] as String? ?? 'Team member';
+    final rating = (row['rating'] as num?)?.toInt() ?? 0;
+    final comment = (row['comment'] as String?)?.trim() ?? '';
+    final role = row['task_role'] as String? ?? '';
+    final roleLabel = role.toLowerCase().contains('video')
+        ? 'Videographer'
+        : role.toLowerCase().contains('photo')
+            ? 'Photographer'
+            : 'Documentation member';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                name,
+                style: memberDashboardBodyStyle.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            Text(roleLabel, style: memberDashboardMetaStyle.copyWith(fontSize: 10)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: List.generate(
+            5,
+            (i) => Icon(
+              i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+              color: i < rating ? kYellow : kBorder,
+              size: 14,
+            ),
+          ),
+        ),
+        if (comment.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(comment, style: memberDashboardBodyStyle.copyWith(fontSize: 12)),
+        ],
+      ],
     );
   }
 }

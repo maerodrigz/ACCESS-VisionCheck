@@ -30,21 +30,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _error;
   String? _profileImageUrl;
   bool _isMember = true;
+  String _initialContact = '';
+  String _initialName = '';
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl.addListener(_onNameChanged);
+    _nameCtrl.addListener(_onFieldsChanged);
+    _contactCtrl.addListener(_onFieldsChanged);
     _loadProfile();
   }
 
-  void _onNameChanged() {
+  void _onFieldsChanged() {
     if (mounted) setState(() {});
   }
 
+  bool get _hasChanges {
+    final contactChanged = _contactCtrl.text.trim() != _initialContact.trim();
+    if (!_isMember) return contactChanged;
+    return contactChanged || _nameCtrl.text.trim() != _initialName.trim();
+  }
+
+  /// Enable when dirty; field validators run on submit (avoids a disabled Save button while editing).
+  bool get _canSave => _hasChanges && !_busy;
+
   @override
   void dispose() {
-    _nameCtrl.removeListener(_onNameChanged);
+    _nameCtrl.removeListener(_onFieldsChanged);
+    _contactCtrl.removeListener(_onFieldsChanged);
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _contactCtrl.dispose();
@@ -64,6 +77,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _nameCtrl.text = profile['name'] as String? ?? '';
       _emailCtrl.text = profile['email'] as String? ?? '';
       _contactCtrl.text = profile['contact_number'] as String? ?? '';
+      _initialName = _nameCtrl.text;
+      _initialContact = _contactCtrl.text;
       final img = profile['profile_image'] as String?;
       _profileImageUrl = img != null ? memberApiService.mediaUrl(img) : null;
       setState(() => _loading = false);
@@ -71,7 +86,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.message;
+        _error = _userFacingError(e.message);
       });
     } catch (e) {
       if (!mounted) return;
@@ -80,6 +95,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _error = 'Unable to load profile. Please try again.';
       });
     }
+  }
+
+  String _userFacingError(String message) {
+    final lower = message.toLowerCase();
+    if (message.contains('_FIREBASE_APP') ||
+        lower.contains("name '_firebase_app'") ||
+        (lower.contains('firebase') && lower.contains('not defined'))) {
+      return 'Photo upload is unavailable right now. Please try again in a moment.';
+    }
+    if (lower.contains('internal server error') || lower.contains('500')) {
+      return 'Something went wrong on our side. Please try again.';
+    }
+    return message;
   }
 
   String _initials(String name) {
@@ -137,7 +165,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       setState(() {
         _uploadingAvatar = false;
-        _error = e.message;
+        _error = _userFacingError(e.message);
       });
     } catch (_) {
       if (!mounted) return;
@@ -149,8 +177,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _save() async {
+    if (!_hasChanges || _saving || _uploadingAvatar) return;
     if (!_formKey.currentState!.validate()) return;
-    if (_saving || _uploadingAvatar) return;
 
     setState(() {
       _saving = true;
@@ -158,9 +186,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
 
     try {
+      var contact = _contactCtrl.text.trim();
+      if (!_isMember) {
+        contact = _EditProfileValidators._normalizePhilippineMobile(contact) ?? contact;
+      }
       final updated = await memberApiService.updateProfile(
         name: _isMember ? _nameCtrl.text.trim() : null,
-        contactNumber: _contactCtrl.text.trim(),
+        contactNumber: contact,
       );
 
       await authController.updateSessionProfile(
@@ -186,6 +218,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       if (!mounted) return;
+      _initialContact = _contactCtrl.text.trim();
+      _initialName = _nameCtrl.text.trim();
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -198,7 +232,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = e.message;
+        _error = _userFacingError(e.message);
       });
     } catch (_) {
       if (!mounted) return;
@@ -235,20 +269,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ? _LoadError(message: _error!, onRetry: _loadProfile)
               : Column(
                   children: [
-                    _EditProfileHero(
-                      imageUrl: _profileImageUrl,
-                      initials: _initials(_nameCtrl.text),
-                      displayName: _nameCtrl.text.trim(),
-                      uploading: _uploadingAvatar,
-                      onChangePhoto: _pickAvatar,
-                    ),
+                    if (_isMember)
+                      _EditProfileHero(
+                        imageUrl: _profileImageUrl,
+                        initials: _initials(_nameCtrl.text),
+                        displayName: _nameCtrl.text.trim(),
+                        uploading: _uploadingAvatar,
+                        onChangePhoto: _pickAvatar,
+                      ),
                     Expanded(
                       child: Form(
                         key: _formKey,
                         child: ListView(
                           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                          padding: mobileScrollPadding(context, top: 16),
+                          padding: mobileScrollPadding(context, top: _isMember ? 16 : 12),
                           children: [
+                            if (!_isMember) ...[
+                              _OrganizationEditProfileCard(
+                                imageUrl: _profileImageUrl,
+                                initials: _initials(_nameCtrl.text),
+                                organizationName: _nameCtrl.text.trim(),
+                                uploading: _uploadingAvatar,
+                                onChangePhoto: _pickAvatar,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                             if (_error != null) ...[
                               _ErrorBanner(message: _error!),
                               const SizedBox(height: 16),
@@ -259,12 +304,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Text(
-                                    'Personal details',
+                                    _isMember ? 'Personal details' : 'Organization Details',
                                     style: memberDashboardCardTitleStyle.copyWith(fontSize: 15),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Update your name and contact information.',
+                                    _isMember
+                                        ? 'Update your name and contact information.'
+                                        : 'Update your organization contact number.',
                                     style: memberDashboardMetaStyle,
                                   ),
                                   const SizedBox(height: 18),
@@ -279,10 +326,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     const SizedBox(height: 14),
                                   ] else ...[
                                     _ReadOnlyField(
-                                      label: 'Full Name',
+                                      label: 'Organization Name',
                                       value: _nameCtrl.text,
-                                      icon: Icons.person_outline,
-                                      hint: 'Managed by your organization',
+                                      icon: Icons.business_outlined,
+                                      hint: 'Managed by your organization account',
                                     ),
                                     const SizedBox(height: 14),
                                   ],
@@ -298,9 +345,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     controller: _contactCtrl,
                                     icon: Icons.phone_outlined,
                                     keyboardType: TextInputType.phone,
-                                    validator: _EditProfileValidators.contactNumber,
+                                    validator: _isMember
+                                        ? _EditProfileValidators.contactNumber
+                                        : _EditProfileValidators.philippineContactNumber,
                                     textInputAction: TextInputAction.done,
-                                    onFieldSubmitted: (_) => _save(),
+                                    onFieldSubmitted: (_) {
+                                      if (_canSave) _save();
+                                    },
                                   ),
                                 ],
                               ),
@@ -317,6 +368,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _ActionBar(
                       saving: _saving,
                       disabled: _busy,
+                      saveEnabled: _canSave,
                       onCancel: () => Navigator.pop(context),
                       onSave: _save,
                     ),
@@ -346,6 +398,127 @@ class _EditProfileValidators {
       return 'Enter a valid contact number (7–15 digits)';
     }
     return null;
+  }
+
+  /// Philippine mobile: 09XXXXXXXXX, +639XXXXXXXXX, or 9XXXXXXXXX.
+  static String? philippineContactNumber(String? v) {
+    final req = RegistrationValidators.required(v, label: 'Contact number');
+    if (req != null) return req;
+    if (_normalizePhilippineMobile(v!) == null) {
+      return 'Enter a valid PH mobile number (e.g. 0917 123 4567)';
+    }
+    return null;
+  }
+
+  static String? _normalizePhilippineMobile(String raw) {
+    var digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return null;
+    if (digits.startsWith('63') && digits.length == 12) {
+      digits = '0${digits.substring(2)}';
+    } else if (digits.length == 10 && digits.startsWith('9')) {
+      digits = '0$digits';
+    }
+    if (digits.length != 11 || !digits.startsWith('09')) {
+      return null;
+    }
+    return digits;
+  }
+}
+
+class _OrganizationEditProfileCard extends StatelessWidget {
+  const _OrganizationEditProfileCard({
+    required this.imageUrl,
+    required this.initials,
+    required this.organizationName,
+    required this.uploading,
+    required this.onChangePhoto,
+  });
+
+  final String? imageUrl;
+  final String initials;
+  final String organizationName;
+  final bool uploading;
+  final VoidCallback onChangePhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    return MemberDashboardCard(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: kAccent.withValues(alpha: 0.35), width: 2),
+                ),
+                child: CircleAvatar(
+                  radius: 46,
+                  backgroundColor: kAccent.withValues(alpha: 0.08),
+                  backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
+                  child: imageUrl == null
+                      ? Text(
+                          initials,
+                          style: memberDashboardSectionTitleStyle.copyWith(
+                            fontSize: 26,
+                            color: kAccent,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+              if (uploading)
+                Container(
+                  width: 98,
+                  height: 98,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: kSurface),
+                  ),
+                ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Material(
+                  color: kAccent,
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  shadowColor: kAccent.withValues(alpha: 0.3),
+                  child: InkWell(
+                    onTap: uploading ? null : onChangePhoto,
+                    customBorder: const CircleBorder(),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (organizationName.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              organizationName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: memberDashboardCardTitleStyle.copyWith(fontSize: 17),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -612,12 +785,14 @@ class _ActionBar extends StatelessWidget {
   const _ActionBar({
     required this.saving,
     required this.disabled,
+    required this.saveEnabled,
     required this.onCancel,
     required this.onSave,
   });
 
   final bool saving;
   final bool disabled;
+  final bool saveEnabled;
   final VoidCallback onCancel;
   final VoidCallback onSave;
 
@@ -661,10 +836,12 @@ class _ActionBar extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: FilledButton(
-              onPressed: disabled ? null : onSave,
+              onPressed: (disabled || !saveEnabled) ? null : onSave,
               style: FilledButton.styleFrom(
                 backgroundColor: kAccent,
+                disabledBackgroundColor: kAccent.withValues(alpha: 0.35),
                 foregroundColor: Colors.white,
+                disabledForegroundColor: Colors.white.withValues(alpha: 0.85),
                 minimumSize: const Size.fromHeight(kMobileMinTouch),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),

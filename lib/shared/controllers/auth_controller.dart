@@ -42,7 +42,7 @@ class AuthController extends ChangeNotifier {
       );
       apiClient.setToken(_user!.token);
       if (_user!.role == AccessRole.member || _user!.role == AccessRole.organization) {
-        _syncMemberSession();
+        await _syncMemberSession();
       }
       notifyListeners();
     } catch (_) {

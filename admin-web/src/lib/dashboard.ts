@@ -719,22 +719,36 @@ export function buildDailySummary(snap: HomeDashboardSnapshot): string {
   return parts.join(' ')
 }
 
-export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
-  const [stats, requests, events, evaluations, media, notificationsRaw, tasks, rankings, aiDetectionRaw] =
-    await Promise.all([
-      fetchDashboardStats(),
-      fetchServiceRequests(),
-      fetchEvents(),
-      fetchEvaluations(),
-      fetchMedia(),
-      fetchNotifications(),
-      fetchTasks(),
-      fetchRankings(),
-      fetchAiDetectionList().catch(() => null),
-    ])
+function estimatePendingMediaCount(stats: DashboardStats): number {
+  const uploads = stats.media_uploads ?? 0
+  const evaluated = stats.total_evaluations ?? 0
+  return Math.max(0, uploads - evaluated)
+}
 
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+function buildHomeDashboardSnapshot(input: {
+  stats: DashboardStats
+  requests: Record<string, unknown>[]
+  events: Record<string, unknown>[]
+  tasks: Record<string, unknown>[]
+  notificationsRaw: Record<string, unknown>[]
+  evaluations: Record<string, unknown>[]
+  media: Record<string, unknown>[]
+  rankings: Record<string, unknown>[]
+  aiDetectionRaw: Record<string, unknown>[] | null
+  today: Date
+}): HomeDashboardSnapshot {
+  const {
+    stats,
+    requests,
+    events,
+    tasks,
+    notificationsRaw,
+    evaluations,
+    media,
+    rankings,
+    aiDetectionRaw,
+    today,
+  } = input
 
   const requestorByRequestId = buildRequestorByRequestId(requests)
 
@@ -771,10 +785,13 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
   const evaluatedMediaIds = new Set(
     evaluations.map((e) => Number(e.media_id)).filter((id) => id > 0),
   )
-  const pendingMedia = media.filter((m) => {
-    const id = Number(m.id)
-    return id > 0 && !evaluatedMediaIds.has(id)
-  }).length
+  const pendingMedia =
+    media.length > 0 || evaluations.length > 0
+      ? media.filter((m) => {
+          const id = Number(m.id)
+          return id > 0 && !evaluatedMediaIds.has(id)
+        }).length
+      : estimatePendingMediaCount(stats)
 
   const completedToday = evaluations.filter((e) => {
     const d = parseDate(e.evaluated_at ?? e.created_at)
@@ -824,4 +841,58 @@ export async function fetchHomeDashboard(): Promise<HomeDashboardSnapshot> {
     aiReviewQueue,
     activeDocumenters: buildActiveDocumenters(rankings, stats),
   }
+}
+
+export type FetchHomeDashboardOptions = {
+  /** Called after lightweight API wave so the home page can paint sooner. */
+  onPartial?: (snap: HomeDashboardSnapshot) => void
+}
+
+export async function fetchHomeDashboard(
+  options?: FetchHomeDashboardOptions,
+): Promise<HomeDashboardSnapshot> {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  const [stats, requests, events, notificationsRaw, tasks] = await Promise.all([
+    fetchDashboardStats(),
+    fetchServiceRequests(),
+    fetchEvents(),
+    fetchNotifications(),
+    fetchTasks(),
+  ])
+
+  const partial = buildHomeDashboardSnapshot({
+    stats,
+    requests,
+    events,
+    tasks,
+    notificationsRaw,
+    evaluations: [],
+    media: [],
+    rankings: [],
+    aiDetectionRaw: null,
+    today,
+  })
+  options?.onPartial?.(partial)
+
+  const [evaluations, media, rankings, aiDetectionRaw] = await Promise.all([
+    fetchEvaluations(),
+    fetchMedia(),
+    fetchRankings(),
+    fetchAiDetectionList().catch(() => null),
+  ])
+
+  return buildHomeDashboardSnapshot({
+    stats,
+    requests,
+    events,
+    tasks,
+    notificationsRaw,
+    evaluations,
+    media,
+    rankings,
+    aiDetectionRaw,
+    today,
+  })
 }

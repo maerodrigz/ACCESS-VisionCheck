@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar } from 'lucide-react'
 import { eventCalendarUrl } from '../../lib/adminCrossLinks'
@@ -25,6 +25,36 @@ function isEventDateReached(eventDate?: Date): boolean {
 
 function hasConfirmedCoverage(assignments: { status: string }[]): boolean {
   return assignments.some((a) => CONFIRMED_ASSIGNMENT_STATUSES.has(a.status.toLowerCase()))
+}
+
+function ReviewBentoTile({
+  label,
+  children,
+  className = '',
+  dense,
+}: {
+  label: string
+  children: ReactNode
+  className?: string
+  dense?: boolean
+}) {
+  return (
+    <div
+      className={[
+        'flex min-h-[88px] flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-[0_1px_2px_rgba(15,39,68,0.04)]',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+        {label}
+      </div>
+      <div className={dense ? 'mt-1.5 min-w-0 flex-1 text-sm' : 'mt-2 min-w-0 flex-1 text-sm'}>
+        {children}
+      </div>
+    </div>
+  )
 }
 
 interface Props {
@@ -151,7 +181,6 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
   const canMarkCompleted =
     item.displayStatus === 'approved' &&
     item.rawStatus.toLowerCase() !== 'completed' &&
-    eventDateReached &&
     coverageConfirmed
   const showTeamPanel =
     item.displayStatus === 'approved' || item.displayStatus === 'completed'
@@ -167,7 +196,7 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
         open
         onClose={onClose}
         title="Review request"
-        maxWidth="xl"
+        maxWidth="2xl"
         bodyClassName="space-y-4 px-5 pb-5"
         header={
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-5 py-4">
@@ -241,54 +270,67 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
             <PriorityBadge priority={item.priority} />
           </div>
 
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
-            <h4 className="text-sm font-bold text-[var(--color-text-primary)]">{item.eventTitle}</h4>
-            <dl className="mt-3 space-y-3 text-sm">
-              <div>
-                <dt className="text-xs font-bold text-[var(--color-text-secondary)]">Requestor</dt>
-                <dd className="mt-0.5 font-semibold text-[var(--color-text-primary)]">{item.requestor}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-bold text-[var(--color-text-secondary)]">Event date</dt>
-                <dd className="mt-0.5 text-[var(--color-text-primary)]">{item.eventDateLabel}</dd>
-                {item.eventDate ? (
-                  <dd className="mt-2">
-                    <Link
-                      to={eventCalendarUrl({ requestId: item.id })}
-                      onClick={onClose}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-1.5 text-[11px] font-semibold text-[var(--color-accent-blue)] hover:bg-[var(--color-surface-hover)]"
-                    >
-                      <Calendar size={12} />
-                      View on calendar
-                    </Link>
-                  </dd>
-                ) : null}
-              </div>
-              {item.venue ? (
-                <div>
-                  <dt className="text-xs font-bold text-[var(--color-text-secondary)]">Venue</dt>
-                  <dd className="mt-0.5 text-[var(--color-text-primary)]">{item.venue}</dd>
-                </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:auto-rows-fr">
+            <ReviewBentoTile label="Event" className="sm:col-span-2 min-h-[72px]">
+              <p className="text-base font-extrabold leading-snug text-[var(--color-text-primary)]">
+                {item.eventTitle}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+                {requestRefLabel(item.id)}
+              </p>
+            </ReviewBentoTile>
+
+            <ReviewBentoTile label="Requestor">
+              <p className="font-semibold text-[var(--color-text-primary)]">{item.requestor}</p>
+            </ReviewBentoTile>
+
+            <ReviewBentoTile label="Submitted">
+              <p className="font-semibold text-[var(--color-text-primary)]">{item.createdAtLabel}</p>
+            </ReviewBentoTile>
+
+            <ReviewBentoTile label="Event date">
+              <p className="font-semibold text-[var(--color-text-primary)]">{item.eventDateLabel}</p>
+              <p className="mt-1.5 text-xs leading-snug text-[var(--color-text-secondary)]">
+                Requestor reference date (start or primary day). Mark completed when coverage is actually done.
+              </p>
+              {item.eventDate ? (
+                <Link
+                  to={eventCalendarUrl({ requestId: item.id })}
+                  onClick={onClose}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-accent-blue)] hover:bg-[var(--color-surface-hover)]"
+                >
+                  <Calendar size={12} />
+                  View on calendar
+                </Link>
               ) : null}
-              <div>
-                <dt className="text-xs font-bold text-[var(--color-text-secondary)]">Request details</dt>
-                <dd className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {item.details?.trim() ? item.details : 'No additional details provided.'}
-                </dd>
-              </div>
-            </dl>
-          </div>
+            </ReviewBentoTile>
 
-          {item.rejectionReason ? (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              <div className="text-xs font-bold">Rejection reason</div>
-              <p className="mt-1 whitespace-pre-wrap leading-relaxed">{item.rejectionReason}</p>
-            </div>
-          ) : null}
+            <ReviewBentoTile label="Venue">
+              <p className="font-semibold text-[var(--color-text-primary)]">
+                {item.venue?.trim() ? item.venue : 'Not specified'}
+              </p>
+            </ReviewBentoTile>
 
-          <div>
-            <div className="mb-2 text-xs font-bold text-[var(--color-text-secondary)]">Assigned members</div>
-            <MemberAvatarStack members={item.assignedMembers} />
+            <ReviewBentoTile label="Request details" className="sm:col-span-2">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                {item.details?.trim() ? item.details : 'No additional details provided.'}
+              </p>
+            </ReviewBentoTile>
+
+            {item.rejectionReason ? (
+              <ReviewBentoTile
+                label="Rejection reason"
+                className="sm:col-span-2 border-red-500/30 bg-red-500/10"
+              >
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-danger-text)]">
+                  {item.rejectionReason}
+                </p>
+              </ReviewBentoTile>
+            ) : null}
+
+            <ReviewBentoTile label="Assigned members" className="sm:col-span-2 min-h-[72px]" dense>
+              <MemberAvatarStack members={item.assignedMembers} />
+            </ReviewBentoTile>
           </div>
 
           <RequestMemberRatingsSection
@@ -321,11 +363,14 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
 
           {showCompletionHint && !canMarkCompleted ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-              {!eventDateReached
-                ? `Mark completed unlocks on ${item.eventDateLabel}, after the event has taken place.`
-                : !coverageConfirmed
-                  ? 'Mark completed unlocks after at least one assigned member accepts coverage.'
-                  : null}
+              Mark completed unlocks after at least one assigned member accepts coverage.
+            </div>
+          ) : null}
+
+          {showCompletionHint && canMarkCompleted && !eventDateReached ? (
+            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+              Scheduled event date is {item.eventDateLabel}. You may mark completed when documentation is finished,
+              including multi-day or extended campus events that run past that date.
             </div>
           ) : null}
 
@@ -360,7 +405,7 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
       <AdminConfirmDialog
         open={showCompleteConfirm}
         title="Mark documentation completed?"
-        message={`The requestor will be notified that documentation for "${item.eventTitle}" is complete.`}
+        message={`Confirm that documentation for "${item.eventTitle}" is finished (use your judgment for multi-day or extended events). The requestor will be notified.`}
         confirmLabel="Mark completed"
         tone="success"
         loading={submitting}

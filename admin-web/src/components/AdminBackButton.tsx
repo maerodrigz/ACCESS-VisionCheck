@@ -23,7 +23,7 @@ export function AdminBackButton({
   )
 }
 
-/** Back control for drawers and slide-over panels. */
+/** Back control for drawers and floating detail panels. */
 export function DrawerBackButton({
   onClick,
   label = 'Back',

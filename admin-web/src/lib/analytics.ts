@@ -60,7 +60,13 @@ import {
   requestYears,
 } from './analyticsOverview'
 
-export async function fetchAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
+export type FetchAnalyticsSnapshotOptions = {
+  onPartial?: (snap: AnalyticsSnapshot) => void
+}
+
+export async function fetchAnalyticsSnapshot(
+  options?: FetchAnalyticsSnapshotOptions,
+): Promise<AnalyticsSnapshot> {
   let evaluationSummary: Record<string, unknown> = {}
   let aiSummary: AiDetectionSummary | Record<string, unknown> = {}
   try {
@@ -74,17 +80,30 @@ export async function fetchAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
     /* optional */
   }
 
-  const [stats, rankings, rankingsSummary, events, feedback, media, requests, evaluations] =
-    await Promise.all([
-      fetchDashboardStats(),
-      fetchRankings(),
-      fetchRankingsSummary(),
-      fetchEvents(),
-      fetchFeedback(),
-      fetchMedia(),
-      fetchServiceRequests(),
-      fetchEvaluations(),
-    ])
+  const [stats, rankings, rankingsSummary, events, feedback, requests] = await Promise.all([
+    fetchDashboardStats(),
+    fetchRankings(),
+    fetchRankingsSummary(),
+    fetchEvents(),
+    fetchFeedback(),
+    fetchServiceRequests(),
+  ])
+
+  const partial: AnalyticsSnapshot = {
+    stats: stats as DashboardStats & Record<string, unknown>,
+    rankings,
+    rankingsSummary,
+    events,
+    feedback,
+    media: [],
+    requests,
+    evaluations: [],
+    evaluationSummary,
+    aiSummary,
+  }
+  options?.onPartial?.(partial)
+
+  const [media, evaluations] = await Promise.all([fetchMedia(), fetchEvaluations()])
 
   return {
     stats: stats as DashboardStats & Record<string, unknown>,

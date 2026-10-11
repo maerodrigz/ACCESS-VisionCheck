@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:access_mobile/mobile_app/sheets/admin_review_notice_sheet.dart';
 import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
@@ -13,11 +14,14 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
+import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 
-String _reportAdminRemarks(Evaluation evaluation) {
+String _reportAdminRemarks(Evaluation evaluation, {String? notificationMessage}) {
   final r = evaluation.adminRemarks?.trim() ?? '';
   if (r.isNotEmpty) return r;
+  final fromNotice = adminRemarksFromNotificationFallback(notificationMessage);
+  if (fromNotice.isNotEmpty) return fromNotice;
   final s = (evaluation.reviewStatus ?? '').toLowerCase();
   if (s.contains('reupload')) {
     return 'An administrator requested a new upload. Use Re-upload below.';
@@ -31,10 +35,12 @@ class EvaluationReportScreen extends StatelessWidget {
     super.key,
     required this.evaluation,
     this.comparisonEvaluations = const [],
+    this.notificationMessage,
   });
 
   final Evaluation evaluation;
   final List<PhotoEvaluationResult> comparisonEvaluations;
+  final String? notificationMessage;
 
   PhotoEvaluationResult? get _result => evaluationToPhotoResult(evaluation);
 
@@ -57,7 +63,14 @@ class EvaluationReportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final result = _result;
+    final parsed = _result;
+    final adminRemarks = _reportAdminRemarks(
+      evaluation,
+      notificationMessage: notificationMessage,
+    );
+    final reviewPending = parsed != null &&
+        parsed.aiDetection.requiresReview &&
+        !MemberReviewStatus.isFinalAdminDecision(evaluation.reviewStatus);
 
     return Scaffold(
       backgroundColor: kEvalBg,
@@ -73,10 +86,26 @@ class EvaluationReportScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _ReportMediaHeader(evaluation: evaluation),
+            _ReportMediaHeader(
+              evaluation: evaluation,
+              integrityReviewReason: reviewPending ? memberIntegrityReviewReason(parsed) : null,
+            ),
             const SizedBox(height: 14),
-            if (result != null) ...[
-              if (result.showQualityFeedbackEffective) ...[
+            if (reviewPending) ...[
+              AiDetectionBanner(
+                aiDetection: parsed.aiDetection,
+                adminReviewStatus: evaluation.reviewStatus,
+                compact: true,
+                minimal: false,
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (adminRemarks.isNotEmpty) ...[
+              AdminReviewRemarksPanel(remarks: adminRemarks),
+              const SizedBox(height: 14),
+            ],
+            if (parsed != null) ...[
+              if (parsed.showQualityFeedbackEffective) ...[
                 Text(
                   'Media quality',
                   style: evalSectionTitleStyle.copyWith(fontSize: 16),
@@ -88,37 +117,30 @@ class EvaluationReportScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 MediaEvaluationResultsPanel(
-                  result: result,
+                  result: parsed,
                   gemini: evaluation.geminiFeedback,
                   compact: true,
                   dense: true,
                   useBreakdownCard: true,
                   showOverallHeader: false,
-                  feedbackIsLocalFallback: result.geminiFeedbackIsLocal,
+                  feedbackIsLocalFallback: parsed.geminiFeedbackIsLocal,
                 ),
                 const SizedBox(height: 16),
               ] else ...[
                 IntegrityOnlyMessageCard(
-                  result: result,
+                  result: parsed,
                   reviewStatus: evaluation.reviewStatus,
                   adminRemarks: evaluation.adminRemarks,
                 ),
                 const SizedBox(height: 16),
               ],
-              if (result.showQualityFeedbackEffective &&
-                  (_adminRequestedReupload ||
-                      (evaluation.adminRemarks?.trim().isNotEmpty ?? false))) ...[
-                AdminReviewRemarksPanel(
-                  remarks: _reportAdminRemarks(evaluation),
+              if (!reviewPending)
+                AiDetectionBanner(
+                  aiDetection: parsed.aiDetection,
+                  adminReviewStatus: evaluation.reviewStatus,
+                  compact: true,
+                  minimal: false,
                 ),
-                const SizedBox(height: 12),
-              ],
-              AiDetectionBanner(
-                aiDetection: result.aiDetection,
-                adminReviewStatus: evaluation.reviewStatus,
-                compact: true,
-                minimal: !result.showQualityFeedbackEffective,
-              ),
             ] else ...[
               Container(
                 padding: const EdgeInsets.all(16),
@@ -139,14 +161,14 @@ class EvaluationReportScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
             ],
-            if (result != null)
+            if (parsed != null)
               _EvalReportActionButton(
                 label: 'View Detailed Analysis',
                 icon: Icons.analytics_outlined,
                 outlined: true,
                 onPressed: () => openEvaluationDetailedAnalysis(
                   context,
-                  result: result,
+                  result: parsed,
                   geminiFeedback: evaluation.geminiFeedback,
                   title: evaluation.title,
                   comparisonEvaluations: comparisonEvaluations,
@@ -160,9 +182,13 @@ class EvaluationReportScreen extends StatelessWidget {
 }
 
 class _ReportMediaHeader extends StatelessWidget {
-  const _ReportMediaHeader({required this.evaluation});
+  const _ReportMediaHeader({
+    required this.evaluation,
+    this.integrityReviewReason,
+  });
 
   final Evaluation evaluation;
+  final String? integrityReviewReason;
 
   bool get _isVideo => EvaluationMediaThumbnail.isVideoMedia(
         mediaType: evaluation.mediaType,
@@ -173,11 +199,13 @@ class _ReportMediaHeader extends StatelessWidget {
       evaluation.imageUrl != null && evaluation.imageUrl!.trim().isNotEmpty;
 
   void _openMedia(BuildContext context) {
+    final notice = integrityReviewReason?.trim();
     if (_isVideo && _hasNetworkMedia) {
       openEvalNetworkVideoViewer(
         context,
         videoUrl: evaluation.imageUrl!,
         title: evaluation.title,
+        integrityReviewNotice: notice,
       );
       return;
     }
@@ -193,12 +221,21 @@ class _ReportMediaHeader extends StatelessWidget {
             foregroundColor: Colors.white,
             title: Text(evaluation.title, style: const TextStyle(fontSize: 14)),
           ),
-          body: Center(
-            child: InteractiveViewer(
-              child: _hasNetworkMedia
-                  ? Image.network(evaluation.imageUrl!, fit: BoxFit.contain)
-                  : Image.memory(evaluation.images.first, fit: BoxFit.contain),
-            ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (notice != null && notice.isNotEmpty)
+                EvalViewerIntegrityNotice(text: notice),
+              Expanded(
+                child: Center(
+                  child: InteractiveViewer(
+                    child: _hasNetworkMedia
+                        ? Image.network(evaluation.imageUrl!, fit: BoxFit.contain)
+                        : Image.memory(evaluation.images.first, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -283,6 +320,7 @@ class _ReportMediaHeader extends StatelessWidget {
         videoUrl: evaluation.imageUrl!,
         title: evaluation.title,
         mediaType: evaluation.mediaType,
+        onTap: () => _openMedia(context),
       );
     }
 
@@ -388,6 +426,7 @@ void openEvaluationReport(
   BuildContext context,
   Evaluation evaluation, {
   List<Evaluation>? allEvaluations,
+  String? notificationMessage,
 }) {
   final comparisons = allEvaluations != null
       ? comparisonResultsFromHistory(allEvaluations, excludeId: evaluation.id)
@@ -398,6 +437,7 @@ void openEvaluationReport(
       builder: (_) => EvaluationReportScreen(
         evaluation: evaluation,
         comparisonEvaluations: comparisons,
+        notificationMessage: notificationMessage,
       ),
     ),
   );

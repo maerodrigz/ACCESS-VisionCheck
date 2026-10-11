@@ -1,10 +1,12 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { lockMainScroll, unlockMainScroll } from '../lib/mainScrollLock'
 import { DrawerBackButton } from './AdminBackButton'
 
 const MAX_WIDTH_CLASS = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-xl',
+  '2xl': 'max-w-2xl',
 } as const
 
 type MaxWidth = keyof typeof MAX_WIDTH_CLASS
@@ -75,7 +77,7 @@ interface Props {
   footer?: ReactNode
 }
 
-/** Right-side slide-over panel with backdrop, Escape, and focus trap. */
+/** Centered floating panel with backdrop, Escape, and focus trap. */
 export function AdminDrawer({
   open,
   onClose,
@@ -93,26 +95,23 @@ export function AdminDrawer({
 
   useEffect(() => {
     if (!open) return
-    const mains = Array.from(document.querySelectorAll('main'))
-    const prevOverflow = mains.map((el) => el.style.overflow)
-    mains.forEach((el) => {
-      el.style.overflow = 'hidden'
-    })
+    lockMainScroll()
     return () => {
-      mains.forEach((el, i) => {
-        el.style.overflow = prevOverflow[i] ?? ''
-      })
+      unlockMainScroll()
     }
   }, [open])
 
   if (!open) return null
 
   return (
-    <>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      aria-hidden={false}
+    >
       <button
         type="button"
         aria-label="Close panel"
-        className="fixed inset-0 z-40 bg-black/25"
+        className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
         onClick={onClose}
       />
       <aside
@@ -120,10 +119,10 @@ export function AdminDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel ?? title}
-        className={`fixed inset-y-0 right-0 z-50 flex w-full ${MAX_WIDTH_CLASS[maxWidth]} flex-col overflow-hidden border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl`}
+        className={`relative flex max-h-[min(90vh,calc(100dvh-2rem))] w-full ${MAX_WIDTH_CLASS[maxWidth]} flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl ring-1 ring-black/5`}
       >
         {header ?? (
-          <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-5 py-4">
+          <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-border)] px-5 py-4">
             <DrawerBackButton onClick={onClose} label="Back" />
             <div className="min-w-0 flex-1">
               <h2
@@ -143,9 +142,11 @@ export function AdminDrawer({
           {children}
         </div>
         {footer ? (
-          <div className="shrink-0 border-t border-[var(--color-border)]">{footer}</div>
+          <div className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+            {footer}
+          </div>
         ) : null}
       </aside>
-    </>
+    </div>
   )
 }

@@ -158,12 +158,16 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  void _openProfile() {
+  void _openProfile({bool scrollToRequestorFeedback = false}) {
     unawaited(memberDataController.refreshProfile());
+    if (scrollToRequestorFeedback) {
+      unawaited(memberDataController.refreshRequestorRatings());
+    }
     Navigator.push<void>(
       context,
       MaterialPageRoute(
         builder: (profileContext) => ProfileScreen(
+          scrollToRequestorFeedback: scrollToRequestorFeedback,
           onViewRankings: () {
             Navigator.pop(profileContext);
             _goToTab(5);
@@ -178,6 +182,10 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  void _openRequestorFeedbackFromHome() {
+    _openProfile(scrollToRequestorFeedback: true);
+  }
+
   Widget get _screen => switch (_navIndex) {
     0 => DashboardScreen(
           userName: widget.userName,
@@ -188,6 +196,7 @@ class _MainShellState extends State<MainShell> {
           onViewRankings: () => _goToTab(5),
           onViewNotifications: () => showNotifications(context),
           onProfileTap: _openProfile,
+          onViewAllRequestorFeedback: _openRequestorFeedbackFromHome,
         ),
     1 => EvaluationScreen(
           onNotificationsTap: () => showNotifications(context),

@@ -121,6 +121,19 @@ def _extract_with_ffmpeg_batch(video_path: Path, tmp_path: Path, *, times: list[
     return frames
 
 
+def probe_video_duration_from_bytes(content: bytes, *, suffix: str = ".mp4") -> float:
+    """Return clip duration in seconds, or 0.0 if ffprobe is unavailable or probing fails."""
+    if not content:
+        return 0.0
+    normalized = suffix.lower() if suffix.startswith(".") else f".{suffix.lower()}"
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / f"probe{normalized}"
+        path.write_bytes(content)
+        return _probe_duration(path)
+
+
 def _probe_duration(video_path: Path) -> float:
     if not shutil.which("ffprobe"):
         return 0.0

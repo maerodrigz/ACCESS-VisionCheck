@@ -415,8 +415,8 @@ class _RequestorEventDetailHeader extends StatelessWidget {
                             icon: Icons.photo_library_outlined,
                             value: '0',
                             label: 'Media',
-                            accent: kIconInactive,
-                            background: kSurfaceAlt,
+                            accent: kAccent,
+                            background: kBlueDim,
                             compact: compact,
                           ),
                         ),
@@ -797,7 +797,7 @@ class _MemberAlbumCoverFallback extends StatelessWidget {
     return ColoredBox(
       color: kSurfaceAlt,
       child: Center(
-        child: Icon(Icons.photo_library_outlined, size: 40, color: kIconInactive.withValues(alpha: 0.8)),
+        child: Icon(Icons.photo_library_outlined, size: 40, color: kAccent.withValues(alpha: 0.55)),
       ),
     );
   }
@@ -891,6 +891,11 @@ class _EventDetailFilterTabs extends StatelessWidget {
                 child: _EventDetailFilterTab(
                   label: _labels[filter]!,
                   icon: _icons[filter]!,
+                  inactiveIconColor: switch (filter) {
+                    _AlbumMediaFilter.all => kAccent,
+                    _AlbumMediaFilter.photos => kGreen,
+                    _AlbumMediaFilter.videos => kCyan,
+                  },
                   active: selected == filter,
                   compact: compact,
                   onTap: () => onSelected(filter),
@@ -908,6 +913,7 @@ class _EventDetailFilterTab extends StatelessWidget {
   const _EventDetailFilterTab({
     required this.label,
     required this.icon,
+    required this.inactiveIconColor,
     required this.active,
     required this.compact,
     required this.onTap,
@@ -915,6 +921,7 @@ class _EventDetailFilterTab extends StatelessWidget {
 
   final String label;
   final IconData icon;
+  final Color inactiveIconColor;
   final bool active;
   final bool compact;
   final VoidCallback onTap;
@@ -953,7 +960,7 @@ class _EventDetailFilterTab extends StatelessWidget {
                 Icon(
                   icon,
                   size: compact ? 14 : 15,
-                  color: active ? Colors.white : kIconInactive,
+                  color: active ? Colors.white : inactiveIconColor,
                 ),
                 SizedBox(width: compact ? 4 : 5),
                 Flexible(

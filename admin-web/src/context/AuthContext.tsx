@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from 'react'
 import { login as apiLogin, logout as apiLogout } from '../api/auth'
-import { fetchDashboardStats } from '../api/admin'
 import { fetchProfile, profileImageUrl } from '../api/profile'
 import {
   ApiError,

@@ -261,16 +261,9 @@ def update_service_request_status(
                 detail="Rejection reason is required (at least 8 characters)",
             )
     if status == "completed":
-        from datetime import date as date_type
-
         from app.crud import assignment as assignment_crud
         from app.models.assignment_constants import ACCEPTED, IN_PROGRESS, LEGACY_ASSIGNED
 
-        if row.event_date and row.event_date > date_type.today():
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot mark completed before the event date.",
-            )
         confirmed = [
             a
             for a in assignment_crud.list_for_request(db, row.id)

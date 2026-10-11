@@ -43,6 +43,14 @@ async def _app_lifespan(_app: FastAPI):
         _get_model()
 
     await asyncio.to_thread(_warm_probe_detector)
+
+    def _warm_fcm() -> None:
+        from app.services.firebase_admin_app import ensure_firebase_admin_app, is_fcm_configured
+
+        if is_fcm_configured():
+            ensure_firebase_admin_app()
+
+    await asyncio.to_thread(_warm_fcm)
     yield
 
 

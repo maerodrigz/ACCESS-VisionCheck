@@ -171,7 +171,7 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
             AiDetectionBanner(
               aiDetection: widget.result.aiDetection,
               compact: true,
-              minimal: !showQuality || heldForReview,
+              minimal: showQuality && !heldForReview && !widget.result.aiDetection.requiresReview,
               practiceFinalCopy: widget.evaluationAlreadySaved,
               adminReviewStatus: widget.adminReviewStatus,
             ),

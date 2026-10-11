@@ -26,6 +26,11 @@ _SOURCE_UNVERIFIED_MEMBER_MESSAGE = (
     "XP will be awarded if your submission is approved."
 )
 
+_PARTIAL_PROVENANCE_MEMBER_MESSAGE = (
+    "Camera metadata for this upload is incomplete or only partially verified. "
+    "An officer must confirm the file before scores, coaching, and XP are released."
+)
+
 
 def integrity_tier_from_detection(ai_detection: dict[str, Any]) -> str:
     verdict = str(ai_detection.get("verdict", INTEGRITY_TIER_AUTHENTIC)).lower()
@@ -53,16 +58,22 @@ def apply_integrity_evaluation_policy(payload: dict[str, Any]) -> dict[str, Any]
     out["integrity_tier"] = tier
     xp_preview = _xp_points_preview(out)
 
-    if ai.get("provenance_policy_outcome") == "source_unverified" and ai.get("requires_review"):
+    prov_outcome = str(ai.get("provenance_policy_outcome") or "").lower()
+    if prov_outcome in ("source_unverified", "source_partially_verified") and ai.get("requires_review"):
+        integrity_msg = (
+            _PARTIAL_PROVENANCE_MEMBER_MESSAGE
+            if prov_outcome == "source_partially_verified"
+            else _SOURCE_UNVERIFIED_MEMBER_MESSAGE
+        )
         out["show_quality_feedback"] = False
         out["quality_provisional"] = True
         out["xp_eligible"] = False
         out["xp_multiplier"] = 0.0
         out["xp_points_preview"] = xp_preview
         out["xp_pending"] = True
-        out["member_integrity_message"] = _SOURCE_UNVERIFIED_MEMBER_MESSAGE
+        out["member_integrity_message"] = integrity_msg
         base = out.get("ai_feedback") or ""
-        out["ai_feedback"] = f"{_SOURCE_UNVERIFIED_MEMBER_MESSAGE}\n\n{base}".strip()
+        out["ai_feedback"] = f"{integrity_msg}\n\n{base}".strip()
         return apply_review_gate_to_payload(out)
 
     if tier == INTEGRITY_TIER_AUTHENTIC:

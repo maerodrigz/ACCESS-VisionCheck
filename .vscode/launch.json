@@ -14,7 +14,10 @@
       "request": "launch",
       "type": "dart",
       "program": "lib/mobile_app/main_mobile.dart",
-      "toolArgs": ["--dart-define-from-file=config/api.json"]
+      "toolArgs": [
+        "--dart-define-from-file=config/api.json",
+        "--dart-define-from-file=config/firebase.json"
+      ]
     }
   ]
 }

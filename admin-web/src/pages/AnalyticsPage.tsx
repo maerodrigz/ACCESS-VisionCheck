@@ -50,6 +50,7 @@ export function AnalyticsPage() {
   const tab = parseAnalyticsTab(searchParams.get('tab'))
   const [data, setData] = useState<AnalyticsSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingDetails, setLoadingDetails] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const { showToast } = useToast()
@@ -61,14 +62,22 @@ export function AnalyticsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadingDetails(true)
     setError(null)
     try {
-      setData(await fetchAnalyticsSnapshot())
+      const snap = await fetchAnalyticsSnapshot({
+        onPartial: (partial) => {
+          setData(partial)
+          setLoading(false)
+        },
+      })
+      setData(snap)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load analytics')
       setData(null)
     } finally {
       setLoading(false)
+      setLoadingDetails(false)
     }
   }, [])
 
@@ -101,6 +110,9 @@ export function AnalyticsPage() {
   }
 
   const tabLabel = ANALYTICS_TABS.find((t) => t.id === tab)?.label ?? 'Analytics'
+
+  const tabNeedsHeavyDataset =
+    tab === 'media' || tab === 'activity' || tab === 'participation' || tab === 'overview'
 
   return (
     <div className={`pb-8 ${tab === 'overview' ? 'space-y-2' : 'space-y-5'}`}>
@@ -142,7 +154,7 @@ export function AnalyticsPage() {
           data={data}
           range={range}
           period={reportingPeriod}
-          loading={loading}
+          loading={loading || loadingDetails}
           unavailable={Boolean(error) && !data}
         />
       ) : null}
@@ -165,7 +177,7 @@ export function AnalyticsPage() {
         ))}
       </div>
 
-      {loading && !data && tab !== 'overview' ? (
+      {(loading && !data) || (loadingDetails && tabNeedsHeavyDataset) ? (
         <div className="flex justify-center py-16">
           <Loader2 className="animate-spin text-[var(--color-text-muted)]" size={28} />
         </div>

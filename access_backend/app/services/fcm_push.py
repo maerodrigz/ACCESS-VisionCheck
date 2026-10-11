@@ -10,13 +10,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.crud import push_device_token as token_crud
 from app.models.enums import RoleName
 from app.models.user import User
-from app.services.firebase_storage import _ensure_firebase_app
+from app.services.firebase_admin_app import ensure_firebase_admin_app, is_fcm_configured
 
 logger = logging.getLogger(__name__)
-
-
-def is_fcm_configured() -> bool:
-    return _ensure_firebase_app() is not None
 
 
 def _mobile_push_user(db: Session, user_id: int) -> bool:
@@ -33,6 +29,9 @@ def _send_tokens(tokens: list[str], title: str, body: str, data: dict[str, str])
         return
     if not is_fcm_configured():
         return
+    if ensure_firebase_admin_app() is None:
+        logger.warning("FCM skipped: Firebase Admin app not initialized")
+        return
     try:
         from firebase_admin import messaging
     except ImportError:
@@ -43,7 +42,13 @@ def _send_tokens(tokens: list[str], title: str, body: str, data: dict[str, str])
         notification=messaging.Notification(title=title[:200], body=body[:1024]),
         data=data,
         tokens=tokens,
-        android=messaging.AndroidConfig(priority="high"),
+        android=messaging.AndroidConfig(
+            priority="high",
+            notification=messaging.AndroidNotification(
+                channel_id="access_alerts",
+                sound="default",
+            ),
+        ),
     )
     try:
         response = messaging.send_each_for_multicast(message)
@@ -56,7 +61,8 @@ def _send_tokens(tokens: list[str], title: str, body: str, data: dict[str, str])
             if send_resp.success:
                 continue
             err = send_resp.exception
-            logger.debug("FCM token failed: %s", err)
+            token_hint = tokens[idx][:12] + "…" if idx < len(tokens) else "?"
+            logger.warning("FCM token %s failed: %s", token_hint, err)
 
 
 def send_to_user(

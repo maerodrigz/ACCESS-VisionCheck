@@ -271,9 +271,10 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                 ),
                 const SizedBox(height: 12),
               ],
-              Text(
-                'Event Information',
-                style: memberDashboardSectionTitleStyle.copyWith(fontSize: 15),
+              _FormSectionHeading(
+                title: 'Event Information',
+                icon: Icons.event_rounded,
+                iconColor: kAccent,
               ),
               const SizedBox(height: 10),
               _FormSectionCard(
@@ -285,6 +286,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                       controller: _eventNameCtrl,
                       hint: 'Leadership Seminar',
                       icon: Icons.event_rounded,
+                      iconColor: kAccent,
                       radius: _inputRadius,
                       validator: (v) => RegistrationValidators.required(v, label: 'Event name'),
                       textInputAction: TextInputAction.next,
@@ -298,6 +300,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                           controller: _dateCtrl,
                           hint: 'Select event date',
                           icon: Icons.calendar_month_rounded,
+                          iconColor: kAccent,
                           radius: _inputRadius,
                           validator: (_) => _eventDate == null ? 'Event date is required' : null,
                         ),
@@ -316,6 +319,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                                 controller: _startTimeCtrl,
                                 hint: '9:00 AM',
                                 icon: Icons.schedule_rounded,
+                                iconColor: kYellow,
                                 radius: _inputRadius,
                                 validator: (v) =>
                                     (v == null || v.trim().isEmpty) ? 'Start time is required' : null,
@@ -333,6 +337,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                                 controller: _endTimeCtrl,
                                 hint: '5:00 PM',
                                 icon: Icons.schedule_rounded,
+                                iconColor: kYellow,
                                 radius: _inputRadius,
                                 validator: (v) =>
                                     (v == null || v.trim().isEmpty) ? 'End time is required' : null,
@@ -348,6 +353,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                       controller: _venueCtrl,
                       hint: 'Main Auditorium',
                       icon: Icons.location_on_outlined,
+                      iconColor: kCyan,
                       radius: _inputRadius,
                       validator: (v) => RegistrationValidators.required(v, label: 'Venue'),
                       textInputAction: TextInputAction.next,
@@ -358,6 +364,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                       controller: _descriptionCtrl,
                       hint: 'Describe the event and its purpose...',
                       icon: Icons.notes_rounded,
+                      iconColor: kAccent,
                       maxLines: 4,
                       minLines: 3,
                       alignTop: true,
@@ -368,9 +375,10 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                 ),
               ),
               const SizedBox(height: 18),
-              Text(
-                'Documentation Requirements',
-                style: memberDashboardSectionTitleStyle.copyWith(fontSize: 15),
+              _FormSectionHeading(
+                title: 'Documentation Requirements',
+                icon: Icons.assignment_outlined,
+                iconColor: kGreen,
               ),
               const SizedBox(height: 10),
               _FormSectionCard(
@@ -393,6 +401,8 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                           child: _CoverageOptionCard(
                             label: 'Photo',
                             icon: Icons.photo_camera_rounded,
+                            accentColor: kAccent,
+                            accentDim: kBlueDim,
                             selected: _photoCoverage,
                             onTap: _togglePhoto,
                           ),
@@ -402,6 +412,8 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                           child: _CoverageOptionCard(
                             label: 'Video',
                             icon: Icons.videocam_rounded,
+                            accentColor: kCyan,
+                            accentDim: kCyanDim,
                             selected: _videoCoverage,
                             onTap: _toggleVideo,
                           ),
@@ -422,6 +434,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                       hint:
                           'e.g. Capture keynote speakers, audience participation, awarding ceremonies, group photos, and event highlights.',
                       icon: Icons.tips_and_updates_outlined,
+                      iconColor: kYellow,
                       maxLines: 4,
                       minLines: 3,
                       alignTop: true,
@@ -470,6 +483,44 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
   }
 }
 
+class _FormSectionHeading extends StatelessWidget {
+  const _FormSectionHeading({
+    required this.title,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: iconColor.withValues(alpha: 0.2)),
+          ),
+          child: Icon(icon, size: 18, color: iconColor),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: memberDashboardSectionTitleStyle.copyWith(fontSize: 15),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _FormIntroStrip extends StatelessWidget {
   const _FormIntroStrip();
 
@@ -489,9 +540,9 @@ class _FormIntroStrip extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: kSurface,
+              color: kAccent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kBorder.withValues(alpha: 0.85)),
+              border: Border.all(color: kAccent.withValues(alpha: 0.22)),
             ),
             child: const Icon(Icons.event_note_rounded, color: kAccent, size: 22),
           ),
@@ -687,6 +738,7 @@ class _DocRequestFormField extends StatelessWidget {
     required this.radius,
     this.hint,
     this.icon,
+    this.iconColor = kTextSecondary,
     this.maxLines = 1,
     this.minLines = 1,
     this.alignTop = false,
@@ -698,6 +750,7 @@ class _DocRequestFormField extends StatelessWidget {
   final TextEditingController controller;
   final String? hint;
   final IconData? icon;
+  final Color iconColor;
   final int maxLines;
   final int minLines;
   final bool alignTop;
@@ -732,7 +785,13 @@ class _DocRequestFormField extends StatelessWidget {
             hintText: hint,
             hintStyle: TextStyle(color: kTextSecondary.withValues(alpha: 0.85), fontSize: 14),
             prefixIcon: icon != null
-                ? Icon(icon, color: kTextSecondary, size: 20)
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(icon, color: iconColor, size: 21),
+                  )
+                : null,
+            prefixIconConstraints: icon != null
+                ? const BoxConstraints(minWidth: 44, minHeight: 44)
                 : null,
             filled: true,
             fillColor: kSurface,
@@ -768,12 +827,16 @@ class _CoverageOptionCard extends StatelessWidget {
   const _CoverageOptionCard({
     required this.label,
     required this.icon,
+    required this.accentColor,
+    required this.accentDim,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
   final IconData icon;
+  final Color accentColor;
+  final Color accentDim;
   final bool selected;
   final VoidCallback onTap;
 
@@ -789,10 +852,10 @@ class _CoverageOptionCard extends StatelessWidget {
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
-            color: selected ? kAccent.withValues(alpha: 0.08) : kSurface,
+            color: selected ? accentColor.withValues(alpha: 0.08) : kSurface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected ? kAccent : kBorder.withValues(alpha: 0.95),
+              color: selected ? accentColor : kBorder.withValues(alpha: 0.95),
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -800,12 +863,22 @@ class _CoverageOptionCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(icon, size: 22, color: selected ? kAccent : kTextSecondary),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: accentDim,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: accentColor.withValues(alpha: 0.22)),
+                    ),
+                    child: Icon(icon, size: 22, color: accentColor),
+                  ),
                   const Spacer(),
                   AnimatedOpacity(
                     duration: const Duration(milliseconds: 150),
                     opacity: selected ? 1 : 0,
-                    child: Icon(Icons.check_circle_rounded, size: 18, color: kAccent),
+                    child: Icon(Icons.check_circle_rounded, size: 18, color: accentColor),
                   ),
                 ],
               ),

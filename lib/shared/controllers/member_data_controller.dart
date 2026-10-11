@@ -687,7 +687,7 @@ class MemberDataController extends ChangeNotifier {
       evaluationsToday: participation['evaluations_today'] as int? ?? 0,
       dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoMinutes: participation['evaluation_max_video_minutes'] as int? ?? 3,
+      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 60,
     );
   }
 
@@ -1120,7 +1120,7 @@ class MemberDataController extends ChangeNotifier {
         evaluationsToday: participation['evaluations_today'] as int? ?? 0,
         dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoMinutes: participation['evaluation_max_video_minutes'] as int? ?? 3,
+      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 60,
       );
 
       final evaluations = (results[1] as List).cast<Map<String, dynamic>>();

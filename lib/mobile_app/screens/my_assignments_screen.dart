@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:access_mobile/mobile_app/sheets/coverage_upload_sheet.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_meta_icon_color.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
@@ -128,13 +128,6 @@ class _MyAssignmentsScreenState extends State<MyAssignmentsScreen> {
                       busy: _busy,
                       onAccept: () => _accept(tasks[i]),
                       onDecline: () => _decline(tasks[i]),
-                      onUploadCoverage: memberCanUploadCoverage(tasks[i])
-                          ? () => showCoverageUploadSheet(
-                                context,
-                                requestId: tasks[i].requestId!,
-                                eventTitle: tasks[i].title,
-                              )
-                          : null,
                     ),
                   ),
           );
@@ -150,14 +143,12 @@ class _AssignmentCard extends StatelessWidget {
     required this.busy,
     required this.onAccept,
     required this.onDecline,
-    this.onUploadCoverage,
   });
 
   final Challenge task;
   final bool busy;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
-  final VoidCallback? onUploadCoverage;
 
   @override
   Widget build(BuildContext context) {
@@ -244,25 +235,9 @@ class _AssignmentCard extends StatelessWidget {
             ),
           ] else if (_isAccepted(task.status)) ...[
             Text(
-              'You confirmed coverage for this event. Upload photos or videos from the event when ready.',
+              'You confirmed coverage for this event. Event media will appear in Gallery when the team publishes it.',
               style: memberDashboardBodyStyle.copyWith(fontSize: 12, color: kGreen),
             ),
-            if (onUploadCoverage != null) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: busy ? null : onUploadCoverage,
-                  icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-                  label: const Text('Upload coverage'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kMemberPrimary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
           ],
         ],
       ),
@@ -313,7 +288,7 @@ class _Meta extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: kIconInactive),
+          Icon(icon, size: 14, color: requestorMetaIconColor(icon)),
           const SizedBox(width: 6),
           Expanded(child: Text(text, style: memberDashboardBodyStyle.copyWith(fontSize: 12))),
         ],

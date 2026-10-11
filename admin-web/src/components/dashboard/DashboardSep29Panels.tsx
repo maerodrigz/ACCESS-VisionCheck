@@ -109,7 +109,7 @@ export function ActionCenterPanel({ requests }: { requests: PendingRequestItem[]
             </p>
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-1 sm:px-5">
+          <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto px-4 pb-4 pt-1 sm:px-5">
             <table className="w-full table-fixed border-collapse text-left">
               <colgroup>
                 <col style={{ width: '28%' }} />

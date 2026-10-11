@@ -4,6 +4,7 @@ import 'package:access_mobile/mobile_app/screens/requestor/request_detail_screen
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_list_skeleton.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_meta_icon_color.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_progress_tracker.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
@@ -508,15 +509,24 @@ class _RequestListCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       _MetaRow(
                         icon: Icons.event_rounded,
+                        iconColor: requestorMetaIconColor(Icons.event_rounded),
                         text: formatRequestDate(request.eventDate),
                       ),
                       if (timeLabel != null) ...[
                         const SizedBox(height: 3),
-                        _MetaRow(icon: Icons.schedule_rounded, text: timeLabel),
+                        _MetaRow(
+                          icon: Icons.schedule_rounded,
+                          iconColor: requestorMetaIconColor(Icons.schedule_rounded),
+                          text: timeLabel,
+                        ),
                       ],
                       if (location != null && location.isNotEmpty) ...[
                         const SizedBox(height: 3),
-                        _MetaRow(icon: Icons.location_on_outlined, text: location),
+                        _MetaRow(
+                          icon: Icons.location_on_outlined,
+                          iconColor: requestorMetaIconColor(Icons.location_on_outlined),
+                          text: location,
+                        ),
                       ],
                       const SizedBox(height: 10),
                       RequestProgressTracker(request: request, compact: true),
@@ -527,7 +537,7 @@ class _RequestListCard extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 4, top: 2),
                   child: Icon(
                     Icons.chevron_right_rounded,
-                    color: kIconInactive,
+                    color: kAccent.withValues(alpha: 0.45),
                     size: 22,
                   ),
                 ),
@@ -577,17 +587,22 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _MetaRow extends StatelessWidget {
-  const _MetaRow({required this.icon, required this.text});
+  const _MetaRow({
+    required this.icon,
+    required this.text,
+    this.iconColor = kIconInactive,
+  });
 
   final IconData icon;
   final String text;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14, color: kIconInactive),
+        Icon(icon, size: 15, color: iconColor),
         const SizedBox(width: 6),
         Expanded(
           child: Text(

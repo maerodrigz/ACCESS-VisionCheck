@@ -65,18 +65,18 @@ export function MemberRecentUploadsSection({
       </p>
 
       {preview ? (
-        <>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
           <button
             type="button"
             aria-label="Close preview"
-            className="fixed inset-0 z-[60] bg-black/35"
+            className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
             onClick={() => setPreview(null)}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={preview.fileName}
-            className="fixed inset-y-0 right-0 z-[70] flex w-full max-w-md flex-col overflow-hidden border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
+            className="relative flex max-h-[min(90vh,calc(100dvh-2rem))] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl ring-1 ring-black/5"
           >
             <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
               <DrawerBackButton onClick={() => setPreview(null)} label="Back" />

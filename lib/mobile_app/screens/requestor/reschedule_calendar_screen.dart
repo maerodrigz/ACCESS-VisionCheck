@@ -311,7 +311,7 @@ class _RescheduleCalendarScreenState extends State<RescheduleCalendarScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Row(
                             children: [
-                              const Icon(Icons.info_outline_rounded, color: kTextSecondary, size: 20),
+                              Icon(Icons.info_outline_rounded, color: kYellow.withValues(alpha: 0.95), size: 20),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(

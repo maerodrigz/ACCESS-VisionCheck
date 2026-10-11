@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
-import 'package:access_mobile/mobile_app/sheets/evaluation_detail_sheet.dart';
+import 'package:access_mobile/mobile_app/screens/evaluation_report_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
 class LatestAdminFeedback {
@@ -24,6 +24,19 @@ class LatestAdminFeedback {
   final bool isRankingRemarks;
 
   static LatestAdminFeedback? fromAppState() {
+    for (final ev in appState.evaluations) {
+      final remarks = ev.adminRemarks?.trim() ?? '';
+      if (remarks.isEmpty) continue;
+      return LatestAdminFeedback(
+        eventName: _eventNameForEvaluation(ev),
+        preview: _preview(remarks),
+        date: ev.date.isNotEmpty ? ev.date : 'Recently',
+        fullMessage: remarks,
+        adminName: 'ACCESS Administrator',
+        evaluation: ev,
+      );
+    }
+
     for (final ev in appState.evaluations) {
       final message = ev.feedback.trim();
       if (message.isEmpty) continue;
@@ -75,7 +88,11 @@ class LatestAdminFeedback {
   }
 }
 
-void showAdminFeedbackSheet(BuildContext context, LatestAdminFeedback item) {
+void showAdminFeedbackSheet(
+  BuildContext context,
+  LatestAdminFeedback item, {
+  VoidCallback? onOpenEvaluation,
+}) {
   showModalBottomSheet(
     context: context,
     backgroundColor: kDashCardBg,
@@ -120,6 +137,24 @@ void showAdminFeedbackSheet(BuildContext context, LatestAdminFeedback item) {
                 style: memberDashboardBodyStyle.copyWith(color: kDashTextPrimary),
               ),
             ),
+            if (onOpenEvaluation != null) ...[
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  onOpenEvaluation();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: kDashAccentFeedbackIcon,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
+                  ),
+                ),
+                child: const Text('View evaluation', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
           ],
         ),
       ),
@@ -131,11 +166,17 @@ class MemberDashboardLatestFeedback extends StatelessWidget {
   const MemberDashboardLatestFeedback({super.key});
 
   void _viewFeedback(BuildContext context, LatestAdminFeedback item) {
-    if (item.evaluation != null) {
-      showEvaluationDetail(context, item.evaluation!);
-      return;
-    }
-    showAdminFeedbackSheet(context, item);
+    showAdminFeedbackSheet(
+      context,
+      item,
+      onOpenEvaluation: item.evaluation != null
+          ? () => openEvaluationReport(
+                context,
+                item.evaluation!,
+                allEvaluations: appState.evaluations,
+              )
+          : null,
+    );
   }
 
   @override

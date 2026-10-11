@@ -25,6 +25,7 @@ from app.schemas.member_api import MediaEvaluateOut, MediaOut
 from app.services.deferred_media_pipeline import media_processing_status, schedule_deferred_media_evaluation
 from app.services.media_evaluator import evaluate_bytes
 from app.services.media_upload_config import (
+    assert_evaluation_video_duration,
     evaluation_rules,
     is_allowed_extension,
     is_video_extension,
@@ -142,6 +143,8 @@ async def evaluate_media(
     content = await file.read()
     _validate_upload_file(db, ext, content, MEDIA_CATEGORY_EVALUATION)
     is_video = is_video_extension(db, ext, MEDIA_CATEGORY_EVALUATION)
+    if is_video:
+        assert_evaluation_video_duration(db, ext, content)
 
     payload = await asyncio.to_thread(
         evaluate_bytes,
@@ -180,6 +183,8 @@ async def upload_media(
     media_category = MEDIA_CATEGORY_EVENT if is_event else MEDIA_CATEGORY_EVALUATION
     _validate_upload_file(db, ext, content, media_category)
     is_video = is_video_extension(db, ext, media_category)
+    if media_category == MEDIA_CATEGORY_EVALUATION and is_video:
+        assert_evaluation_video_duration(db, ext, content)
 
     display_name = (file_name or file.filename or "upload").strip()[:255]
     file_type = "video" if is_video else "photo"

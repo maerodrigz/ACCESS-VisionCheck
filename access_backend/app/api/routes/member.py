@@ -191,7 +191,7 @@ def participation(db: Session = Depends(get_db), current_user: User = Depends(re
         evaluations_today=media_crud.count_member_evaluations_today(db, current_user.id),
         daily_evaluation_limit=settings_crud.max_evaluation_uploads_per_day(db),
         evaluation_max_upload_mb=int(eval_rules["max_upload_mb"]),
-        evaluation_max_video_minutes=3,
+        evaluation_max_video_seconds=int(eval_rules["max_video_seconds"]),
         average_score=round(avg, 3),
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,

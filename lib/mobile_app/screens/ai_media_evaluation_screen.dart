@@ -77,7 +77,14 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
   int get _maxBytes => _isVideo ? _videoMaxBytes : _photoMaxBytes;
   String get _supportedFormats => _isVideo ? 'MP4, MOV, AVI, MKV' : 'JPG, JPEG, PNG, WEBP';
   String get _maxSizeLabel => _isVideo ? '${appState.evaluationMaxUploadMb} MB' : '25 MB';
-  Duration get _maxVideoDuration => Duration(minutes: appState.evaluationMaxVideoMinutes);
+  Duration get _maxVideoDuration => Duration(seconds: appState.evaluationMaxVideoSeconds);
+
+  String get _maxVideoLengthLabel {
+    final sec = appState.evaluationMaxVideoSeconds;
+    if (sec <= 0) return '60 seconds';
+    if (sec == 1) return '1 second';
+    return '$sec seconds';
+  }
 
   @override
   void initState() {
@@ -139,6 +146,21 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
     if (bytes.length > _maxBytes) {
       setState(() => _error = 'File exceeds the maximum size of $_maxSizeLabel.');
       return;
+    }
+
+    if (_isVideo) {
+      final duration = await detectEvalVideoDuration(
+        bytes: bytes,
+        filePath: filePath,
+        fileName: name,
+      );
+      if (duration != null && duration.inMilliseconds > _maxVideoDuration.inMilliseconds) {
+        if (!mounted) return;
+        setState(
+          () => _error = 'Video exceeds the maximum length of $_maxVideoLengthLabel.',
+        );
+        return;
+      }
     }
 
     final resolution = await _detectResolution(
@@ -252,6 +274,26 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         success: false,
       );
       return;
+    }
+
+    if (_isVideo) {
+      final duration = await detectEvalVideoDuration(
+        bytes: media.bytes,
+        filePath: media.filePath,
+        fileName: media.name,
+      );
+      if (!mounted) return;
+      if (duration != null && duration.inMilliseconds > _maxVideoDuration.inMilliseconds) {
+        setState(
+          () => _error = 'Video exceeds the maximum length of $_maxVideoLengthLabel.',
+        );
+        showMobileToast(
+          context,
+          'Video exceeds the maximum length of $_maxVideoLengthLabel.',
+          success: false,
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -456,7 +498,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                   isVideo: _isVideo,
                   supportedFormats: _supportedFormats,
                   maxSizeLabel: _maxSizeLabel,
-                  maxVideoLengthLabel: '60 seconds',
+                  maxVideoLengthLabel: _maxVideoLengthLabel,
                   webDragging: _webDragging,
                   onChooseFile: _pickFromFileChooser,
                   onGallery: _pickFromGallery,

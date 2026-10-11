@@ -42,6 +42,18 @@ function formatDate(d?: Date): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+/** Requestor submission timestamp for admin review (local timezone). */
+export function formatRequestSubmittedAt(d?: Date): string {
+  if (!d) return '—'
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 function deriveDisplayStatus(
   rawStatus: string,
   _eventDate?: Date,

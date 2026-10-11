@@ -283,7 +283,7 @@ export function AssignDocumentationTeamPanel({ item, onAssigned }: Props) {
               <span className="font-semibold">Date:</span> {item.eventDateLabel}
             </p>
           </div>
-          <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950">
             Selected members will receive an assignment notification and must accept or decline the assignment.
           </p>
           <div className="mt-4 flex gap-2">

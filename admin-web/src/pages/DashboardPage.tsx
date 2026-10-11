@@ -29,7 +29,12 @@ export function DashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      const snap = await fetchHomeDashboard()
+      const snap = await fetchHomeDashboard({
+        onPartial: (partial) => {
+          setData(partial)
+          setLoading(false)
+        },
+      })
       setData(snap)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load dashboard')

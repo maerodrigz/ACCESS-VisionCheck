@@ -17,13 +17,19 @@ abstract final class FirebaseConfig {
   static const messagingSenderId = String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
   static const authDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
 
-  /// True when enough config is present to initialize Firebase Storage.
-  static bool get isConfigured =>
+  /// FCM push (no Firebase Storage console / Blaze required).
+  static bool get isPushConfigured =>
       projectId.isNotEmpty &&
-      storageBucket.isNotEmpty &&
       apiKey.isNotEmpty &&
       appId.isNotEmpty &&
       messagingSenderId.isNotEmpty;
+
+  /// Client uploads to Firebase Storage (optional).
+  static bool get isConfigured =>
+      isPushConfigured && storageBucket.isNotEmpty;
+
+  static String get effectiveStorageBucket =>
+      storageBucket.isNotEmpty ? storageBucket : '$projectId.appspot.com';
 
   static FirebaseOptions get options {
     if (kIsWeb) {
@@ -32,7 +38,7 @@ abstract final class FirebaseConfig {
         appId: appId,
         messagingSenderId: messagingSenderId,
         projectId: projectId,
-        storageBucket: storageBucket,
+        storageBucket: effectiveStorageBucket,
         authDomain: authDomain.isNotEmpty ? authDomain : '$projectId.firebaseapp.com',
       );
     }
@@ -41,7 +47,7 @@ abstract final class FirebaseConfig {
       appId: appId,
       messagingSenderId: messagingSenderId,
       projectId: projectId,
-      storageBucket: storageBucket,
+      storageBucket: effectiveStorageBucket,
     );
   }
 }

@@ -8,6 +8,7 @@ from typing import Any
 from app.services.efficientnet_b0_scorer import MODEL_ID, analyze_image_bytes as efficientnet_analyze
 from app.services.efficientnet_b0_scorer import efficientnet_available, ensure_weights
 from app.services.ffmpeg_frames import extract_frames, ffmpeg_available
+from app.services.media_upload_config import DEFAULT_VIDEO_EXTENSIONS
 from app.services.image_quality import legacy_scores_from_payload, parse_client_payload
 from app.services.ai_authenticity_detector import detect_ai_generated, detect_ai_generated_from_frames
 from app.services.integrity_evaluation_policy import (
@@ -19,6 +20,8 @@ from app.services.opencv_quality import opencv_available
 
 
 SCORING_ENGINE = "efficientnet-b0+ffmpeg"
+
+_PRACTICE_VIDEO_EXTENSIONS = frozenset(DEFAULT_VIDEO_EXTENSIONS)
 
 
 def deferred_authenticity_preview() -> dict[str, Any]:
@@ -74,8 +77,7 @@ def evaluate_authenticity_bytes(content: bytes, *, file_name: str = "") -> dict[
     if not content:
         return None
     ext = Path(file_name or "").suffix.lower()
-    video_exts = {".mp4", ".mov", ".avi", ".webm", ".mkv", ".3gp", ".m4v"}
-    if ext in video_exts:
+    if ext in _PRACTICE_VIDEO_EXTENSIONS:
         frame_bytes = extract_frames(content, ext)
         if not frame_bytes:
             return None
@@ -95,8 +97,7 @@ def evaluate_bytes(
     include_authenticity: bool = True,
 ) -> dict[str, Any] | None:
     ext = Path(file_name or "").suffix.lower()
-    video_exts = {".mp4", ".mov", ".avi", ".webm", ".mkv", ".3gp", ".m4v"}
-    if ext in video_exts:
+    if ext in _PRACTICE_VIDEO_EXTENSIONS:
         return evaluate_video(content, ext=ext, file_name=file_name, include_authenticity=include_authenticity)
     return evaluate_photo(content, file_name=file_name, include_authenticity=include_authenticity)
 

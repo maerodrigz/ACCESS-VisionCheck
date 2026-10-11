@@ -653,8 +653,8 @@ class AppState extends ChangeNotifier {
   /// Max file size for practice evaluation videos (from GET /member/participation).
   int evaluationMaxUploadMb = 350;
 
-  /// Max length for practice evaluation videos (minutes).
-  int evaluationMaxVideoMinutes = 3;
+  /// Max length for practice evaluation videos (seconds).
+  int evaluationMaxVideoSeconds = 60;
 
   int get evaluationsRemainingToday =>
       (dailyEvaluationLimit - evaluationsTodayCount).clamp(0, dailyEvaluationLimit);
@@ -775,7 +775,7 @@ class AppState extends ChangeNotifier {
     evaluationsTodayCount = 0;
     dailyEvaluationLimit = 5;
     evaluationMaxUploadMb = 350;
-    evaluationMaxVideoMinutes = 3;
+    evaluationMaxVideoSeconds = 60;
     notifyListeners();
   }
 
@@ -825,7 +825,7 @@ class AppState extends ChangeNotifier {
     int? evaluationsToday,
     int? dailyEvaluationLimit,
     int? evaluationMaxUploadMb,
-    int? evaluationMaxVideoMinutes,
+    int? evaluationMaxVideoSeconds,
   }) {
     if (assignmentsCompleted != null) {
       profileAssignmentsCompleted = assignmentsCompleted;
@@ -837,8 +837,8 @@ class AppState extends ChangeNotifier {
     if (evaluationsToday != null) evaluationsTodayCount = evaluationsToday;
     if (dailyEvaluationLimit != null) this.dailyEvaluationLimit = dailyEvaluationLimit;
     if (evaluationMaxUploadMb != null) this.evaluationMaxUploadMb = evaluationMaxUploadMb;
-    if (evaluationMaxVideoMinutes != null) {
-      this.evaluationMaxVideoMinutes = evaluationMaxVideoMinutes;
+    if (evaluationMaxVideoSeconds != null) {
+      this.evaluationMaxVideoSeconds = evaluationMaxVideoSeconds;
     }
     notifyListeners();
   }

@@ -18,7 +18,7 @@ export function SidebarBrand({ compact = false }: { compact?: boolean }) {
 
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   return (
-    <nav className="h-full overflow-hidden px-2 py-3 pb-5">
+    <nav className="h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain px-2 py-3 pb-5">
       {sidebarSections.map((section, si) => (
         <div key={section.label ?? 'root'} className={si > 0 ? 'mt-4' : ''}>
           {section.label && (

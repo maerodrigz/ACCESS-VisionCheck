@@ -8,6 +8,7 @@ import 'package:access_mobile/mobile_app/sheets/event_detail_sheet.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_calendar_event_card.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
 
 class CalendarScreen extends StatefulWidget {
   /// When omitted, uses the default member- or requestor-facing copy.
@@ -209,14 +210,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _CalendarPageHeader(
-            subtitle: widget.subtitle ??
-                (widget.forRequestor
-                    ? 'Campus events and your documentation schedule'
-                    : 'Your events and documentation assignments'),
-            onNotificationsTap: widget.onNotificationsTap,
-            onProfileTap: widget.onProfileTap,
-          ),
+          if (widget.forRequestor) ...[
+            RequestorFeatureTitleBar(
+              title: 'Calendar',
+              titleFontSize: 24,
+              trailing: [
+                MemberPageNotificationButton(onTap: widget.onNotificationsTap),
+                MemberPageProfileAvatar(onTap: widget.onProfileTap),
+              ],
+            ),
+            RequestorFeaturePurposeLine(
+              text: widget.subtitle ??
+                  'Campus events and your documentation schedule.',
+            ),
+          ] else
+            _CalendarPageHeader(
+              purpose: widget.subtitle ?? 'Your events and documentation assignments',
+              onNotificationsTap: widget.onNotificationsTap,
+              onProfileTap: widget.onProfileTap,
+            ),
           _CalendarFilterTabs(
             myAssignmentsOnly: _myAssignmentsOnly,
             onChanged: (value) => setState(() => _myAssignmentsOnly = value),
@@ -411,7 +423,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: EdgeInsets.fromLTRB(padding, 8, padding, 4),
+                          padding: EdgeInsets.fromLTRB(padding, 8, padding, 10),
                           child: Row(
                             children: [
                               Icon(Icons.event_rounded, size: 17, color: kAccent),
@@ -443,7 +455,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       if (dayEvents.isEmpty)
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: padding),
+                            padding: EdgeInsets.fromLTRB(padding, 4, padding, 16),
                             child: _searchQuery.trim().isNotEmpty
                                 ? MobileEmptyState(
                                     icon: Icons.search_off_rounded,
@@ -475,7 +487,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           _canPlanRequestOnDay(_selectedDay)) ...[
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: EdgeInsets.fromLTRB(padding, 0, padding, 8),
+                            padding: EdgeInsets.fromLTRB(padding, 4, padding, 12),
                             child: MemberDashboardPrimaryButton(
                               label: 'Plan request for this date',
                               icon: Icons.add_rounded,
@@ -589,7 +601,7 @@ class _CalendarSearchBar extends StatelessWidget {
         decoration: InputDecoration(
           hintText: 'Search events by name, venue, or tag…',
           hintStyle: memberDashboardMetaStyle.copyWith(fontSize: 13),
-          prefixIcon: const Icon(Icons.search_rounded, color: kIconInactive, size: 22),
+          prefixIcon: Icon(Icons.search_rounded, color: kAccent.withValues(alpha: 0.75), size: 22),
           suffixIcon: showClear
               ? IconButton(
                   onPressed: onClear,
@@ -966,18 +978,26 @@ class _TodayPill extends StatelessWidget {
 
 class _CalendarPageHeader extends StatelessWidget {
   const _CalendarPageHeader({
-    required this.subtitle,
+    required this.purpose,
     this.onNotificationsTap,
     this.onProfileTap,
   });
 
-  final String subtitle;
+  final String purpose;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
+    final titleStyle = dashText(const TextStyle(
+      color: kTextPrimary,
+      fontSize: 24,
+      fontWeight: FontWeight.w800,
+      letterSpacing: -0.4,
+      height: 1.15,
+    ));
+
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -989,19 +1009,10 @@ class _CalendarPageHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Calendar',
-                    style: dashText(const TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      height: 1.15,
-                    )),
-                  ),
+                  Text('Calendar', style: titleStyle),
                   const SizedBox(height: 1),
                   Text(
-                    subtitle,
+                    purpose,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: memberDashboardMetaStyle.copyWith(fontSize: 13, height: 1.25),

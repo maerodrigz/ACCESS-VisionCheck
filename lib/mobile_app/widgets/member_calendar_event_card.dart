@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_meta_icon_color.dart';
 
 /// Full event card for the selected date section.
 class MemberCalendarEventCard extends StatelessWidget {
@@ -205,7 +206,7 @@ class MemberCalendarUpcomingCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          Icon(Icons.chevron_right_rounded, color: kIconInactive, size: 18),
+          Icon(Icons.chevron_right_rounded, color: kAccent.withValues(alpha: 0.4), size: 18),
         ],
       ),
     );
@@ -332,9 +333,10 @@ class _CompactMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = requestorMetaIconColor(icon);
     return Row(
       children: [
-        Icon(icon, size: 13, color: kTextSecondary),
+        Icon(icon, size: 13, color: iconColor),
         const SizedBox(width: 4),
         Expanded(
           child: Text(
@@ -362,9 +364,10 @@ class _MetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = requestorMetaIconColor(icon, muted: muted);
     return Row(
       children: [
-        Icon(icon, size: 14, color: muted ? kIconInactive : kTextSecondary),
+        Icon(icon, size: 14, color: iconColor),
         const SizedBox(width: 6),
         Expanded(
           child: Text(

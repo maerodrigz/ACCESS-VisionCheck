@@ -97,8 +97,10 @@ class AiDetectionResult {
   String get _visualRiskBand =>
       (visualRiskLevel ?? riskLevel ?? '').trim();
 
-  bool get isSourceUnverified =>
-      (provenancePolicyOutcome ?? '').toLowerCase() == 'source_unverified';
+  bool get isSourceUnverified {
+    final outcome = (provenancePolicyOutcome ?? '').toLowerCase();
+    return outcome == 'source_unverified' || outcome == 'source_partially_verified';
+  }
 
   bool get isCameraProvenanceStrong =>
       (cameraProvenanceStrength ?? '').toLowerCase() == 'strong';
@@ -351,13 +353,21 @@ class PhotoEvaluationResult {
   int get xpPointsPreviewEffective =>
       xpPointsPreview ?? ((overallScore <= 1.0 ? overallScore : overallScore / 5.0) * 100).round();
 
+  String _sourceUnverifiedDetailOrFallback() {
+    final detail = aiDetection.detail.trim();
+    if (detail.isNotEmpty) return detail;
+    return _sourceUnverifiedIntegrityMessage;
+  }
+
   String get memberIntegrityMessageEffective =>
       memberIntegrityMessage ??
       (aiDetection.isAiGenerated
           ? _aiGeneratedIntegrityMessage
           : aiDetection.isSuspicious
               ? _suspiciousIntegrityMessage
-              : '');
+              : aiDetection.isSourceUnverified
+                  ? _sourceUnverifiedDetailOrFallback()
+                  : '');
 
   static const photoCriteriaOrder = [
     'Sharpness',
@@ -567,6 +577,11 @@ const _suspiciousIntegrityMessage =
 const _aiGeneratedIntegrityMessage =
     'This upload was flagged as possible AI-generated content. Quality coaching is paused until '
     'an officer reviews your file. If verified as authentic, your scores and XP will be applied.';
+
+const _sourceUnverifiedIntegrityMessage =
+    'The source of this upload could not be verified from original camera metadata. '
+    'Technical scores are provisional until an officer completes review. '
+    'XP will be awarded if your submission is approved.';
 
 /// Canonical display order for AI criterion bars.
 const _videoOnlyCriteria = {'Motion Stability', 'Flickering'};

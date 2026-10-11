@@ -50,6 +50,23 @@ class IntegrityProvisionalBanner extends StatelessWidget {
 
 enum IntegrityOnlyCardLayout { standard, resultCompact }
 
+/// Member-visible explanation for why admin / integrity review is required.
+String memberIntegrityReviewReason(PhotoEvaluationResult result) {
+  final stored = result.memberIntegrityMessage?.trim() ?? '';
+  if (stored.isNotEmpty) return stored;
+
+  final effective = result.memberIntegrityMessageEffective.trim();
+  if (effective.isNotEmpty) return effective;
+
+  final detail = result.aiDetection.detail.trim();
+  if (detail.isNotEmpty) return detail;
+
+  if (result.aiDetection.requiresReview) {
+    return 'Administrative review is required before scores and coaching are released.';
+  }
+  return '';
+}
+
 /// Shown instead of quality breakdown when AI-generated integrity tier blocks coaching.
 class IntegrityOnlyMessageCard extends StatelessWidget {
   const IntegrityOnlyMessageCard({
@@ -71,17 +88,18 @@ class IntegrityOnlyMessageCard extends StatelessWidget {
     final compact = layout == IntegrityOnlyCardLayout.resultCompact;
     final reupload = MemberReviewStatus.isReuploadRequested(reviewStatus);
     final remarks = adminRemarks?.trim() ?? '';
+    final integrityReason = memberIntegrityReviewReason(result);
 
     final message = reupload
         ? (remarks.isNotEmpty
             ? remarks
             : 'An administrator reviewed this upload and needs a new file. Upload again from Evaluations.')
         : held
-            ? (result.reviewGateMessage ??
-                'Scores and coaching stay hidden until an administrator completes review.')
-            : (result.memberIntegrityMessageEffective.isNotEmpty
-                ? result.memberIntegrityMessageEffective
-                : result.feedback);
+            ? (integrityReason.isNotEmpty
+                ? integrityReason
+                : (result.reviewGateMessage ??
+                    'Scores and coaching stay hidden until an administrator completes review.'))
+            : (integrityReason.isNotEmpty ? integrityReason : result.feedback);
 
     final title = reupload
         ? 'Re-upload requested'

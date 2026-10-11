@@ -234,9 +234,9 @@ export function NotificationCenterPage() {
         <NotificationsTable items={filtered} onOpen={handleOpen} />
       )}
 
-      <BroadcastAnnouncementDialog
-        open={showBroadcast}
-        onClose={() => setShowBroadcast(false)}
+      <MemberAnnouncementDialog
+        open={showAnnouncement}
+        onClose={() => setShowAnnouncement(false)}
         onSent={() => showToast('Broadcast sent')}
       />
     </div>

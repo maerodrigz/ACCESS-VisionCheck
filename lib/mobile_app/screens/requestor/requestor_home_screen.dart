@@ -294,64 +294,171 @@ class _CreateRequestCard extends StatelessWidget {
 
   final VoidCallback onCreate;
 
-  static const _gradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [kAccent, Color(0xFF0066CC)],
-  );
-
   @override
   Widget build(BuildContext context) {
     return MemberDashboardCard(
-      padding: EdgeInsets.zero,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: _gradient,
-          borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Need event coverage?',
-              style: dashText(const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                height: 1.2,
-              )),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            right: -28,
+            top: -32,
+            child: Container(
+              width: 112,
+              height: 112,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: kCyan.withValues(alpha: 0.1),
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Submit a documentation request for your next event.',
-              style: dashText(TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontSize: 12,
-                height: 1.35,
-              )),
+          ),
+          Positioned(
+            right: 12,
+            bottom: -18,
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: kAccent.withValues(alpha: 0.06),
+              ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: _overviewTotalBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: kAccent.withValues(alpha: 0.18)),
+                    ),
+                    child: const Icon(
+                      Icons.event_available_rounded,
+                      color: kAccent,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Need event coverage?',
+                          style: memberDashboardCardTitleStyle.copyWith(
+                            fontSize: 16,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Book ACCESS photographers and videographers for your next event.',
+                          style: memberDashboardMetaStyle.copyWith(
+                            fontSize: 12,
+                            height: 1.35,
+                            color: kTextSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: const [
+                  _CoverageChip(
+                    icon: Icons.photo_camera_outlined,
+                    label: 'Photo',
+                    color: kAccent,
+                    background: _overviewTotalBg,
+                  ),
+                  _CoverageChip(
+                    icon: Icons.videocam_outlined,
+                    label: 'Video',
+                    color: kCyan,
+                    background: kCyanDim,
+                  ),
+                  _CoverageChip(
+                    icon: Icons.groups_outlined,
+                    label: 'Team',
+                    color: kGreen,
+                    background: kGreenDim,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
                 onPressed: onCreate,
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text(
+                  'Create Request',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: kSurface,
-                  foregroundColor: kAccent,
-                  minimumSize: const Size.fromHeight(44),
+                  backgroundColor: kAccent,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(46),
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Create Request',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                ),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CoverageChip extends StatelessWidget {
+  const _CoverageChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+              height: 1,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -398,6 +505,7 @@ class _RequestStatsGrid extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
+            flex: 2,
             child: _OverviewTotalTile(
               height: stackH,
               total: total,
@@ -407,6 +515,7 @@ class _RequestStatsGrid extends StatelessWidget {
           ),
           const SizedBox(width: _columnGap),
           Expanded(
+            flex: 3,
             child: SizedBox(
               height: stackH,
               child: Column(
@@ -701,10 +810,21 @@ class _CompactRequestRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _scheduleLabel(request, null) ?? formatRequestShortDate(request.eventDate),
-                      style: memberDashboardMetaStyle.copyWith(fontSize: 12),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.event_rounded, size: 14, color: kAccent),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            _scheduleLabel(request, null) ??
+                                formatRequestShortDate(request.eventDate),
+                            style: memberDashboardMetaStyle.copyWith(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -770,15 +890,24 @@ class _UpcomingEventCard extends StatelessWidget {
               const SizedBox(height: 6),
               _MetaLine(
                 icon: Icons.event_rounded,
+                iconColor: kAccent,
                 text: _scheduleLabel(request, calendar) ?? formatRequestShortDate(request.eventDate),
               ),
               if (location.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                _MetaLine(icon: Icons.location_on_outlined, text: location),
+                _MetaLine(
+                  icon: Icons.location_on_outlined,
+                  iconColor: kCyan,
+                  text: location,
+                ),
               ],
               if (documenters != null) ...[
                 const SizedBox(height: 4),
-                _MetaLine(icon: Icons.groups_outlined, text: documenters),
+                _MetaLine(
+                  icon: Icons.groups_outlined,
+                  iconColor: kGreen,
+                  text: documenters,
+                ),
               ],
             ],
           ),
@@ -847,16 +976,21 @@ class _FeedbackReminderCard extends StatelessWidget {
 }
 
 class _MetaLine extends StatelessWidget {
-  const _MetaLine({required this.icon, required this.text});
+  const _MetaLine({
+    required this.icon,
+    required this.text,
+    this.iconColor = kIconInactive,
+  });
 
   final IconData icon;
   final String text;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: kIconInactive),
+        Icon(icon, size: 15, color: iconColor),
         const SizedBox(width: 6),
         Expanded(
           child: Text(

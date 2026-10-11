@@ -840,7 +840,7 @@ class _HomeMyTasksSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.event_available_outlined, size: 20, color: kTextPrimary),
+            Icon(Icons.event_available_outlined, size: 20, color: kAccent),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

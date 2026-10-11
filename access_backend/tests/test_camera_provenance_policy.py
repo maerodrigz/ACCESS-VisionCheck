@@ -73,6 +73,18 @@ def test_strong_provenance_probe_low_no_review(mock_p: float) -> None:
     assert initial_review_status(label, prob, ai_detection=ai) == PROBE_LOW_RISK_REVIEW_STATUS
 
 
+def test_partial_provenance_probe_low_needs_admin_review() -> None:
+    mock_p = 0.05
+    ai = _probe_detection(mock_p, _partial())
+    assert ai["requires_review"] is True
+    assert ai["provenance_policy_outcome"] == "source_partially_verified"
+    payload = _payload(ai)
+    assert payload["xp_pending"] is True
+    assert payload["show_quality_feedback"] is False
+    prob, label, _ = _ai_from_payload(ai)
+    assert initial_review_status(label, prob, ai_detection=ai) == "needs_further_review"
+
+
 def test_absent_provenance_probe_low_source_unverified() -> None:
     mock_p = 0.05
     ai = _probe_detection(mock_p, _absent())

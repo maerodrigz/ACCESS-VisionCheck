@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/navigation/member_shell_navigation.dart';
 import 'package:access_mobile/mobile_app/navigation/requestor_shell_navigation.dart';
+import 'package:access_mobile/mobile_app/sheets/admin_review_notice_sheet.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_report_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/my_assignments_screen.dart';
@@ -74,23 +75,54 @@ Evaluation? evaluationForMediaId(int mediaId) {
   return null;
 }
 
-Future<void> _openEvaluationFromNotification(BuildContext context, int? mediaId) async {
-  Evaluation? match = mediaId != null ? evaluationForMediaId(mediaId) : null;
-  if (match == null) {
-    await memberDataController.ensureEvaluationsTab();
-    if (!context.mounted) return;
-    match = mediaId != null ? evaluationForMediaId(mediaId) : null;
+Evaluation? _newestEvaluationWithAdminRemarks() {
+  for (final e in appState.evaluations) {
+    if ((e.adminRemarks ?? '').trim().isNotEmpty) return e;
   }
+  return null;
+}
+
+Future<void> _openAdminReviewNotification(
+  BuildContext context,
+  AppNotification n, {
+  int? mediaId,
+}) async {
+  await memberDataController.refreshEvaluationsTab();
   if (!context.mounted) return;
 
-  if (match != null) {
-    openEvaluationReport(context, match, allEvaluations: appState.evaluations);
+  Evaluation? match = mediaId != null ? evaluationForMediaId(mediaId) : null;
+  match ??= _newestEvaluationWithAdminRemarks();
+
+  void openReport() {
+    if (!context.mounted || match == null) return;
+    openEvaluationReport(
+      context,
+      match,
+      allEvaluations: appState.evaluations,
+      notificationMessage: n.body,
+    );
+  }
+
+  final storedRemarks = match?.adminRemarks?.trim() ?? '';
+  final message = storedRemarks.isNotEmpty ? storedRemarks : n.body.trim();
+
+  if (message.isEmpty) {
+    if (match != null) {
+      openReport();
+    } else {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const EvaluationScreen()),
+      );
+    }
     return;
   }
 
-  await Navigator.push<void>(
+  showAdminReviewNoticeSheet(
     context,
-    MaterialPageRoute(builder: (_) => const EvaluationScreen()),
+    title: n.title,
+    message: message,
+    onViewEvaluation: match != null ? openReport : null,
   );
 }
 
@@ -189,7 +221,7 @@ Future<void> handleNotificationTap(BuildContext context, AppNotification n) asyn
     case 'view_result':
     case 'review_media':
       if (!isRequestor) {
-        await _openEvaluationFromNotification(context, refId);
+        await _openAdminReviewNotification(context, n, mediaId: refId);
       }
       return;
     case 'view_feedback':
@@ -199,7 +231,7 @@ Future<void> handleNotificationTap(BuildContext context, AppNotification n) asyn
       return;
     case 'view_admin_feedback':
       if (!isRequestor) {
-        MemberShellNavigation.openHome?.call();
+        await _openAdminReviewNotification(context, n);
       }
       return;
     case 'milestone':

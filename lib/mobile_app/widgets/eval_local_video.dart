@@ -30,6 +30,30 @@ String _formatEvalMediaDuration(Duration duration) {
   return '0:${seconds.toString().padLeft(2, '0')}';
 }
 
+/// Reads duration from a locally picked evaluation video.
+Future<Duration?> detectEvalVideoDuration({
+  required Uint8List bytes,
+  String? filePath,
+  String? fileName,
+}) async {
+  VideoPlayerController? controller;
+  try {
+    controller = await createEvalVideoController(
+      bytes: bytes,
+      filePath: filePath,
+      fileName: fileName,
+    );
+    if (!controller.value.isInitialized) return null;
+    final duration = controller.value.duration;
+    if (duration.inMilliseconds <= 0) return null;
+    return duration;
+  } catch (_) {
+    return null;
+  } finally {
+    await controller?.dispose();
+  }
+}
+
 /// Reads width, height, and duration from a locally picked evaluation video.
 Future<String?> detectEvalVideoResolution({
   required Uint8List bytes,
@@ -436,6 +460,7 @@ void openEvalNetworkVideoViewer(
   BuildContext context, {
   required String videoUrl,
   required String title,
+  String? integrityReviewNotice,
 }) {
   if (videoUrl.trim().isEmpty) return;
   Navigator.of(context).push(
@@ -443,6 +468,7 @@ void openEvalNetworkVideoViewer(
       builder: (_) => EvalNetworkVideoViewerScreen(
         videoUrl: videoUrl,
         title: title,
+        integrityReviewNotice: integrityReviewNotice,
       ),
     ),
   );
@@ -454,10 +480,12 @@ class EvalNetworkVideoViewerScreen extends StatefulWidget {
     super.key,
     required this.videoUrl,
     required this.title,
+    this.integrityReviewNotice,
   });
 
   final String videoUrl;
   final String title;
+  final String? integrityReviewNotice;
 
   @override
   State<EvalNetworkVideoViewerScreen> createState() => _EvalNetworkVideoViewerScreenState();
@@ -527,6 +555,7 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
 
   @override
   Widget build(BuildContext context) {
+    final notice = widget.integrityReviewNotice?.trim();
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -534,49 +563,109 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
         foregroundColor: Colors.white,
         title: Text(widget.title, style: const TextStyle(fontSize: 14)),
       ),
-      body: GestureDetector(
-        onTap: () => setState(() => _showControls = !_showControls),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (_loading)
-              const Center(child: CircularProgressIndicator(color: Colors.white70))
-            else if (_error)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 56),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Unable to load this video. Check your connection and try again.',
-                      textAlign: TextAlign.center,
-                      style: dashText(const TextStyle(color: Colors.white70, fontSize: 14)),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (notice != null && notice.isNotEmpty) EvalViewerIntegrityNotice(text: notice),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _showControls = !_showControls),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (_loading)
+                    const Center(child: CircularProgressIndicator(color: Colors.white70))
+                  else if (_error)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 56),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Unable to load this video. Check your connection and try again.',
+                            textAlign: TextAlign.center,
+                            style: dashText(const TextStyle(color: Colors.white70, fontSize: 14)),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_controller != null && _controller!.value.isInitialized)
+                    Center(
+                      child: AspectRatio(
+                        aspectRatio: _controller!.value.aspectRatio,
+                        child: VideoPlayer(_controller!),
+                      ),
                     ),
-                  ],
-                ),
-              )
-            else if (_controller != null && _controller!.value.isInitialized)
-              Center(
-                child: AspectRatio(
-                  aspectRatio: _controller!.value.aspectRatio,
-                  child: VideoPlayer(_controller!),
-                ),
+                  if (!_loading && !_error && _controller != null && _showControls)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _VideoControlsBar(
+                        controller: _controller!,
+                        onTogglePlay: _togglePlay,
+                        positionLabel: _positionLabel,
+                      ),
+                    ),
+                  if (!_loading &&
+                      !_error &&
+                      _controller != null &&
+                      _showControls &&
+                      !_controller!.value.isPlaying)
+                    const EvalVideoPlayBadge(onDarkBackground: true),
+                ],
               ),
-            if (!_loading && !_error && _controller != null && _showControls)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _VideoControlsBar(
-                  controller: _controller!,
-                  onTogglePlay: _togglePlay,
-                  positionLabel: _positionLabel,
-                ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown above full-screen evaluation media when integrity review is pending.
+class EvalViewerIntegrityNotice extends StatelessWidget {
+  const EvalViewerIntegrityNotice({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFF422006),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.shield_outlined, color: Color(0xFFFBBF24), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Why admin review is required',
+                    style: dashText(const TextStyle(
+                      color: Color(0xFFFDE68A),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    )),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    text,
+                    style: dashText(const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      height: 1.35,
+                    )),
+                  ),
+                ],
               ),
-            if (!_loading && !_error && _controller != null && _showControls && !_controller!.value.isPlaying)
-              const EvalVideoPlayBadge(onDarkBackground: true),
+            ),
           ],
         ),
       ),

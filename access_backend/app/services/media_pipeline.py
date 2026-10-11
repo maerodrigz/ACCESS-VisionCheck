@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from pathlib import Path
 
@@ -13,8 +14,14 @@ from app.crud import member_ranking as ranking_crud
 from app.crud import system_settings as settings_crud
 from app.crud import user as user_crud
 from app.models.ai_detection_result import AiDetectionResult
+from app.models.media_constants import MEDIA_CATEGORY_EVALUATION
 from app.models.media_evaluation import MediaEvaluation
 from app.models.media_file import MediaFile
+from app.services.media_upload_config import (
+    EvaluationVideoDurationError,
+    check_evaluation_video_duration,
+    is_video_extension,
+)
 from app.services.integrity_evaluation_policy import (
     apply_integrity_evaluation_policy,
     finalize_member_evaluation_payload,
@@ -28,6 +35,33 @@ from app.services.media_evaluator import (
     merge_client_gemini,
     scores_from_payload,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _guard_practice_evaluation_video_bytes(
+    db: Session,
+    media: MediaFile,
+    file_bytes: bytes,
+    eval_file_name: str,
+) -> bool:
+    """Return False when stored video bytes fail practice length rules (pipeline should abort)."""
+    if media.media_category != MEDIA_CATEGORY_EVALUATION or not file_bytes:
+        return True
+    ext = Path(eval_file_name).suffix.lower()
+    if not ext or not is_video_extension(db, ext, MEDIA_CATEGORY_EVALUATION):
+        return True
+    try:
+        check_evaluation_video_duration(db, ext, file_bytes)
+    except EvaluationVideoDurationError as exc:
+        logger.error(
+            "practice eval pipeline rejected video duration media_id=%s max=%ss actual=%ss",
+            media.id,
+            exc.max_seconds,
+            exc.actual_seconds,
+        )
+        return False
+    return True
 
 
 def run_pipeline(
@@ -43,6 +77,8 @@ def run_pipeline(
         return existing, eval_crud.get_ai_for_media(db, media.id)
 
     eval_file_name = _pipeline_eval_file_name(media)
+    if not _guard_practice_evaluation_video_bytes(db, media, file_bytes, eval_file_name):
+        return None
     payload: dict = {}
     preview = _payload_from_preview_metadata(evaluation_metadata)
     quality_preview = _quality_preview_from_metadata(evaluation_metadata) if preview is None else None

@@ -175,10 +175,14 @@ class AccessBrandLockup extends StatelessWidget {
     super.key,
     this.markSize = 40,
     this.compact = false,
+    this.lightBackground = false,
   });
 
   final double markSize;
   final bool compact;
+
+  /// Wordmark colors for light headers (VisionCheck uses primary text).
+  final bool lightBackground;
 
   @override
   Widget build(BuildContext context) {

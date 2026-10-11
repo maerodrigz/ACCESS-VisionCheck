@@ -54,11 +54,15 @@ def apply_probe_provenance_policy(
             outcome = "high_ai_risk"
     elif strength == "partial":
         if visual_risk == "low":
-            requires_review = False
+            requires_review = True
             outcome = "source_partially_verified"
             base = str(out.get("detail") or "")
-            if _PARTIAL_LOW_DETAIL not in base:
-                out["detail"] = f"{base} {_PARTIAL_LOW_DETAIL}".strip()
+            partial_detail = (
+                f"{_PARTIAL_LOW_DETAIL} Administrative review is required before "
+                "scores and coaching are released."
+            )
+            if partial_detail not in base:
+                out["detail"] = f"{base} {partial_detail}".strip()
         else:
             requires_review = True
             outcome = "elevated_ai_risk" if visual_risk == "suspicious" else "high_ai_risk"

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -62,8 +63,13 @@ class _SplashBrandContent extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 360;
-        final logoSize = (constraints.maxWidth * 0.32).clamp(96.0, 132.0);
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        final fromWidth = w * 0.52;
+        final fromHeight = h > 0 ? h * 0.26 : fromWidth;
+        final logoSize = math.min(fromWidth, fromHeight).clamp(160.0, 204.0);
         final titleSize = compact ? 24.0 : 26.0;
+        final logoTitleGap = compact ? 10.0 : 12.0;
 
         return ListenableBuilder(
           listenable: brandingController,
@@ -75,8 +81,13 @@ class _SplashBrandContent extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    AccessOrgSealLogo(size: logoSize, showShadow: true),
-                    SizedBox(height: compact ? 24 : 28),
+                    AccessOrgSealLogo(
+                      size: logoSize,
+                      showShadow: false,
+                      paddingFraction: 0.01,
+                      preferLauncherForeground: true,
+                    ),
+                    SizedBox(height: logoTitleGap),
                     RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(

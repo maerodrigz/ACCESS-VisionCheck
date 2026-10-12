@@ -184,6 +184,9 @@ class MemberDataController extends ChangeNotifier {
     await PushNotificationService.ensureRegistered();
     await PushNotificationService.syncInboxIfOpenedFromPush();
     await refreshHomeBootstrap();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(PushNotificationService.flushPendingNotificationOpen());
+    });
     unawaited(refreshDeferredSections());
   }
 
@@ -1169,6 +1172,17 @@ class MemberDataController extends ChangeNotifier {
       if (name.endsWith(ext) || url.endsWith(ext)) return 'video';
     }
     return null;
+  }
+
+  /// Practice eval row for a media id (cache first, then member API).
+  Future<Evaluation?> findEvaluationForMedia(int mediaId) async {
+    final targetId = 'MED-$mediaId';
+    for (final e in appState.evaluations) {
+      if (e.id == targetId) return e;
+    }
+    final row = await memberApiService.getEvaluationRowForMedia(mediaId);
+    if (row == null) return null;
+    return _evaluationFromApi(row);
   }
 
   Evaluation _evaluationFromApi(Map<String, dynamic> e) {

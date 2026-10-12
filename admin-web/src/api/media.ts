@@ -5,6 +5,7 @@ export type AiResultLabel = 'human' | 'ai_generated' | 'suspicious' | 'pending'
 export type ReviewStatus =
   | 'pending_review'
   | 'verified_human'
+  | 'verified_ai_generated'
   | 'confirmed_ai_generated'
   | 'needs_further_review'
   | 'accepted_with_warning'

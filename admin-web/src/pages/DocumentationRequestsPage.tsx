@@ -171,6 +171,11 @@ export function DocumentationRequestsPage() {
 
 
   useEffect(() => {
+    const q = searchParams.get('q')
+    if (q) setSearch(q)
+  }, [searchParams])
+
+  useEffect(() => {
 
     const requestId = Number(searchParams.get('request') || 0)
 

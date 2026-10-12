@@ -95,7 +95,7 @@ function Collapsible({ title, children }: { title: string; children: ReactNode }
 interface Props {
   row: AiDetectionRow
   onClose: () => void
-  onSaved: () => void
+  onSaved: (status: ReviewStatus) => void
 }
 
 export function AiReviewModal({ row, onClose, onSaved }: Props) {
@@ -129,7 +129,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
         review_status: nextStatus,
         admin_remarks: nextRemarks.trim(),
       })
-      onSaved()
+      onSaved(nextStatus)
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save review')
@@ -185,7 +185,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
     setSaving(true)
     try {
       await archiveAiDetectionMedia(row.id)
-      onSaved()
+      onSaved(status)
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Archive failed')

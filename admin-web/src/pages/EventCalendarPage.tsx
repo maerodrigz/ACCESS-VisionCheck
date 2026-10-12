@@ -80,6 +80,11 @@ export function EventCalendarPage() {
   }, [load])
 
   useEffect(() => {
+    const q = searchParams.get('q')
+    if (q) setSearch(q)
+  }, [searchParams])
+
+  useEffect(() => {
     const eventId = Number(searchParams.get('event') || 0)
     const requestId = Number(searchParams.get('request') || 0)
     if ((!eventId && !requestId) || events.length === 0) return

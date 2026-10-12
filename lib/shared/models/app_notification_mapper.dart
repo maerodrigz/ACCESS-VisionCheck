@@ -29,6 +29,41 @@ AppNotification appNotificationFromApi(Map<String, dynamic> n) {
   );
 }
 
+/// FCM / tray tap payload (merge with inbox row after sync when [notification_id] is set).
+AppNotification appNotificationFromPushData(
+  Map<String, dynamic> data, {
+  required String title,
+  required String body,
+}) {
+  final category = (data['category'] as String? ?? 'system_alert').toLowerCase();
+  final actionType = data['action_type'] as String?;
+  final idRaw = data['notification_id'];
+  final refRaw = data['action_ref_id'];
+  final id = idRaw is int ? idRaw : int.tryParse('$idRaw') ?? 0;
+  final refId = refRaw is int ? refRaw : int.tryParse('$refRaw');
+  final visuals = notificationDetailVisuals(category: category, actionType: actionType);
+  return AppNotification(
+    id: id,
+    title: title,
+    body: body,
+    icon: visuals.$1,
+    color: visuals.$2,
+    category: category,
+    actionType: actionType,
+    actionRefId: refId,
+    read: false,
+  );
+}
+
+AppNotification resolveNotificationForOpen(AppNotification stub) {
+  if (stub.id > 0) {
+    for (final n in appState.notifications) {
+      if (n.id == stub.id) return n;
+    }
+  }
+  return stub;
+}
+
 (String, IconData, Color) notificationPresentation(AppNotification n, {required bool requestor}) {
   final label = notificationCategoryLabel(n, requestor: requestor);
   final visuals = notificationVisuals(
@@ -37,6 +72,32 @@ AppNotification appNotificationFromApi(Map<String, dynamic> n) {
     read: n.read,
   );
   return (label, visuals.$1, visuals.$2);
+}
+
+/// Detail dialog / floating card — always use semantic colors (not read-grey).
+(String, IconData, Color) notificationDetailPresentation(AppNotification n, {required bool requestor}) {
+  final label = notificationCategoryLabel(n, requestor: requestor);
+  final visuals = notificationDetailVisuals(
+    category: n.category,
+    actionType: n.actionType,
+  );
+  return (label, visuals.$1, visuals.$2);
+}
+
+(IconData, Color) notificationDetailVisuals({
+  required String category,
+  required String? actionType,
+}) {
+  if (actionType == 'milestone') {
+    return (Icons.emoji_events_rounded, kAccent);
+  }
+  if (actionType == 'view_admin_feedback') {
+    return (Icons.admin_panel_settings_rounded, kCyan);
+  }
+  if (category == 'ai_detection') {
+    return (Icons.notifications_active_rounded, kCyan);
+  }
+  return _visualsForCategory(category, read: false);
 }
 
 String notificationCategoryLabel(AppNotification n, {required bool requestor}) {

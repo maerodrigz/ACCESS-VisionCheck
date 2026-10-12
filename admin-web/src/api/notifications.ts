@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 
-/** Platform-wide admin notification feed (all users). */
+/** Admin inbox: notifications delivered to Admin accounts only. */
 export function fetchNotifications() {
   return apiRequest<Record<string, unknown>[]>('/admin/notifications')
 }

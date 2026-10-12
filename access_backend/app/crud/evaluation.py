@@ -20,6 +20,18 @@ def list_all(db: Session) -> list[MediaEvaluation]:
     )
 
 
+PENDING_INTEGRITY_STATUSES = ("pending_review", "needs_further_review")
+RESOLVED_INTEGRITY_STATUSES = (
+    "verified_human",
+    "confirmed_ai_generated",
+    "verified_ai_generated",
+    "accepted_with_warning",
+    "reupload_requested",
+    "rejected",
+    "automated_low_ai_risk",
+)
+
+
 def list_all_ai(db: Session) -> list[AiDetectionResult]:
     return list(
         db.scalars(
@@ -30,6 +42,21 @@ def list_all_ai(db: Session) -> list[AiDetectionResult]:
             .order_by(AiDetectionResult.created_at.desc())
         )
     )
+
+
+def list_ai_for_integrity_inbox(db: Session, *, inbox: str = "all") -> list[AiDetectionResult]:
+    """Filter integrity queue: needs_action = awaiting admin decision."""
+    q = (
+        select(AiDetectionResult)
+        .options(joinedload(AiDetectionResult.media).joinedload(MediaFile.uploader))
+        .order_by(AiDetectionResult.created_at.desc())
+    )
+    normalized = (inbox or "all").strip().lower()
+    if normalized == "needs_action":
+        q = q.where(AiDetectionResult.review_status.in_(PENDING_INTEGRITY_STATUSES))
+    elif normalized == "resolved":
+        q = q.where(AiDetectionResult.review_status.in_(RESOLVED_INTEGRITY_STATUSES))
+    return list(db.scalars(q))
 
 
 def list_for_user(db: Session, user_id: int) -> list[MediaEvaluation]:

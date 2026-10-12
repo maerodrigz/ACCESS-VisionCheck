@@ -159,6 +159,11 @@ export function MediaLibraryPage() {
   }, [load])
 
   useEffect(() => {
+    const q = searchParams.get('q')
+    if (q) setSearch(q)
+  }, [searchParams])
+
+  useEffect(() => {
     const mediaId = Number(searchParams.get('media') || 0)
     if (!mediaId || all.length === 0) return
     const item = all.find((a) => a.id === mediaId)

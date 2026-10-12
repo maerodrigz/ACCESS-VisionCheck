@@ -46,9 +46,7 @@ class _MobileSplashGateState extends State<MobileSplashGate> {
     if (_showSplash) {
       return const Material(
         color: Colors.white,
-        child: SafeArea(
-          child: _SplashBrandContent(),
-        ),
+        child: _SplashBrandContent(),
       );
     }
     return widget.child;
@@ -60,66 +58,64 @@ class _SplashBrandContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 360;
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-        final fromWidth = w * 0.52;
-        final fromHeight = h > 0 ? h * 0.26 : fromWidth;
-        final logoSize = math.min(fromWidth, fromHeight).clamp(160.0, 204.0);
-        final titleSize = compact ? 24.0 : 26.0;
-        final logoTitleGap = compact ? 10.0 : 12.0;
+    final media = MediaQuery.sizeOf(context);
+    final compact = media.width < 360;
+    final fromWidth = media.width * 0.52;
+    final fromHeight = media.height > 0 ? media.height * 0.26 : fromWidth;
+    final logoSize = math.min(fromWidth, fromHeight).clamp(160.0, 204.0);
+    final titleSize = compact ? 24.0 : 26.0;
+    final subtitleSize = compact ? 22.0 : 24.0;
+    final logoTitleGap = compact ? 16.0 : 20.0;
+    final titleLineGap = compact ? 4.0 : 6.0;
 
-        return ListenableBuilder(
-          listenable: brandingController,
-          builder: (_, __) {
-            return Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: compact ? 32 : 40),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AccessOrgSealLogo(
-                      size: logoSize,
-                      showShadow: false,
-                      paddingFraction: 0.01,
-                      preferLauncherForeground: true,
-                    ),
-                    SizedBox(height: logoTitleGap),
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'ACCESS ',
-                            style: _splashText(const TextStyle(
-                              color: kTextPrimary,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.2,
-                              height: 1.15,
-                            )).copyWith(fontSize: titleSize),
-                          ),
-                          TextSpan(
-                            text: 'VisionCheck',
-                            style: _splashText(const TextStyle(
-                              color: kCyan,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.05,
-                              height: 1.15,
-                            )).copyWith(fontSize: titleSize),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+    return ListenableBuilder(
+      listenable: brandingController,
+      builder: (_, __) {
+        return SizedBox(
+          width: media.width,
+          height: media.height,
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: compact ? 32 : 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  AccessOrgSealLogo(
+                    size: logoSize,
+                    showShadow: false,
+                    paddingFraction: 0.01,
+                    preferLauncherForeground: true,
+                  ),
+                  SizedBox(height: logoTitleGap),
+                  Text(
+                    'ACCESS',
+                    textAlign: TextAlign.center,
+                    style: _splashText(const TextStyle(
+                      color: kTextPrimary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                      height: 1.1,
+                    )).copyWith(fontSize: titleSize),
+                  ),
+                  SizedBox(height: titleLineGap),
+                  Text(
+                    'VisionCheck',
+                    textAlign: TextAlign.center,
+                    style: _splashText(const TextStyle(
+                      color: kCyan,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.05,
+                      height: 1.1,
+                    )).copyWith(fontSize: subtitleSize),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );

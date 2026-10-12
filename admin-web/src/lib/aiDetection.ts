@@ -218,11 +218,16 @@ export type IntegrityInboxFilter =
 const RESOLVED_STATUSES: ReviewStatus[] = [
   'verified_human',
   'confirmed_ai_generated',
+  'verified_ai_generated',
   'accepted_with_warning',
   'reupload_requested',
   'rejected',
   'automated_low_ai_risk',
 ]
+
+export function isResolvedIntegrityReview(status: ReviewStatus): boolean {
+  return RESOLVED_STATUSES.includes(status)
+}
 
 export type AiReviewRiskTier = 'high' | 'suspicious' | 'low'
 

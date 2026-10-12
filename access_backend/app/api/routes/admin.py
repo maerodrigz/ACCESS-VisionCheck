@@ -571,9 +571,12 @@ def _ai_detection_json(ai) -> dict:
     result = ai.detection_result or ""
     is_ai = "ai" in result.lower() or "generated" in result.lower()
     confidence = ai.ai_probability if is_ai else (1.0 - ai.ai_probability)
-    review_status = getattr(ai, "review_status", None) or "pending_review"
-    if not review_status and ai.reviewed_by_admin:
-        review_status = "verified_human" if not is_ai else "verified_ai_generated"
+    review_status = (getattr(ai, "review_status", None) or "").strip()
+    if not review_status:
+        if ai.reviewed_by_admin:
+            review_status = "verified_human" if not is_ai else "verified_ai_generated"
+        else:
+            review_status = "pending_review"
     return {
         "id": ai.id,
         "media_id": ai.media_id,
@@ -610,9 +613,19 @@ def ai_detection_summary(db: Session = Depends(get_db), _: User = Depends(requir
 
 
 @router.get("/ai-detection")
-def list_ai_detection(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def list_ai_detection(
+    inbox: str | None = Query(
+        None,
+        description="needs_action (default review queue), resolved, or all",
+    ),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
     try:
-        rows = eval_crud.list_all_ai(db)
+        bucket = (inbox or "all").strip().lower()
+        if bucket not in ("all", "needs_action", "resolved"):
+            bucket = "all"
+        rows = eval_crud.list_ai_for_integrity_inbox(db, inbox=bucket)
         return [_ai_detection_json(ai) for ai in rows]
     except Exception as exc:
         raise _load_error("AI detection results", exc) from exc
@@ -628,14 +641,15 @@ def update_ai_detection_review(
     row = eval_crud.get_ai_by_id(db, ai_id)
     if not row:
         raise HTTPException(status_code=404, detail="AI detection record not found")
-    eval_crud.update_ai_review(
+    updated = eval_crud.update_ai_review(
         db,
         row,
         review_status=body.review_status,
         admin_remarks=body.admin_remarks,
         reviewed_by=admin.id,
     )
-    return _ai_detection_json(row)
+    db.refresh(updated)
+    return _ai_detection_json(updated)
 
 
 @router.get("/ai-detection/{ai_id}/history")

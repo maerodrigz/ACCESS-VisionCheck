@@ -65,21 +65,23 @@ export function routeForNotification(
       return ref ? `/documentation-requests?request=${ref}` : '/documentation-requests'
     case 'review_media':
       return ref ? `/media-integrity?media=${ref}` : '/media-integrity'
-    case 'view_result':
-      return ref ? `/media?media=${ref}` : '/media'
     case 'view_task':
       if (ref) return `/documentation-requests?assignment=${ref}`
       return '/documentation-requests'
     case 'view_feedback':
       return ref ? `/feedback?feedback=${ref}` : '/feedback'
+    case 'view_result':
+    case 'milestone':
+    case 'view_admin_feedback':
+      return '/notifications'
     default:
       switch (category) {
         case 'documentation_request':
           return ref ? `/documentation-requests?request=${ref}` : '/documentation-requests'
         case 'task_assignment':
-          return ref ? `/documentation-requests?assignment=${ref}` : '/members'
+          return ref ? `/documentation-requests?assignment=${ref}` : '/documentation-requests'
         case 'media_evaluation':
-          return ref ? `/media?media=${ref}` : '/media'
+          return ref ? `/media-integrity?media=${ref}` : '/media-integrity'
         case 'ai_detection':
           return ref ? `/media-integrity?media=${ref}` : '/media-integrity'
         case 'feedback':

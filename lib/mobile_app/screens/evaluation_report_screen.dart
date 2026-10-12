@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:access_mobile/mobile_app/sheets/admin_review_notice_sheet.dart';
 import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
@@ -17,11 +16,9 @@ import 'package:access_mobile/shared/controllers/app_state.dart' hide AiDetectio
 import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 
-String _reportAdminRemarks(Evaluation evaluation, {String? notificationMessage}) {
+String _reportAdminRemarks(Evaluation evaluation) {
   final r = evaluation.adminRemarks?.trim() ?? '';
   if (r.isNotEmpty) return r;
-  final fromNotice = adminRemarksFromNotificationFallback(notificationMessage);
-  if (fromNotice.isNotEmpty) return fromNotice;
   final s = (evaluation.reviewStatus ?? '').toLowerCase();
   if (s.contains('reupload')) {
     return 'An administrator requested a new upload. Use Re-upload below.';
@@ -35,12 +32,10 @@ class EvaluationReportScreen extends StatelessWidget {
     super.key,
     required this.evaluation,
     this.comparisonEvaluations = const [],
-    this.notificationMessage,
   });
 
   final Evaluation evaluation;
   final List<PhotoEvaluationResult> comparisonEvaluations;
-  final String? notificationMessage;
 
   PhotoEvaluationResult? get _result => evaluationToPhotoResult(evaluation);
 
@@ -64,10 +59,7 @@ class EvaluationReportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parsed = _result;
-    final adminRemarks = _reportAdminRemarks(
-      evaluation,
-      notificationMessage: notificationMessage,
-    );
+    final adminRemarks = _reportAdminRemarks(evaluation);
     final reviewPending = (parsed != null &&
             !MemberReviewStatus.isFinalAdminDecision(evaluation.reviewStatus) &&
             (parsed.aiDetection.requiresReview ||
@@ -75,17 +67,11 @@ class EvaluationReportScreen extends StatelessWidget {
                 !parsed.showQualityFeedbackEffective)) ||
         (parsed == null &&
             (evaluation.isUnderAdminReview ||
-                memberIntegrityReviewReasonFromEvaluation(
-                  evaluation,
-                  notificationMessage: notificationMessage,
-                ).isNotEmpty));
+                memberIntegrityReviewReasonFromEvaluation(evaluation).isNotEmpty));
 
     final integrityReason = parsed != null
         ? memberIntegrityReviewReason(parsed)
-        : memberIntegrityReviewReasonFromEvaluation(
-            evaluation,
-            notificationMessage: notificationMessage,
-          );
+        : memberIntegrityReviewReasonFromEvaluation(evaluation);
 
     return Scaffold(
       backgroundColor: kEvalBg,
@@ -465,7 +451,6 @@ void openEvaluationReport(
   BuildContext context,
   Evaluation evaluation, {
   List<Evaluation>? allEvaluations,
-  String? notificationMessage,
 }) {
   final comparisons = allEvaluations != null
       ? comparisonResultsFromHistory(allEvaluations, excludeId: evaluation.id)
@@ -476,7 +461,6 @@ void openEvaluationReport(
       builder: (_) => EvaluationReportScreen(
         evaluation: evaluation,
         comparisonEvaluations: comparisons,
-        notificationMessage: notificationMessage,
       ),
     ),
   );

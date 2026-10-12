@@ -16,9 +16,11 @@ import {
   isProbeSmokeTestRow,
   isVideoDetectionRow,
   matchesIntegrityInbox,
+  isResolvedIntegrityReview,
   parseAiDetectionRow,
   sortDetectionRows,
 } from '../lib/aiDetection'
+import type { ReviewStatus } from '../api/media'
 
 type QueueKind = 'photos' | 'videos'
 
@@ -77,7 +79,7 @@ export function MediaIntegrityPage() {
     setLoading(true)
     setError(null)
     try {
-      const list = await fetchAiDetectionList()
+      const list = await fetchAiDetectionList('all')
       const parsed = list.map((m) => parseAiDetectionRow(m))
       setRows(parsed)
       setSelected((prev) => {
@@ -91,6 +93,21 @@ export function MediaIntegrityPage() {
       setLoading(false)
     }
   }, [])
+
+  const handleReviewSaved = useCallback(
+    (aiRowId: number, nextStatus: ReviewStatus) => {
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === aiRowId
+            ? { ...r, review_status: nextStatus, reviewed_by_admin: isResolvedIntegrityReview(nextStatus) }
+            : r,
+        ),
+      )
+      setSelected(null)
+      void load()
+    },
+    [load],
+  )
 
   useEffect(() => {
     load()
@@ -306,7 +323,11 @@ export function MediaIntegrityPage() {
       </section>
 
       {selected && (
-        <AiReviewModal row={selected} onClose={() => setSelected(null)} onSaved={load} />
+        <AiReviewModal
+          row={selected}
+          onClose={() => setSelected(null)}
+          onSaved={(nextStatus) => handleReviewSaved(selected.id, nextStatus)}
+        />
       )}
     </div>
   )

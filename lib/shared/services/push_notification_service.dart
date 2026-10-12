@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 
@@ -8,9 +9,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:access_mobile/shared/api/member_api_service.dart';
 import 'package:access_mobile/shared/constants/firebase_runtime_config.dart';
+import 'package:access_mobile/shared/controllers/app_state.dart';
+import 'package:access_mobile/shared/models/app_notification_mapper.dart';
 import 'package:access_mobile/shared/services/firebase_app_init.dart';
 
 const _logName = 'ACCESS.push';
+
+typedef NotificationOpenHandler = Future<void> Function(AppNotification notification);
 
 /// Background FCM handler (top-level isolate entry).
 @pragma('vm:entry-point')
@@ -23,7 +28,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 abstract final class PushNotificationService {
   static String? _lastRegisteredToken;
   static Future<void> Function()? _inboxSyncHandler;
+  static NotificationOpenHandler? _openHandler;
   static Timer? _inboxSyncDebounce;
+  static RemoteMessage? _pendingRemoteOpen;
 
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -43,6 +50,12 @@ abstract final class PushNotificationService {
     _inboxSyncHandler = handler;
   }
 
+  /// Same UX as tapping a row in the in-app notification center.
+  static void bindNotificationOpenHandler(NotificationOpenHandler handler) {
+    _openHandler = handler;
+    unawaited(flushPendingNotificationOpen());
+  }
+
   static Future<void> _syncInboxFromPush() async {
     final handler = _inboxSyncHandler;
     if (handler == null) return;
@@ -60,13 +73,81 @@ abstract final class PushNotificationService {
     });
   }
 
+  static Map<String, dynamic> _dataFromRemoteMessage(RemoteMessage message) {
+    return message.data.map((key, value) => MapEntry(key, value.toString()));
+  }
+
+  static (String title, String body) _titleBodyFromRemoteMessage(RemoteMessage message) {
+    final notification = message.notification;
+    final data = message.data;
+    final title = notification?.title ?? data['title'] ?? 'ACCESS';
+    final body = notification?.body ?? data['message'] ?? data['body'] ?? '';
+    return (title, body);
+  }
+
+  static AppNotification _notificationFromRemoteMessage(RemoteMessage message) {
+    final (title, body) = _titleBodyFromRemoteMessage(message);
+    return appNotificationFromPushData(
+      _dataFromRemoteMessage(message),
+      title: title,
+      body: body,
+    );
+  }
+
+  static AppNotification _notificationFromPayloadMap(Map<String, dynamic> map) {
+    final title = (map['title'] as String?) ?? 'ACCESS';
+    final body = (map['body'] as String?) ?? (map['message'] as String?) ?? '';
+    final data = <String, dynamic>{};
+    for (final key in ['category', 'notification_id', 'action_type', 'action_ref_id']) {
+      if (map.containsKey(key)) data[key] = map[key];
+    }
+    return appNotificationFromPushData(data, title: title, body: body);
+  }
+
+  static Future<void> _openFromRemoteMessage(RemoteMessage message) async {
+    await _syncInboxFromPush();
+    final stub = _notificationFromRemoteMessage(message);
+    final resolved = resolveNotificationForOpen(stub);
+    final handler = _openHandler;
+    if (handler == null) {
+      _pendingRemoteOpen = message;
+      developer.log('Push open queued (UI not ready)', name: _logName);
+      return;
+    }
+    try {
+      await handler(resolved);
+      _pendingRemoteOpen = null;
+    } catch (e, st) {
+      developer.log('Push open handler failed', name: _logName, error: e, stackTrace: st);
+      _pendingRemoteOpen = message;
+    }
+  }
+
+  static Future<void> flushPendingNotificationOpen() async {
+    final pending = _pendingRemoteOpen;
+    if (pending == null) return;
+    if (_openHandler == null) return;
+    await _openFromRemoteMessage(pending);
+  }
+
   static Future<void> _initLocalNotifications() async {
     if (kIsWeb || !Platform.isAndroid) return;
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _localNotifications.initialize(
       settings: const InitializationSettings(android: androidSettings),
-      onDidReceiveNotificationResponse: (_) {
-        _scheduleInboxSyncFromPush();
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload == null || payload.isEmpty) {
+          _scheduleInboxSyncFromPush();
+          return;
+        }
+        try {
+          final map = jsonDecode(payload) as Map<String, dynamic>;
+          unawaited(_openFromPayloadMap(map));
+        } catch (e, st) {
+          developer.log('Tray payload parse failed', name: _logName, error: e, stackTrace: st);
+          _scheduleInboxSyncFromPush();
+        }
       },
     );
     final androidPlugin = _localNotifications
@@ -75,16 +156,33 @@ abstract final class PushNotificationService {
     await androidPlugin?.createNotificationChannel(_androidChannel);
   }
 
+  static Future<void> _openFromPayloadMap(Map<String, dynamic> map) async {
+    await _syncInboxFromPush();
+    final stub = _notificationFromPayloadMap(map);
+    final resolved = resolveNotificationForOpen(stub);
+    final handler = _openHandler;
+    if (handler == null) {
+      developer.log('Tray open skipped (handler not bound)', name: _logName);
+      return;
+    }
+    await handler(resolved);
+  }
+
   static Future<void> _showForegroundTrayNotification(RemoteMessage message) async {
     if (kIsWeb || !Platform.isAndroid) return;
-    final notification = message.notification;
-    final title = notification?.title ?? message.data['title'];
-    final body = notification?.body ?? message.data['message'];
-    if (title == null && body == null) return;
+    final (title, body) = _titleBodyFromRemoteMessage(message);
+    if (title.isEmpty && body.isEmpty) return;
+
+    final payloadMap = <String, dynamic>{
+      'title': title,
+      'body': body,
+      ..._dataFromRemoteMessage(message),
+    };
+
     await _localNotifications.show(
       id: message.hashCode,
-      title: title ?? 'ACCESS',
-      body: body ?? '',
+      title: title,
+      body: body,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _androidChannel.id,
@@ -95,6 +193,7 @@ abstract final class PushNotificationService {
           icon: '@mipmap/ic_launcher',
         ),
       ),
+      payload: jsonEncode(payloadMap),
     );
   }
 
@@ -113,8 +212,8 @@ abstract final class PushNotificationService {
       unawaited(_showForegroundTrayNotification(message));
       _scheduleInboxSyncFromPush();
     });
-    FirebaseMessaging.onMessageOpenedApp.listen((_) {
-      _scheduleInboxSyncFromPush();
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      unawaited(_openFromRemoteMessage(message));
     });
   }
 
@@ -123,7 +222,9 @@ abstract final class PushNotificationService {
     if (!isAvailable) return;
     final initial = await FirebaseMessaging.instance.getInitialMessage();
     if (initial != null) {
+      _pendingRemoteOpen = initial;
       await _syncInboxFromPush();
+      await flushPendingNotificationOpen();
     }
   }
 

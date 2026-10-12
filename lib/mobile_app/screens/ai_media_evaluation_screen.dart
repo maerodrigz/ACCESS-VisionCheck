@@ -276,7 +276,6 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
       return;
     }
 
-    if (!await _confirmPracticeSubmit()) return;
     if (!mounted) return;
 
     if (_isVideo) {
@@ -423,38 +422,6 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         _error = _apiErrorMessage(e);
       });
     }
-  }
-
-  Future<bool> _confirmPracticeSubmit() async {
-    final limit = appState.dailyEvaluationLimit;
-    final nextCount = appState.evaluationsTodayCount + 1;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text(
-          'Submit for evaluation?',
-          style: dashText(const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-        ),
-        content: Text(
-          'Your file uploads when you continue. This uses one of your $limit daily practice '
-          'submissions (this will be $nextCount of $limit today). '
-          'ACCESS analyzes quality and integrity on the server. You can return to the Evaluations tab while processing finishes.',
-          style: dashText(const TextStyle(color: kTextSecondary, fontSize: 14, height: 1.45)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
-    return confirmed == true;
   }
 
   @override

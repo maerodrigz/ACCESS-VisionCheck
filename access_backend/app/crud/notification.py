@@ -1,9 +1,12 @@
-from sqlalchemy import delete, select, update
+from sqlalchemy import and_, delete, not_, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
 from app.crud import member_notification_preference as member_pref_crud
 from app.models.ai_detection_result import AiDetectionResult
+from app.models.enums import RoleName, UserStatus
 from app.models.notification import Notification
+from app.models.role import Role
+from app.models.user import User
 
 
 def list_for_user(db: Session, user_id: int, *, limit: int = 100) -> list[Notification]:
@@ -55,6 +58,59 @@ def mark_all_read_all(db: Session) -> int:
     return result.rowcount
 
 
+def _admin_user_ids_subquery():
+    return select(User.id).join(Role, User.role_id == Role.id).where(
+        User.status == UserStatus.APPROVED,
+        Role.role_name == RoleName.ADMIN,
+    )
+
+
+def _admin_inbox_visibility_clause():
+    """Admin-facing alerts: requestor workflow, integrity review, event doc uploads, assignment exceptions."""
+    member_only_actions = ("milestone", "view_admin_feedback", "view_result")
+    return and_(
+        or_(Notification.action_type.is_(None), Notification.action_type.notin_(member_only_actions)),
+        or_(
+            Notification.category.in_(("documentation_request", "feedback", "ai_detection")),
+            and_(
+                Notification.category == "media_evaluation",
+                Notification.title == "New media uploaded",
+                Notification.action_type.in_(("review_media", "view_result")),
+            ),
+            and_(
+                Notification.category == "task_assignment",
+                Notification.title.in_(("Assignment declined", "Assignment completed")),
+            ),
+        ),
+    )
+
+
+def purge_admin_inbox_noise(db: Session) -> int:
+    """Remove admin rows that are member milestones, assignment echoes, or legacy practice-eval spam."""
+    result = db.execute(
+        delete(Notification).where(
+            Notification.user_id.in_(_admin_user_ids_subquery()),
+            not_(_admin_inbox_visibility_clause()),
+        )
+    )
+    db.commit()
+    return result.rowcount or 0
+
+
+def mark_all_read_admin_inbox(db: Session) -> int:
+    result = db.execute(
+        update(Notification)
+        .where(
+            Notification.is_read.is_(False),
+            Notification.user_id.in_(_admin_user_ids_subquery()),
+            _admin_inbox_visibility_clause(),
+        )
+        .values(is_read=True)
+    )
+    db.commit()
+    return result.rowcount
+
+
 def delete_read_for_user(db: Session, user_id: int) -> int:
     result = db.execute(
         delete(Notification).where(
@@ -68,6 +124,18 @@ def delete_read_for_user(db: Session, user_id: int) -> int:
 
 def delete_all_read(db: Session) -> int:
     result = db.execute(delete(Notification).where(Notification.is_read.is_(True)))
+    db.commit()
+    return result.rowcount
+
+
+def delete_read_admin_inbox(db: Session) -> int:
+    result = db.execute(
+        delete(Notification).where(
+            Notification.is_read.is_(True),
+            Notification.user_id.in_(_admin_user_ids_subquery()),
+            _admin_inbox_visibility_clause(),
+        )
+    )
     db.commit()
     return result.rowcount
 
@@ -145,6 +213,23 @@ def list_all(db: Session, limit: int = 100) -> list[Notification]:
         db.scalars(
             select(Notification)
             .options(joinedload(Notification.user))
+            .order_by(Notification.created_at.desc())
+            .limit(limit)
+        )
+    )
+
+
+def list_for_admin_inbox(db: Session, limit: int = 200) -> list[Notification]:
+    """Notifications delivered to Admin accounts only (not member/org inboxes)."""
+    purge_admin_inbox_noise(db)
+    return list(
+        db.scalars(
+            select(Notification)
+            .options(joinedload(Notification.user))
+            .where(
+                Notification.user_id.in_(_admin_user_ids_subquery()),
+                _admin_inbox_visibility_clause(),
+            )
             .order_by(Notification.created_at.desc())
             .limit(limit)
         )

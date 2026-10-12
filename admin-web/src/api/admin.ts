@@ -300,8 +300,12 @@ export function assignDocumentationTeam(
   })
 }
 
-export function fetchAiDetectionList() {
-  return apiRequest<Record<string, unknown>[]>('/admin/ai-detection')
+export type IntegrityInboxQuery = 'all' | 'needs_action' | 'resolved'
+
+export function fetchAiDetectionList(inbox: IntegrityInboxQuery = 'all') {
+  const q =
+    inbox === 'all' ? '' : `?inbox=${encodeURIComponent(inbox)}`
+  return apiRequest<Record<string, unknown>[]>(`/admin/ai-detection${q}`)
 }
 
 export function fetchAiDetectionSummary() {

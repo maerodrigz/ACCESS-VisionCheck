@@ -5,6 +5,8 @@ import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/constants/api_config.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/services/firebase_app_init.dart';
+import 'package:access_mobile/mobile_app/navigation/notification_navigation.dart';
+import 'package:access_mobile/shared/navigation/app_navigator.dart';
 import 'package:access_mobile/shared/services/push_notification_service.dart';
 
 /// Member / requester mobile app — run on a phone or emulator:
@@ -20,6 +22,13 @@ void main() async {
   PushNotificationService.bindInboxSyncHandler(
     memberDataController.refreshNotifications,
   );
+  PushNotificationService.bindNotificationOpenHandler((notification) async {
+    final ctx = rootNavigatorKey.currentContext;
+    if (ctx == null) {
+      throw StateError('Navigator not ready for push open');
+    }
+    await handleNotificationTap(ctx, notification, openedFromPush: true);
+  });
   await PushNotificationService.initialize();
   await ApiConfig.clearStaleOverridesWhenCompileTimeHostSet();
   await ApiConfig.loadLastWorkingBaseUrl();

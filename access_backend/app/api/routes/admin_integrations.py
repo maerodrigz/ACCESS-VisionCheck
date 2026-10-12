@@ -43,7 +43,7 @@ def list_all_notifications(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    rows = notification_crud.list_all(db, limit=200)
+    rows = notification_crud.list_for_admin_inbox(db, limit=200)
     return [
         {
             "id": n.id,
@@ -80,7 +80,7 @@ def admin_mark_all_notifications_read(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    count = notification_crud.mark_all_read_all(db)
+    count = notification_crud.mark_all_read_admin_inbox(db)
     return MessageResponse(message=f"Marked {count} notifications as read")
 
 
@@ -89,7 +89,7 @@ def admin_clear_read_notifications(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    count = notification_crud.delete_all_read(db)
+    count = notification_crud.delete_read_admin_inbox(db)
     return MessageResponse(message=f"Cleared {count} read notifications")
 
 

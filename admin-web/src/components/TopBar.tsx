@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
-import { Bell, Menu, Search } from 'lucide-react'
+import { Bell, Loader2, Menu, Search } from 'lucide-react'
 
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { fetchNotifications } from '../api/notifications'
 
 import { useAuth } from '../context/AuthContext'
+
+import { useToast } from '../context/ToastContext'
+
+import { resolveGlobalSearch } from '../lib/globalAdminSearch'
 
 import { NOTIFICATIONS_CHANGED } from '../lib/notificationEvents'
 
@@ -31,9 +35,13 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
 
   const location = useLocation()
 
+  const { showToast } = useToast()
+
   const onNotifications = location.pathname === '/notifications'
 
   const [unread, setUnread] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searching, setSearching] = useState(false)
 
   const loadUnread = useCallback(async () => {
     try {
@@ -63,6 +71,23 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
     }
   }, [loadUnread, location.pathname])
 
+  async function handleGlobalSearch(e: FormEvent) {
+    e.preventDefault()
+    const q = searchQuery.trim()
+    if (!q || searching) return
+    setSearching(true)
+    try {
+      const result = await resolveGlobalSearch(q)
+      navigate(result.path)
+      showToast(result.hint, 'info')
+    } catch {
+      navigate(`/documentation-requests?q=${encodeURIComponent(q)}`)
+      showToast('Opened documentation requests with your search.', 'info')
+    } finally {
+      setSearching(false)
+    }
+  }
+
   if (!user) return null
 
   const pageTitle = pageTitleForPath(location.pathname)
@@ -82,20 +107,31 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
       ) : null}
 
       {!mobile && onHome ? (
-        <label className="relative hidden min-w-0 max-w-md flex-1 md:block">
+        <form
+          className="relative hidden min-w-0 max-w-md flex-1 md:block"
+          onSubmit={handleGlobalSearch}
+          role="search"
+        >
           <Search
             size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+            className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--color-text-muted)]"
           />
           <input
             type="search"
-            readOnly
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={searching}
             placeholder="Search requests, events, members, or media..."
-            className="h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--topbar-search-bg)] pl-9 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
-            aria-label="Search (coming soon)"
-            title="Global search is not available yet"
+            className="h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--topbar-search-bg)] pl-9 pr-10 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] disabled:opacity-70"
+            aria-label="Search admin workspace"
           />
-        </label>
+          {searching ? (
+            <Loader2
+              size={16}
+              className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[var(--color-text-muted)]"
+            />
+          ) : null}
+        </form>
       ) : (
         <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight text-[var(--color-text-primary)] md:text-lg">
           {pageTitle}

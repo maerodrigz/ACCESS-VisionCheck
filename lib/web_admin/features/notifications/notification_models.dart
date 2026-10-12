@@ -136,13 +136,15 @@ AdminRoute? routeForAction(String? actionType, String? category) {
   return switch (actionType) {
     'view_request' => AdminRoute.docRequests,
     'review_media' => AdminRoute.aiDetection,
-    'view_result' => AdminRoute.mediaEvaluation,
     'view_task' => AdminRoute.docRequests,
     'view_feedback' => AdminRoute.feedbackReports,
+    'view_result' => AdminRoute.notifications,
+    'milestone' => AdminRoute.notifications,
+    'view_admin_feedback' => AdminRoute.notifications,
     _ => switch (categoryFromString(category)) {
         NotificationCategory.documentationRequest => AdminRoute.docRequests,
         NotificationCategory.taskAssignment => AdminRoute.docRequests,
-        NotificationCategory.mediaEvaluation => AdminRoute.mediaEvaluation,
+        NotificationCategory.mediaEvaluation => AdminRoute.aiDetection,
         NotificationCategory.aiDetection => AdminRoute.aiDetection,
         NotificationCategory.feedback => AdminRoute.feedbackReports,
         _ => AdminRoute.notifications,

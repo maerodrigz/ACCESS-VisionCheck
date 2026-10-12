@@ -176,15 +176,6 @@ def notify_task_assigned(db: Session, member_id: int, assignment_id: int, task_t
         action_type="view_task",
         action_ref_id=assignment_id,
     )
-    notify_admins(
-        db,
-        title="Member assigned to event",
-        message=f'Member assigned as {role} for "{task_title}".',
-        category="task_assignment",
-        priority="normal",
-        action_type="view_task",
-        action_ref_id=assignment_id,
-    )
 
 
 def notify_assignment_accepted(
@@ -194,18 +185,8 @@ def notify_assignment_accepted(
     event_title: str,
     role: str,
 ) -> None:
-    notify_admins(
-        db,
-        title="Assignment accepted",
-        message=(
-            f'{member_name} accepted the {role.replace("_", " ").title()} assignment '
-            f'for "{event_title}".'
-        ),
-        category="task_assignment",
-        priority="normal",
-        action_type="view_task",
-        action_ref_id=assignment_id,
-    )
+    """Member acceptance is visible in documentation team UI; no admin inbox ping."""
+    return
 
 
 def notify_assignment_declined(
@@ -306,15 +287,6 @@ def notify_event_member_assigned(
         action_type="view_task",
         action_ref_id=event_id,
     )
-    notify_admins(
-        db,
-        title="Member assigned to event",
-        message=f'A member was assigned to "{event_title}"{when}.',
-        category="task_assignment",
-        priority="normal",
-        action_type="view_task",
-        action_ref_id=event_id,
-    )
 
 
 def notify_media_uploaded(db: Session, media_id: int, file_name: str, uploader: str) -> None:
@@ -327,7 +299,7 @@ def notify_media_uploaded(db: Session, media_id: int, file_name: str, uploader: 
         message=f'{uploader} uploaded "{file_name}" for review.',
         category="media_evaluation",
         priority="normal",
-        action_type="view_result",
+        action_type="review_media",
         action_ref_id=media_id,
     )
 

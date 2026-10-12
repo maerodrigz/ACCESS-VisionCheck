@@ -145,7 +145,11 @@ Future<void> _openRankingAdminFeedbackNotification(
     return;
   }
 
-  showAdminFeedbackSheet(context, item);
+  showAdminFeedbackSheet(
+    context,
+    item,
+    onViewOnHome: () => MemberShellNavigation.openHome?.call(),
+  );
 }
 
 Future<void> _openGalleryFromNotification(

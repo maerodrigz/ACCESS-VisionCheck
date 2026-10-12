@@ -67,6 +67,20 @@ class MemberHomeDashboard extends StatelessWidget {
     return appState.gallery.length;
   }
 
+  static bool _shouldShowGettingStarted() {
+    if (authController.user?.role.isOrganization ?? false) return false;
+    if (memberDataController.isLoading &&
+        appState.evaluations.isEmpty &&
+        appState.challenges.isEmpty) {
+      return false;
+    }
+    if (appState.evaluations.isNotEmpty) return false;
+    if (appState.challenges.isNotEmpty) return false;
+    if (_uploadCount() > 0) return false;
+    if (appState.gallery.isNotEmpty) return false;
+    return true;
+  }
+
   static String _aiQualityScore() {
     var avg = appState.profileAverageScore;
     if (avg <= 0 && appState.evaluations.isNotEmpty) {
@@ -128,6 +142,12 @@ class MemberHomeDashboard extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.fromLTRB(_horizontalPad, 18, _horizontalPad, 32),
                     children: [
+                      if (_shouldShowGettingStarted())
+                        _MemberGettingStartedCard(
+                          onStartPractice: onViewPortfolio,
+                          onViewAssignments: () => _openAllTasks(context),
+                        ),
+                      if (_shouldShowGettingStarted()) const SizedBox(height: 20),
                       _HomeMyTasksSection(
                         onViewAll: () => _openAllTasks(context),
                         onViewCalendar: onViewCalendar,
@@ -1721,6 +1741,52 @@ class _HomeSkillProgressSection extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _MemberGettingStartedCard extends StatelessWidget {
+  const _MemberGettingStartedCard({
+    required this.onStartPractice,
+    required this.onViewAssignments,
+  });
+
+  final VoidCallback? onStartPractice;
+  final VoidCallback onViewAssignments;
+
+  @override
+  Widget build(BuildContext context) {
+    return MemberDashboardCard(
+      showAccentStrip: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Welcome to ACCESS', style: memberDashboardCardTitleStyle.copyWith(fontSize: 17)),
+          const SizedBox(height: 6),
+          Text(
+            'Your account is active. When admins assign events they appear under My Tasks. '
+            'You can start building your portfolio with a practice photo or video evaluation anytime.',
+            style: memberDashboardBodyStyle.copyWith(fontSize: 13, height: 1.45),
+          ),
+          const SizedBox(height: 14),
+          if (onStartPractice != null)
+            FilledButton.icon(
+              onPressed: onStartPractice,
+              icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+              label: const Text('Start practice evaluation'),
+              style: FilledButton.styleFrom(
+                backgroundColor: kMemberPrimary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(44),
+              ),
+            ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: onViewAssignments,
+            child: const Text('View My Assignments'),
+          ),
+        ],
+      ),
     );
   }
 }

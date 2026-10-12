@@ -328,7 +328,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         setState(() => _phase = _EvalPhase.idle);
         showMobileToast(
           context,
-          'Your media is still being analyzed. You can check the result again shortly.',
+          'Analysis is still running. Open the Evaluations tab or check notifications when it finishes.',
           success: false,
         );
         return;

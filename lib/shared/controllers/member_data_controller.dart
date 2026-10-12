@@ -14,6 +14,7 @@ import 'package:access_mobile/shared/models/media_upload_response.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
 import 'package:access_mobile/shared/services/deferred_media_evaluation_poll.dart';
+import 'package:access_mobile/shared/services/pending_practice_evaluation_store.dart';
 import 'package:access_mobile/shared/services/push_notification_service.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/models/reschedule_models.dart';
@@ -91,6 +92,8 @@ class MemberDataController extends ChangeNotifier {
     memberMilestones = [];
     unacknowledgedMilestones = [];
     _bootstrapFuture = null;
+    _pendingPracticeResumeFuture = null;
+    pendingPracticeAnalysisCount = 0;
     appState.isSyncingMemberData = false;
     appState.memberSyncError = null;
   }
@@ -101,6 +104,10 @@ class MemberDataController extends ChangeNotifier {
 
   Future<void>? _eventGalleryRefreshFuture;
   Future<void>? _deferredSyncFuture;
+  Future<void>? _pendingPracticeResumeFuture;
+
+  /// Uploads waiting on server-side AI / integrity pipeline.
+  int pendingPracticeAnalysisCount = 0;
 
   /// True when boot loaded only the first event-gallery page; Gallery tab fetches the rest.
   bool eventGalleryPreviewOnly = false;
@@ -181,9 +188,13 @@ class MemberDataController extends ChangeNotifier {
   }
 
   Future<void> _bootstrapMemberAppImpl() async {
+    await PendingPracticeEvaluationStore.ensureLoaded();
+    pendingPracticeAnalysisCount = PendingPracticeEvaluationStore.count;
+    notifyListeners();
     await PushNotificationService.ensureRegistered();
     await PushNotificationService.syncInboxIfOpenedFromPush();
     await refreshHomeBootstrap();
+    unawaited(resumePendingPracticeAnalysis());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(PushNotificationService.flushPendingNotificationOpen());
     });
@@ -499,6 +510,7 @@ class MemberDataController extends ChangeNotifier {
       evaluationsTabLoading = false;
       notifyListeners();
     }
+    unawaited(resumePendingPracticeAnalysis());
   }
 
   /// Calendar tab pull-to-refresh.
@@ -1341,14 +1353,19 @@ class MemberDataController extends ChangeNotifier {
     }
 
     final upload = MediaUploadResponse.fromJson(uploadRaw);
-    await refreshAfterEvaluationSave();
 
     if (!upload.needsDeferredProcessingPoll) {
+      await PendingPracticeEvaluationStore.remove(upload.id);
+      _syncPendingPracticeCount();
+      await refreshAfterEvaluationSave();
       return PracticeEvaluationSaveOutcome(
         phase: PracticeEvaluationSavePhase.completedImmediately,
         upload: upload,
       );
     }
+
+    await registerPendingPracticeAnalysis(upload.id, isVideo: isVideo);
+    await refreshAfterEvaluationSave();
 
     onDeferredProcessingStarted?.call(upload);
 
@@ -1364,6 +1381,8 @@ class MemberDataController extends ChangeNotifier {
     );
 
     if (pollOutcome == DeferredPollOutcome.completed) {
+      await PendingPracticeEvaluationStore.remove(upload.id);
+      _syncPendingPracticeCount();
       await refreshAfterEvaluationSave();
       return PracticeEvaluationSaveOutcome(
         phase: PracticeEvaluationSavePhase.completedAfterPoll,
@@ -1385,6 +1404,60 @@ class MemberDataController extends ChangeNotifier {
       upload: upload,
       pollOutcome: pollOutcome,
     );
+  }
+
+  Future<void> registerPendingPracticeAnalysis(int mediaId, {required bool isVideo}) async {
+    await PendingPracticeEvaluationStore.add(mediaId, isVideo: isVideo);
+    _syncPendingPracticeCount();
+    notifyListeners();
+  }
+
+  void _syncPendingPracticeCount() {
+    pendingPracticeAnalysisCount = PendingPracticeEvaluationStore.count;
+  }
+
+  /// Background poll for uploads registered while the member was away from the eval screen.
+  Future<void> resumePendingPracticeAnalysis() {
+    if (!authController.isLoggedIn) return Future.value();
+    final inFlight = _pendingPracticeResumeFuture;
+    if (inFlight != null) return inFlight;
+
+    final task = _resumePendingPracticeAnalysisImpl();
+    _pendingPracticeResumeFuture = task;
+    return task.whenComplete(() {
+      if (identical(_pendingPracticeResumeFuture, task)) {
+        _pendingPracticeResumeFuture = null;
+      }
+    });
+  }
+
+  Future<void> _resumePendingPracticeAnalysisImpl() async {
+    await PendingPracticeEvaluationStore.ensureLoaded();
+    _syncPendingPracticeCount();
+    final entries = PendingPracticeEvaluationStore.entries;
+    if (entries.isEmpty) return;
+
+    final poll = DeferredMediaEvaluationPoll(
+      fetchMediaById: (id) => memberApiService.getMediaById(id),
+    );
+
+    var anyCompleted = false;
+    for (final entry in entries) {
+      final outcome = await poll.waitForCompletion(
+        mediaId: entry.mediaId,
+        isVideo: entry.isVideo,
+      );
+      if (outcome == DeferredPollOutcome.completed) {
+        await PendingPracticeEvaluationStore.remove(entry.mediaId);
+        anyCompleted = true;
+      }
+    }
+
+    _syncPendingPracticeCount();
+    if (anyCompleted) {
+      await refreshAfterEvaluationSave();
+    }
+    notifyListeners();
   }
 
   Future<void> submitFeedback({

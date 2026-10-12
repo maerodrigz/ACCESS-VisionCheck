@@ -86,10 +86,16 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
+                SliverToBoxAdapter(
+                  child: _EvaluationPageHeader(
+                    onNotificationsTap: widget.onNotificationsTap,
+                    onProfileTap: widget.onProfileTap,
+                  ),
+                ),
+                if (memberDataController.pendingPracticeAnalysisCount > 0)
                   SliverToBoxAdapter(
-                    child: _EvaluationPageHeader(
-                      onNotificationsTap: widget.onNotificationsTap,
-                      onProfileTap: widget.onProfileTap,
+                    child: _PendingPracticeAnalysisBanner(
+                      count: memberDataController.pendingPracticeAnalysisCount,
                     ),
                   ),
                 SliverToBoxAdapter(child: const _EvalAiHeroCard()),
@@ -726,6 +732,65 @@ List<Evaluation> _evaluationsExcluding(
   return _evaluationsNewestFirst(all.where((e) => !ids.contains(e.id)).toList());
 }
 
+class _PendingPracticeAnalysisBanner extends StatelessWidget {
+  const _PendingPracticeAnalysisBanner({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count == 1
+        ? '1 upload is still being analyzed'
+        : '$count uploads are still being analyzed';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        kMemberDashboardPagePadding,
+        8,
+        kMemberDashboardPagePadding,
+        0,
+      ),
+      child: Material(
+        color: kEvalPrimary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => memberDataController.refreshEvaluationsTab(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: kEvalPrimary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: evalCardTitleStyle.copyWith(fontSize: 13)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Pull to refresh or wait for a notification when scoring finishes.',
+                        style: memberDashboardMetaStyle.copyWith(fontSize: 11, height: 1.35),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.refresh_rounded, size: 20, color: kEvalPrimary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EvaluationsCompactEmpty extends StatelessWidget {
   const _EvaluationsCompactEmpty();
 
@@ -761,7 +826,7 @@ class _EvaluationsCompactEmpty extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Your recent media evaluations will appear here.',
+                  'Run your first practice photo or video above. Results and admin review status show up here.',
                   style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.35),
                 ),
               ],

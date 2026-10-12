@@ -138,7 +138,7 @@ class _MyAssignmentsScreenState extends State<MyAssignmentsScreen> {
                             Text('No assignments yet', style: memberDashboardCardTitleStyle),
                             const SizedBox(height: 6),
                             Text(
-                              'Documentation assignments from ACCESS will appear here.',
+                              'When ACCESS assigns you to cover an event, it will show here so you can accept or decline.',
                               style: memberDashboardBodyStyle,
                               textAlign: TextAlign.center,
                             ),

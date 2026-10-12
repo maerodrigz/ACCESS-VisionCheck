@@ -99,12 +99,13 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _navIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     MemberShellNavigation.openGallery = _openGallery;
     MemberShellNavigation.openHome = () => _goToTab(0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -116,8 +117,16 @@ class _MainShellState extends State<MainShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     MemberShellNavigation.clear();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(memberDataController.resumePendingPracticeAnalysis());
+    }
   }
 
   void _goToTab(int index) {

@@ -3,6 +3,7 @@ import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_report_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
+import 'package:access_mobile/mobile_app/navigation/member_shell_navigation.dart';
 
 class LatestAdminFeedback {
   const LatestAdminFeedback({
@@ -108,6 +109,7 @@ void showAdminFeedbackSheet(
   BuildContext context,
   LatestAdminFeedback item, {
   VoidCallback? onOpenEvaluation,
+  VoidCallback? onViewOnHome,
 }) {
   showModalBottomSheet(
     context: context,
@@ -171,6 +173,24 @@ void showAdminFeedbackSheet(
                 child: const Text('View evaluation', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
             ],
+            if (item.isRankingRemarks && onViewOnHome != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  onViewOnHome();
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kDashAccentFeedbackIcon,
+                  side: BorderSide(color: kDashAccentFeedbackIcon.withValues(alpha: 0.45)),
+                  minimumSize: const Size.fromHeight(46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
+                  ),
+                ),
+                child: const Text('View on Home', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
           ],
         ),
       ),
@@ -191,6 +211,9 @@ class MemberDashboardLatestFeedback extends StatelessWidget {
                 item.evaluation!,
                 allEvaluations: appState.evaluations,
               )
+          : null,
+      onViewOnHome: item.isRankingRemarks
+          ? () => MemberShellNavigation.openHome?.call()
           : null,
     );
   }

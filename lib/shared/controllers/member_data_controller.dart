@@ -1545,9 +1545,20 @@ class MemberDataController extends ChangeNotifier {
     appState.notifyListeners();
   }
 
+  bool _serviceRequestInCache(int requestId) {
+    for (final r in appState.serviceRequests) {
+      if (r.requestId == requestId) return true;
+      final parsed = int.tryParse(r.id);
+      if (parsed == requestId) return true;
+    }
+    return false;
+  }
+
   /// Lightweight fetch when a notification deep-link needs request data.
-  Future<void> ensureServiceRequestsForNavigation() async {
-    if (!authController.isLoggedIn || appState.serviceRequests.isNotEmpty) return;
+  Future<void> ensureServiceRequestsForNavigation({int? requestId}) async {
+    if (!authController.isLoggedIn) return;
+    final missingTarget = requestId != null && !_serviceRequestInCache(requestId);
+    if (appState.serviceRequests.isNotEmpty && !missingTarget) return;
     final ctx = _MemberSyncContext();
     await _runSection(ctx, 'Service requests', _syncServiceRequestsSection);
     notifyListeners();

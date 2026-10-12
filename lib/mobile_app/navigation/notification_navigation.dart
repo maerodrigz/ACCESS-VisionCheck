@@ -45,7 +45,9 @@ Announcement? announcementForNotification(AppNotification notification) {
 Future<void> _openRequestDetail(BuildContext context, int requestId) async {
   var request = serviceRequestById(requestId);
   if (request == null) {
-    await memberDataController.ensureServiceRequestsForNavigation();
+    await memberDataController.ensureServiceRequestsForNavigation(
+      requestId: requestId,
+    );
     request = serviceRequestById(requestId);
   }
   if (!context.mounted) return;

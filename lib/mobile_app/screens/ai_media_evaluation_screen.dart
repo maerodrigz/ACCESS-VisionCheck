@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
@@ -29,7 +31,7 @@ import 'package:access_mobile/web_admin/services/file_picker_service.dart';
 
 enum AiMediaEvaluationMode { photo, video }
 
-enum _EvalPhase { idle, analyzing, gemini }
+enum _EvalPhase { idle, analyzing }
 
 class AiMediaEvaluationScreen extends StatefulWidget {
   const AiMediaEvaluationScreen({super.key, required this.mode});
@@ -358,14 +360,30 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         setState(() => _phase = _EvalPhase.idle);
         finalResult = scored;
         feedback = null;
-      } else {
-        setState(() => _phase = _EvalPhase.gemini);
-        final gemini = await GeminiService.generateMediaEvaluationFeedback(scoresOnly: scored);
-        if (!mounted) return;
-        feedback = gemini ?? MediaEvaluationFeedback.fromLocal(scored);
-        final usedLocalFallback = gemini == null;
-        finalResult = scored.copyWithGemini(feedback, geminiFeedbackIsLocal: usedLocalFallback);
+      } else if (scored.geminiFeedback != null) {
         setState(() => _phase = _EvalPhase.idle);
+        feedback = scored.geminiFeedback;
+        finalResult = scored;
+      } else {
+        var isLocal = true;
+        MediaEvaluationFeedback mentorFeedback = MediaEvaluationFeedback.fromLocal(scored);
+        try {
+          final gemini = await GeminiService.generateMediaEvaluationFeedback(
+            scoresOnly: scored,
+          ).timeout(const Duration(seconds: 18));
+          if (gemini != null) {
+            mentorFeedback = gemini;
+            isLocal = false;
+          }
+        } on TimeoutException {
+          // Fall back to rule-based mentor copy below.
+        } catch (_) {
+          // Backend offline, no API key, or scores held: keep local summary.
+        }
+        if (!mounted) return;
+        setState(() => _phase = _EvalPhase.idle);
+        feedback = mentorFeedback;
+        finalResult = scored.copyWithGemini(mentorFeedback, geminiFeedbackIsLocal: isLocal);
       }
 
       if (!mounted) return;
@@ -446,12 +464,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
               ),
             ),
       body: _busy
-          ? EvalPracticeAnalyzingView(
-              isVideo: _isVideo,
-              activeStage: _phase == _EvalPhase.gemini
-                  ? EvalAnalysisPipelineStage.generatingFeedback
-                  : null,
-            )
+          ? EvalPracticeAnalyzingView(isVideo: _isVideo)
           : ListenableBuilder(
         listenable: appState,
         builder: (_, __) => SingleChildScrollView(

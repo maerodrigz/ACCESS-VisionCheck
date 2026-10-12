@@ -314,10 +314,13 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
       if (!mounted) return;
 
       if (outcome.phase == PracticeEvaluationSavePhase.uploadFailed) {
+        final message =
+            outcome.errorMessage ?? 'Upload failed. Please try again.';
         setState(() {
           _phase = _EvalPhase.idle;
-          _error = 'Upload failed. Please try again.';
+          _error = message;
         });
+        showMobileToast(context, message, success: false);
         return;
       }
 

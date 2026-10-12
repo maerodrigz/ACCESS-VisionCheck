@@ -366,7 +366,7 @@ def notify_member_admin_feedback(
     *,
     remarks: str,
 ) -> None:
-    """Alert a documentation member that an admin left competency / performance notes."""
+    """Alert a member about rankings competency / performance remarks (not a media eval row)."""
     if not settings_crud.is_notification_enabled(db, "notify_evaluation_completed"):
         return
     preview = (remarks or "").strip()
@@ -382,6 +382,7 @@ def notify_member_admin_feedback(
         category="media_evaluation",
         priority="normal",
         action_type="view_admin_feedback",
+        # Member id for audit; mobile opens rankings/profile feedback, not MED-* eval report.
         action_ref_id=member_id,
     )
 

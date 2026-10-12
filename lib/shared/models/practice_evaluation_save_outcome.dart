@@ -13,11 +13,13 @@ class PracticeEvaluationSaveOutcome {
     required this.phase,
     this.upload,
     this.pollOutcome,
+    this.errorMessage,
   });
 
   final PracticeEvaluationSavePhase phase;
   final MediaUploadResponse? upload;
   final DeferredPollOutcome? pollOutcome;
+  final String? errorMessage;
 
   bool get uploadSucceeded =>
       phase != PracticeEvaluationSavePhase.uploadFailed;

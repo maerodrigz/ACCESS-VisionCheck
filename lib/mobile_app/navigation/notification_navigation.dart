@@ -7,6 +7,7 @@ import 'package:access_mobile/mobile_app/screens/evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/my_assignments_screen.dart';
 import 'package:access_mobile/mobile_app/screens/requestor/request_detail_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_announcements.dart';
+import 'package:access_mobile/mobile_app/widgets/member_dashboard_latest_feedback.dart';
 import 'package:access_mobile/mobile_app/widgets/member_milestone_celebration.dart';
 import 'package:access_mobile/mobile_app/widgets/member_notification_detail_dialog.dart';
 import 'package:access_mobile/shared/models/app_notification_mapper.dart';
@@ -119,6 +120,34 @@ Future<void> _openAdminReviewNotification(
   );
 }
 
+Future<void> _openRankingAdminFeedbackNotification(
+  BuildContext context,
+  AppNotification n,
+) async {
+  await memberDataController.refreshRankings();
+  if (!context.mounted) return;
+
+  final fromState = LatestAdminFeedback.fromAppState();
+  final item = (fromState != null && fromState.isRankingRemarks)
+      ? fromState
+      : LatestAdminFeedback.rankingRemarks(
+          n.body,
+          date: (n.createdAt?.trim().isNotEmpty == true) ? n.createdAt!.trim() : 'Recently',
+        );
+
+  if (item.fullMessage.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Administrator feedback is not available yet. Pull to refresh on Home.'),
+      ),
+    );
+    MemberShellNavigation.openHome?.call();
+    return;
+  }
+
+  showAdminFeedbackSheet(context, item);
+}
+
 Future<void> _openGalleryFromNotification(
   BuildContext context, {
   int? requestId,
@@ -193,8 +222,9 @@ String? _primaryActionLabel(String? action, {required bool isRequestor}) {
       return 'View full announcement';
     case 'view_result':
     case 'review_media':
-    case 'view_admin_feedback':
       return isRequestor ? null : 'View evaluation';
+    case 'view_admin_feedback':
+      return isRequestor ? null : 'View feedback';
     case 'view_feedback':
       return isRequestor ? 'View feedback' : null;
     default:
@@ -212,9 +242,15 @@ Future<void> _executeNotificationAction(
   switch (action) {
     case 'view_task':
       if (!isRequestor) {
+        await memberDataController.ensureAssignmentsForNavigation(
+          assignmentId: refId,
+        );
+        if (!context.mounted) return;
         await Navigator.push<void>(
           context,
-          MaterialPageRoute(builder: (_) => const MyAssignmentsScreen()),
+          MaterialPageRoute(
+            builder: (_) => MyAssignmentsScreen(highlightAssignmentId: refId),
+          ),
         );
       }
       return;
@@ -244,7 +280,7 @@ Future<void> _executeNotificationAction(
       return;
     case 'view_admin_feedback':
       if (!isRequestor) {
-        await _openAdminReviewNotification(context, n);
+        await _openRankingAdminFeedbackNotification(context, n);
       }
       return;
     default:

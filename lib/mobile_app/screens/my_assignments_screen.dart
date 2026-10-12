@@ -8,7 +8,9 @@ import 'package:access_mobile/shared/themes/theme.dart';
 
 /// Member documentation assignments — accept or decline only.
 class MyAssignmentsScreen extends StatefulWidget {
-  const MyAssignmentsScreen({super.key});
+  const MyAssignmentsScreen({super.key, this.highlightAssignmentId});
+
+  final int? highlightAssignmentId;
 
   @override
   State<MyAssignmentsScreen> createState() => _MyAssignmentsScreenState();
@@ -16,6 +18,36 @@ class MyAssignmentsScreen extends StatefulWidget {
 
 class _MyAssignmentsScreenState extends State<MyAssignmentsScreen> {
   bool _busy = false;
+  bool _didScrollToHighlight = false;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToHighlightIfNeeded(List<Challenge> tasks) {
+    if (_didScrollToHighlight) return;
+    final targetId = widget.highlightAssignmentId;
+    if (targetId == null) return;
+    final index = tasks.indexWhere((t) => t.assignmentId == targetId);
+    if (index < 0) return;
+    _didScrollToHighlight = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      const itemExtent = 220.0;
+      final offset = (index * itemExtent).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
+      _scrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   Future<void> _refresh() => memberDataController.refreshAll();
 
@@ -89,6 +121,7 @@ class _MyAssignmentsScreenState extends State<MyAssignmentsScreen> {
         listenable: Listenable.merge([appState, memberDataController]),
         builder: (_, __) {
           final tasks = [...appState.challenges];
+          _scrollToHighlightIfNeeded(tasks);
           return RefreshIndicator(
             color: kMemberPrimary,
             onRefresh: _refresh,
@@ -115,6 +148,7 @@ class _MyAssignmentsScreenState extends State<MyAssignmentsScreen> {
                     ],
                   )
                 : ListView.separated(
+                    controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(
                       kMemberDashboardPagePadding,
                       12,
@@ -126,6 +160,7 @@ class _MyAssignmentsScreenState extends State<MyAssignmentsScreen> {
                     itemBuilder: (_, i) => _AssignmentCard(
                       task: tasks[i],
                       busy: _busy,
+                      highlighted: tasks[i].assignmentId == widget.highlightAssignmentId,
                       onAccept: () => _accept(tasks[i]),
                       onDecline: () => _decline(tasks[i]),
                     ),
@@ -143,10 +178,12 @@ class _AssignmentCard extends StatelessWidget {
     required this.busy,
     required this.onAccept,
     required this.onDecline,
+    this.highlighted = false,
   });
 
   final Challenge task;
   final bool busy;
+  final bool highlighted;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
 
@@ -155,7 +192,7 @@ class _AssignmentCard extends StatelessWidget {
     final style = _statusStyle(task.status);
     final timeLabel = task.eventTimeRange ?? task.eventTime ?? 'Time TBA';
 
-    return MemberDashboardCard(
+    final card = MemberDashboardCard(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,6 +278,14 @@ class _AssignmentCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+    if (!highlighted) return card;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
+        border: Border.all(color: kMemberPrimary, width: 2),
+      ),
+      child: card,
     );
   }
 

@@ -1328,8 +1328,16 @@ class MemberDataController extends ChangeNotifier {
         displayName: title,
         evaluationMetadata: evaluationMetadata,
       );
-    } catch (e) {
-      return PracticeEvaluationSaveOutcome(phase: PracticeEvaluationSavePhase.uploadFailed);
+    } on ApiException catch (e) {
+      return PracticeEvaluationSaveOutcome(
+        phase: PracticeEvaluationSavePhase.uploadFailed,
+        errorMessage: _practiceUploadErrorMessage(e),
+      );
+    } catch (_) {
+      return PracticeEvaluationSaveOutcome(
+        phase: PracticeEvaluationSavePhase.uploadFailed,
+        errorMessage: 'Upload failed. Check your connection and try again.',
+      );
     }
 
     final upload = MediaUploadResponse.fromJson(uploadRaw);
@@ -1432,6 +1440,34 @@ class MemberDataController extends ChangeNotifier {
     if (!authController.isLoggedIn || appState.announcements.isNotEmpty) return;
     final ctx = _MemberSyncContext();
     await _runSection(ctx, 'Announcements', _syncAnnouncementsSection);
+    notifyListeners();
+    appState.notifyListeners();
+  }
+
+  static String _practiceUploadErrorMessage(ApiException e) {
+    final msg = e.message.trim();
+    if (e.statusCode == 413) {
+      return 'This file is too large for the server. Try a shorter video or smaller photo.';
+    }
+    if (e.statusCode == null ||
+        msg.toLowerCase().contains('connection') ||
+        msg.toLowerCase().contains('timeout') ||
+        msg.toLowerCase().contains('failed host lookup') ||
+        msg.toLowerCase().contains('network')) {
+      return 'Could not reach the server. Check Wi-Fi and your backend URL (orange banner).';
+    }
+    if (msg.isNotEmpty) return msg;
+    return 'Upload failed. Please try again.';
+  }
+
+  /// Lightweight fetch when a notification deep-link needs assignment data.
+  Future<void> ensureAssignmentsForNavigation({int? assignmentId}) async {
+    if (!authController.isLoggedIn) return;
+    final missingTarget = assignmentId != null &&
+        !appState.challenges.any((c) => c.assignmentId == assignmentId);
+    if (appState.challenges.isNotEmpty && !missingTarget) return;
+    final ctx = _MemberSyncContext();
+    await _runSection(ctx, 'Tasks', _syncTasksSection);
     notifyListeners();
     appState.notifyListeners();
   }

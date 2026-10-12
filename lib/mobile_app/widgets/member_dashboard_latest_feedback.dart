@@ -23,6 +23,22 @@ class LatestAdminFeedback {
   final Evaluation? evaluation;
   final bool isRankingRemarks;
 
+  /// Rankings / competency remarks from admin (not tied to a single media eval).
+  static LatestAdminFeedback rankingRemarks(
+    String remarks, {
+    String date = 'Recently',
+  }) {
+    final cleaned = remarks.trim();
+    return LatestAdminFeedback(
+      eventName: 'Performance Review',
+      preview: _preview(cleaned),
+      date: date,
+      fullMessage: cleaned,
+      adminName: 'ACCESS Administrator',
+      isRankingRemarks: true,
+    );
+  }
+
   static LatestAdminFeedback? fromAppState() {
     for (final ev in appState.evaluations) {
       final remarks = ev.adminRemarks?.trim() ?? '';

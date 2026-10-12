@@ -112,7 +112,7 @@ export function MemberRecentUploadsSection({
               </div>
             </div>
           </div>
-        </>
+        </div>
       ) : null}
     </>
   )

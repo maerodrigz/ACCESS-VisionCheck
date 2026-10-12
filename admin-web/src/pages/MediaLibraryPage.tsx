@@ -80,6 +80,7 @@ export function MediaLibraryPage() {
   const [requests, setRequests] = useState<Record<string, unknown>[]>([])
   const [fbHistory, setFbHistory] = useState<FacebookHistoryEntry[]>([])
   const [fbConfig, setFbConfig] = useState<FacebookConfigStatus | null>(null)
+  const [fbExtrasLoading, setFbExtrasLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -105,29 +106,44 @@ export function MediaLibraryPage() {
   >(null)
   const [moveAlbumItems, setMoveAlbumItems] = useState<MediaAsset[] | null>(null)
   const [dialogBusy, setDialogBusy] = useState(false)
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const loadFacebookExtras = useCallback(async () => {
+    setFbExtrasLoading(true)
     try {
-      const [eventRows, reqs, history, fbStatus] = await Promise.all([
-        fetchEventMedia(),
-        fetchServiceRequests(),
+      const [history, fbStatus] = await Promise.all([
         fetchFacebookPublishHistory(30).catch(() => [] as FacebookHistoryEntry[]),
         fetchFacebookConfigStatus().catch(() => null),
       ])
+      setFbHistory(history)
+      setFbConfig(fbStatus)
+    } finally {
+      setFbExtrasLoading(false)
+    }
+  }, [])
+
+  const applyGalleryCore = useCallback(
+    (eventRows: Awaited<ReturnType<typeof fetchEventMedia>>, reqs: Record<string, unknown>[]) => {
       const syncedItems = parseEventMediaRows(eventRows).map(refreshAssetFlags)
       const albumList = buildAlbums(syncedItems)
       const approved = reqs.filter((r) => String(r.status ?? '').toLowerCase() === 'approved')
       setAll(syncedItems)
       setAlbums(albumList)
       setRequests(approved.length > 0 ? approved : reqs)
-      setFbHistory(history)
-      setFbConfig(fbStatus)
       setPreviewItem((prev) => {
         if (!prev) return null
         const found = syncedItems.find((m) => m.id === prev.id)
         return found ? refreshAssetFlags(found) : null
       })
+    },
+    [],
+  )
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [eventRows, reqs] = await Promise.all([fetchEventMedia(), fetchServiceRequests()])
+      applyGalleryCore(eventRows, reqs)
+      void loadFacebookExtras()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load media gallery')
       setAll([])
@@ -136,7 +152,7 @@ export function MediaLibraryPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyGalleryCore, loadFacebookExtras])
 
   useEffect(() => {
     load()
@@ -733,6 +749,9 @@ export function MediaLibraryPage() {
 
       <AdminOperationBanner banner={operationBanner} onDismiss={clearOperationBanner} />
 
+      {fbExtrasLoading && !fbConfig ? (
+        <p className="text-xs text-[var(--color-text-muted)]">Checking Facebook publish settings…</p>
+      ) : null}
       {fbConfig && fbCanPublish && !fbConfig.configured && (
         <FacebookCredentialsReminder config={fbConfig} />
       )}

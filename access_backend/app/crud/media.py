@@ -87,6 +87,37 @@ def list_media(
     return list(db.scalars(q).unique())
 
 
+def list_event_documentation_media(
+    db: Session,
+    *,
+    approval_status: str | None = None,
+    facebook_publish_status: str | None = None,
+    request_id: int | None = None,
+    search: str | None = None,
+    exclude_archived: bool = True,
+) -> list[MediaFile]:
+    """Event gallery admin list — uploader + request only (no evaluation/AI joins)."""
+    q = select(MediaFile).options(
+        joinedload(MediaFile.uploader),
+        joinedload(MediaFile.request),
+    )
+    q = q.where(MediaFile.media_category == MEDIA_CATEGORY_EVENT)
+    if request_id is not None:
+        q = q.where(MediaFile.request_id == request_id)
+    if approval_status:
+        q = q.where(MediaFile.approval_status == approval_status)
+    if facebook_publish_status:
+        q = q.where(MediaFile.facebook_publish_status == facebook_publish_status)
+    if search:
+        term = f"%{search.strip()}%"
+        q = q.where(or_(MediaFile.file_name.ilike(term), MediaFile.file_type.ilike(term)))
+    if exclude_archived:
+        archived_ids = select(Archive.media_id)
+        q = q.where(~MediaFile.id.in_(archived_ids))
+    q = q.order_by(MediaFile.uploaded_at.desc())
+    return list(db.scalars(q).unique())
+
+
 def list_approved_event_gallery(
     db: Session,
     *,

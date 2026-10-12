@@ -140,9 +140,12 @@ export async function apiUpload<T>(
   return data as T
 }
 
-export async function checkBackendHealth(): Promise<boolean> {
+export async function checkBackendHealth(timeoutMs = 5000): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/health`, { method: 'GET' })
+    const res = await fetch(`${API_BASE}/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(timeoutMs),
+    })
     return res.ok
   } catch {
     return false

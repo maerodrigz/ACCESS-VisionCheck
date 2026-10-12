@@ -74,9 +74,8 @@ def list_event_media(
     _: User = Depends(require_admin),
 ):
     """Event documentation media only — never includes member evaluation uploads."""
-    rows = media_crud.list_media(
+    rows = media_crud.list_event_documentation_media(
         db,
-        media_category=MEDIA_CATEGORY_EVENT,
         approval_status=approval_status,
         facebook_publish_status=facebook_publish_status,
         request_id=request_id,

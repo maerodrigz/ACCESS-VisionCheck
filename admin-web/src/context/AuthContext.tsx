@@ -11,6 +11,7 @@ import { login as apiLogin, logout as apiLogout } from '../api/auth'
 import { fetchProfile, profileImageUrl } from '../api/profile'
 import {
   ApiError,
+  checkBackendHealth,
   getStoredToken,
   setStoredToken,
   setUnauthorizedHandler,
@@ -94,15 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        await fetchDashboardStats()
-        if (!cancelled) {
-          setUser(stored)
-          try {
-            await refreshProfile()
-          } catch {
-            /* keep stored user if profile fetch fails */
-          }
+        const apiUp = await checkBackendHealth()
+        if (!apiUp) {
+          if (!cancelled) setUser(stored)
+          return
         }
+        await refreshProfile()
+        if (!cancelled) setUser(stored)
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) {
           logout()

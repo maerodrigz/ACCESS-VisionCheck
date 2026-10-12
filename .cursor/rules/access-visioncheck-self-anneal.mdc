@@ -34,9 +34,9 @@ Read this before changing backend models, routes, or Flutter navigation. These r
 | `GET /users` | `users.router` |
 | `PATCH /users/{id}/status` | `users.router` |
 | `GET /rankings` | `rankings.router` |
-| `GET /events` | ⚠️ not registered yet — add before using Events UI |
-| `GET /admin/evaluations` | ⚠️ not registered yet |
-| `GET /feedback` | ⚠️ not registered yet |
+| `GET /events` | `events.router` |
+| `GET /admin/evaluations` | `evaluations.router` (admin paths under `admin.router`) |
+| `GET /feedback` | `feedback.router` |
 
 When adding a new screen that calls the API, add the row to this table and implement the route same PR.
 
@@ -97,6 +97,8 @@ Add a short bullet to this file (or `docs/SELF_ANNEALING.md`) under **Incident l
 - **2026-08:** Every practice eval pinged the member with "Media evaluation completed". Removed; members see score in-app. Member notifications only for AI/suspicious flags + admin review outcomes (verify, reject, policy violation, reupload).
 - **2026-10:** Server FCM sends silently no-op — `fcm_push._send_tokens` called `messaging.send_*` without `ensure_firebase_admin_app()` first (`The default Firebase app does not exist`). Fix: init before send, warm init on API lifespan, Android `channel_id=access_alerts`. Mobile: bind `PushNotificationService.bindInboxSyncHandler` + foreground tray via `flutter_local_notifications`.
 - **2026-10:** Practice video eval inconsistent — partial provenance + low PROBE skipped admin review; 60s limit was UI-only. Fix: `check_evaluation_video_duration` on upload + deferred pipeline; partial/absent provenance both gate scores; mobile re-checks duration at pick and submit.
+- **2026-10:** Admin notification center showed member milestones and assignment echo pings; clicks used `view_result` / wrong refs and opened Media gallery. Fix: admin inbox allowlist + `list_for_admin_inbox` (not `list_all`), drop redundant `notify_admins` on assign/accept, route media alerts to Media Integrity not gallery.
+- **2026-10:** Member push/tray taps only synced inbox — no deep link. Fix: FCM data + `bindNotificationOpenHandler` + `openedFromPush`; ranking admin feedback must open performance sheet, not eval report; requestor `view_request` refetch when ID missing from cache.
 
 ## 10. User-facing copy — plain punctuation
 

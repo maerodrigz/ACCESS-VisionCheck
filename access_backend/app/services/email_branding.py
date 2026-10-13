@@ -58,7 +58,7 @@ def branded_html(inner_body_html: str) -> str:
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;" />
           <p style="margin:0;font-size:12px;color:#64748b;text-align:center;line-height:1.45;">
             USTP Oroquieta Campus<br />
-            Campus Documentation Platform
+            Capture. Deliver. Elevate
           </p>
         </td></tr>
       </table>

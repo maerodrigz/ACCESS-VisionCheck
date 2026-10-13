@@ -21,7 +21,7 @@
 
   /* Sizing */
   /* Fits longest nav labels (Documentation Requests, Competency Management) */
-  --sidebar-width: 228px;
+  --sidebar-width: 256px;
   --card-radius: 16px;
   --topbar-height: 64px;
 

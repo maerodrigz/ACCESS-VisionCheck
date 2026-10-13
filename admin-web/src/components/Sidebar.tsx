@@ -18,11 +18,11 @@ export function SidebarBrand({ compact = false }: { compact?: boolean }) {
 
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   return (
-    <nav className="h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain px-2 py-3 pb-5">
+    <nav className="flex h-full min-h-0 flex-col overflow-hidden px-2 py-2">
       {sidebarSections.map((section, si) => (
-        <div key={section.label ?? 'root'} className={si > 0 ? 'mt-4' : ''}>
+        <div key={section.label ?? 'root'} className={si > 0 ? 'mt-2' : ''}>
           {section.label && (
-            <div className="mb-1.5 px-2 text-[9px] font-bold tracking-[0.12em] text-[var(--color-accent-cyan)]">
+            <div className="mb-0.5 px-2 text-[9px] font-bold tracking-[0.12em] text-[var(--color-accent-cyan)]">
               {section.label}
             </div>
           )}
@@ -35,7 +35,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     [
-                      'flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] font-semibold leading-tight transition-all',
+                      'flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold leading-tight transition-all',
                       isActive
                         ? 'bg-[var(--nav-active-bg)] text-white'
                         : 'text-[var(--color-sidebar-text)] hover:bg-white/5 hover:text-white',
@@ -46,15 +46,15 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                     <>
                       <span
                         className={[
-                          'flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
                           isActive
                             ? 'bg-white/16 text-white'
                             : 'bg-white/[0.06] text-[var(--color-accent-cyan)]',
                         ].join(' ')}
                       >
-                        <item.icon size={14} strokeWidth={2} />
+                        <item.icon size={15} strokeWidth={2} />
                       </span>
-                      <span className="min-w-0 whitespace-nowrap">{item.label}</span>
+                      <span className="min-w-0 flex-1 whitespace-nowrap">{item.label}</span>
                     </>
                   )}
                 </NavLink>
@@ -76,7 +76,9 @@ export function Sidebar({ onNavigate }: SidebarNavProps) {
       <div className="flex h-[var(--topbar-height)] shrink-0 items-center border-b border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] px-3">
         <AccessBrand linkToHome compact markSize={40} />
       </div>
-      <SidebarNav onNavigate={onNavigate} />
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <SidebarNav onNavigate={onNavigate} />
+      </div>
     </aside>
   )
 }

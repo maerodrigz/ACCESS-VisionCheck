@@ -21,9 +21,17 @@ class BrandingController extends ChangeNotifier {
 
   String get appName => _appName;
   String get tagline => _tagline;
-  String get shortTagline => _shortTagline;
-  /// Login hero subtitle (API [short_tagline], bundled default before load).
-  String get loginHeroTagline => _shortTagline;
+  /// Public tagline (login hero, headers). System description ([tagline]) wins over legacy [short_tagline].
+  String get publicTagline {
+    final primary = _tagline.trim();
+    if (primary.isNotEmpty) return primary;
+    final short = _shortTagline.trim();
+    return short.isNotEmpty ? short : AppConstants.shortTagline;
+  }
+
+  String get shortTagline => publicTagline;
+
+  String get loginHeroTagline => publicTagline;
   String get organization => _organization;
   String get webAdminTitle => _webAdminTitle;
   String get mobileTitle => _appName;
@@ -54,12 +62,17 @@ class BrandingController extends ChangeNotifier {
     _appName = (map['app_name'] as String?)?.trim().isNotEmpty == true
         ? map['app_name'] as String
         : AppConstants.appName;
-    _tagline = (map['tagline'] as String?)?.trim().isNotEmpty == true
-        ? map['tagline'] as String
-        : AppConstants.tagline;
-    _shortTagline = (map['short_tagline'] as String?)?.trim().isNotEmpty == true
-        ? map['short_tagline'] as String
-        : AppConstants.shortTagline;
+    final apiTagline = (map['tagline'] as String?)?.trim();
+    final apiShort = (map['short_tagline'] as String?)?.trim();
+    _tagline = apiTagline?.isNotEmpty == true ? apiTagline! : AppConstants.tagline;
+    // Admin General saves [tagline]; keep mobile in sync even if DB [short_tagline] is stale.
+    if (apiTagline?.isNotEmpty == true) {
+      _shortTagline = apiTagline!;
+    } else if (apiShort?.isNotEmpty == true) {
+      _shortTagline = apiShort!;
+    } else {
+      _shortTagline = AppConstants.shortTagline;
+    }
     _organization = (map['organization'] as String?)?.trim().isNotEmpty == true
         ? map['organization'] as String
         : AppConstants.organization;

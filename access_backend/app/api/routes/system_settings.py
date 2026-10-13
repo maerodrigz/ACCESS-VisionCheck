@@ -154,12 +154,14 @@ def patch_general_settings(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
+    description = body.system_description.strip()
     branding_crud.update_names(
         db,
         user_id=admin.id,
         app_name=body.app_name.strip(),
         organization=body.organization.strip(),
-        tagline=body.system_description.strip(),
+        tagline=description,
+        short_tagline=description,
     )
     audit_crud.create(
         db,

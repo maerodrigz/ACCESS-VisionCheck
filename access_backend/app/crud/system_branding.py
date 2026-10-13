@@ -33,11 +33,14 @@ def _row_safe(db: Session) -> SystemBranding | None:
 
 
 def _resolved_names(row: SystemBranding | None) -> dict:
+    tagline = (row.tagline if row and row.tagline else None) or DEFAULT_TAGLINE
+    stored_short = (row.short_tagline if row and row.short_tagline else None)
+    # General settings writes [tagline] (system description); login reads [short_tagline].
+    short_tagline = tagline if (row and row.tagline) else (stored_short or DEFAULT_SHORT_TAGLINE)
     return {
         "app_name": (row.app_name if row and row.app_name else None) or DEFAULT_APP_NAME,
-        "tagline": (row.tagline if row and row.tagline else None) or DEFAULT_TAGLINE,
-        "short_tagline": (row.short_tagline if row and row.short_tagline else None)
-        or DEFAULT_SHORT_TAGLINE,
+        "tagline": tagline,
+        "short_tagline": short_tagline,
         "organization": (row.organization if row and row.organization else None)
         or DEFAULT_ORGANIZATION,
         "web_admin_title": f"{(row.app_name if row and row.app_name else None) or DEFAULT_APP_NAME} - Admin",
@@ -114,6 +117,8 @@ def update_names(
         row.tagline = tagline.strip() or None
     if short_tagline is not None:
         row.short_tagline = short_tagline.strip() or None
+    elif tagline is not None:
+        row.short_tagline = row.tagline
     if organization is not None:
         row.organization = organization.strip() or None
     row.updated_by = user_id

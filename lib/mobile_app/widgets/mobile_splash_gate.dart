@@ -37,7 +37,7 @@ class _MobileSplashGateState extends State<MobileSplashGate> {
 
   Future<void> _initSplash() async {
     await authController.waitForInitialization();
-    unawaited(brandingController.refresh());
+    await brandingController.refresh();
     if (mounted) setState(() => _showSplash = false);
   }
 

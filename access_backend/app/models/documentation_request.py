@@ -3,7 +3,7 @@
 import json
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -29,6 +29,15 @@ class DocumentationRequest(TimestampMixin, Base):
     original_event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     last_rescheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reschedule_history: Mapped[str | None] = mapped_column(Text)
+    gallery_first_upload_notified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    gallery_upload_notify_pending: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    gallery_upload_last_notify_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     def reschedule_history_list(self) -> list[dict]:
         if not self.reschedule_history:

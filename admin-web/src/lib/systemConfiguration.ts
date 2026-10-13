@@ -27,6 +27,8 @@ export interface GeneralFormValues {
 export interface NotificationsFormValues {
   notify_new_documentation_request: boolean
   notify_request_approved: boolean
+  notify_request_completed: boolean
+  notify_request_gallery_uploads: boolean
   notify_request_rejected: boolean
   notify_new_documentation_assignment: boolean
   notify_new_announcement: boolean
@@ -87,6 +89,16 @@ export const NOTIFICATION_ITEMS: {
     hint: 'Notify the requester when their documentation request is approved.',
   },
   {
+    key: 'notify_request_completed',
+    label: 'Request Completed',
+    hint: 'Notify the requester when documentation for their event is marked complete.',
+  },
+  {
+    key: 'notify_request_gallery_uploads',
+    label: 'Event Gallery Published',
+    hint: 'Notify requestors when photos are added to their event gallery (first batch plus periodic summaries while admins upload, not one alert per file).',
+  },
+  {
     key: 'notify_request_rejected',
     label: 'Request Rejected',
     hint: 'Notify the requester when their documentation request is rejected.',
@@ -94,12 +106,12 @@ export const NOTIFICATION_ITEMS: {
   {
     key: 'notify_new_documentation_assignment',
     label: 'New Documentation Assignment',
-    hint: 'Notify members and administrators when someone is assigned to an event or task.',
+    hint: 'Notify members, requestors (coverage updates), and admins when assignments change.',
   },
   {
     key: 'notify_new_announcement',
     label: 'New Announcement',
-    hint: 'Deliver in-app alerts to members when administrators post a new announcement.',
+    hint: 'Deliver in-app alerts when administrators broadcast (members and/or requestors).',
   },
   {
     key: 'notify_system_alerts',

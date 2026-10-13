@@ -90,6 +90,8 @@ def respond_to_assignment(
                 current_user.fullname or current_user.email,
                 event_title,
                 row.task_role,
+                requestor_id=req.requestor_id if req else None,
+                request_id=req.id if req else None,
             )
         except Exception:
             pass
@@ -117,6 +119,8 @@ def respond_to_assignment(
                 event_title,
                 row.task_role,
                 row.decline_reason or code,
+                requestor_id=req.requestor_id if req else None,
+                request_id=req.id if req else None,
             )
         except Exception:
             pass

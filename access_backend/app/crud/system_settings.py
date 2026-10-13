@@ -15,6 +15,8 @@ from app.models.system_settings import (
 NOTIFICATION_PREF_KEYS = (
     "notify_new_documentation_request",
     "notify_request_approved",
+    "notify_request_completed",
+    "notify_request_gallery_uploads",
     "notify_request_rejected",
     "notify_new_documentation_assignment",
     "notify_evaluation_completed",
@@ -43,6 +45,8 @@ DEFAULTS = {
     "evaluation_allowed_video_formats": None,
     "notify_new_documentation_request": True,
     "notify_request_approved": True,
+    "notify_request_completed": True,
+    "notify_request_gallery_uploads": True,
     "notify_request_rejected": True,
     "notify_new_documentation_assignment": True,
     "notify_evaluation_completed": False,

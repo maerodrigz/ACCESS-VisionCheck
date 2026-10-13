@@ -27,7 +27,7 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
 import 'package:access_mobile/shared/services/practice_evaluation_result_parser.dart';
-import 'package:access_mobile/web_admin/services/file_picker_service.dart';
+import 'package:access_mobile/mobile_app/services/file_picker_service.dart';
 
 enum AiMediaEvaluationMode { photo, video }
 
@@ -83,9 +83,22 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
 
   String get _maxVideoLengthLabel {
     final sec = appState.evaluationMaxVideoSeconds;
-    if (sec <= 0) return '60 seconds';
+    if (sec <= 0) return '30 seconds';
     if (sec == 1) return '1 second';
     return '$sec seconds';
+  }
+
+  String get _videoDurationExceededMessage {
+    final sec = appState.evaluationMaxVideoSeconds;
+    final limit = sec == 1 ? '1-second' : '$sec-second';
+    return 'Video duration exceeds the $limit limit. Please select a shorter video.';
+  }
+
+  String get _videoMaxDurationHint => 'Maximum video duration: $_maxVideoLengthLabel';
+
+  bool _videoDurationWithinLimit(Duration? duration) {
+    if (duration == null) return false;
+    return duration.inMilliseconds <= _maxVideoDuration.inMilliseconds;
   }
 
   @override
@@ -156,11 +169,9 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         filePath: filePath,
         fileName: name,
       );
-      if (duration != null && duration.inMilliseconds > _maxVideoDuration.inMilliseconds) {
+      if (duration != null && !_videoDurationWithinLimit(duration)) {
         if (!mounted) return;
-        setState(
-          () => _error = 'Video exceeds the maximum length of $_maxVideoLengthLabel.',
-        );
+        setState(() => _error = _videoDurationExceededMessage);
         return;
       }
     }
@@ -287,15 +298,12 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         fileName: media.name,
       );
       if (!mounted) return;
-      if (duration != null && duration.inMilliseconds > _maxVideoDuration.inMilliseconds) {
-        setState(
-          () => _error = 'Video exceeds the maximum length of $_maxVideoLengthLabel.',
-        );
-        showMobileToast(
-          context,
-          'Video exceeds the maximum length of $_maxVideoLengthLabel.',
-          success: false,
-        );
+      if (!_videoDurationWithinLimit(duration)) {
+        final message = duration == null
+            ? 'Could not verify video length. Please select another video or re-export the file.'
+            : _videoDurationExceededMessage;
+        setState(() => _error = message);
+        showMobileToast(context, message, success: false);
         return;
       }
     }
@@ -526,7 +534,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                   isVideo: _isVideo,
                   supportedFormats: _supportedFormats,
                   maxSizeLabel: _maxSizeLabel,
-                  maxVideoLengthLabel: _maxVideoLengthLabel,
+                  maxVideoDurationHint: _videoMaxDurationHint,
                   webDragging: _webDragging,
                   onChooseFile: _pickFromFileChooser,
                   onGallery: _pickFromGallery,
@@ -551,7 +559,7 @@ class _UploadPageBody extends StatelessWidget {
     required this.isVideo,
     required this.supportedFormats,
     required this.maxSizeLabel,
-    required this.maxVideoLengthLabel,
+    required this.maxVideoDurationHint,
     required this.webDragging,
     required this.onChooseFile,
     required this.onGallery,
@@ -561,7 +569,7 @@ class _UploadPageBody extends StatelessWidget {
   final bool isVideo;
   final String supportedFormats;
   final String maxSizeLabel;
-  final String maxVideoLengthLabel;
+  final String maxVideoDurationHint;
   final bool webDragging;
   final VoidCallback onChooseFile;
   final VoidCallback onGallery;
@@ -606,8 +614,8 @@ class _UploadPageBody extends StatelessWidget {
           const SizedBox(height: 10),
           _UploadInfoCard(
             icon: Icons.timer_outlined,
-            label: 'Max length',
-            value: maxVideoLengthLabel,
+            label: 'Duration limit',
+            value: maxVideoDurationHint,
           ),
         ],
         const SizedBox(height: 14),

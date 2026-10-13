@@ -74,7 +74,7 @@ Admin AI alerts fire for PROBE when `requires_review` is true (suspicious/high),
 
 ## 9. Video
 
-- Supported formats via FFmpeg/OpenCV; practical cap **60 seconds** for member uploads (product rule).
+- Supported formats via FFmpeg/OpenCV; practical cap **30 seconds** for member practice evaluation uploads (product rule).
 - Quality: up to **6** extracted frames.
 - Authenticity (PROBE): up to **5** frames sampled from extracted set; **max P(fake)** across sampled frames drives final risk (see `detect_ai_generated_from_frames`).
 - **CPU latency** can be large (minutes) on long/high-resolution clips or many patches. One worker limits parallel eval load.

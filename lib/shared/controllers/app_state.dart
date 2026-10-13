@@ -378,12 +378,18 @@ class Member {
 class EventFeedback {
   final String eventTitle, type, message, date;
   final int rating; // 1–5
+  final int? requestId;
+  final String? adminResponse;
+  final String reviewStatus;
   EventFeedback({
     required this.eventTitle,
     required this.type,
     required this.message,
     required this.rating,
     required this.date,
+    this.requestId,
+    this.adminResponse,
+    this.reviewStatus = 'pending',
   });
 }
 
@@ -660,7 +666,7 @@ class AppState extends ChangeNotifier {
   int evaluationMaxUploadMb = 350;
 
   /// Max length for practice evaluation videos (seconds).
-  int evaluationMaxVideoSeconds = 60;
+  int evaluationMaxVideoSeconds = 30;
 
   /// IANA timezone for daily practice cap (from GET /member/participation).
   String evaluationDailyTimezone = 'Asia/Manila';
@@ -784,7 +790,7 @@ class AppState extends ChangeNotifier {
     evaluationsTodayCount = 0;
     dailyEvaluationLimit = 5;
     evaluationMaxUploadMb = 350;
-    evaluationMaxVideoSeconds = 60;
+    evaluationMaxVideoSeconds = 30;
     evaluationDailyTimezone = 'Asia/Manila';
     notifyListeners();
   }

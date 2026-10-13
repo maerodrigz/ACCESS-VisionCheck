@@ -80,3 +80,12 @@ def require_member(current_user: User = Depends(require_approved)) -> User:
             detail="Member accounts only",
         )
     return current_user
+
+
+def require_member_or_organization(current_user: User = Depends(require_approved)) -> User:
+    if current_user.role.role_name not in (RoleName.MEMBER, RoleName.ORGANIZATION):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Member or requestor accounts only",
+        )
+    return current_user

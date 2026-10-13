@@ -14,6 +14,8 @@ class GeneralSettingsBody(BaseModel):
 class NotificationSettingsBody(BaseModel):
     notify_new_documentation_request: bool | None = None
     notify_request_approved: bool | None = None
+    notify_request_completed: bool | None = None
+    notify_request_gallery_uploads: bool | None = None
     notify_request_rejected: bool | None = None
     notify_new_documentation_assignment: bool | None = None
     notify_evaluation_completed: bool | None = None

@@ -15,16 +15,6 @@ import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 
 const _horizontalPad = 18.0;
 
-const _eventCardGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    kCyan,
-    Color(0xFF6366F1),
-    kDashStatPurpleIcon,
-  ],
-);
-
 /// Member home — mock-aligned dashboard with dark hero and white content sheet.
 class MemberHomeDashboard extends StatelessWidget {
   const MemberHomeDashboard({
@@ -583,7 +573,7 @@ class _HomeFeaturedEventCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: _eventCardGradient,
+            gradient: kMemberBrandAccentGradient,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(

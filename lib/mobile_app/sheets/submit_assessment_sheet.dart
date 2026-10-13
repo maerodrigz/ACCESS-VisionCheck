@@ -5,7 +5,7 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 
 // Conditional import: web uses dart:html, mobile/desktop use stub
-import 'package:access_mobile/web_admin/services/file_picker_service.dart';
+import 'package:access_mobile/mobile_app/services/file_picker_service.dart';
 
 void showImageEvaluation(BuildContext context) {
   showModalBottomSheet(

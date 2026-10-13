@@ -225,7 +225,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ] else
             _CalendarPageHeader(
-              purpose: widget.subtitle ?? 'Your events and documentation assignments',
               onNotificationsTap: widget.onNotificationsTap,
               onProfileTap: widget.onProfileTap,
             ),
@@ -978,12 +977,10 @@ class _TodayPill extends StatelessWidget {
 
 class _CalendarPageHeader extends StatelessWidget {
   const _CalendarPageHeader({
-    required this.purpose,
     this.onNotificationsTap,
     this.onProfileTap,
   });
 
-  final String purpose;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
 
@@ -1006,19 +1003,7 @@ class _CalendarPageHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Calendar', style: titleStyle),
-                  const SizedBox(height: 1),
-                  Text(
-                    purpose,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: memberDashboardMetaStyle.copyWith(fontSize: 13, height: 1.25),
-                  ),
-                ],
-              ),
+              child: Text('Calendar', style: titleStyle),
             ),
             MemberPageNotificationButton(onTap: onNotificationsTap),
             MemberPageProfileAvatar(onTap: onProfileTap),

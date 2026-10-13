@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/stat_card.dart';
-import 'package:access_mobile/shared/themes/theme.dart';
-
 /// Shimmer-style bone used across profile skeleton placeholders.
 class MemberProfileSkeletonBone extends StatefulWidget {
   const MemberProfileSkeletonBone({
@@ -79,8 +77,8 @@ class MemberProfileHeroSkeleton extends StatelessWidget {
       decoration: const BoxDecoration(
         gradient: kMemberDarkHeroGradient,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+          bottomLeft: Radius.circular(kMemberProfileHeroBottomRadius),
+          bottomRight: Radius.circular(kMemberProfileHeroBottomRadius),
         ),
       ),
       padding: EdgeInsets.fromLTRB(padding, 6, padding, 14),
@@ -155,7 +153,7 @@ class MemberProfileHeroSkeleton extends StatelessWidget {
   }
 }
 
-/// Requestor profile header placeholder (light theme).
+/// Requestor profile header placeholder (dark hero).
 class RequestorProfileHeroSkeleton extends StatelessWidget {
   const RequestorProfileHeroSkeleton({super.key});
 
@@ -165,9 +163,12 @@ class RequestorProfileHeroSkeleton extends StatelessWidget {
     final padding = mobilePagePaddingOf(context);
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
-        border: Border(bottom: BorderSide(color: kBorder.withValues(alpha: 0.9))),
+      decoration: const BoxDecoration(
+        gradient: kMemberDarkHeroGradient,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+        ),
       ),
       child: SafeArea(
         bottom: false,

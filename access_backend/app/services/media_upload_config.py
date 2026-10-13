@@ -129,23 +129,26 @@ def check_evaluation_video_duration(db: Session, ext: str, content: bytes) -> No
 
     duration = probe_video_duration_from_bytes(content, suffix=ext)
     if duration <= 0:
-        return
+        raise EvaluationVideoDurationError(
+            "Could not determine video duration. Upload a valid video file.",
+            max_seconds=max_seconds,
+            actual_seconds=None,
+        )
     if duration > max_seconds + 0.25:
         actual = int(round(duration))
         raise EvaluationVideoDurationError(
-            f"Practice evaluation videos must be {max_seconds} seconds or shorter. "
-            f"This clip is about {actual} seconds.",
+            f"Video duration must not exceed {max_seconds} seconds.",
             max_seconds=max_seconds,
             actual_seconds=actual,
         )
 
 
 def assert_evaluation_video_duration(db: Session, ext: str, content: bytes) -> None:
-    """HTTP 400 wrapper for upload/evaluate routes."""
+    """HTTP 422 wrapper for member practice evaluation upload/evaluate routes."""
     try:
         check_evaluation_video_duration(db, ext, content)
     except EvaluationVideoDurationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 def rules_for_category(db: Session, media_category: str) -> dict:

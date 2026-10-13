@@ -16,6 +16,7 @@ import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dar
 import 'package:access_mobile/shared/services/deferred_media_evaluation_poll.dart';
 import 'package:access_mobile/shared/services/pending_practice_evaluation_store.dart';
 import 'package:access_mobile/shared/services/push_notification_service.dart';
+import 'package:access_mobile/mobile_app/requestor/requestor_feedback_status.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/models/reschedule_models.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
@@ -43,6 +44,22 @@ class MemberDataController extends ChangeNotifier {
   /// Rankings leaderboard sync state.
   bool rankingsLoading = false;
   String? rankingsError;
+
+  /// Completed documentation requests with event feedback submitted (requestor org user).
+  Set<int> requestorEventFeedbackRequestIds = {};
+
+  /// Completed requests that have rateable team assignments.
+  Set<int> requestorTeamRequiredRequestIds = {};
+
+  /// Subset of [requestorTeamRequiredRequestIds] with all members rated.
+  Set<int> requestorTeamCompleteRequestIds = {};
+
+  RequestorFeedbackCompletion get requestorFeedbackCompletion =>
+      RequestorFeedbackCompletion(
+        eventFeedbackRequestIds: requestorEventFeedbackRequestIds,
+        teamRequiredRequestIds: requestorTeamRequiredRequestIds,
+        teamCompleteRequestIds: requestorTeamCompleteRequestIds,
+      );
 
   /// Requestor ratings left for this member (documentation team only).
   List<Map<String, dynamic>> requestorRatings = [];
@@ -89,6 +106,9 @@ class MemberDataController extends ChangeNotifier {
     requestorRatingAverage = null;
     requestorRatingsLoaded = false;
     requestorRatingsLoadError = null;
+    requestorEventFeedbackRequestIds = {};
+    requestorTeamRequiredRequestIds = {};
+    requestorTeamCompleteRequestIds = {};
     memberMilestones = [];
     unacknowledgedMilestones = [];
     _bootstrapFuture = null;
@@ -717,7 +737,7 @@ class MemberDataController extends ChangeNotifier {
       evaluationsToday: participation['evaluations_today'] as int? ?? 0,
       dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 60,
+      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 30,
       evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
     );
   }
@@ -820,9 +840,59 @@ class MemberDataController extends ChangeNotifier {
   Future<void> _syncFeedbackSection() async {
     if (!_isOrganizationUser) return;
     final feedbacks = await memberApiService.getFeedback();
+    requestorEventFeedbackRequestIds = {
+      for (final f in feedbacks)
+        if (f['request_id'] is num) (f['request_id'] as num).toInt(),
+    };
     appState.feedbacks
       ..clear()
       ..addAll(feedbacks.map(_feedbackFromApi));
+    await _syncRequestorTeamRatingCompletion();
+    notifyListeners();
+  }
+
+  /// Refreshes team-rating completion for recent completed requests (requestor only).
+  Future<void> syncRequestorTeamRatingCompletion() async {
+    if (!_isOrganizationUser) return;
+    await _syncRequestorTeamRatingCompletion();
+    notifyListeners();
+  }
+
+  Future<void> syncRequestorFeedbackCompletion() async {
+    await _syncFeedbackSection();
+    appState.notifyListeners();
+  }
+
+  Future<void> _syncRequestorTeamRatingCompletion() async {
+    if (!_isOrganizationUser) return;
+    final teamRequired = <int>{};
+    final teamComplete = <int>{};
+    final completed = appState.serviceRequests
+        .where(
+          (r) =>
+              r.requestId != null && r.requestStatus == RequestStatus.completed,
+        )
+        .toList()
+      ..sort((a, b) => b.eventDate.compareTo(a.eventDate));
+
+    for (final r in completed.take(15)) {
+      final rid = r.requestId!;
+      try {
+        final rows = await memberApiService.getAssignmentRatingTargets(rid);
+        if (rows.isEmpty) continue;
+        teamRequired.add(rid);
+        final allRated = rows.every((row) {
+          if (row['rated'] == true) return true;
+          final rating = (row['rating'] as num?)?.toInt() ?? 0;
+          return rating > 0;
+        });
+        if (allRated) teamComplete.add(rid);
+      } catch (_) {
+        // Non-blocking; picker falls back to per-request targets on open.
+      }
+    }
+    requestorTeamRequiredRequestIds = teamRequired;
+    requestorTeamCompleteRequestIds = teamComplete;
   }
 
   /// Reload in-app notifications only (`GET /notifications`).
@@ -1151,7 +1221,7 @@ class MemberDataController extends ChangeNotifier {
         evaluationsToday: participation['evaluations_today'] as int? ?? 0,
         dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 60,
+      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 30,
       evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
       );
 
@@ -1712,14 +1782,20 @@ class MemberDataController extends ChangeNotifier {
   }
 
   EventFeedback _feedbackFromApi(Map<String, dynamic> f) {
-    final requestId = f['request_id'] as int?;
+    final rawRequestId = f['request_id'];
+    final requestId = rawRequestId is num ? rawRequestId.toInt() : null;
     final comment = f['comment'] as String? ?? '';
+    final adminResponse = (f['admin_response'] as String?)?.trim();
+    final reviewStatus = (f['review_status'] as String?)?.trim() ?? 'pending';
     return EventFeedback(
       eventTitle: _feedbackEventTitle(requestId),
       type: 'Service rating',
       message: comment,
       rating: f['rating'] as int? ?? 5,
       date: _formatIso(f['created_at'] as String?),
+      requestId: requestId,
+      adminResponse: adminResponse != null && adminResponse.isNotEmpty ? adminResponse : null,
+      reviewStatus: reviewStatus,
     );
   }
 

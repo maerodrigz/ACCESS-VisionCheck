@@ -246,6 +246,17 @@ async def upload_media(
         },
     )
     row = media_crud.get(db, row.id)
+    if is_event and request_id is not None:
+        from app.services import notification_events as notify_events
+
+        try:
+            notify_events.notify_requestor_event_gallery_upload(db, request_id=request_id)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "Requestor gallery notify failed for request %s", request_id
+            )
     if media_category == MEDIA_CATEGORY_EVALUATION and settings_crud.is_ai_media_evaluation_enabled(db):
         metadata_copy = evaluation_metadata
         media_id = row.id

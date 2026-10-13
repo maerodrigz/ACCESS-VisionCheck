@@ -70,8 +70,12 @@ class RequestorHomeScreen extends StatelessWidget {
 
           final recent = _recentRequests(requests);
           final upcoming = _upcomingApprovedRequests(requests);
-          final feedbackDue =
-              _pendingFeedbackRequests(requests, appState.feedbacks).take(3).toList();
+          final feedbackCompletion =
+              memberDataController.requestorFeedbackCompletion;
+          final feedbackDue = requests
+              .where(feedbackCompletion.pending)
+              .take(3)
+              .toList();
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -178,6 +182,10 @@ class RequestorHomeScreen extends StatelessWidget {
                                   padding: const EdgeInsets.only(bottom: 8),
                                   child: _FeedbackReminderCard(
                                     request: req,
+                                    statusLabel: req.requestId == null
+                                        ? null
+                                        : feedbackCompletion
+                                            .statusLabel(req.requestId!),
                                     onGiveFeedback: () =>
                                         onOpenFeedback(requestId: req.requestId),
                                   ),
@@ -237,31 +245,6 @@ CalendarEvent? _calendarForRequest(int? requestId) {
     if (e.requestId == requestId) return e;
   }
   return null;
-}
-
-bool _requestHasFeedback(ServiceRequest r, List<EventFeedback> feedbacks) {
-  final rid = r.requestId;
-  if (rid == null) return false;
-  final title = r.eventName;
-  return feedbacks.any(
-    (f) => f.eventTitle == title || f.eventTitle == 'Request #$rid',
-  );
-}
-
-List<ServiceRequest> _pendingFeedbackRequests(
-  List<ServiceRequest> all,
-  List<EventFeedback> feedbacks,
-) {
-  final list = all
-      .where(
-        (r) =>
-            r.requestStatus == RequestStatus.completed &&
-            r.requestId != null &&
-            !_requestHasFeedback(r, feedbacks),
-      )
-      .toList();
-  list.sort((a, b) => b.eventDate.compareTo(a.eventDate));
-  return list;
 }
 
 String? _scheduleLabel(ServiceRequest r, CalendarEvent? cal) {
@@ -921,10 +904,12 @@ class _FeedbackReminderCard extends StatelessWidget {
   const _FeedbackReminderCard({
     required this.request,
     required this.onGiveFeedback,
+    this.statusLabel,
   });
 
   final ServiceRequest request;
   final VoidCallback onGiveFeedback;
+  final String? statusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -945,7 +930,9 @@ class _FeedbackReminderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Coverage is complete. Share feedback on the documentation team.',
+                  statusLabel == null || statusLabel == 'Complete'
+                      ? 'Coverage is complete. Share feedback on the documentation team.'
+                      : 'Still due: $statusLabel',
                   style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.35),
                 ),
                 const SizedBox(height: 10),

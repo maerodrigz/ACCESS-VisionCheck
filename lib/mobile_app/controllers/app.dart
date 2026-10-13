@@ -34,7 +34,7 @@ import 'package:access_mobile/mobile_app/widgets/mobile_splash_gate.dart';
 import 'package:access_mobile/mobile_app/widgets/member_bottom_nav.dart';
 import 'package:access_mobile/shared/constants/app_constants.dart';
 import 'package:access_mobile/shared/navigation/app_navigator.dart';
-import 'package:access_mobile/web_admin/controllers/web_admin_shell.dart';
+import 'package:access_mobile/mobile_app/widgets/admin_react_web_redirect.dart';
 class AccessApp extends StatefulWidget {
   const AccessApp({super.key});
   @override
@@ -71,7 +71,10 @@ class _AccessAppState extends State<AccessApp> {
           key: const ValueKey('access_mobile_splash_gate'),
           child: AuthGate(
             adminBuilder: (user) => kIsWeb
-                ? WebAdminShell(user: user)
+                ? AdminReactWebRedirect(
+                    userName: user.name,
+                    onLogout: authController.logout,
+                  )
                 : MainShell(
                     onLogout: authController.logout,
                     userName: user.name,
@@ -264,7 +267,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 }
 
 // The legacy side rail was removed — the mobile shell uses [MemberBottomNav]
-// on every form factor. The web admin has its own shell under lib/web_admin/.
+// on every form factor. Web admin is React (`admin-web/`).
 // Do not re-introduce a side rail here without keeping tab indices in sync.
 
 // ── Requester Shell (separate app for service requesters) ─────────────────────

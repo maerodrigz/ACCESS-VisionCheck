@@ -19,20 +19,7 @@ extension AccessLegalDocumentMeta on AccessLegalDocument {
         AccessLegalDocument.contentStandards => 'Content Standards',
       };
 
-  String registrationTitle(RegistrationLegalAudience audience) => switch (this) {
-        AccessLegalDocument.terms => switch (audience) {
-            RegistrationLegalAudience.member => 'Terms and Conditions (Members)',
-            RegistrationLegalAudience.requestor => 'Terms and Conditions (Requestors)',
-          },
-        AccessLegalDocument.privacy => switch (audience) {
-            RegistrationLegalAudience.member => 'Privacy Policy (Members)',
-            RegistrationLegalAudience.requestor => 'Privacy Policy (Requestors)',
-          },
-        AccessLegalDocument.contentStandards => switch (audience) {
-            RegistrationLegalAudience.member => 'Content Standards (Members)',
-            RegistrationLegalAudience.requestor => 'Content Standards (Requestors)',
-          },
-      };
+  String registrationTitle(RegistrationLegalAudience audience) => title;
 
   String get lastUpdated => 'October 10, 2026';
 }
@@ -131,7 +118,7 @@ const _termsSectionsGeneral = [
 
 const _memberTermsSections = [
   AccessLegalSection(
-    heading: '1. About ACCESS VisionCheck (Members)',
+    heading: '1. About ACCESS VisionCheck',
     body:
         'These Terms and Conditions apply to you as a documentation member of ACCESS VisionCheck at '
         'USTP Oroquieta Campus. By registering a member account, you agree to the rules below.',
@@ -180,7 +167,7 @@ const _memberTermsSections = [
 
 const _requestorTermsSections = [
   AccessLegalSection(
-    heading: '1. About ACCESS VisionCheck (Requestors)',
+    heading: '1. About ACCESS VisionCheck',
     body:
         'These Terms and Conditions apply to you as a requestor (faculty, instructor, or student organization) '
         'using ACCESS VisionCheck at USTP Oroquieta Campus. By registering, you agree to the rules below.',

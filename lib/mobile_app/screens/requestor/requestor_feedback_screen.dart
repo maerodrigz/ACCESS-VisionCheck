@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/navigation/requestor_shell_navigation.dart';
+import 'package:access_mobile/mobile_app/requestor/requestor_feedback_status.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/member_team_rating_section.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
@@ -123,7 +124,8 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
     }
   }
 
-  void _applyInitialSelection({Set<int>? ratedIds}) {
+  void _applyInitialSelection() {
+    final completion = memberDataController.requestorFeedbackCompletion;
     final id = widget.initialRequestId;
     if (id != null) {
       final match = _rateableRequests(appState.serviceRequests)
@@ -135,9 +137,8 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
       }
     }
     if (_selectedKey != null) return;
-    final rated = ratedIds ?? _ratedRequestIds(appState.feedbacks);
     final firstOpen = _rateableRequests(appState.serviceRequests)
-        .where((r) => r.requestId != null && !rated.contains(r.requestId))
+        .where((r) => completion.pending(r))
         .firstOrNull;
     if (firstOpen != null) {
       _selectedKey = _requestKey(firstOpen);
@@ -155,14 +156,9 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
     try {
       final rows = await memberApiService.getMemberRatings();
       if (!mounted) return;
-      final rated = _ratedRequestIds(appState.feedbacks);
-      for (final row in rows) {
-        final rid = (row['request_id'] as num?)?.toInt();
-        if (rid != null) rated.add(rid);
-      }
       setState(() {
         _memberRatingsMine = rows;
-        _applyInitialSelection(ratedIds: rated);
+        _applyInitialSelection();
       });
     } catch (_) {
       if (!mounted) return;
@@ -189,29 +185,6 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
     final id = int.tryParse(key.split('|').first);
     if (id == null) return null;
     return appState.serviceRequests.where((r) => r.requestId == id).firstOrNull;
-  }
-
-  Set<int> _ratedRequestIds(List<EventFeedback> feedbacks) {
-    final ids = <int>{};
-    for (final req in appState.serviceRequests) {
-      final rid = req.requestId;
-      if (rid == null) continue;
-      final title = req.eventName;
-      if (feedbacks.any((f) => f.eventTitle == title || f.eventTitle == 'Request #$rid')) {
-        ids.add(rid);
-      }
-    }
-    for (final fb in feedbacks) {
-      final match = RegExp(r'Request #(\d+)').firstMatch(fb.eventTitle);
-      if (match != null) {
-        ids.add(int.parse(match.group(1)!));
-      }
-    }
-    for (final row in _memberRatingsMine) {
-      final rid = (row['request_id'] as num?)?.toInt();
-      if (rid != null) ids.add(rid);
-    }
-    return ids;
   }
 
   (String type, String message) _parseComment(String raw) {
@@ -290,6 +263,9 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
       message: message,
       rating: fb.rating,
       date: fb.date,
+      requestId: fb.requestId,
+      adminResponse: fb.adminResponse,
+      reviewStatus: fb.reviewStatus,
     );
   }
 
@@ -303,11 +279,6 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
       _type = 'Documentation quality';
       _applyInitialSelection();
     });
-  }
-
-  bool _requestFullyRated(ServiceRequest r, Set<int> ratedIds) {
-    final id = r.requestId;
-    return id != null && ratedIds.contains(id);
   }
 
   @override
@@ -332,7 +303,7 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
         listenable: Listenable.merge([appState, memberDataController]),
         builder: (context, _) {
           final rateable = _rateableRequests(appState.serviceRequests);
-          final ratedIds = _ratedRequestIds(appState.feedbacks);
+          final completion = memberDataController.requestorFeedbackCompletion;
           final past = appState.feedbacks.map(_displayFeedback).toList();
           final teamRatingGroups = _groupMemberRatingsByRequest(_memberRatingsMine);
           final selected = _requestFromKey(_selectedKey);
@@ -396,15 +367,15 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                     rating: _rating,
                     selectedRequest: selected,
                     rateable: rateable,
-                    ratedIds: ratedIds,
+                    completion: completion,
                     onTypeChanged: (t) => setState(() => _type = t),
                     onEventChanged: (k) {
                       final req = _requestFromKey(k);
-                      if (req != null && _requestFullyRated(req, ratedIds)) {
+                      if (req != null && completion.fullyDone(req)) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'You already submitted feedback for this event. Pick another completed event.',
+                              'This event is fully complete. Pick another event or view your submissions below.',
                             ),
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -631,7 +602,7 @@ class _FeedbackFormCard extends StatefulWidget {
     required this.rating,
     required this.selectedRequest,
     required this.rateable,
-    required this.ratedIds,
+    required this.completion,
     required this.onTypeChanged,
     required this.onEventChanged,
     required this.onRatingChanged,
@@ -649,7 +620,7 @@ class _FeedbackFormCard extends StatefulWidget {
   final int rating;
   final ServiceRequest? selectedRequest;
   final List<ServiceRequest> rateable;
-  final Set<int> ratedIds;
+  final RequestorFeedbackCompletion completion;
   final ValueChanged<String> onTypeChanged;
   final ValueChanged<String?> onEventChanged;
   final ValueChanged<int> onRatingChanged;
@@ -738,15 +709,6 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       return;
     }
     final requestId = int.tryParse(widget.selectedKey!.split('|').first);
-    if (requestId != null && widget.ratedIds.contains(requestId)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Feedback was already submitted for this event.'),
-          backgroundColor: kRed,
-        ),
-      );
-      return;
-    }
     if (requestId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid event selection'), backgroundColor: kRed),
@@ -754,7 +716,20 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       return;
     }
 
-    if (_teamTargets.isNotEmpty) {
+    final eventDone = widget.completion.eventDone(requestId);
+    final teamDone = widget.completion.teamDone(requestId);
+    if (eventDone && teamDone) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This event is already complete.'),
+          backgroundColor: kRed,
+        ),
+      );
+      return;
+    }
+
+    final needsTeam = !teamDone && _teamTargets.isNotEmpty;
+    if (needsTeam) {
       for (final t in _teamTargets) {
         final stars = _memberRatings[t.assignmentId] ?? 0;
         if (stars == 0) {
@@ -769,11 +744,21 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       }
     }
 
+    final needsEvent = !eventDone;
     final hasOverall = widget.rating > 0;
-    if (_teamTargets.isEmpty && !hasOverall) {
+    if (needsEvent && !hasOverall && !needsTeam) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Rate your assigned team or give an overall star rating'),
+          content: Text('Add an overall star rating for this event'),
+          backgroundColor: kRed,
+        ),
+      );
+      return;
+    }
+    if (!needsEvent && !needsTeam) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nothing left to submit for this event'),
           backgroundColor: kRed,
         ),
       );
@@ -782,7 +767,8 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
 
     widget.onSubmittingChanged(true);
     try {
-      if (_teamTargets.isNotEmpty) {
+      var didSubmit = false;
+      if (needsTeam) {
         await memberApiService.submitMemberRatings(
           requestId: requestId,
           ratings: _teamTargets.map((t) {
@@ -794,8 +780,10 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
             };
           }).toList(),
         );
+        didSubmit = true;
+        await memberDataController.syncRequestorTeamRatingCompletion();
       }
-      if (hasOverall) {
+      if (needsEvent && hasOverall) {
         final msg = widget.msgCtrl.text.trim();
         final comment = msg.isEmpty ? widget.type : '${widget.type}: $msg';
         await memberDataController.submitFeedback(
@@ -803,6 +791,18 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
           rating: widget.rating,
           comment: comment,
         );
+        didSubmit = true;
+      }
+      if (!didSubmit) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Add team ratings or overall service feedback to submit'),
+              backgroundColor: kRed,
+            ),
+          );
+        }
+        return;
       }
       await widget.onSubmitted();
     } catch (e) {
@@ -819,6 +819,11 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
 
   @override
   Widget build(BuildContext context) {
+    final requestId = widget.selectedRequest?.requestId;
+    final eventDone =
+        requestId != null && widget.completion.eventDone(requestId);
+    final overallRequired = requestId != null && !eventDone && widget.completion.teamDone(requestId);
+
     return MemberDashboardCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -830,7 +835,7 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
           _EventPickerList(
             rateable: widget.rateable,
             selectedKey: widget.selectedKey,
-            ratedIds: widget.ratedIds,
+            completion: widget.completion,
             requestKey: widget.requestKey,
             onEventChanged: widget.onEventChanged,
           ),
@@ -850,14 +855,27 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
           ],
           const SizedBox(height: 20),
           Text(
-            'Overall event feedback (optional)',
+            overallRequired ? 'Overall event feedback' : 'Overall event feedback (optional)',
             style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
           ),
           const SizedBox(height: 4),
           Text(
-            'Optional comments about documentation service for this event.',
+            overallRequired
+                ? 'Rate the documentation service for this event (required if team ratings are done).'
+                : 'Optional comments about documentation service for this event.',
             style: memberDashboardMetaStyle.copyWith(fontSize: 11),
           ),
+          if (eventDone) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Service feedback already submitted for this event.',
+              style: memberDashboardMetaStyle.copyWith(
+                fontSize: 11,
+                color: kGreen,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           _FeedbackTypePicker(
             types: widget.types,
@@ -1081,14 +1099,14 @@ class _EventPickerList extends StatelessWidget {
   const _EventPickerList({
     required this.rateable,
     required this.selectedKey,
-    required this.ratedIds,
+    required this.completion,
     required this.requestKey,
     required this.onEventChanged,
   });
 
   final List<ServiceRequest> rateable;
   final String? selectedKey;
-  final Set<int> ratedIds;
+  final RequestorFeedbackCompletion completion;
   final String Function(ServiceRequest) requestKey;
   final ValueChanged<String?> onEventChanged;
 
@@ -1098,7 +1116,9 @@ class _EventPickerList extends StatelessWidget {
       children: rateable.map((r) {
         final key = requestKey(r);
         final selected = selectedKey == key;
-        final alreadyRated = ratedIds.contains(r.requestId);
+        final rid = r.requestId;
+        final fullyDone = completion.fullyDone(r);
+        final statusLabel = rid == null ? r.requestStatus.label : completion.statusLabel(rid);
         final style = RequestStatusStyle.forStatus(r.requestStatus);
 
         return Padding(
@@ -1106,10 +1126,10 @@ class _EventPickerList extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: alreadyRated ? null : () => onEventChanged(key),
+              onTap: fullyDone ? null : () => onEventChanged(key),
               borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
               child: Opacity(
-                opacity: alreadyRated ? 0.55 : 1,
+                opacity: fullyDone ? 0.55 : 1,
                 child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
@@ -1150,36 +1170,30 @@ class _EventPickerList extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (alreadyRated)
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: kGreenDim,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Rated',
-                          style: TextStyle(color: kGreen, fontSize: 10, fontWeight: FontWeight.w700),
-                        ),
-                      )
-                    else
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: style.background,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          r.requestStatus.label,
-                          style: TextStyle(
-                            color: style.color,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: fullyDone
+                            ? kGreenDim
+                            : statusLabel.contains('due')
+                                ? kYellow.withValues(alpha: 0.15)
+                                : style.background,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(
+                          color: fullyDone
+                              ? kGreen
+                              : statusLabel.contains('due')
+                                  ? kYellow
+                                  : style.color,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -1436,6 +1450,27 @@ class _PastFeedbackCard extends StatelessWidget {
           if (feedback.message.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(feedback.message, style: memberDashboardBodyStyle.copyWith(fontSize: 13)),
+          ],
+          if (feedback.adminResponse != null && feedback.adminResponse!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'ACCESS team response',
+              style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 11),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: kGreenDim,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kGreen.withValues(alpha: 0.25)),
+              ),
+              child: Text(
+                feedback.adminResponse!.trim(),
+                style: memberDashboardBodyStyle.copyWith(fontSize: 13, height: 1.4),
+              ),
+            ),
           ],
         ],
       ),

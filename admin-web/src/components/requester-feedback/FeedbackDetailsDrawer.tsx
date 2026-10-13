@@ -44,6 +44,9 @@ export function FeedbackDetailsDrawer({
 
   const summary = item.eventSummary
   const parsedComment = parseFeedbackComment(item.comment)
+  const hasResponse = Boolean(item.adminResponse?.trim())
+  const showMarkReviewed = item.reviewStatus === 'pending' && !hasResponse
+  const sendLabel = hasResponse ? 'Update response' : 'Send response'
 
   return (
     <AdminDrawer
@@ -68,15 +71,17 @@ export function FeedbackDetailsDrawer({
             onClick={() => onSendResponse(response)}
             className="rounded-lg bg-[var(--color-accent-blue)] px-4 py-2 text-sm font-semibold text-white"
           >
-            Send Response
+            {sendLabel}
           </button>
-          <button
-            type="button"
-            onClick={onMarkReviewed}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-2 text-sm font-semibold"
-          >
-            Mark Reviewed
-          </button>
+          {showMarkReviewed ? (
+            <button
+              type="button"
+              onClick={onMarkReviewed}
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-2 text-sm font-semibold"
+            >
+              Mark as reviewed
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onArchive}
@@ -130,6 +135,15 @@ export function FeedbackDetailsDrawer({
           </Section>
 
           <Section title="Admin response">
+            {hasResponse ? (
+              <div className="mb-3 rounded-xl border border-[rgba(34,197,94,0.35)] bg-[rgba(34,197,94,0.08)] p-3.5">
+                <p className="text-xs font-extrabold text-[var(--color-success)]">Response sent to requestor</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-primary)]">{item.adminResponse}</p>
+              </div>
+            ) : null}
+            <p className="mb-2 text-[11px] font-semibold text-[var(--color-text-secondary)]">
+              {hasResponse ? 'Edit response (optional)' : 'Write a reply for the requestor'}
+            </p>
             <textarea
               id="admin-feedback-response"
               value={response}

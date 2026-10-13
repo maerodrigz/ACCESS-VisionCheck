@@ -57,124 +57,111 @@ class _RequestorProfileScreenState extends State<RequestorProfileScreen> {
             !profileLoadFailed &&
             (memberDataController.isLoading || !memberDataController.profileLoadAttempted);
 
+        final Widget fixedHeader;
+        if (profileLoading) {
+          fixedHeader = const RequestorProfileHeroSkeleton();
+        } else if (profileLoadFailed) {
+          fixedHeader = const _RequestorProfileHeaderShell();
+        } else {
+          fixedHeader = _RequestorProfileHeader(onEdit: _openEditProfile);
+        }
+
+        final scrollChildren = <Widget>[
+          if (profileLoadFailed)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: MemberProfileLoadError(
+                onRetry: memberDataController.refreshProfile,
+              ),
+            )
+          else if (profileLoading) ...[
+            const Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: MemberProfileActionRowSkeleton(),
+            ),
+          ] else ...[
+            const SizedBox(height: _kSectionGap),
+            const _RequestorSectionTitle(title: 'Account & Security'),
+            const SizedBox(height: 8),
+            MemberDashboardCard(
+              padding: EdgeInsets.zero,
+              child: _RequestorSettingsRow(
+                icon: Icons.lock_outline_rounded,
+                title: 'Change Password',
+                subtitle: 'Update your sign-in credentials',
+                onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ChangePasswordScreen(),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: _kSectionGap),
+            const _RequestorSectionTitle(title: 'Legal & Policies'),
+            const SizedBox(height: 8),
+            MemberDashboardCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  _RequestorSettingsRow(
+                    icon: Icons.description_outlined,
+                    title: 'Terms & Conditions',
+                    showSubtitle: false,
+                    onTap: () => _openLegal(AccessLegalDocument.terms),
+                  ),
+                  const Divider(height: 1, thickness: 1, color: _kRowDivider),
+                  _RequestorSettingsRow(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy Policy',
+                    showSubtitle: false,
+                    onTap: () => _openLegal(AccessLegalDocument.privacy),
+                  ),
+                  const Divider(height: 1, thickness: 1, color: _kRowDivider),
+                  _RequestorSettingsRow(
+                    icon: Icons.policy_outlined,
+                    title: 'Content Standards',
+                    showSubtitle: false,
+                    onTap: () => _openLegal(AccessLegalDocument.contentStandards),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const _RequestorLogoutButton(),
+          ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 16, 0, 36),
+            child: Center(
+              child: Text(
+                '${brandingController.appName} · ${brandingController.organization}',
+                textAlign: TextAlign.center,
+                style: memberDashboardMetaStyle.copyWith(fontSize: 10),
+              ),
+            ),
+          ),
+        ];
+
         return Scaffold(
           backgroundColor: kBg,
-          appBar: AppBar(
-            backgroundColor: kSurface,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: kTextPrimary),
-              onPressed: () => Navigator.maybePop(context),
-            ),
-            title: Text(
-              'Profile',
-              style: memberDashboardSectionTitleStyle.copyWith(fontSize: 17),
-            ),
-            centerTitle: false,
-            titleSpacing: 0,
-          ),
-          body: RefreshIndicator(
-            color: kAccent,
-            onRefresh: () => memberDataController.refreshAll(),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              slivers: [
-                if (profileLoading)
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 36),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate(const [
-                        _RequestorProfileCardSkeleton(),
-                        SizedBox(height: _kSectionGap),
-                        MemberProfileActionRowSkeleton(),
-                      ]),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              fixedHeader,
+              Expanded(
+                child: RefreshIndicator(
+                  color: kAccent,
+                  onRefresh: () => memberDataController.refreshAll(),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-                  )
-                else if (profileLoadFailed)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 36),
-                      child: MemberProfileLoadError(
-                        onRetry: memberDataController.refreshProfile,
-                      ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 36),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        _RequestorOrganizationCard(onEdit: _openEditProfile),
-                        const SizedBox(height: _kSectionGap),
-                        const _RequestorSectionTitle(title: 'Account & Security'),
-                        const SizedBox(height: 8),
-                        MemberDashboardCard(
-                          padding: EdgeInsets.zero,
-                          child: _RequestorSettingsRow(
-                            icon: Icons.lock_outline_rounded,
-                            title: 'Change Password',
-                            subtitle: 'Update your sign-in credentials',
-                            onTap: () => Navigator.push<void>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ChangePasswordScreen(),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: _kSectionGap),
-                        const _RequestorSectionTitle(title: 'Legal & Policies'),
-                        const SizedBox(height: 8),
-                        MemberDashboardCard(
-                          padding: EdgeInsets.zero,
-                          child: Column(
-                            children: [
-                              _RequestorSettingsRow(
-                                icon: Icons.description_outlined,
-                                title: 'Terms & Conditions',
-                                showSubtitle: false,
-                                onTap: () => _openLegal(AccessLegalDocument.terms),
-                              ),
-                              const Divider(height: 1, thickness: 1, color: _kRowDivider),
-                              _RequestorSettingsRow(
-                                icon: Icons.privacy_tip_outlined,
-                                title: 'Privacy Policy',
-                                showSubtitle: false,
-                                onTap: () => _openLegal(AccessLegalDocument.privacy),
-                              ),
-                              const Divider(height: 1, thickness: 1, color: _kRowDivider),
-                              _RequestorSettingsRow(
-                                icon: Icons.policy_outlined,
-                                title: 'Content Standards',
-                                showSubtitle: false,
-                                onTap: () =>
-                                    _openLegal(AccessLegalDocument.contentStandards),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const _RequestorLogoutButton(),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16, bottom: 4),
-                          child: Center(
-                            child: Text(
-                              '${brandingController.appName} · ${brandingController.organization}',
-                              textAlign: TextAlign.center,
-                              style: memberDashboardMetaStyle.copyWith(fontSize: 10),
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: pagePadding),
+                    children: scrollChildren,
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -196,14 +183,66 @@ class _RequestorSectionTitle extends StatelessWidget {
   }
 }
 
-class _RequestorOrganizationCard extends StatelessWidget {
-  const _RequestorOrganizationCard({required this.onEdit});
+class _RequestorProfileHeaderShell extends StatelessWidget {
+  const _RequestorProfileHeaderShell();
+
+  static const _onDarkSecondary = Color(0xFF94A3B8);
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final padding = mobilePagePaddingOf(context);
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: kMemberDarkHeroGradient,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(compact ? 4 : 6, 4, padding - 4, 14),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: _onDarkSecondary,
+                onPressed: () => Navigator.maybePop(context),
+                style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+              ),
+              Expanded(
+                child: Text(
+                  'Profile',
+                  style: dashText(const TextStyle(
+                    color: _onDarkSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  )),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RequestorProfileHeader extends StatelessWidget {
+  const _RequestorProfileHeader({required this.onEdit});
+
+  static const _onDarkPrimary = Color(0xFFF8FAFC);
+  static const _onDarkSecondary = Color(0xFF94A3B8);
 
   final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
+    final padding = mobilePagePaddingOf(context);
     final displayName = appState.profileName.trim().isNotEmpty
         ? appState.profileName.trim()
         : (authController.user?.name ?? 'Organization');
@@ -213,115 +252,156 @@ class _RequestorOrganizationCard extends StatelessWidget {
     final imageUrl = appState.profileImageUrl;
     final initials = memberDisplayInitials(displayName);
 
-    return MemberDashboardCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _RequestorAvatar(
-            initials: initials,
-            imageUrl: imageUrl,
-            size: compact ? 56 : 64,
-          ),
-          SizedBox(width: compact ? 12 : 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: dashText(TextStyle(
-                    color: kTextPrimary,
-                    fontSize: compact ? 17 : 18,
-                    fontWeight: FontWeight.w800,
-                    height: 1.2,
-                    letterSpacing: -0.2,
-                  )),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.apartment_rounded,
-                      size: 14,
-                      color: kAccent.withValues(alpha: 0.95),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: kMemberDarkHeroGradient,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(compact ? 4 : 6, 4, padding - 4, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: _onDarkSecondary,
+                    onPressed: () => Navigator.maybePop(context),
+                    style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Profile',
+                      style: dashText(const TextStyle(
+                        color: _onDarkSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      )),
                     ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        'Organization Requestor',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: dashText(const TextStyle(
-                          color: kAccent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        )),
-                      ),
-                    ),
-                  ],
-                ),
-                if (email.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 1),
-                        child: Icon(
-                          Icons.mail_outline_rounded,
-                          size: 15,
-                          color: kTextSecondary.withValues(alpha: 0.9),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          email,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: dashText(const TextStyle(
-                            color: kTextSecondary,
-                            fontSize: 12,
-                            height: 1.35,
-                          )),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: onEdit,
-                  icon: Icon(Icons.edit_outlined, size: compact ? 16 : 17, color: kAccent),
-                  label: Text(
-                    'Edit Profile',
-                    style: dashText(const TextStyle(
-                      color: kAccent,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    )),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: kAccent,
-                    side: BorderSide(color: kAccent.withValues(alpha: 0.45)),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 12 : 14,
-                      vertical: compact ? 6 : 8,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: EdgeInsets.fromLTRB(padding, 8, padding, 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _RequestorAvatar(
+                    initials: initials,
+                    imageUrl: imageUrl,
+                    size: compact ? 56 : 64,
+                    onDarkHero: true,
+                  ),
+                  SizedBox(width: compact ? 12 : 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: dashText(TextStyle(
+                            color: _onDarkPrimary,
+                            fontSize: compact ? 17 : 18,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                            letterSpacing: -0.2,
+                          )),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.apartment_rounded, size: 14, color: kCyan),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Organization Requestor',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: dashText(const TextStyle(
+                                  color: kCyan,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                )),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (email.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 1),
+                                child: Icon(
+                                  Icons.mail_outline_rounded,
+                                  size: 15,
+                                  color: _onDarkSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  email,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: dashText(const TextStyle(
+                                    color: _onDarkSecondary,
+                                    fontSize: 12,
+                                    height: 1.35,
+                                  )),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: onEdit,
+                          icon: Icon(
+                            Icons.edit_outlined,
+                            size: compact ? 16 : 17,
+                            color: _onDarkPrimary,
+                          ),
+                          label: Text(
+                            'Edit Profile',
+                            style: dashText(const TextStyle(
+                              color: _onDarkPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            )),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _onDarkPrimary,
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 12 : 14,
+                              vertical: compact ? 6 : 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -332,11 +412,13 @@ class _RequestorAvatar extends StatelessWidget {
     required this.initials,
     required this.size,
     this.imageUrl,
+    this.onDarkHero = false,
   });
 
   final String initials;
   final double size;
   final String? imageUrl;
+  final bool onDarkHero;
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +427,10 @@ class _RequestorAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: kBorder),
+        border: Border.all(
+          color: onDarkHero ? kCyan.withValues(alpha: 0.45) : kBorder,
+          width: onDarkHero ? 2 : 1,
+        ),
       ),
       child: ClipOval(
         child: imageUrl != null && imageUrl!.isNotEmpty
@@ -354,28 +439,30 @@ class _RequestorAvatar extends StatelessWidget {
                 fit: BoxFit.cover,
                 width: size,
                 height: size,
-                errorBuilder: (_, __, ___) => _InitialsPlate(initials: initials),
+                errorBuilder: (_, __, ___) =>
+                    _InitialsPlate(initials: initials, onDarkHero: onDarkHero),
               )
-            : _InitialsPlate(initials: initials),
+            : _InitialsPlate(initials: initials, onDarkHero: onDarkHero),
       ),
     );
   }
 }
 
 class _InitialsPlate extends StatelessWidget {
-  const _InitialsPlate({required this.initials});
+  const _InitialsPlate({required this.initials, this.onDarkHero = false});
 
   final String initials;
+  final bool onDarkHero;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kAccent.withValues(alpha: 0.08),
+      color: onDarkHero ? kAccent.withValues(alpha: 0.35) : kAccent.withValues(alpha: 0.08),
       child: Center(
         child: Text(
           initials,
           style: TextStyle(
-            color: kAccent,
+            color: onDarkHero ? Colors.white : kAccent,
             fontWeight: FontWeight.w800,
             fontSize: initials.length > 2 ? 18 : 22,
           ),
@@ -524,52 +611,6 @@ class _RequestorLogoutButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(_kCardRadius),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _RequestorProfileCardSkeleton extends StatelessWidget {
-  const _RequestorProfileCardSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 360;
-
-    return MemberDashboardCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MemberProfileSkeletonBone(
-            height: compact ? 56 : 64,
-            width: compact ? 56 : 64,
-            radius: 999,
-          ),
-          SizedBox(width: compact ? 12 : 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                MemberProfileSkeletonBone(height: compact ? 17 : 18, radius: 6),
-                const SizedBox(height: 8),
-                FractionallySizedBox(
-                  widthFactor: 0.55,
-                  alignment: Alignment.centerLeft,
-                  child: MemberProfileSkeletonBone(height: 12, radius: 4),
-                ),
-                const SizedBox(height: 8),
-                MemberProfileSkeletonBone(height: 12, radius: 4),
-                const SizedBox(height: 12),
-                MemberProfileSkeletonBone(
-                  height: 34,
-                  width: compact ? 108 : 118,
-                  radius: 10,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

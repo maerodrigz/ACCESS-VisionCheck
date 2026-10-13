@@ -230,6 +230,18 @@ class AdminApiService {
     return [];
   }
 
+  Future<Map<String, dynamic>> updateFeedbackAdminReview(
+    int feedbackId, {
+    String? adminResponse,
+    String? reviewStatus,
+  }) async {
+    final body = <String, dynamic>{};
+    if (adminResponse != null) body['admin_response'] = adminResponse;
+    if (reviewStatus != null) body['review_status'] = reviewStatus;
+    final data = await _api.patch('/admin/feedback/$feedbackId', body);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<List<Map<String, dynamic>>> rankings() async {
     final data = await _api.get('/rankings');
     if (data is List) return data.cast<Map<String, dynamic>>();
@@ -282,10 +294,12 @@ class AdminApiService {
   Future<int> sendMemberAnnouncement({
     required String title,
     required String message,
+    String audience = 'both',
   }) async {
     final data = await _api.post('/admin/notifications/broadcast', {
       'title': title,
       'message': message,
+      'audience': audience,
     });
     final msg = (data as Map)['message'] as String? ?? '';
     final match = RegExp(r'(\d+)').firstMatch(msg);

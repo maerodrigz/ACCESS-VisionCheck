@@ -72,20 +72,18 @@ void main() {
   });
 
   group('practice flow widgets', () {
-    testWidgets('EvalResultActionBar shows Back to Practice when already saved', (tester) async {
+    testWidgets('EvalResultActionBar shows Done for practice result', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: EvalResultActionBar(
-              evaluationAlreadySaved: true,
-              onSave: () {},
+              onDone: () {},
               onEvaluateAgain: () {},
             ),
           ),
         ),
       );
       expect(find.text('Back to Practice'), findsOneWidget);
-      expect(find.text('Save Evaluation'), findsNothing);
     });
 
     testWidgets('practice final banner avoids pending-save copy', (tester) async {

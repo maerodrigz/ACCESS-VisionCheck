@@ -181,9 +181,8 @@ export function RequesterFeedbackPage() {
         admin_response: response.trim(),
         review_status: 'reviewed',
       })
-      closeDrawer()
       await load()
-      showMsg('Response saved')
+      showMsg('Response saved and marked reviewed')
     } catch (e) {
       showMsg(e instanceof Error ? e.message : 'Could not save response', 'error')
     }

@@ -1,6 +1,6 @@
 import { AlertTriangle } from 'lucide-react'
 import type { RequesterFeedbackItem } from '../../lib/requesterFeedback'
-import { commentPreview, formatFeedbackDate } from '../../lib/requesterFeedback'
+import { commentPreview, feedbackAdminReviewComplete, formatFeedbackDate } from '../../lib/requesterFeedback'
 import { FeedbackStatusBadge, StarRatingDisplay } from './FeedbackBadges'
 
 interface Props {
@@ -32,6 +32,8 @@ export function FeedbackReviewsTable({ items, onViewDetails, onRespond, onArchiv
           ) : (
             items.map((item) => {
               const isPending = item.reviewStatus === 'pending'
+              const reviewComplete = feedbackAdminReviewComplete(item)
+              const hasResponse = Boolean(item.adminResponse?.trim())
               return (
                 <tr
                   key={item.id}
@@ -57,6 +59,12 @@ export function FeedbackReviewsTable({ items, onViewDetails, onRespond, onArchiv
                     <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-[var(--color-text-muted)]">
                       {commentPreview(item.comment)}
                     </p>
+                    {hasResponse ? (
+                      <p className="mt-2 line-clamp-2 rounded-lg border border-[rgba(34,197,94,0.25)] bg-[rgba(34,197,94,0.08)] px-2 py-1.5 text-[10px] leading-snug text-[var(--color-text-primary)]">
+                        <span className="font-bold text-[var(--color-success)]">Your response: </span>
+                        {item.adminResponse}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3 md:px-4 md:py-3.5">
                     <StarRatingDisplay rating={item.rating} size={14} showValue />
@@ -73,18 +81,28 @@ export function FeedbackReviewsTable({ items, onViewDetails, onRespond, onArchiv
                       >
                         View
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onRespond(item)}
-                        className={[
-                          'rounded-lg px-2 py-1 text-[11px] font-semibold hover:opacity-95',
-                          isPending
-                            ? 'bg-[var(--color-accent-blue)] text-white'
-                            : 'border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]',
-                        ].join(' ')}
-                      >
-                        Respond
-                      </button>
+                      {!reviewComplete ? (
+                        <button
+                          type="button"
+                          onClick={() => onRespond(item)}
+                          className={[
+                            'rounded-lg px-2 py-1 text-[11px] font-semibold hover:opacity-95',
+                            isPending
+                              ? 'bg-[var(--color-accent-blue)] text-white'
+                              : 'border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]',
+                          ].join(' ')}
+                        >
+                          Respond
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onRespond(item)}
+                          className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[11px] font-semibold hover:bg-[var(--color-surface-hover)]"
+                        >
+                          View response
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => onArchive(item)}

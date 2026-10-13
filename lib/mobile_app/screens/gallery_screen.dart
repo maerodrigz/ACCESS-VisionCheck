@@ -575,13 +575,6 @@ class _GalleryMemberHeader extends StatelessWidget {
       letterSpacing: -0.45,
       height: 1.12,
     ));
-    final purposeStyle = memberDashboardMetaStyle.copyWith(
-      fontSize: compact ? 12 : 12,
-      color: kTextSecondary,
-      fontWeight: FontWeight.w500,
-      height: 1.35,
-    );
-
     if (purposeBelowTitle) {
       return ColoredBox(
         color: kBg,
@@ -618,21 +611,7 @@ class _GalleryMemberHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Gallery', style: titleStyle),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: purposeStyle.copyWith(
-                        fontSize: compact ? 12.5 : 13.5,
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
-                ),
+                child: Text('Gallery', style: titleStyle),
               ),
               const SizedBox(width: 6),
               MemberPageNotificationButton(onTap: onNotificationsTap),

@@ -50,10 +50,11 @@ bool _matchesFilter(
       n.category == 'ai_detection' ||
       n.actionType == 'milestone' ||
       n.actionType == 'view_admin_feedback',
-    _MemberNotificationFilter.alerts =>
-      n.category == 'system_alert' ||
-      n.category == 'feedback' ||
-      n.category == 'announcement',
+    _MemberNotificationFilter.alerts => requestor
+        ? n.category == 'system_alert' || n.category == 'announcement'
+        : n.category == 'system_alert' ||
+            n.category == 'feedback' ||
+            n.category == 'announcement',
   };
 }
 

@@ -58,7 +58,7 @@ VITE_API_BASE_URL=http://10.96.22.169:3001/api
 - [x] Analytics (`/analytics`) — overview, participation, rankings, feedback & media tabs
 - [x] Competency Management (`/competency`) — levels, assessment, notes, export
 
-The Flutter web admin (`lib/web_admin/`) remains until each module is ported.
+Web admin is React only (`admin-web/`). Flutter is for the mobile app (`lib/mobile_app/`).
 
 ## Production build
 

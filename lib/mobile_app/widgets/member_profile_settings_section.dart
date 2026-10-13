@@ -90,14 +90,14 @@ class MemberProfileSettingsSection extends StatelessWidget {
             children: [
               _SettingsRow(
                 icon: Icons.description_outlined,
-                title: forRequestor ? 'Terms (Requestors)' : 'Terms (Members)',
+                title: AccessLegalDocument.terms.title,
                 description: 'Platform rules and acceptable use',
                 onTap: () => _openLegal(context, AccessLegalDocument.terms),
               ),
               const Divider(height: 1, indent: 56),
               _SettingsRow(
                 icon: Icons.privacy_tip_outlined,
-                title: forRequestor ? 'Privacy (Requestors)' : 'Privacy (Members)',
+                title: AccessLegalDocument.privacy.title,
                 description: 'How your data and media are handled',
                 onTap: () => _openLegal(context, AccessLegalDocument.privacy),
               ),

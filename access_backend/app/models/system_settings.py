@@ -47,6 +47,8 @@ class SystemSettings(Base):
 
     notify_new_documentation_request: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     notify_request_approved: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_request_completed: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_request_gallery_uploads: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     notify_request_rejected: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     notify_new_documentation_assignment: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     notify_evaluation_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

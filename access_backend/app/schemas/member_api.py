@@ -178,6 +178,8 @@ class FeedbackOut(BaseModel):
     rating: int
     comment: str | None
     created_at: datetime
+    admin_response: str | None = None
+    review_status: str = "pending"
 
     model_config = {"from_attributes": True}
 
@@ -248,7 +250,7 @@ class ParticipationOut(BaseModel):
     evaluations_today: int = 0
     daily_evaluation_limit: int = 5
     evaluation_max_upload_mb: int = 350
-    evaluation_max_video_seconds: int = 60
+    evaluation_max_video_seconds: int = 30
     evaluation_daily_timezone: str = "Asia/Manila"
     average_score: float
     total_points: int

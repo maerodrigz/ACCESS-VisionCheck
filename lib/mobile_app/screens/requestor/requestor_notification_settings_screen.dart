@@ -188,7 +188,7 @@ class _RequestorNotificationSettingsScreenState extends State<RequestorNotificat
                           icon: Icons.description_outlined,
                           title: 'Request status updates',
                           description:
-                              'When admins approve, reject, or mark your documentation requests complete',
+                              'Request and coverage updates, when admins publish photos to your event gallery, and when requests are approved, rejected, or completed',
                           value: _requestUpdates,
                           enabled: !_saving,
                           onChanged: (v) => _updatePreference(requestUpdates: v),
@@ -197,7 +197,8 @@ class _RequestorNotificationSettingsScreenState extends State<RequestorNotificat
                         _PreferenceSwitch(
                           icon: Icons.campaign_outlined,
                           title: 'System announcements',
-                          description: 'Platform notices and admin broadcasts for requestors',
+                          description:
+                              'Platform notices and admin broadcasts (when sent to requestors)',
                           value: _systemAnnouncements,
                           enabled: !_saving,
                           onChanged: (v) => _updatePreference(systemAnnouncements: v),

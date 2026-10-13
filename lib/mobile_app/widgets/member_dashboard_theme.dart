@@ -64,6 +64,9 @@ const kMemberDashboardCardPadding = 20.0;
 const kMemberDarkHeroBottomRadius = 28.0;
 const kMemberDarkHeroMiniBottomRadius = 20.0;
 
+/// Member profile pinned hero: slight bottom curve (tighter than mini-hero 20px).
+const kMemberProfileHeroBottomRadius = 8.0;
+
 const kMemberDarkHeroGradient = LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
@@ -73,6 +76,17 @@ const kMemberDarkHeroGradient = LinearGradient(
     Color(0xFF0F2744),
   ],
   stops: [0.0, 0.55, 1.0],
+);
+
+/// Cyan → indigo → purple (ACCESS logo palette). Home featured event card, profile stats.
+const kMemberBrandAccentGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    kCyan,
+    Color(0xFF6366F1),
+    kDashStatPurpleIcon,
+  ],
 );
 
 const Duration kMemberDashboardAnimDuration = Duration(milliseconds: 500);

@@ -2,12 +2,15 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "ACCESS — Web Admin (Chrome)",
+      "name": "ACCESS — Mobile App (Chrome preview)",
       "request": "launch",
       "type": "dart",
-      "program": "lib/web_admin/main_web.dart",
+      "program": "lib/mobile_app/main_mobile.dart",
       "deviceId": "chrome",
-      "toolArgs": ["--dart-define-from-file=config/api.json"]
+      "toolArgs": [
+        "--dart-define-from-file=config/api.json",
+        "--dart-define-from-file=config/firebase.json"
+      ]
     },
     {
       "name": "ACCESS — Mobile App",

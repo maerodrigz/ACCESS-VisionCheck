@@ -20,6 +20,11 @@ export interface FeedbackOverviewStats {
   pendingReview: number
 }
 
+export function feedbackAdminReviewComplete(item: RequesterFeedbackItem): boolean {
+  const hasResponse = Boolean(item.adminResponse?.trim())
+  return item.reviewStatus === 'reviewed' || item.reviewStatus === 'archived' || hasResponse
+}
+
 export interface RequesterFeedbackItem {
   id: number
   requestId: number

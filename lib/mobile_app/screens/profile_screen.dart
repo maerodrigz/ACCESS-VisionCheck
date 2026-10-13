@@ -16,7 +16,8 @@ import 'package:access_mobile/mobile_app/widgets/member_profile_skeleton.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_achievements.dart';
 
 const _kSectionGap = 20.0;
-
+/// Thin strip between pinned profile hero and stats card (scroll area only).
+const _kProfileStatsCardTopGap = 6.0;
 // ─────────────────────────────────────────────────────────────────────────────
 // Profile screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,105 +118,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
             !profileLoadFailed &&
             (memberDataController.isLoading || !memberDataController.profileLoadAttempted);
 
+        Widget fixedHeader;
+        if (profileLoading) {
+          fixedHeader = const MemberProfileHeroSkeleton();
+        } else if (profileLoadFailed) {
+          fixedHeader = _ProfileHeaderShell(
+            compact: compact,
+            onNotificationsTap: widget.onNotificationsTap,
+          );
+        } else {
+          fixedHeader = _ProfileHeader(
+            onEdit: _openEditProfile,
+            compact: compact,
+            onNotificationsTap: widget.onNotificationsTap,
+          );
+        }
+
         return Scaffold(
           backgroundColor: kBg,
-          body: RefreshIndicator(
-            color: kAccent,
-            onRefresh: () => memberDataController.refreshAll(),
-            child: CustomScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              slivers: [
-                // ── Profile header ─────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: profileLoading
-                      ? const MemberProfileHeroSkeleton()
-                      : profileLoadFailed
-                          ? Padding(
-                              padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 0),
-                              child: MemberProfileLoadError(
-                                onRetry: memberDataController.refreshProfile,
-                              ),
-                            )
-                          : _ProfileHeader(
-                              onEdit: _openEditProfile,
-                              compact: compact,
-                              onNotificationsTap: widget.onNotificationsTap,
-                            ),
-                ),
-
-                if (profileLoading)
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(pagePadding, 16, pagePadding, 0),
-                    sliver: SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: const [
-                          MemberProfileAchievementsSkeleton(),
-                        ],
-                      ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              fixedHeader,
+              Expanded(
+                child: RefreshIndicator(
+                  color: kAccent,
+                  onRefresh: () => memberDataController.refreshAll(),
+                  child: ListView(
+                    controller: _scrollController,
+                    padding: EdgeInsets.zero,
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-                  )
-                else if (!profileLoadFailed)
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(pagePadding, 16, pagePadding, 0),
-                    sliver: SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Performance summary (4 compact stats)
-                          _PerformanceSummaryCard(compact: compact),
-                          const SizedBox(height: _kSectionGap),
-
-                          // Achievements (badges strip + View All)
-                          _ProfileAchievementsSection(
-                            onViewRankings: widget.onViewRankings,
-                            onViewEvaluations: widget.onViewEvaluations,
-                          ),
-                          const SizedBox(height: _kSectionGap),
-
-                          // Requester feedback
-                          KeyedSubtree(
-                            key: _requestorFeedbackSectionKey,
-                            child: const _ProfileFeedbackSection(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // ── Settings + legal + logout ──────────────────────────
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    pagePadding,
-                    _kSectionGap,
-                    pagePadding,
-                    kMemberDashboardPagePadding,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const MemberProfileSettingsSection(),
-                        const MemberProfileLogoutSection(),
+                    children: [
+                      if (profileLoadFailed)
                         Padding(
-                          padding: const EdgeInsets.only(top: 10, bottom: 4),
-                          child: Center(
-                            child: Text(
-                              '${brandingController.appName} · ${brandingController.organization}',
-                              textAlign: TextAlign.center,
-                              style: memberDashboardMetaStyle.copyWith(fontSize: 10),
-                            ),
+                          padding: EdgeInsets.fromLTRB(pagePadding, 16, pagePadding, 0),
+                          child: MemberProfileLoadError(
+                            onRetry: memberDataController.refreshProfile,
+                          ),
+                        )
+                      else if (profileLoading)
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            pagePadding,
+                            _kProfileStatsCardTopGap,
+                            pagePadding,
+                            0,
+                          ),
+                          child: const MemberProfileAchievementsSkeleton(),
+                        )
+                      else
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            pagePadding,
+                            _kProfileStatsCardTopGap,
+                            pagePadding,
+                            0,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _PerformanceSummaryCard(compact: compact),
+                              const SizedBox(height: _kSectionGap),
+                              _ProfileAchievementsSection(
+                                onViewRankings: widget.onViewRankings,
+                                onViewEvaluations: widget.onViewEvaluations,
+                              ),
+                              const SizedBox(height: _kSectionGap),
+                              KeyedSubtree(
+                                key: _requestorFeedbackSectionKey,
+                                child: const _ProfileFeedbackSection(),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          pagePadding,
+                          _kSectionGap,
+                          pagePadding,
+                          kMemberDashboardPagePadding,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (!profileLoading) ...[
+                              const MemberProfileSettingsSection(),
+                              const MemberProfileLogoutSection(),
+                            ],
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10, bottom: 4),
+                              child: Center(
+                                child: Text(
+                                  '${brandingController.appName} · ${brandingController.organization}',
+                                  textAlign: TextAlign.center,
+                                  style: memberDashboardMetaStyle.copyWith(fontSize: 10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -224,10 +233,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Profile header — compact light theme, replaces the dark gradient hero
+// Profile header — dark hero (matches home dashboard + profile skeleton).
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Top bar only when profile body failed to load (header stays pinned).
+class _ProfileHeaderShell extends StatelessWidget {
+  const _ProfileHeaderShell({
+    required this.compact,
+    this.onNotificationsTap,
+  });
+
+  final bool compact;
+  final VoidCallback? onNotificationsTap;
+
+  static const _onDarkSecondary = Color(0xFF94A3B8);
+
+  @override
+  Widget build(BuildContext context) {
+    final padding = mobilePagePaddingOf(context);
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: kMemberDarkHeroGradient,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(kMemberProfileHeroBottomRadius),
+          bottomRight: Radius.circular(kMemberProfileHeroBottomRadius),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(compact ? 6 : 8, 4, padding - 4, 14),
+          child: Row(
+            children: [
+              if (Navigator.canPop(context))
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  color: _onDarkSecondary,
+                  iconSize: 22,
+                  style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+                ),
+              Expanded(
+                child: Text(
+                  'Profile',
+                  style: dashText(const TextStyle(
+                    color: _onDarkSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  )),
+                ),
+              ),
+              MemberDarkHeroNotificationButton(
+                onTap: onNotificationsTap,
+                compact: compact,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ProfileHeader extends StatelessWidget {
+  static const _onDarkPrimary = Color(0xFFF8FAFC);
+  static const _onDarkSecondary = Color(0xFF94A3B8);
+  static const _heroBg = Color(0xFF0A1628);
   const _ProfileHeader({
     required this.onEdit,
     required this.compact,
@@ -275,9 +347,12 @@ class _ProfileHeader extends StatelessWidget {
     final imageUrl = appState.profileImageUrl;
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: kSurface,
-        border: Border(bottom: BorderSide(color: kBorder.withValues(alpha: 0.7))),
+      decoration: const BoxDecoration(
+        gradient: kMemberDarkHeroGradient,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(kMemberProfileHeroBottomRadius),
+          bottomRight: Radius.circular(kMemberProfileHeroBottomRadius),
+        ),
       ),
       child: SafeArea(
         bottom: false,
@@ -293,7 +368,7 @@ class _ProfileHeader extends StatelessWidget {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back_rounded),
-                      color: kTextSecondary,
+                      color: _onDarkSecondary,
                       iconSize: 22,
                       style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
                     ),
@@ -301,13 +376,16 @@ class _ProfileHeader extends StatelessWidget {
                     child: Text(
                       'Profile',
                       style: dashText(const TextStyle(
-                        color: kTextSecondary,
+                        color: _onDarkSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       )),
                     ),
                   ),
-                  MemberPageNotificationButton(onTap: onNotificationsTap),
+                  MemberDarkHeroNotificationButton(
+                    onTap: onNotificationsTap,
+                    compact: compact,
+                  ),
                 ],
               ),
             ),
@@ -323,6 +401,7 @@ class _ProfileHeader extends StatelessWidget {
                     rank: rank,
                     imageUrl: imageUrl,
                     compact: compact,
+                    onDarkHero: true,
                   ),
                   SizedBox(width: compact ? 12 : 14),
                   // Identity text
@@ -336,7 +415,7 @@ class _ProfileHeader extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: dashText(TextStyle(
-                              color: kTextPrimary,
+                              color: _onDarkPrimary,
                               fontSize: compact ? 18 : 20,
                               fontWeight: FontWeight.w800,
                               height: 1.15,
@@ -346,7 +425,7 @@ class _ProfileHeader extends StatelessWidget {
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            const Icon(Icons.badge_outlined, size: 13, color: kAccent),
+                            const Icon(Icons.badge_outlined, size: 13, color: kCyan),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -354,7 +433,7 @@ class _ProfileHeader extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: dashText(const TextStyle(
-                                  color: kAccent,
+                                  color: kCyan,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 )),
@@ -368,7 +447,7 @@ class _ProfileHeader extends StatelessWidget {
                             const Icon(
                               Icons.workspace_premium_outlined,
                               size: 13,
-                              color: kTextSecondary,
+                              color: _onDarkSecondary,
                             ),
                             const SizedBox(width: 4),
                             Flexible(
@@ -377,7 +456,7 @@ class _ProfileHeader extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: dashText(const TextStyle(
-                                  color: kTextSecondary,
+                                  color: _onDarkSecondary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 )),
@@ -392,7 +471,7 @@ class _ProfileHeader extends StatelessWidget {
                               const Icon(
                                 Icons.email_outlined,
                                 size: 13,
-                                color: kTextSecondary,
+                                color: _onDarkSecondary,
                               ),
                               const SizedBox(width: 4),
                               Flexible(
@@ -401,7 +480,7 @@ class _ProfileHeader extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: dashText(const TextStyle(
-                                    color: kTextSecondary,
+                                    color: _onDarkSecondary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w400,
                                   )),
@@ -456,7 +535,7 @@ class _ProfileHeader extends StatelessWidget {
                             const Spacer(),
                             // Edit profile button
                             Material(
-                              color: kAccent.withValues(alpha: 0.08),
+                              color: Colors.white.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                               child: InkWell(
                                 onTap: onEdit,
@@ -472,13 +551,13 @@ class _ProfileHeader extends StatelessWidget {
                                       Icon(
                                         Icons.edit_outlined,
                                         size: compact ? 14 : 15,
-                                        color: kAccent,
+                                        color: _onDarkPrimary,
                                       ),
                                       const SizedBox(width: 5),
                                       Text(
                                         'Edit Profile',
                                         style: dashText(const TextStyle(
-                                          color: kAccent,
+                                          color: _onDarkPrimary,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
                                         )),
@@ -508,11 +587,13 @@ class _ProfileAvatar extends StatelessWidget {
     required this.rank,
     required this.compact,
     this.imageUrl,
+    this.onDarkHero = false,
   });
 
   final int rank;
   final bool compact;
   final String? imageUrl;
+  final bool onDarkHero;
 
   @override
   Widget build(BuildContext context) {
@@ -527,20 +608,24 @@ class _ProfileAvatar extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: kAccent.withValues(alpha: 0.3),
+              color: onDarkHero
+                  ? kCyan.withValues(alpha: 0.45)
+                  : kAccent.withValues(alpha: 0.3),
               width: 2,
             ),
           ),
           child: CircleAvatar(
             radius: radius,
-            backgroundColor: kAccent.withValues(alpha: 0.12),
+            backgroundColor: onDarkHero
+                ? kAccent.withValues(alpha: 0.35)
+                : kAccent.withValues(alpha: 0.12),
             backgroundImage:
                 imageUrl != null && imageUrl!.isNotEmpty ? NetworkImage(imageUrl!) : null,
             child: imageUrl == null || imageUrl!.isEmpty
                 ? Text(
                     initials.isNotEmpty && initials != '?' ? initials : '?',
                     style: dashText(TextStyle(
-                      color: kAccent,
+                      color: onDarkHero ? Colors.white : kAccent,
                       fontSize: radius * 0.44,
                       fontWeight: FontWeight.w800,
                     )),
@@ -557,7 +642,10 @@ class _ProfileAvatar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: kAccent,
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: kSurface, width: 1.5),
+                border: Border.all(
+                  color: onDarkHero ? _ProfileHeader._heroBg : kSurface,
+                  width: 1.5,
+                ),
               ),
               child: Text(
                 '#$rank',
@@ -623,17 +711,18 @@ class _PerformanceSummaryCard extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: kSurface,
+            gradient: kMemberBrandAccentGradient,
             borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-            border: Border.all(color: kBorder),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: Color(0x3300C4E8),
+                blurRadius: 10,
+                spreadRadius: -2,
+                offset: Offset(0, 8),
               ),
             ],
           ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -647,7 +736,7 @@ class _PerformanceSummaryCard extends StatelessWidget {
                         Container(
                           width: 1,
                           height: 36,
-                          color: kBorder,
+                          color: Colors.white.withValues(alpha: 0.22),
                         ),
                       Expanded(
                         child: _StatTile(
@@ -655,6 +744,7 @@ class _PerformanceSummaryCard extends StatelessWidget {
                           label: stats[i].$2,
                           icon: stats[i].$3,
                           compact: compact,
+                          onBrandGradient: true,
                         ),
                       ),
                     ],
@@ -665,14 +755,14 @@ class _PerformanceSummaryCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                 child: snapshot.isMaxLevel
-                    ? _MaxLevelBadge()
+                    ? const _MaxLevelBadge(onBrandGradient: true)
                     : snapshot.progressUsesSkillScore
-                        ? _XpProgressRow(snapshot: snapshot)
+                        ? _XpProgressRow(snapshot: snapshot, onBrandGradient: true)
                         : Text(
                             snapshot.progressSubtitle,
                             textAlign: TextAlign.center,
-                            style: dashText(const TextStyle(
-                              color: kTextSecondary,
+                            style: dashText(TextStyle(
+                              color: Colors.white.withValues(alpha: 0.78),
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                             )),
@@ -692,24 +782,32 @@ class _StatTile extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.compact,
+    this.onBrandGradient = false,
   });
 
   final String value;
   final String label;
   final IconData icon;
   final bool compact;
+  final bool onBrandGradient;
 
   @override
   Widget build(BuildContext context) {
+    final iconColor =
+        onBrandGradient ? Colors.white.withValues(alpha: 0.88) : kAccent.withValues(alpha: 0.7);
+    final valueColor = onBrandGradient ? Colors.white : kTextPrimary;
+    final labelColor =
+        onBrandGradient ? Colors.white.withValues(alpha: 0.78) : kTextSecondary;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: kAccent.withValues(alpha: 0.7)),
+        Icon(icon, size: 16, color: iconColor),
         const SizedBox(height: 4),
         Text(
           value,
           style: dashText(TextStyle(
-            color: kTextPrimary,
+            color: valueColor,
             fontSize: compact ? 14 : 16,
             fontWeight: FontWeight.w800,
             height: 1,
@@ -719,7 +817,7 @@ class _StatTile extends StatelessWidget {
         Text(
           label,
           style: dashText(TextStyle(
-            color: kTextSecondary,
+            color: labelColor,
             fontSize: compact ? 9 : 10,
             fontWeight: FontWeight.w500,
           )),
@@ -730,12 +828,21 @@ class _StatTile extends StatelessWidget {
 }
 
 class _XpProgressRow extends StatelessWidget {
-  const _XpProgressRow({required this.snapshot});
+  const _XpProgressRow({
+    required this.snapshot,
+    this.onBrandGradient = false,
+  });
 
   final MemberCompetencySnapshot snapshot;
+  final bool onBrandGradient;
 
   @override
   Widget build(BuildContext context) {
+    final trackColor =
+        onBrandGradient ? Colors.white.withValues(alpha: 0.22) : kBorder;
+    final subtitleColor =
+        onBrandGradient ? Colors.white.withValues(alpha: 0.78) : kTextSecondary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -750,14 +857,16 @@ class _XpProgressRow extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ColoredBox(color: kBorder),
+                  ColoredBox(color: trackColor),
                   FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: v,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [kCyan, kAccent],
+                          colors: onBrandGradient
+                              ? [Colors.white, Colors.white.withValues(alpha: 0.85)]
+                              : [kCyan, kAccent],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
@@ -772,8 +881,8 @@ class _XpProgressRow extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           snapshot.progressSubtitle,
-          style: dashText(const TextStyle(
-            color: kTextSecondary,
+          style: dashText(TextStyle(
+            color: subtitleColor,
             fontSize: 11,
             fontWeight: FontWeight.w500,
           )),
@@ -784,24 +893,38 @@ class _XpProgressRow extends StatelessWidget {
 }
 
 class _MaxLevelBadge extends StatelessWidget {
+  const _MaxLevelBadge({this.onBrandGradient = false});
+
+  final bool onBrandGradient;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: kAccent.withValues(alpha: 0.07),
+        color: onBrandGradient
+            ? Colors.white.withValues(alpha: 0.14)
+            : kAccent.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: kAccent.withValues(alpha: 0.18)),
+        border: Border.all(
+          color: onBrandGradient
+              ? Colors.white.withValues(alpha: 0.28)
+              : kAccent.withValues(alpha: 0.18),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.workspace_premium_rounded, size: 15, color: kAccent),
+          Icon(
+            Icons.workspace_premium_rounded,
+            size: 15,
+            color: onBrandGradient ? Colors.white : kAccent,
+          ),
           const SizedBox(width: 6),
           Text(
             'Highest competency level reached',
-            style: dashText(const TextStyle(
-              color: kAccent,
+            style: dashText(TextStyle(
+              color: onBrandGradient ? Colors.white : kAccent,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             )),

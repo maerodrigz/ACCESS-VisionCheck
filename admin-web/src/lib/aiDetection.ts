@@ -40,7 +40,10 @@ export function parseReviewStatus(raw?: string | null): ReviewStatus {
   const n = raw.toLowerCase()
   if (n.includes('automated_low') || n === 'automated_low_ai_risk') return 'automated_low_ai_risk'
   if (n.includes('verified_human') || n === 'verified human') return 'verified_human'
-  if (n.includes('confirmed_ai') || n.includes('verified_ai')) return 'confirmed_ai_generated'
+  if (n === 'verified_ai_generated' || n.includes('verified_ai_generated')) {
+    return 'verified_ai_generated'
+  }
+  if (n.includes('confirmed_ai')) return 'confirmed_ai_generated'
   if (n.includes('accepted') && n.includes('warning')) return 'accepted_with_warning'
   if (n.includes('reupload')) return 'reupload_requested'
   if (n.includes('reject')) return 'rejected'
@@ -54,6 +57,7 @@ export function reviewStatusLabel(s: ReviewStatus): string {
   const labels: Record<ReviewStatus, string> = {
     pending_review: 'Pending Review',
     verified_human: 'Verified Human',
+    verified_ai_generated: 'Verified AI-Generated',
     confirmed_ai_generated: 'Confirmed AI-Generated',
     needs_further_review: 'Suspicious / Needs Further Review',
     accepted_with_warning: 'Accepted with Warning',

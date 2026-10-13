@@ -1,2 +1,2 @@
-// Web admin entry — delegates to web_admin/main_web.dart
-export 'web_admin/main_web.dart';
+// Legacy target — same as mobile entry. Admin UI is React (`admin-web/`).
+export 'mobile_app/main_mobile.dart';

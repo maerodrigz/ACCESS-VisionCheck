@@ -171,6 +171,7 @@ Future<void> _openAnnouncementFromNotification(
   BuildContext context,
   AppNotification notification,
 ) async {
+  final isRequestor = authController.user?.role == AccessRole.organization;
   await memberDataController.ensureAnnouncementsForNavigation();
   if (!context.mounted) return;
 
@@ -183,6 +184,17 @@ Future<void> _openAnnouncementFromNotification(
       categoryLabel: 'Announcement',
       icon: Icons.campaign_outlined,
       timeLabel: item.date,
+    );
+    return;
+  }
+
+  if (isRequestor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Announcement details are not available yet. Pull to refresh on Home.',
+        ),
+      ),
     );
     return;
   }
@@ -202,7 +214,10 @@ Future<void> _openAnnouncementFromNotification(
 
 String? _fallbackAction(AppNotification n) {
   final isRequestor = authController.user?.role == AccessRole.organization;
-  if (isRequestor && n.category == 'documentation_request') return 'view_request';
+  if (isRequestor && n.category == 'documentation_request') {
+    if (n.actionType == 'view_gallery') return 'view_gallery';
+    return 'view_request';
+  }
   if (!isRequestor && n.category == 'task_assignment') return 'view_task';
   if (!isRequestor && n.category == 'ai_detection') return 'review_media';
   if (!isRequestor && n.category == 'media_evaluation') {

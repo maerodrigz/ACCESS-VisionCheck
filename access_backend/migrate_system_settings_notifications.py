@@ -13,6 +13,8 @@ from app.database import engine
 NEW_COLUMNS = [
     "notify_new_documentation_request",
     "notify_request_approved",
+    "notify_request_completed",
+    "notify_request_gallery_uploads",
     "notify_request_rejected",
     "notify_new_documentation_assignment",
     "notify_evaluation_completed",

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_member
+from app.api.deps import require_member_or_organization
 from app.crud import announcement as announcement_crud
 from app.database import get_db
 from app.models.user import User
@@ -24,7 +24,7 @@ def _out(row) -> AnnouncementOut:
 @router.get("", response_model=list[AnnouncementOut])
 def list_announcements(
     db: Session = Depends(get_db),
-    _: User = Depends(require_member),
+    _: User = Depends(require_member_or_organization),
 ):
     rows = announcement_crud.list_all(db, limit=50)
     return [_out(r) for r in rows]

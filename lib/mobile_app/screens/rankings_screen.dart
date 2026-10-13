@@ -344,6 +344,10 @@ class _RankingsPageHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MyRankingCard extends StatelessWidget {
+  static const _cardBg = Color(0xFF0A1628);
+  static const _onDarkPrimary = Color(0xFFF8FAFC);
+  static const _onDarkSecondary = Color(0xFF94A3B8);
+
   const _MyRankingCard({
     required this.rank,
     required this.name,
@@ -399,14 +403,14 @@ class _MyRankingCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: kSurface,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: kAccent.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+            color: kCyan.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -438,7 +442,7 @@ class _MyRankingCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: kTextPrimary,
+                        color: _onDarkPrimary,
                         fontSize: compact ? 15 : 16,
                         fontWeight: FontWeight.w800,
                         height: 1.2,
@@ -451,7 +455,7 @@ class _MyRankingCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: kAccent,
+                        color: kCyan,
                         fontSize: compact ? 11 : 12,
                         fontWeight: FontWeight.w700,
                         height: 1.2,
@@ -465,7 +469,7 @@ class _MyRankingCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: kTextSecondary,
+                          color: _onDarkSecondary,
                           fontSize: compact ? 10 : 11,
                           fontWeight: FontWeight.w600,
                           height: 1.2,
@@ -483,7 +487,7 @@ class _MyRankingCard extends StatelessWidget {
                   Text(
                     '#$rank',
                     style: TextStyle(
-                      color: kTextPrimary,
+                      color: _onDarkPrimary,
                       fontSize: compact ? 24 : 26,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
@@ -493,7 +497,7 @@ class _MyRankingCard extends StatelessWidget {
                   Text(
                     'rank',
                     style: TextStyle(
-                      color: kTextSecondary,
+                      color: _onDarkSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
                       height: 1.2,
@@ -512,8 +516,8 @@ class _MyRankingCard extends StatelessWidget {
                   label: monthlyPeriod
                       ? '${_fmtXp(periodXp)} XP this month'
                       : '${_fmtXp(totalXp)} XP all time',
-                  color: monthlyPeriod ? kCyan : kAccent,
-                  bgColor: (monthlyPeriod ? kCyan : kAccent).withValues(alpha: 0.08),
+                  color: monthlyPeriod ? kCyan : _onDarkPrimary,
+                  bgColor: Colors.white.withValues(alpha: 0.1),
                 ),
               ),
               if (!monthlyPeriod && periodXp > 0 && periodXp != totalXp) ...[
@@ -523,7 +527,7 @@ class _MyRankingCard extends StatelessWidget {
                     icon: Icons.calendar_today_rounded,
                     label: '${_fmtXp(periodXp)} XP this month',
                     color: kCyan,
-                    bgColor: kCyan.withValues(alpha: 0.08),
+                    bgColor: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
               ] else if (monthlyPeriod && totalXp != periodXp) ...[
@@ -532,8 +536,8 @@ class _MyRankingCard extends StatelessWidget {
                   child: _XpPill(
                     icon: Icons.bolt_rounded,
                     label: '${_fmtXp(totalXp)} XP all time',
-                    color: kAccent,
-                    bgColor: kAccent.withValues(alpha: 0.08),
+                    color: _onDarkPrimary,
+                    bgColor: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
               ],
@@ -548,14 +552,14 @@ class _MyRankingCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    ColoredBox(color: kBorder),
+                    ColoredBox(color: Colors.white.withValues(alpha: 0.22)),
                     FractionallySizedBox(
                       alignment: Alignment.centerLeft,
                       widthFactor: progress.clamp(0.0, 1.0),
-                      child: DecoratedBox(
+                      child: const DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [kCyan, kAccent],
+                            colors: [kCyan, Color(0xFF0052D4)],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ),
@@ -573,7 +577,7 @@ class _MyRankingCard extends StatelessWidget {
                 return Text(
                   subtitle,
                   style: TextStyle(
-                    color: isMaxLevel ? kAccent : kTextSecondary,
+                    color: isMaxLevel ? kCyan : _onDarkSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),

@@ -204,6 +204,14 @@ def assign_member_to_request(
         row.title,
         body.task_role.strip().lower(),
     )
+    notify_events.notify_requestor_coverage_assigned(
+        db,
+        row.requestor_id,
+        row.id,
+        row.title,
+        member.fullname or member.email,
+        body.task_role.strip().lower(),
+    )
     return {
         "message": "Member assigned successfully. Awaiting member acceptance.",
         "assignment_id": assignment.id,
@@ -325,6 +333,14 @@ def assign_documentation_team(
             member_id,
             assignment.id,
             row.title,
+            role,
+        )
+        notify_events.notify_requestor_coverage_assigned(
+            db,
+            row.requestor_id,
+            row.id,
+            row.title,
+            member.fullname or member.email,
             role,
         )
         created.append(

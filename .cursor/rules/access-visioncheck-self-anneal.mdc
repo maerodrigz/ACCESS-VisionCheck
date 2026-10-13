@@ -49,11 +49,11 @@ When adding a new screen that calls the API, add the row to this table and imple
 - Map legacy Flutter field names in API responses when needed (`user_id` → `id`, `name` → `fullname`, `Pending` vs `pending`).
 - Run `python create_tables.py` only when schema changes; use `RECREATE_DB=true` only in dev.
 
-## 4. Web admin white screen after login
+## 4. Web admin is React only (not Flutter)
 
-**Mistake:** `adminBuilder: (_) => const SizedBox.shrink()` in `lib/mobile_app/controllers/app.dart` → admin login succeeded but UI was empty.
+**Mistake:** Duplicate Flutter admin under `lib/web_admin/` drifted from React `admin-web/` and confused which UI was canonical.
 
-**Rule:** On `kIsWeb`, admin must use `WebAdminShell`. Root `lib/main.dart` should route web → `web_admin/main_web.dart`.
+**Rule:** Web admin = React (`admin-web/`, Vite). Flutter = mobile only (`lib/mobile_app/`). Root `lib/main.dart` always calls `mobile.main()`. If an admin opens Flutter web, `AdminReactWebRedirect` points them to React. Do not reintroduce `lib/web_admin/`.
 
 ## 5. Network / CORS / API host
 

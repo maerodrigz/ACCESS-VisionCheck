@@ -219,6 +219,9 @@ def create_service_request(
             notify_events.notify_documentation_request_submitted(
                 db, row.id, row.title, requestor_name
             )
+            notify_events.notify_requestor_request_submitted(
+                db, current_user.id, row.id, row.title
+            )
         except Exception:
             logger.exception(
                 "Admin notification failed for documentation request %s", row.id
@@ -341,6 +344,13 @@ def reschedule_service_request(
             requestor_name,
             event_date=body.event_date.isoformat(),
             previous_status=previous_status,
+        )
+        notify_events.notify_requestor_reschedule_pending(
+            db,
+            row.requestor_id,
+            row.id,
+            row.title,
+            body.event_date.isoformat(),
         )
     except Exception:
         logger.exception("Admin notification failed for rescheduled request %s", row.id)

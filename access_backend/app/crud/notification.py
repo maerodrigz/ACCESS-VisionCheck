@@ -248,36 +248,20 @@ def broadcast(
     action_ref_id: int | None = None,
 ) -> int:
     sent = 0
-    push_targets: list[int] = []
     for uid in user_ids:
         if not member_pref_crud.allows_category(db, uid, category):
             continue
-        db.add(
-            Notification(
-                user_id=uid,
-                title=title,
-                message=message,
-                category=category,
-                priority=priority,
-                action_type=action_type,
-                action_ref_id=action_ref_id,
-            )
+        create(
+            db,
+            uid,
+            title,
+            message,
+            category=category,
+            priority=priority,
+            action_type=action_type,
+            action_ref_id=action_ref_id,
         )
-        push_targets.append(uid)
         sent += 1
-    db.commit()
-    if push_targets:
-        from app.services.fcm_push import send_to_user_async
-
-        for uid in push_targets:
-            send_to_user_async(
-                uid,
-                title,
-                message,
-                category=category,
-                action_type=action_type,
-                action_ref_id=action_ref_id,
-            )
     return sent
 
 

@@ -11,6 +11,7 @@ const aiColors: Record<AiResultLabel, string> = {
 const reviewColors: Record<ReviewStatus, string> = {
   pending_review: 'var(--color-text-secondary)',
   verified_human: 'var(--color-success)',
+  verified_ai_generated: 'var(--color-danger)',
   confirmed_ai_generated: 'var(--color-danger)',
   needs_further_review: 'var(--color-warning)',
   accepted_with_warning: 'var(--color-warning)',

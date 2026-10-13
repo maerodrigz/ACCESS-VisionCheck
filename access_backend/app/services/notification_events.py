@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -138,7 +140,7 @@ def notify_documentation_request_status(
         notif_title = "Request rejected"
         priority = "high"
     elif st == "completed":
-        if not settings_crud.is_notification_enabled(db, "notify_request_approved"):
+        if not settings_crud.is_notification_enabled(db, "notify_request_completed"):
             return
         msg = (
             f'Documentation for "{title}" has been completed. '
@@ -184,9 +186,20 @@ def notify_assignment_accepted(
     member_name: str,
     event_title: str,
     role: str,
+    *,
+    requestor_id: int | None = None,
+    request_id: int | None = None,
 ) -> None:
-    """Member acceptance is visible in documentation team UI; no admin inbox ping."""
-    return
+    """No admin inbox ping; requestor is notified that coverage was confirmed."""
+    if requestor_id is not None and request_id is not None:
+        notify_requestor_coverage_accepted(
+            db,
+            requestor_id,
+            request_id,
+            event_title,
+            member_name,
+            role,
+        )
 
 
 def notify_assignment_declined(
@@ -196,6 +209,9 @@ def notify_assignment_declined(
     event_title: str,
     role: str,
     reason: str,
+    *,
+    requestor_id: int | None = None,
+    request_id: int | None = None,
 ) -> None:
     notify_admins(
         db,
@@ -209,6 +225,16 @@ def notify_assignment_declined(
         action_type="view_task",
         action_ref_id=assignment_id,
     )
+    if requestor_id is not None and request_id is not None:
+        notify_requestor_coverage_declined(
+            db,
+            requestor_id,
+            request_id,
+            event_title,
+            member_name,
+            role,
+            reason,
+        )
 
 
 def notify_assignment_completed(
@@ -243,25 +269,217 @@ def notify_assignment_completed(
     )
 
 
-def notify_requestor_documentation_completed(
+def notify_requestor_request_submitted(
     db: Session,
     requestor_id: int,
     request_id: int,
-    event_title: str,
+    title: str,
 ) -> None:
-    if not settings_crud.is_notification_enabled(db, "notify_request_approved"):
+    if not settings_crud.is_notification_enabled(db, "notify_new_documentation_request"):
         return
     notify_user(
         db,
         requestor_id,
-        title="Documentation completed",
+        title="Request submitted",
         message=(
-            f'Documentation for "{event_title}" has been completed. '
-            "Open your request to review details or leave feedback."
+            f'Your documentation request "{title}" was received and is pending admin review.'
         ),
         category="documentation_request",
         priority="normal",
         action_type="view_request",
+        action_ref_id=request_id,
+    )
+
+
+def notify_requestor_reschedule_pending(
+    db: Session,
+    requestor_id: int,
+    request_id: int,
+    title: str,
+    event_date: str,
+) -> None:
+    if not settings_crud.is_notification_enabled(db, "notify_new_documentation_request"):
+        return
+    notify_user(
+        db,
+        requestor_id,
+        title="Schedule updated",
+        message=(
+            f'"{title}" was moved to {event_date} and is pending admin review again.'
+        ),
+        category="documentation_request",
+        priority="high",
+        action_type="view_request",
+        action_ref_id=request_id,
+    )
+
+
+def notify_requestor_coverage_assigned(
+    db: Session,
+    requestor_id: int,
+    request_id: int,
+    event_title: str,
+    member_name: str,
+    role: str,
+) -> None:
+    if not settings_crud.is_notification_enabled(db, "notify_new_documentation_assignment"):
+        return
+    role_label = role.replace("_", " ").title()
+    notify_user(
+        db,
+        requestor_id,
+        title="Documentation team assigned",
+        message=(
+            f'{member_name} was assigned as {role_label} for "{event_title}". '
+            "They must accept before coverage is confirmed."
+        ),
+        category="documentation_request",
+        priority="normal",
+        action_type="view_request",
+        action_ref_id=request_id,
+    )
+
+
+def notify_requestor_coverage_accepted(
+    db: Session,
+    requestor_id: int,
+    request_id: int,
+    event_title: str,
+    member_name: str,
+    role: str,
+) -> None:
+    if not settings_crud.is_notification_enabled(db, "notify_new_documentation_assignment"):
+        return
+    role_label = role.replace("_", " ").title()
+    notify_user(
+        db,
+        requestor_id,
+        title="Coverage confirmed",
+        message=f'{member_name} accepted the {role_label} role for "{event_title}".',
+        category="documentation_request",
+        priority="normal",
+        action_type="view_request",
+        action_ref_id=request_id,
+    )
+
+
+def notify_requestor_coverage_declined(
+    db: Session,
+    requestor_id: int,
+    request_id: int,
+    event_title: str,
+    member_name: str,
+    role: str,
+    reason: str,
+) -> None:
+    if not settings_crud.is_notification_enabled(db, "notify_new_documentation_assignment"):
+        return
+    role_label = role.replace("_", " ").title()
+    preview = (reason or "").strip() or "No reason given"
+    notify_user(
+        db,
+        requestor_id,
+        title="Coverage declined",
+        message=(
+            f'{member_name} declined the {role_label} role for "{event_title}". '
+            f"Reason: {preview}"
+        ),
+        category="documentation_request",
+        priority="high",
+        action_type="view_request",
+        action_ref_id=request_id,
+    )
+
+
+GALLERY_BATCH_DEBOUNCE_MINUTES = 30
+GALLERY_BATCH_THRESHOLD = 5
+
+
+def gallery_batch_should_send(pending: int, minutes_since_last: float | None) -> bool:
+    """Send a batched gallery ping when enough uploads queued or debounce window elapsed."""
+    if pending <= 0:
+        return False
+    if pending >= GALLERY_BATCH_THRESHOLD:
+        return True
+    if minutes_since_last is not None and minutes_since_last >= GALLERY_BATCH_DEBOUNCE_MINUTES:
+        return True
+    return False
+
+
+def notify_requestor_event_gallery_upload(
+    db: Session,
+    *,
+    request_id: int,
+) -> None:
+    """Notify requestor when event gallery media is published (typically admin upload), not every file."""
+    if not settings_crud.is_notification_enabled(db, "notify_request_gallery_uploads"):
+        return
+
+    from app.models.documentation_request import DocumentationRequest
+
+    row = db.scalar(
+        select(DocumentationRequest)
+        .where(DocumentationRequest.id == request_id)
+        .with_for_update()
+    )
+    if row is None:
+        return
+
+    status = (row.status or "").strip().lower()
+    if status in ("completed", "rejected", "pending"):
+        db.commit()
+        return
+    if status != "approved":
+        db.commit()
+        return
+
+    event_title = row.title
+    requestor_id = row.requestor_id
+    now = datetime.now(timezone.utc)
+
+    if not row.gallery_first_upload_notified:
+        row.gallery_first_upload_notified = True
+        row.gallery_upload_notify_pending = 0
+        row.gallery_upload_last_notify_at = now
+        db.commit()
+        notify_user(
+            db,
+            requestor_id,
+            title="Event gallery available",
+            message=(
+                f'Photos for "{event_title}" were added to your event gallery. '
+                "Open gallery to view them."
+            ),
+            category="documentation_request",
+            priority="normal",
+            action_type="view_gallery",
+            action_ref_id=request_id,
+        )
+        return
+
+    row.gallery_upload_notify_pending = int(row.gallery_upload_notify_pending or 0) + 1
+    last = row.gallery_upload_last_notify_at
+    minutes_since: float | None = None
+    if last is not None:
+        minutes_since = (now - last).total_seconds() / 60.0
+
+    pending = row.gallery_upload_notify_pending
+    if not gallery_batch_should_send(pending, minutes_since):
+        db.commit()
+        return
+
+    count_label = "photo" if pending == 1 else "photos"
+    row.gallery_upload_notify_pending = 0
+    row.gallery_upload_last_notify_at = now
+    db.commit()
+    notify_user(
+        db,
+        requestor_id,
+        title="New gallery photos",
+        message=f'{pending} more {count_label} were added to "{event_title}".',
+        category="documentation_request",
+        priority="normal",
+        action_type="view_gallery",
         action_ref_id=request_id,
     )
 

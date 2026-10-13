@@ -43,7 +43,7 @@ class AccessLauncherCircleLogo extends StatelessWidget {
     super.key,
     required this.size,
     this.showShadow = true,
-    this.paddingFraction = 0.05,
+    this.paddingFraction = 0.03,
   });
 
   final double size;
@@ -67,7 +67,7 @@ class AccessOrgSealLogo extends StatelessWidget {
     super.key,
     required this.size,
     this.showShadow = true,
-    this.paddingFraction = 0.05,
+    this.paddingFraction = 0.03,
     this.preferLauncherForeground = false,
     this.showWhitePlate = true,
     this.imageFit = BoxFit.contain,
@@ -86,8 +86,8 @@ class AccessOrgSealLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final inset = showWhitePlate
-        ? (size * paddingFraction).clamp(2.0, 14.0)
-        : (size * paddingFraction).clamp(0.0, 8.0);
+        ? (size * paddingFraction).clamp(1.0, 10.0)
+        : (size * paddingFraction).clamp(0.0, 6.0);
     final inner = size - inset * 2;
 
     Widget sealImage() {

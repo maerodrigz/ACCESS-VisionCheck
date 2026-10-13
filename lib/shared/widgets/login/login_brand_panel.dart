@@ -124,7 +124,7 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
             : AccessOrgSealLogo(
                 size: sealSize,
                 showWhitePlate: !widget.compact,
-                paddingFraction: widget.compact ? 0 : 0.05,
+                paddingFraction: widget.compact ? 0 : 0.03,
                 imageFit: widget.compact ? BoxFit.cover : BoxFit.contain,
                 showShadow: !dense && widget.compact,
               );

@@ -60,12 +60,12 @@ class _SplashBrandContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = MediaQuery.sizeOf(context);
     final compact = media.width < 360;
-    final fromWidth = media.width * 0.52;
-    final fromHeight = media.height > 0 ? media.height * 0.26 : fromWidth;
-    final logoSize = math.min(fromWidth, fromHeight).clamp(160.0, 204.0);
+    final fromWidth = media.width * 0.44;
+    final fromHeight = media.height > 0 ? media.height * 0.22 : fromWidth;
+    final logoSize = math.min(fromWidth, fromHeight).clamp(132.0, 172.0);
     final titleSize = compact ? 24.0 : 26.0;
     final subtitleSize = compact ? 22.0 : 24.0;
-    final logoTitleGap = compact ? 16.0 : 20.0;
+    final logoTitleGap = compact ? 6.0 : 8.0;
     final titleLineGap = compact ? 4.0 : 6.0;
 
     return ListenableBuilder(
@@ -86,14 +86,15 @@ class _SplashBrandContent extends StatelessWidget {
                     size: logoSize,
                     showShadow: false,
                     paddingFraction: 0.01,
-                    preferLauncherForeground: true,
+                    // Org seal JPG sits tighter than launcher foreground PNG (less transparent pad).
+                    preferLauncherForeground: false,
                   ),
                   SizedBox(height: logoTitleGap),
                   Text(
                     'ACCESS',
                     textAlign: TextAlign.center,
                     style: _splashText(const TextStyle(
-                      color: kTextPrimary,
+                      color: kCyan,
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.2,
@@ -105,7 +106,7 @@ class _SplashBrandContent extends StatelessWidget {
                     'VisionCheck',
                     textAlign: TextAlign.center,
                     style: _splashText(const TextStyle(
-                      color: kCyan,
+                      color: kTextPrimary,
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.05,

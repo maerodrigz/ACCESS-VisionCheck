@@ -11,14 +11,14 @@ const RIBBON_FALLBACK_SRC = '/access-brand-a.svg?v=1'
 
 function clampInset(size: number, paddingFraction: number) {
   const inset = size * paddingFraction
-  return Math.min(14, Math.max(2, inset))
+  return Math.min(10, Math.max(1, inset))
 }
 
 /** Circular org seal — parity with Flutter [AccessOrgSealLogo]. */
 export function AccessOrgSealLogo({
   size = 40,
   showShadow = true,
-  paddingFraction = 0.05,
+  paddingFraction = 0.03,
   className = '',
 }: Props) {
   const inset = clampInset(size, paddingFraction)

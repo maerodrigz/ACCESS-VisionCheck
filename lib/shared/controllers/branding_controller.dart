@@ -22,6 +22,8 @@ class BrandingController extends ChangeNotifier {
   String get appName => _appName;
   String get tagline => _tagline;
   String get shortTagline => _shortTagline;
+  /// Login hero subtitle (API [short_tagline], bundled default before load).
+  String get loginHeroTagline => _shortTagline;
   String get organization => _organization;
   String get webAdminTitle => _webAdminTitle;
   String get mobileTitle => _appName;

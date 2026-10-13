@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
@@ -34,9 +36,8 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   @override
   void initState() {
     super.initState();
-    if (brandingController.lastError != null) {
-      brandingController.refresh();
-    }
+    // Keep login hero in sync with GET /branding (tagline, custom logo, app name).
+    unawaited(brandingController.refresh());
     _loadRememberedEmail();
   }
 

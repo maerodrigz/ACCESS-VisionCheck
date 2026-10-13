@@ -1,7 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/access_branding.dart';
+import 'package:access_mobile/shared/widgets/access_logo.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
+
+/// Wordmark lines for login hero (matches React [AccessSidebarBrand] / admin login).
+({String title, String subtitle}) loginWordmarkLines(String appName) {
+  final title =
+      appName.startsWith('ACCESS') ? 'ACCESS' : appName.split(' ').first;
+  final subtitle = appName.contains('VisionCheck')
+      ? 'VisionCheck'
+      : appName.replaceFirst(title, '').trim().isEmpty
+          ? 'VisionCheck'
+          : appName.replaceFirst(title, '').trim();
+  return (title: title, subtitle: subtitle);
+}
 
 /// Branding panel — gradient, ribbon mark, and product identity (no background photo).
 class LoginBrandPanel extends StatefulWidget {
@@ -93,54 +107,74 @@ class _LoginBrandPanelState extends State<LoginBrandPanel> with SingleTickerProv
     final titleSize = dense ? 17.0 : (widget.compact ? 22.0 : 32.0);
     final subtitleSize = widget.compact ? 11.0 : 14.0;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AccessOrgSealLogo(
-          size: sealSize,
-          showWhitePlate: !widget.compact,
-          paddingFraction: widget.compact ? 0 : 0.05,
-          imageFit: widget.compact ? BoxFit.cover : BoxFit.contain,
-          showShadow: !dense && widget.compact,
-        ),
-        SizedBox(height: dense ? 4 : (widget.compact ? 8 : 20)),
-        Text(
-          'ACCESS',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: kCyan,
-            fontSize: titleSize,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
-            height: 1.0,
-          ),
-        ),
-        const SizedBox(height: 1),
-        Text(
-          'VisionCheck',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: titleSize + (widget.compact ? 2 : 4),
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            height: 1.05,
-          ),
-        ),
-        if (!dense) ...[
-          SizedBox(height: widget.compact ? 4 : 18),
-          Text(
-            'Campus Documentation Platform',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.88),
-              fontSize: subtitleSize + 1,
-              fontWeight: FontWeight.w500,
-              height: 1.25,
+    return ListenableBuilder(
+      listenable: brandingController,
+      builder: (context, _) {
+        final wordmark = loginWordmarkLines(brandingController.appName);
+        final heroTagline = brandingController.loginHeroTagline;
+        final customLogo = brandingController.networkLogoUrl != null;
+
+        final logo = customLogo
+            ? AccessLogoImage(
+                size: sealSize,
+                circular: true,
+                fit: BoxFit.cover,
+                backgroundColor: Colors.white,
+              )
+            : AccessOrgSealLogo(
+                size: sealSize,
+                showWhitePlate: !widget.compact,
+                paddingFraction: widget.compact ? 0 : 0.05,
+                imageFit: widget.compact ? BoxFit.cover : BoxFit.contain,
+                showShadow: !dense && widget.compact,
+              );
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            logo,
+            SizedBox(height: dense ? 4 : (widget.compact ? 8 : 20)),
+            Text(
+              wordmark.title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: kCyan,
+                fontSize: titleSize,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+                height: 1.0,
+              ),
             ),
-          ),
-        ],
-      ],
+            const SizedBox(height: 1),
+            Text(
+              wordmark.subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: titleSize + (widget.compact ? 2 : 4),
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+                height: 1.05,
+              ),
+            ),
+            if (!dense) ...[
+              SizedBox(height: widget.compact ? 4 : 18),
+              Text(
+                heroTagline,
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontSize: subtitleSize + 1,
+                  fontWeight: FontWeight.w500,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

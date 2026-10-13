@@ -31,6 +31,7 @@ export interface NotificationsFormValues {
   notify_request_gallery_uploads: boolean
   notify_request_rejected: boolean
   notify_new_documentation_assignment: boolean
+  notify_evaluation_completed: boolean
   notify_new_announcement: boolean
   notify_system_alerts: boolean
 }
@@ -107,6 +108,12 @@ export const NOTIFICATION_ITEMS: {
     key: 'notify_new_documentation_assignment',
     label: 'New Documentation Assignment',
     hint: 'Notify members, requestors (coverage updates), and admins when assignments change.',
+  },
+  {
+    key: 'notify_evaluation_completed',
+    label: 'Administrator Feedback to Members',
+    hint:
+      'Allow in-app alerts when an admin sends ranking or competency remarks to a member (each save can opt in). Routine practice evaluation scores are not pushed; members see those in the app.',
   },
   {
     key: 'notify_new_announcement',

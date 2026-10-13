@@ -14,6 +14,8 @@ interface BrandingContextValue {
   logoUrl: string | null
   appName: string
   tagline: string
+  /** Login hero subtitle — prefers API short_tagline (matches Flutter defaults). */
+  loginHeroTagline: string
   loading: boolean
   refresh: () => Promise<void>
 }
@@ -22,6 +24,7 @@ const BrandingContext = createContext<BrandingContextValue | null>(null)
 
 const DEFAULT_APP_NAME = 'ACCESS'
 const DEFAULT_TAGLINE = 'Unified Platform for Coordination and Documentation'
+const DEFAULT_SHORT_TAGLINE = 'Coordination and Documentation Platform'
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
   const [branding, setBranding] = useState<BrandingPayload | null>(null)
@@ -49,6 +52,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
       logoUrl: brandingLogoUrl(branding),
       appName: branding?.app_name?.trim() || DEFAULT_APP_NAME,
       tagline: branding?.tagline?.trim() || DEFAULT_TAGLINE,
+      loginHeroTagline: branding?.short_tagline?.trim() || DEFAULT_SHORT_TAGLINE,
       loading,
       refresh,
     }),

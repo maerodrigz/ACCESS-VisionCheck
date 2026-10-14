@@ -68,6 +68,7 @@ class AuthController extends ChangeNotifier {
     required String role,
     String? studentId,
     String? contactNumber,
+    String? phoneVerificationToken,
     String? adviserName,
     String? skillLevel,
   }) async {
@@ -78,6 +79,7 @@ class AuthController extends ChangeNotifier {
       role: role,
       studentId: studentId,
       contactNumber: contactNumber,
+      phoneVerificationToken: phoneVerificationToken,
       adviserName: adviserName,
       skillLevel: skillLevel,
     );

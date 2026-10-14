@@ -18,6 +18,21 @@ class AuthService {
     return user;
   }
 
+  Future<void> sendRegistrationOtp(String phone) async {
+    await _api.post('/auth/registration-otp/send', {'phone': phone.trim()});
+  }
+
+  Future<String> verifyRegistrationOtp({
+    required String phone,
+    required String code,
+  }) async {
+    final data = await _api.post('/auth/registration-otp/verify', {
+      'phone': phone.trim(),
+      'code': code.trim(),
+    }) as Map<String, dynamic>;
+    return data['phone_verification_token'] as String;
+  }
+
   Future<void> register({
     required String name,
     required String email,
@@ -25,6 +40,7 @@ class AuthService {
     required String role,
     String? studentId,
     String? contactNumber,
+    String? phoneVerificationToken,
     String? adviserName,
     String? skillLevel,
   }) async {
@@ -35,6 +51,8 @@ class AuthService {
       'role': role,
       if (studentId != null && studentId.isNotEmpty) 'student_id': studentId,
       if (contactNumber != null && contactNumber.isNotEmpty) 'contact_number': contactNumber,
+      if (phoneVerificationToken != null && phoneVerificationToken.isNotEmpty)
+        'phone_verification_token': phoneVerificationToken,
       if (adviserName != null && adviserName.isNotEmpty) 'adviser_name': adviserName,
       if (skillLevel != null && skillLevel.isNotEmpty) 'skill_level': skillLevel,
     });

@@ -16,6 +16,8 @@ class RegistrationFormField extends StatelessWidget {
     this.validator,
     this.textInputAction,
     this.onFieldSubmitted,
+    this.enabled = true,
+    this.onChanged,
   });
 
   final String label;

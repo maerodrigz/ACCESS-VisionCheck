@@ -7,6 +7,7 @@ import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
 import 'package:access_mobile/shared/legal/access_legal_content.dart';
 import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
+import 'package:access_mobile/shared/widgets/registration_phone_otp_panel.dart';
 
 /// Self-service member registration (pending admin approval).
 class MemberRegistrationScreen extends StatefulWidget {
@@ -29,6 +30,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
   bool _obscureConfirm = true;
   bool _loading = false;
   bool _acceptedLegal = false;
+  String? _phoneVerificationToken;
   String? _error;
 
   @override
@@ -48,6 +50,10 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
       setState(() => _error = 'Please agree to the Terms, Privacy Policy, and Content Standards.');
       return;
     }
+    if (_phoneVerificationToken == null) {
+      setState(() => _error = 'Verify your mobile number with the SMS code before registering.');
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -60,6 +66,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
         role: 'Member',
         studentId: _studentIdCtrl.text.trim(),
         contactNumber: _contactCtrl.text.trim(),
+        phoneVerificationToken: _phoneVerificationToken,
       );
       if (!mounted) return;
       final email = _emailCtrl.text.trim();
@@ -168,14 +175,25 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 14),
-              RegistrationFormField(
-                label: 'Contact Number',
-                controller: _contactCtrl,
-                hint: '09XX XXX XXXX',
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-                validator: (v) => RegistrationValidators.required(v, label: 'Contact number'),
-                textInputAction: TextInputAction.next,
+              const Text(
+                'Verify your mobile number',
+                style: TextStyle(
+                  color: kTextPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'We send a one-time SMS code to confirm your number before you submit.',
+                style: TextStyle(color: kTextSecondary, fontSize: 12, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              RegistrationPhoneOtpPanel(
+                phoneController: _contactCtrl,
+                onVerificationTokenChanged: (token) {
+                  setState(() => _phoneVerificationToken = token);
+                },
               ),
               const SizedBox(height: 14),
               RegistrationFormField(
@@ -230,7 +248,8 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: _loading || !_acceptedLegal ? null : _submit,
+                  onPressed:
+                      _loading || !_acceptedLegal || _phoneVerificationToken == null ? null : _submit,
                   child: _loading
                       ? const SizedBox(
                           width: 22,

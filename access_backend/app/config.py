@@ -112,6 +112,15 @@ class Settings(BaseSettings):
     email_reply_to: str = Field(default="", alias="EMAIL_REPLY_TO")
     email_logo_path: str = Field(default="", alias="EMAIL_LOGO_PATH")
 
+    # Registration SMS OTP (member / requestor mobile signup)
+    sms_provider: str = Field(default="log", alias="SMS_PROVIDER")
+    semaphore_api_key: str = Field(default="", alias="SEMAPHORE_API_KEY")
+    sms_sender_name: str = Field(default="ACCESS", alias="SMS_SENDER_NAME")
+    sms_otp_expire_minutes: int = Field(default=10, alias="SMS_OTP_EXPIRE_MINUTES")
+    sms_otp_token_minutes: int = Field(default=30, alias="SMS_OTP_TOKEN_MINUTES")
+    sms_otp_resend_seconds: int = Field(default=60, alias="SMS_OTP_RESEND_SECONDS")
+    sms_otp_max_attempts: int = Field(default=5, alias="SMS_OTP_MAX_ATTEMPTS")
+
     @model_validator(mode="after")
     def _validate_probe_risk_thresholds(self) -> "Settings":
         low = float(self.probe_low_risk_threshold)

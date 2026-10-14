@@ -6,6 +6,20 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
 
 
+class RegistrationOtpSendRequest(BaseModel):
+    phone: str = Field(min_length=10, max_length=40)
+
+
+class RegistrationOtpVerifyRequest(BaseModel):
+    phone: str = Field(min_length=10, max_length=40)
+    code: str = Field(min_length=4, max_length=8)
+
+
+class RegistrationOtpVerifyResponse(BaseModel):
+    phone_verification_token: str
+    message: str = "Phone verified."
+
+
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     email: EmailStr
@@ -15,6 +29,12 @@ class RegisterRequest(BaseModel):
     contact_number: str | None = Field(None, max_length=40)
     adviser_name: str | None = Field(None, max_length=120)
     skill_level: str | None = Field(None, max_length=60, description="Optional skill tier name")
+    phone_verification_token: str | None = Field(
+        None,
+        min_length=16,
+        max_length=128,
+        description="Required for Member and Organization self-registration",
+    )
 
 
 class UserOut(BaseModel):

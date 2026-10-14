@@ -21,16 +21,21 @@ from app.services.security_policy import (
     record_failed_login,
     security_config,
 )
+from app.crud import registration_phone_otp as phone_otp_crud
 from app.schemas.auth import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
     LoginRequest,
     LoginResponse,
     RegisterRequest,
+    RegistrationOtpSendRequest,
+    RegistrationOtpVerifyRequest,
+    RegistrationOtpVerifyResponse,
     UserOut,
 )
 from app.schemas.common import MessageResponse
 from app.services import registration_email
+from app.services.phone_normalize import normalize_ph_mobile
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -177,8 +182,66 @@ def logout(
     return MessageResponse(message="Logged out")
 
 
+def _registration_role_key(role: str) -> str:
+    return role.strip().lower()
+
+
+@router.post("/registration-otp/send", response_model=MessageResponse)
+def send_registration_otp(body: RegistrationOtpSendRequest, db: Session = Depends(get_db)):
+    try:
+        phone_e164 = normalize_ph_mobile(body.phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    try:
+        phone_otp_crud.send_otp(db, phone_e164)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    return MessageResponse(message="Verification code sent via SMS.")
+
+
+@router.post("/registration-otp/verify", response_model=RegistrationOtpVerifyResponse)
+def verify_registration_otp(body: RegistrationOtpVerifyRequest, db: Session = Depends(get_db)):
+    try:
+        phone_e164 = normalize_ph_mobile(body.phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    try:
+        token = phone_otp_crud.verify_otp(db, phone_e164, body.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return RegistrationOtpVerifyResponse(phone_verification_token=token)
+
+
 @router.post("/register", response_model=MessageResponse)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    role_key = _registration_role_key(body.role)
+    if role_key == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator accounts cannot be registered through the mobile app.",
+        )
+    if role_key in ("member", "organization"):
+        if not body.contact_number or not body.phone_verification_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Verify your mobile number before submitting registration.",
+            )
+        try:
+            phone_e164 = normalize_ph_mobile(body.contact_number)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        try:
+            phone_otp_crud.consume_verification_token(
+                db, phone_e164, body.phone_verification_token
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        contact_for_user = phone_e164
+    else:
+        contact_for_user = body.contact_number
+
     if user_crud.get_by_email(db, body.email):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
     assert_password_meets_policy(db, body.password)
@@ -189,7 +252,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         body.password,
         body.role,
         student_id=body.student_id,
-        contact_number=body.contact_number,
+        contact_number=contact_for_user,
         adviser_name=body.adviser_name,
         skill_level=body.skill_level,
     )

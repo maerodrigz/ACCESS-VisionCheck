@@ -47,18 +47,18 @@ export function LoginPage() {
 
   return (
     <div className="login-page min-h-screen">
-      {/* Desktop — matches Flutter wide layout (60/40 split) */}
+      {/* Desktop — wide hero + narrower sign-in column (~70/30) */}
       <div className="hidden min-h-screen lg:flex">
-        <div className="flex-[6]">
+        <div className="login-brand-column min-w-0 flex-1">
           <LoginBrandPanel />
         </div>
-        <div className="login-form-panel flex flex-[4] min-h-screen">
+        <div className="login-form-panel login-form-column flex min-h-screen shrink-0">
           <LoginFormPanel {...formProps} />
         </div>
       </div>
 
       {/* Mobile — dark hero + white sheet overlapping */}
-      <div className="login-hero-gradient flex min-h-screen flex-col lg:hidden">
+      <div className="flex min-h-screen flex-col lg:hidden">
         <div className="shrink-0" style={{ height: '32vh', minHeight: 220 }}>
           <LoginBrandPanel compact />
         </div>

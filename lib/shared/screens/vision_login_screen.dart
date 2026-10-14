@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
@@ -142,16 +141,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     );
   }
 
-  Future<void> _fixBackendUrl() async {
-    if (kIsWeb) return;
-    final changed = await showBackendUrlDialog(context);
-    if (changed && mounted) {
-      await apiClient.reconnect();
-      setState(() => _error = null);
-      await brandingController.refresh();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 900;
@@ -181,7 +170,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
             onSubmit: _submit,
             onForgotPassword: _forgotPassword,
             onCreateAccount: kIsWeb ? null : _openRegistration,
-            onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
           ),
         ),
       ],
@@ -207,7 +195,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       onSubmit: _submit,
       onForgotPassword: _forgotPassword,
       onCreateAccount: kIsWeb ? null : _openRegistration,
-      onFixBackendConnection: kIsWeb ? null : _fixBackendUrl,
     );
 
     return Stack(

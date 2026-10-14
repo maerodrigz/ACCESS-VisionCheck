@@ -30,7 +30,7 @@ export function LoginFormPanel({
     <div
       className={[
         'login-form-panel flex h-full flex-col',
-        sheet ? 'px-5 pb-4 pt-[18px]' : 'justify-center px-12 py-12 lg:px-16',
+        sheet ? 'px-5 pb-4 pt-[18px]' : 'justify-center px-8 py-12 lg:px-10',
       ].join(' ')}
     >
       <div className="mx-auto w-full max-w-[420px]">

@@ -28,6 +28,16 @@
   color: var(--login-text);
 }
 
+.login-form-column {
+  width: min(100%, 420px);
+}
+
+@media (min-width: 1024px) {
+  .login-form-column {
+    width: clamp(340px, 32vw, 420px);
+  }
+}
+
 .login-input {
   width: 100%;
   border-radius: 16px;
@@ -105,19 +115,46 @@
   object-fit: cover;
 }
 
-.login-glow {
-  pointer-events: none;
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(0.5px);
+/* —— Login left panel: supplied multimedia background —— */
+
+.login-brand-panel {
+  background-color: var(--login-hero-start);
+  background-image: url('/login-brand-background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-.login-glow--cyan {
-  top: -60px;
-  right: -40px;
-  width: 220px;
-  height: 220px;
-  background: radial-gradient(circle, rgba(0, 196, 232, 0.22) 0%, transparent 70%);
+.login-brand-panel__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 72% 64% at 50% 48%,
+    rgba(5, 12, 28, 0.52) 0%,
+    rgba(5, 12, 28, 0.22) 48%,
+    rgba(5, 12, 28, 0.38) 100%
+  );
+}
+
+@media (max-width: 1023px) {
+  .login-brand-panel {
+    background-position: center 40%;
+  }
+
+  .login-brand-panel__overlay {
+    background: radial-gradient(
+      ellipse 85% 70% at 50% 42%,
+      rgba(5, 12, 28, 0.58) 0%,
+      rgba(5, 12, 28, 0.28) 55%,
+      rgba(5, 12, 28, 0.45) 100%
+    );
+  }
+}
+
+.login-brand-seal img {
+  image-rendering: auto;
 }
 
 .login-input-wrap .admin-input {

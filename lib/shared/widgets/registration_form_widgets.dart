@@ -31,6 +31,8 @@ class RegistrationFormField extends StatelessWidget {
   final String? Function(String?)? validator;
   final TextInputAction? textInputAction;
   final void Function(String)? onFieldSubmitted;
+  final bool enabled;
+  final void Function(String)? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -51,9 +53,11 @@ class RegistrationFormField extends StatelessWidget {
           keyboardType: keyboardType,
           obscureText: obscureText,
           maxLines: maxLines,
+          enabled: enabled,
           validator: validator,
           textInputAction: textInputAction,
           onFieldSubmitted: onFieldSubmitted,
+          onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: icon != null

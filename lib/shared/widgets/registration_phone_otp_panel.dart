@@ -51,11 +51,11 @@ class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
     });
     _clearVerification();
     try {
-      await authService.sendRegistrationOtp(phone);
+      final message = await authService.sendRegistrationOtp(phone);
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _status = 'Code sent. Check your SMS.';
+        _status = message;
       });
     } on ApiException catch (e) {
       if (!mounted) return;

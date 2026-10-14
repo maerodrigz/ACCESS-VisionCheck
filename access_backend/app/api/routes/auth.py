@@ -198,7 +198,15 @@ def send_registration_otp(body: RegistrationOtpSendRequest, db: Session = Depend
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    return MessageResponse(message="Verification code sent via SMS.")
+    provider = (settings.sms_provider or "log").strip().lower()
+    if provider == "log":
+        msg = (
+            "Code generated. Open the ACCESS backend terminal on your PC "
+            'and look for "SMS OTP (dev log)" with the 6-digit number.'
+        )
+    else:
+        msg = "Verification code sent via SMS."
+    return MessageResponse(message=msg)
 
 
 @router.post("/registration-otp/verify", response_model=RegistrationOtpVerifyResponse)

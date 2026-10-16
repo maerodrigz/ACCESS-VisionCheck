@@ -10,6 +10,7 @@ import {
   UserCheck,
   UserCog,
   UserX,
+  Trash2,
 } from 'lucide-react'
 import {
   accountStatusKey,
@@ -31,6 +32,7 @@ interface Props {
   onChangeRole: () => void
   onResetPassword: () => void
   onToggleActive: () => void
+  onDeleteMember?: () => void
 }
 
 function MenuItem({
@@ -73,6 +75,7 @@ export function AccountActionsMenu({
   onChangeRole,
   onResetPassword,
   onToggleActive,
+  onDeleteMember,
 }: Props) {
   const sk = accountStatusKey(user)
   const protectedAdmin = !canChangePrivilegedFields(user, allUsers)
@@ -156,6 +159,17 @@ export function AccountActionsMenu({
             : undefined
         }
       />
+      {user.role === 'Member' && onDeleteMember ? (
+        <>
+          <hr className="account-mgmt__menu-divider" />
+          <MenuItem
+            icon={Trash2}
+            label="Delete account permanently"
+            onClick={onDeleteMember}
+            danger
+          />
+        </>
+      ) : null}
     </div>
   ) : null
 

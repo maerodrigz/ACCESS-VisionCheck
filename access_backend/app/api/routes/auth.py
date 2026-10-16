@@ -29,6 +29,7 @@ from app.schemas.auth import (
     LoginResponse,
     RegisterRequest,
     RegistrationOtpSendRequest,
+    RegistrationOtpSendResponse,
     RegistrationOtpVerifyRequest,
     RegistrationOtpVerifyResponse,
     UserOut,
@@ -186,14 +187,14 @@ def _registration_role_key(role: str) -> str:
     return role.strip().lower()
 
 
-@router.post("/registration-otp/send", response_model=MessageResponse)
+@router.post("/registration-otp/send", response_model=RegistrationOtpSendResponse)
 def send_registration_otp(body: RegistrationOtpSendRequest, db: Session = Depends(get_db)):
     try:
         phone_e164 = normalize_ph_mobile(body.phone)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     try:
-        phone_otp_crud.send_otp(db, phone_e164)
+        code = phone_otp_crud.send_otp(db, phone_e164)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -201,12 +202,14 @@ def send_registration_otp(body: RegistrationOtpSendRequest, db: Session = Depend
     provider = (settings.sms_provider or "log").strip().lower()
     if provider == "log":
         msg = (
-            "Code generated. Open the ACCESS backend terminal on your PC "
-            'and look for "SMS OTP (dev log)" with the 6-digit number.'
+            "Development mode: your verification code is shown below on this screen "
+            "(and printed in the backend terminal)."
         )
-    else:
-        msg = "Verification code sent via SMS."
-    return MessageResponse(message=msg)
+        return RegistrationOtpSendResponse(message=msg, dev_code=code)
+    return RegistrationOtpSendResponse(
+        message="Verification code sent via SMS.",
+        dev_code=None,
+    )
 
 
 @router.post("/registration-otp/verify", response_model=RegistrationOtpVerifyResponse)

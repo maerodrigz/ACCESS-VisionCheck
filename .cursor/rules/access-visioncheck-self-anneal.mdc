@@ -100,6 +100,21 @@ Add a short bullet to this file (or `docs/SELF_ANNEALING.md`) under **Incident l
 - **2026-10:** Admin notification center showed member milestones and assignment echo pings; clicks used `view_result` / wrong refs and opened Media gallery. Fix: admin inbox allowlist + `list_for_admin_inbox` (not `list_all`), drop redundant `notify_admins` on assign/accept, route media alerts to Media Integrity not gallery.
 - **2026-10:** Member push/tray taps only synced inbox — no deep link. Fix: FCM data + `bindNotificationOpenHandler` + `openedFromPush`; ranking admin feedback must open performance sheet, not eval report; requestor `view_request` refetch when ID missing from cache.
 
+## 11. Media blob storage — Supabase (project decision)
+
+**Target:** Photos and videos (event gallery + practice evaluations + profile avatars) live in **Supabase Storage**, not Firebase Storage or long-term reliance on local `uploads/`.
+
+| Piece | Rule |
+|-------|------|
+| **Upload path** | Mobile/admin → `POST /api/media/upload` (multipart). Backend uploads bytes to Supabase with **service role**; store HTTPS URL in `media_files.file_url`. |
+| **Env** | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_ENABLED` in `access_backend/.env` (see `.env.example`). Never put service role in Flutter or admin-web. |
+| **Bucket layout** | e.g. bucket `access-media`, objects under `access-visioncheck/media/{userId}/{uuid}.ext` (match legacy Firebase prefix where possible). |
+| **Firebase** | Keep Firebase project for **FCM push** only; `FIREBASE_STORAGE_ENABLED=false` when Supabase is on. Remove/disable mobile `FirebaseStorageService` pre-upload when Supabase backend path is live. |
+| **Delete** | `delete_media`, member deactivate `delete_uploads`, and reset scripts must delete Supabase objects (not only DB rows). |
+| **Postgres** | Supabase DB is **optional**; app may keep local/cloud Postgres separate from Supabase Storage. |
+
+Until `app/services/supabase_storage.py` is wired, dev falls back to `uploads/` on disk.
+
 ## 10. User-facing copy — plain punctuation
 
 - Do **not** use em dashes (`—`) in strings shown to members or admins. Use commas, periods, or colons instead.

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { CalendarCheck, Search, UserCheck, UserPlus, Users, type LucideIcon } from 'lucide-react'
 import {
   fetchEvaluations,
@@ -134,8 +134,14 @@ export function DocumentationTeamPage() {
     [all, pendingMembers],
   )
 
-  async function handleDeactivate(member: TeamMemberProfile) {
-    await setUserStatus(member.id, 'rejected')
+  async function handleDeactivate(member: TeamMemberProfile, deleteUploads: boolean) {
+    const result = await setUserStatus(member.id, 'rejected', 'Deactivated by administrator', {
+      deleteUploads,
+    })
+    if (result.message) {
+      // Toast not wired on this page; parent reload reflects changes.
+      void result.message
+    }
     await load()
   }
 
@@ -144,8 +150,6 @@ export function DocumentationTeamPage() {
     await load()
   }
 
-  const hasPending = stats.pendingMembers > 0
-
   return (
     <div className="mx-auto max-w-[1400px] space-y-3">
       <AdminPageHeader
@@ -153,26 +157,7 @@ export function DocumentationTeamPage() {
         subtitle="Day-to-day operations: who is available, who is on assignment, and member account status."
         backTo="/"
         actions={
-          <>
-            <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
-            <Link
-              to="/account-management?view=registrations&tab=members"
-              className={[
-                'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold',
-                hasPending
-                  ? 'bg-[var(--color-accent-blue)] text-white hover:opacity-95'
-                  : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]',
-              ].join(' ')}
-            >
-              <UserPlus size={15} />
-              Review registrations
-              {hasPending ? (
-                <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[11px] tabular-nums">
-                  {stats.pendingMembers}
-                </span>
-              ) : null}
-            </Link>
-          </>
+          <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
         }
       />
 

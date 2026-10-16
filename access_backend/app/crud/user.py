@@ -100,6 +100,61 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     return user
 
 
+def permanently_delete_member(
+    db: Session,
+    user: User,
+    *,
+    acting_admin_id: int,
+    delete_uploads: bool = False,
+) -> tuple[int, int]:
+    """
+    Remove a Member row from the database. Returns (media_deleted, media_failed).
+    Raises RuntimeError when linked records block deletion.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.crud import media as media_crud
+    from app.crud import session as session_crud
+    from app.models.request_assignment import RequestAssignment
+
+    if not user.role or user.role.role_name != RoleName.MEMBER:
+        raise RuntimeError("Only Member accounts can be permanently deleted.")
+    if user.id == acting_admin_id:
+        raise RuntimeError("You cannot delete your own account.")
+
+    media_deleted = 0
+    media_failed = 0
+    if delete_uploads:
+        media_deleted, media_failed = media_crud.delete_all_for_uploader(db, user.id)
+
+    session_crud.revoke_sessions_for_user(db, user.id)
+
+    for row in db.scalars(
+        select(RequestAssignment).where(RequestAssignment.assigned_by == user.id)
+    ).all():
+        row.assigned_by = acting_admin_id
+
+    # DB may not enforce ON DELETE CASCADE on member_id; delete assignments explicitly.
+    for row in db.scalars(
+        select(RequestAssignment).where(RequestAssignment.member_id == user.id)
+    ).all():
+        db.delete(row)
+
+    db.flush()
+
+    try:
+        db.delete(user)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise RuntimeError(
+            "This member is still linked to records that could not be removed automatically. "
+            "Try deactivating the account instead, or contact support."
+        ) from exc
+
+    return media_deleted, media_failed
+
+
 def remove_member(
     db: Session,
     user: User,

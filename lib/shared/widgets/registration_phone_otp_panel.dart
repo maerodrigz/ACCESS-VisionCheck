@@ -51,11 +51,17 @@ class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
     });
     _clearVerification();
     try {
-      final message = await authService.sendRegistrationOtp(phone);
+      final result = await authService.sendRegistrationOtp(phone);
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _status = message;
+        final dev = result.devCode?.trim();
+        if (dev != null && dev.isNotEmpty) {
+          _codeCtrl.text = dev;
+          _status = 'Dev code: $dev (also printed in the PC backend terminal).';
+        } else {
+          _status = result.message;
+        }
       });
     } on ApiException catch (e) {
       if (!mounted) return;

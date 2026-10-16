@@ -179,6 +179,17 @@ async def upload_media(
     ext = Path(file.filename or "").suffix.lower()
     content = await file.read()
 
+    from app.services.supabase_storage import is_supabase_storage_configured, supabase_max_upload_bytes
+
+    if is_supabase_storage_configured() and len(content) > supabase_max_upload_bytes():
+        from app.config import settings
+
+        limit = int(settings.supabase_max_upload_mb or 50)
+        raise HTTPException(
+            status_code=400,
+            detail=f"File exceeds storage limit ({limit}MB on Supabase). Use a smaller photo or shorter video.",
+        )
+
     is_event = request_id is not None
     media_category = MEDIA_CATEGORY_EVENT if is_event else MEDIA_CATEGORY_EVALUATION
     _validate_upload_file(db, ext, content, media_category)
@@ -211,9 +222,19 @@ async def upload_media(
     if cloud.startswith("https://"):
         stored_url = cloud
     else:
+        from app.services.supabase_storage import is_supabase_storage_configured, upload_media_bytes as supabase_upload
         from app.services.firebase_storage import is_firebase_storage_configured, upload_media_bytes
 
-        if is_firebase_storage_configured():
+        if is_supabase_storage_configured():
+            sb_url = supabase_upload(
+                content,
+                file_name=display_name,
+                folder="media",
+                user_id=current_user.id,
+            )
+            if sb_url:
+                stored_url = sb_url
+        if not stored_url and is_firebase_storage_configured():
             fb_url = upload_media_bytes(
                 content,
                 file_name=display_name,

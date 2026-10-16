@@ -5,6 +5,7 @@ import {
   createUser,
   fetchUserProfile,
   fetchUsers,
+  permanentlyDeleteMemberAccount,
   resetUserPassword,
   setUserStatus,
   updateUser,
@@ -12,6 +13,8 @@ import {
 } from '../api/admin'
 import { AdminPageHeader } from '../components/AdminPageHeader'
 import { AccountActionModal, type AccountActionState } from '../components/account-management/AccountActionModal'
+import { DeactivateMemberDialog } from '../components/DeactivateMemberDialog'
+import { DeleteMemberAccountDialog } from '../components/DeleteMemberAccountDialog'
 import { AccountFormModal } from '../components/account-management/AccountFormModal'
 import { AccountProfileModal } from '../components/account-management/AccountProfileModal'
 import { AccountsTableSection } from '../components/account-management/AccountsTableSection'
@@ -72,6 +75,10 @@ export function AccountManagementPage() {
   const [editApiError, setEditApiError] = useState<string | null>(null)
 
   const [actionModal, setActionModal] = useState<AccountActionState | null>(null)
+  const [memberDeactivate, setMemberDeactivate] = useState<AdminAccountUser | null>(null)
+  const [memberDeactivateLoading, setMemberDeactivateLoading] = useState(false)
+  const [memberDelete, setMemberDelete] = useState<AdminAccountUser | null>(null)
+  const [memberDeleteLoading, setMemberDeleteLoading] = useState(false)
 
   const { showToast } = useToast()
 
@@ -285,10 +292,60 @@ export function AccountManagementPage() {
       showToast('Cannot deactivate the last active administrator.', true)
       return
     }
+    if (sk === 'active' && user.role === 'Member') {
+      setMemberDeactivate(user)
+      return
+    }
     setActionModal({
       kind: sk === 'active' ? 'confirm-deactivate' : 'confirm-activate',
       user,
     })
+  }
+
+  function handleDeleteMember(user: AdminAccountUser) {
+    setOpenMenuId(null)
+    if (user.role !== 'Member') return
+    setMemberDelete(user)
+  }
+
+  async function confirmMemberDelete(deleteUploads: boolean, confirmationEmail: string) {
+    if (!memberDelete || memberDeleteLoading) return
+    setMemberDeleteLoading(true)
+    try {
+      const result = await permanentlyDeleteMemberAccount(
+        memberDelete.user_id,
+        confirmationEmail,
+        deleteUploads,
+      )
+      showToast(result.message || `Deleted ${memberDelete.name}`)
+      setMemberDelete(null)
+      if (profileUserId === memberDelete.user_id) setProfileUserId(null)
+      await loadUsers()
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Delete failed', true)
+    } finally {
+      setMemberDeleteLoading(false)
+    }
+  }
+
+  async function confirmMemberDeactivate(deleteUploads: boolean) {
+    if (!memberDeactivate || memberDeactivateLoading) return
+    setMemberDeactivateLoading(true)
+    try {
+      const result = await setUserStatus(
+        memberDeactivate.user_id,
+        'rejected',
+        'Deactivated by administrator',
+        { deleteUploads },
+      )
+      showToast(result.message || `Account deactivated for ${memberDeactivate.name}`)
+      setMemberDeactivate(null)
+      await loadUsers()
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Deactivation failed', true)
+    } finally {
+      setMemberDeactivateLoading(false)
+    }
   }
 
   const hasFilters = Boolean(search || roleFilter !== 'all' || statusFilter !== 'all')
@@ -439,6 +496,7 @@ export function AccountManagementPage() {
               setActionModal({ kind: 'confirm-reset-password', user: u })
             }}
             onToggleActive={handleToggleActive}
+            onDeleteMember={handleDeleteMember}
           />
         )}
 
@@ -518,6 +576,35 @@ export function AccountManagementPage() {
             setActionModal((prev) => (prev ? { ...prev, role } : prev))
           }}
         />
+
+        {memberDeactivate ? (
+          <DeactivateMemberDialog
+            open
+            memberName={memberDeactivate.name}
+            userId={memberDeactivate.user_id}
+            loading={memberDeactivateLoading}
+            onConfirm={(deleteUploads) => void confirmMemberDeactivate(deleteUploads)}
+            onCancel={() => {
+              if (memberDeactivateLoading) return
+              setMemberDeactivate(null)
+            }}
+          />
+        ) : null}
+
+        {memberDelete ? (
+          <DeleteMemberAccountDialog
+            open
+            memberName={memberDelete.name}
+            memberEmail={memberDelete.email}
+            userId={memberDelete.user_id}
+            loading={memberDeleteLoading}
+            onConfirm={(deleteUploads, email) => void confirmMemberDelete(deleteUploads, email)}
+            onCancel={() => {
+              if (memberDeleteLoading) return
+              setMemberDelete(null)
+            }}
+          />
+        ) : null}
       </div>
     </div>
   )

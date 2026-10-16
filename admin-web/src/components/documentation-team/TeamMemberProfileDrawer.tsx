@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { AdminConfirmDialog } from '../AdminConfirmDialog'
+import { DeactivateMemberDialog } from '../DeactivateMemberDialog'
 import { AdminSelect } from '../AdminSelect'
 import { Loader2 } from 'lucide-react'
 import { AdminDrawer } from '../AdminDrawer'
@@ -19,7 +19,7 @@ import { MemberRequesterRatingsHistory } from '../documentation-requests/MemberR
 interface Props {
   member: TeamMemberProfile | null
   onClose: () => void
-  onDeactivate: (member: TeamMemberProfile) => Promise<void>
+  onDeactivate: (member: TeamMemberProfile, deleteUploads: boolean) => Promise<void>
   onStatusChange: (member: TeamMemberProfile, status: string, reason?: string) => Promise<void>
 }
 
@@ -44,10 +44,10 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
     }
   }
 
-  async function handleDeactivate() {
+  async function handleDeactivate(deleteUploads: boolean) {
     setBusy(true)
     try {
-      await onDeactivate(member!)
+      await onDeactivate(member!, deleteUploads)
       onClose()
     } finally {
       setBusy(false)
@@ -60,7 +60,7 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
       <AdminDrawer
         open
         onClose={onClose}
-        title="Roster profile"
+        title="Member profile"
         maxWidth="md"
         bodyClassName="px-5 pb-5"
         footer={
@@ -220,14 +220,13 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
           )}
       </AdminDrawer>
 
-      <AdminConfirmDialog
+      <DeactivateMemberDialog
         open={showDeactivateConfirm}
-        title="Deactivate member?"
-        message={`${member.name} will lose access until re-approved. You can restore access from Edit Status.`}
-        confirmLabel="Deactivate"
-        tone="danger"
+        memberName={member.name}
+        userId={member.id}
+        uploadCount={member.uploadCount}
         loading={busy}
-        onConfirm={() => void handleDeactivate()}
+        onConfirm={(deleteUploads) => void handleDeactivate(deleteUploads)}
         onCancel={() => setShowDeactivateConfirm(false)}
       />
     </>

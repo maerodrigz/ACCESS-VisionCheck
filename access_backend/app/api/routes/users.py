@@ -9,7 +9,14 @@ from app.database import get_db
 from app.models.audit_log import AuditLog
 from app.models.enums import RoleName, UserStatus
 from app.models.user import User
-from app.schemas.admin_member import AdminMemberResponse, AdminUserProfileResponse, UserRoleUpdate, UserStatusUpdate
+from app.crud import media as media_crud
+from app.schemas.admin_member import (
+    AdminMemberResponse,
+    AdminUserProfileResponse,
+    UserRoleUpdate,
+    UserStatusUpdate,
+    UserStatusUpdateResponse,
+)
 from app.schemas.common import MessageResponse
 from app.schemas.user import PasswordResetResponse, UserCreate, UserResponse, UserUpdate
 from app.services.security_policy import assert_password_meets_policy
@@ -145,7 +152,20 @@ def update_user(
     )
 
 
-@router.patch("/users/{user_id}/status", response_model=MessageResponse)
+@router.get("/users/{user_id}/media-upload-count")
+def media_upload_count(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Admin: count gallery / evaluation files uploaded by this user."""
+    user = user_crud.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"count": media_crud.count_for_uploader(db, user_id)}
+
+
+@router.patch("/users/{user_id}/status", response_model=UserStatusUpdateResponse)
 def update_user_status(
     user_id: int,
     body: UserStatusUpdate,
@@ -158,6 +178,23 @@ def update_user_status(
     status = body.status.strip().lower()
     if status == "rejected" and not (body.rejection_reason or "").strip():
         raise HTTPException(status_code=400, detail="Rejection reason is required")
+    if body.delete_uploads:
+        if status != "rejected":
+            raise HTTPException(
+                status_code=400,
+                detail="delete_uploads is only allowed when setting status to rejected.",
+            )
+        if not user.role or user.role.role_name != RoleName.MEMBER:
+            raise HTTPException(
+                status_code=400,
+                detail="delete_uploads applies to Member accounts only.",
+            )
+
+    media_deleted = 0
+    media_failed = 0
+    if body.delete_uploads and status == "rejected":
+        media_deleted, media_failed = media_crud.delete_all_for_uploader(db, user.id)
+
     user_crud.update_status(
         db,
         user,
@@ -174,7 +211,31 @@ def update_user_status(
             )
         )
         db.commit()
-    return MessageResponse(message=f"User {status}")
+    if body.delete_uploads and media_deleted:
+        db.add(
+            AuditLog(
+                user_id=admin.id,
+                action="member_media_purged",
+                description=f"Deleted {media_deleted} media file(s) for user {user_id} during deactivation.",
+            )
+        )
+        db.commit()
+    message = f"User {status}"
+    if body.delete_uploads:
+        if media_deleted and not media_failed:
+            message = f"User {status}. {media_deleted} media file(s) deleted."
+        elif media_deleted and media_failed:
+            message = (
+                f"User {status}. {media_deleted} media file(s) deleted; "
+                f"{media_failed} could not be removed."
+            )
+        elif media_failed:
+            message = f"User {status}. No media files deleted ({media_failed} failed)."
+    return UserStatusUpdateResponse(
+        message=message,
+        media_deleted=media_deleted,
+        media_delete_failed=media_failed,
+    )
 
 
 @router.patch("/users/{user_id}/role", response_model=MessageResponse)

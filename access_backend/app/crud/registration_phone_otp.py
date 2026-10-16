@@ -24,7 +24,7 @@ def _generate_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-def send_otp(db: Session, phone_e164: str) -> None:
+def send_otp(db: Session, phone_e164: str) -> str:
     from app.services.sms_otp_delivery import send_registration_otp
 
     now = _utcnow()
@@ -58,6 +58,7 @@ def send_otp(db: Session, phone_e164: str) -> None:
     )
     db.commit()
     send_registration_otp(phone_e164=phone_e164, code=code)
+    return code
 
 
 def verify_otp(db: Session, phone_e164: str, code: str) -> str:

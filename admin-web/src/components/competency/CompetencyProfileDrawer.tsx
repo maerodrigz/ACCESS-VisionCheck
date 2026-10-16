@@ -146,11 +146,12 @@ export function CompetencyProfileDrawer({
         <TeamAvailabilityIndicator member={m.profile} />
       </Section>
 
-      <Section title="Recent uploads">
+      <Section title="Practice uploads">
         <MemberRecentUploadsSection
           memberName={m.profile.name}
-          uploads={m.profile.recentUploads}
-          emptyMessage="No media uploads available yet."
+          uploads={m.profile.recentUploads.filter((u) => u.mediaCategory === 'member_evaluation')}
+          uploadScope="practice"
+          emptyMessage="No practice evaluation uploads yet."
         />
       </Section>
 

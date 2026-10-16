@@ -53,7 +53,9 @@ html[data-theme='dark'] {
   --color-warning-text: #fcd34d;
   --color-warning-surface: rgba(245, 158, 11, 0.08);
   --color-danger-text: #fca5a5;
+  --color-danger-surface: rgba(239, 68, 68, 0.12);
   --color-success-text: #6ee7b7;
+  --color-success-surface: rgba(34, 197, 94, 0.14);
   --color-card-hover-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   --topbar-search-bg: rgba(255, 255, 255, 0.05);
 }
@@ -76,7 +78,9 @@ html[data-theme='light'] {
   --color-warning-text: #b45309;
   --color-warning-surface: rgba(245, 158, 11, 0.12);
   --color-danger-text: #b91c1c;
+  --color-danger-surface: rgba(239, 68, 68, 0.1);
   --color-success-text: #047857;
+  --color-success-surface: rgba(34, 197, 94, 0.16);
   --color-card-hover-shadow: 0 4px 16px rgba(15, 39, 68, 0.08);
   --topbar-search-bg: #f1f5f9;
 }

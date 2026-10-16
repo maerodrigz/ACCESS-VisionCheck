@@ -25,9 +25,9 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | null>(null)
 
 const TONE_CLASS: Record<ToastTone, string> = {
-  success: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-100',
-  error: 'border-red-500/30 bg-red-500/15 text-red-100',
-  info: 'border-[var(--color-border)] bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]',
+  success: 'admin-alert admin-alert--success',
+  error: 'admin-alert admin-alert--error',
+  info: 'admin-alert border-[var(--color-border)] bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]',
 }
 
 function resolveTone(tone?: ToastTone | boolean): ToastTone {
@@ -76,9 +76,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           className={`fixed bottom-6 right-6 z-[80] flex max-w-sm items-start gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-lg ${TONE_CLASS[toast.tone]}`}
         >
           {toast.tone === 'success' ? (
-            <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-400" />
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[var(--color-success)]" />
           ) : toast.tone === 'error' ? (
-            <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-400" />
+            <AlertCircle size={18} className="mt-0.5 shrink-0 text-[var(--color-danger)]" />
           ) : (
             <Info size={18} className="mt-0.5 shrink-0 text-[var(--color-accent-blue)]" />
           )}

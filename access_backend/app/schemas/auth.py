@@ -10,6 +10,12 @@ class RegistrationOtpSendRequest(BaseModel):
     phone: str = Field(min_length=10, max_length=40)
 
 
+class RegistrationOtpSendResponse(BaseModel):
+    message: str
+    """Present only when SMS_PROVIDER=log (local dev). Never set for real SMS."""
+    dev_code: str | None = None
+
+
 class RegistrationOtpVerifyRequest(BaseModel):
     phone: str = Field(min_length=10, max_length=40)
     code: str = Field(min_length=4, max_length=8)

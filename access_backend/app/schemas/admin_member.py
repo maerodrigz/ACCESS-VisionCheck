@@ -39,10 +39,30 @@ class UserRoleUpdate(BaseModel):
 class UserStatusUpdate(BaseModel):
     status: str
     rejection_reason: str | None = Field(None, max_length=500)
+    delete_uploads: bool = Field(
+        default=False,
+        description="When deactivating a Member, permanently delete their uploaded media files.",
+    )
+
+
+class UserStatusUpdateResponse(BaseModel):
+    message: str
+    media_deleted: int = 0
+    media_delete_failed: int = 0
 
 
 class MemberRemoveBody(BaseModel):
     removal_reason: str | None = Field(None, max_length=500)
+
+
+class MemberDeleteBody(BaseModel):
+    """Permanent delete — requires typing the member email."""
+
+    confirmation_email: str = Field(..., min_length=3, max_length=255)
+    delete_uploads: bool = Field(
+        default=False,
+        description="Also delete photos/videos uploaded by this member.",
+    )
 
 
 class ProfileActivityItem(BaseModel):

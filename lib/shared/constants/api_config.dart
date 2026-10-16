@@ -115,6 +115,7 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
+    '192.168.8.96',
     '192.168.8.98',
     '10.68.93.169',
     '10.93.47.169',
@@ -272,6 +273,20 @@ class ApiConfig {
   static final RuntimeBaseUrl runtimeBaseUrl = RuntimeBaseUrl._();
 
   static const String apiPrefix = '/api';
+
+  /// Example URL shown when a physical phone cannot reach the PC backend.
+  static String get suggestedPhoneBackendUrl {
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
+    }
+    if (apiPublicHostOverride.isNotEmpty) {
+      return 'http://$apiPublicHostOverride:$port';
+    }
+    if (knownLanHosts.isNotEmpty) {
+      return 'http://${knownLanHosts.first}:$port';
+    }
+    return 'http://<PC Wi-Fi IPv4>:$port';
+  }
 
   /// One-line summary for splash / debug screens.
   static String describe() =>

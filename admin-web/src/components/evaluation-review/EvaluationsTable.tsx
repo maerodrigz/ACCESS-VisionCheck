@@ -13,11 +13,11 @@ function AiBadge({ result }: { result: string | null }) {
   const lower = result.toLowerCase()
   const cls =
     lower === 'human'
-      ? 'bg-emerald-500/15 text-emerald-300'
+      ? 'border border-[color-mix(in_srgb,var(--color-success)_35%,transparent)] bg-[var(--color-success-surface)] text-[var(--color-success-text)]'
       : lower === 'suspicious'
-        ? 'bg-amber-500/15 text-amber-300'
+        ? 'border border-[color-mix(in_srgb,var(--color-warning)_35%,transparent)] bg-[var(--color-warning-surface)] text-[var(--color-warning-text)]'
         : lower === 'ai_generated'
-          ? 'bg-red-500/15 text-red-300'
+          ? 'border border-[color-mix(in_srgb,var(--color-danger)_35%,transparent)] bg-[var(--color-danger-surface)] text-[var(--color-danger-text)]'
           : 'bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]'
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${cls}`}>

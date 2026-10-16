@@ -78,14 +78,14 @@ html[data-theme='light'] * {
 }
 
 .admin-alert--error {
-  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
-  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  background: var(--color-danger-surface);
   color: var(--color-danger-text);
 }
 
 .admin-alert--success {
-  border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
-  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success) 40%, transparent);
+  background: var(--color-success-surface);
   color: var(--color-success-text);
 }
 

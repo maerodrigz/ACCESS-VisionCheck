@@ -18,11 +18,14 @@ class AuthService {
     return user;
   }
 
-  Future<String> sendRegistrationOtp(String phone) async {
+  Future<RegistrationOtpSendResult> sendRegistrationOtp(String phone) async {
     final data = await _api.post('/auth/registration-otp/send', {
       'phone': phone.trim(),
     }) as Map<String, dynamic>;
-    return (data['message'] as String?) ?? 'Verification code sent.';
+    return RegistrationOtpSendResult(
+      message: (data['message'] as String?) ?? 'Verification code sent.',
+      devCode: data['dev_code'] as String?,
+    );
   }
 
   Future<String> verifyRegistrationOtp({
@@ -62,6 +65,13 @@ class AuthService {
   }
 
   void logout() => _api.setToken(null);
+}
+
+class RegistrationOtpSendResult {
+  const RegistrationOtpSendResult({required this.message, this.devCode});
+
+  final String message;
+  final String? devCode;
 }
 
 final authService = AuthService(apiClient);

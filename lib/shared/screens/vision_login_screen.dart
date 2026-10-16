@@ -8,6 +8,7 @@ import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/screens/registration_choice_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
+import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,6 +39,10 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     // Keep login hero in sync with GET /branding (tagline, custom logo, app name).
     unawaited(brandingController.refresh());
     _loadRememberedEmail();
+    final ended = authController.consumeSessionEndMessage();
+    if (ended != null && ended.isNotEmpty) {
+      _error = ended;
+    }
   }
 
   @override
@@ -120,6 +125,27 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     );
   }
 
+  Future<void> _fixBackendConnection() async {
+    final changed = await showBackendUrlDialog(context);
+    if (!mounted || !changed) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final restored = await authController.retryPersistedSession();
+    if (!mounted) return;
+    if (restored) {
+      setState(() => _loading = false);
+      widget.onAuthenticated?.call();
+      return;
+    }
+    final ended = authController.consumeSessionEndMessage();
+    setState(() {
+      _loading = false;
+      _error = ended ?? 'Backend updated. Sign in with your email and password.';
+    });
+  }
+
   void _forgotPassword() {
     showDialog<void>(
       context: context,
@@ -170,6 +196,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
             onSubmit: _submit,
             onForgotPassword: _forgotPassword,
             onCreateAccount: kIsWeb ? null : _openRegistration,
+            onFixBackendConnection: kIsWeb ? null : _fixBackendConnection,
           ),
         ),
       ],
@@ -195,6 +222,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       onSubmit: _submit,
       onForgotPassword: _forgotPassword,
       onCreateAccount: kIsWeb ? null : _openRegistration,
+      onFixBackendConnection: kIsWeb ? null : _fixBackendConnection,
     );
 
     return Stack(

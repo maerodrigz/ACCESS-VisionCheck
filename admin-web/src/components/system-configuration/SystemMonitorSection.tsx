@@ -9,7 +9,9 @@ function StatusPill({ ok, label }: { ok: boolean; label: string }) {
     <span
       className={[
         'inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase',
-        ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300',
+        ok
+          ? 'border border-[color-mix(in_srgb,var(--color-success)_35%,transparent)] bg-[var(--color-success-surface)] text-[var(--color-success-text)]'
+          : 'border border-[color-mix(in_srgb,var(--color-danger)_35%,transparent)] bg-[var(--color-danger-surface)] text-[var(--color-danger-text)]',
       ].join(' ')}
     >
       {label}

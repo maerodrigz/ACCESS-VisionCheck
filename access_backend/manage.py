@@ -58,7 +58,13 @@ def cmd_runserver(args: argparse.Namespace) -> None:
     print(f"  Local:  http://127.0.0.1:{port}/api/health")
     print("Press CTRL+C to stop.\n")
 
-    uvicorn.run("main:app", host=host, port=port, reload=reload)
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info",
+    )
 
 
 def cmd_create_tables(_: argparse.Namespace) -> None:

@@ -78,6 +78,17 @@ class Settings(BaseSettings):
     firebase_service_account_json: str = Field(default="", alias="FIREBASE_SERVICE_ACCOUNT_JSON")
     firebase_storage_enabled: str = Field(default="", alias="FIREBASE_STORAGE_ENABLED")
 
+    # Supabase Storage — canonical photos/videos when enabled
+    supabase_url: str = Field(default="", alias="SUPABASE_URL")
+    supabase_service_role_key: str = Field(default="", alias="SUPABASE_SERVICE_ROLE_KEY")
+    supabase_storage_bucket: str = Field(default="", alias="SUPABASE_STORAGE_BUCKET")
+    supabase_storage_enabled: str = Field(default="", alias="SUPABASE_STORAGE_ENABLED")
+    supabase_max_upload_mb: int = Field(default=50, alias="SUPABASE_MAX_UPLOAD_MB")
+    supabase_service_role_key_file: str = Field(
+        default="secrets/supabase-service-role.key",
+        alias="SUPABASE_SERVICE_ROLE_KEY_FILE",
+    )
+
     facebook_app_id: str = Field(default="", alias="FACEBOOK_APP_ID")
     facebook_client_token: str = Field(default="", alias="FACEBOOK_CLIENT_TOKEN")
     facebook_page_id: str = Field(default="1202339146306816", alias="FACEBOOK_PAGE_ID")
@@ -127,6 +138,21 @@ class Settings(BaseSettings):
         high = float(self.probe_high_risk_threshold)
         if not (0.0 <= low < high <= 1.0):
             raise ValueError("PROBE_LOW_RISK_THRESHOLD and PROBE_HIGH_RISK_THRESHOLD must satisfy 0 <= LOW < HIGH <= 1")
+        return self
+
+    @model_validator(mode="after")
+    def _load_supabase_service_role_from_file(self) -> "Settings":
+        if (self.supabase_service_role_key or "").strip():
+            return self
+        rel = (self.supabase_service_role_key_file or "").strip()
+        if not rel:
+            return self
+        path = BACKEND_ROOT / rel
+        if not path.is_file():
+            return self
+        text = path.read_text(encoding="utf-8").strip()
+        if text and not text.startswith("#"):
+            self.supabase_service_role_key = text
         return self
 
     @computed_field

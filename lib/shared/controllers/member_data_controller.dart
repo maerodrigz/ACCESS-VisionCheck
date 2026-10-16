@@ -86,11 +86,11 @@ class MemberDataController extends ChangeNotifier {
   Future<void>? _rankingsTabFuture;
   Future<void>? _requestorExtrasFuture;
 
-  bool _isUnauthorized(Object e) =>
-      e is ApiException && e.isUnauthorized;
-
   Future<bool> _clearSessionIfUnauthorized(Object e) async {
-    if (!_isUnauthorized(e)) return false;
+    if (e is! ApiException || !e.shouldEndSession) return false;
+    if (e.code == 'rejected' || e.code == 'removed') {
+      authController.setSessionEndMessage(e.message);
+    }
     await authController.logout();
     return true;
   }

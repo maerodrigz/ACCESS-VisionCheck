@@ -149,8 +149,14 @@ export function competencyLevelToApiLabel(level: CompetencyLevel): 'Beginner' | 
   return LEVEL_LABELS[level] as 'Beginner' | 'Intermediate' | 'Advanced'
 }
 
+/** True when admin sent competency guidance via Send to Member (stored as ranking admin_remarks). */
+export function adminCompetencyFeedbackSent(member: CompetencyMember): boolean {
+  return Boolean(member.adminNotes?.trim())
+}
+
 export function memberNeedsReview(member: CompetencyMember): boolean {
   if (member.integrityViolations > 0) return true
+  if (adminCompetencyFeedbackSent(member)) return false
   if (member.currentLevel !== member.recommendedLevel) return true
   if (member.integrityWarnings > 0 && !member.levelOverridden) return true
   return false

@@ -20,6 +20,16 @@ class ApiException implements Exception {
         lower.contains('user not found');
   }
 
+  /// Logged-in session is no longer valid (deleted, deactivated, expired token).
+  bool get shouldEndSession {
+    if (statusCode == 401) return true;
+    if (statusCode == 403) {
+      final c = code?.toLowerCase();
+      return c == 'removed' || c == 'rejected' || c == 'pending';
+    }
+    return false;
+  }
+
   @override
   String toString() => message;
 }
@@ -331,10 +341,14 @@ class ApiClient {
         ? details
         : msg;
     _log('✗ $method $uri  status=${response.statusCode}  msg=$displayMsg', isError: true);
+    final errorCode = map?['error'] is String
+        ? map!['error'] as String
+        : (detail is Map<String, dynamic> ? detail['error'] as String? : null);
+
     throw ApiException(
       displayMsg,
       statusCode: response.statusCode,
-      code: map?['error'] as String? ??
+      code: errorCode ??
           (detail is Map<String, dynamic> ? detail['code'] as String? : null),
     );
   }

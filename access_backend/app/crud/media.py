@@ -193,11 +193,48 @@ def get(db: Session, media_id: int) -> MediaFile | None:
     )
 
 
+def count_for_uploader(db: Session, user_id: int) -> int:
+    return (
+        db.scalar(
+            select(func.count())
+            .select_from(MediaFile)
+            .where(MediaFile.uploaded_by == user_id)
+        )
+        or 0
+    )
+
+
+def delete_all_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
+    """Delete every media_files row for [user_id]. Returns (deleted, failed)."""
+    media_ids = list(
+        db.scalars(
+            select(MediaFile.id)
+            .where(MediaFile.uploaded_by == user_id)
+            .order_by(MediaFile.id)
+        )
+    )
+    deleted = 0
+    failed = 0
+    for media_id in media_ids:
+        media = get(db, media_id)
+        if not media:
+            continue
+        try:
+            delete_media(db, media)
+            deleted += 1
+        except RuntimeError:
+            failed += 1
+    return deleted, failed
+
+
 def _delete_media_file_from_disk(file_url: str | None) -> None:
     if not file_url or not file_url.strip():
         return
     from app.services.firebase_storage import delete_firebase_url
+    from app.services.supabase_storage import delete_supabase_url
 
+    if delete_supabase_url(file_url):
+        return
     if delete_firebase_url(file_url):
         return
     url = file_url.strip()

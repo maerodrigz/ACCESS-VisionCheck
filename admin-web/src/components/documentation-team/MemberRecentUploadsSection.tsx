@@ -8,12 +8,15 @@ interface Props {
   memberName: string
   uploads: MemberUploadPreview[]
   emptyMessage?: string
+  /** When set, footer copy matches practice-only grids (e.g. competency profile). */
+  uploadScope?: 'all' | 'practice'
 }
 
 export function MemberRecentUploadsSection({
   memberName,
   uploads,
   emptyMessage = 'No photos or videos uploaded yet. Practice evaluations and event coverage will appear here.',
+  uploadScope = 'all',
 }: Props) {
   const [preview, setPreview] = useState<MemberUploadPreview | null>(null)
 
@@ -60,8 +63,9 @@ export function MemberRecentUploadsSection({
       </div>
 
       <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
-        Latest {uploads.length} upload{uploads.length === 1 ? '' : 's'} for {memberName} (event coverage and
-        practice).
+        {uploadScope === 'practice'
+          ? `Latest ${uploads.length} practice evaluation upload${uploads.length === 1 ? '' : 's'} for ${memberName}.`
+          : `Latest ${uploads.length} upload${uploads.length === 1 ? '' : 's'} for ${memberName} (event coverage and practice).`}
       </p>
 
       {preview ? (

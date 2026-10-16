@@ -68,12 +68,42 @@ export function resetUserPassword(userId: number) {
   )
 }
 
-export function setUserStatus(userId: number, status: string, rejectionReason?: string) {
-  return apiRequest<{ message: string }>(`/users/${userId}/status`, {
+export function fetchMemberMediaUploadCount(userId: number) {
+  return apiRequest<{ count: number }>(`/users/${userId}/media-upload-count`).then(
+    (r) => r.count,
+  )
+}
+
+export function permanentlyDeleteMemberAccount(
+  userId: number,
+  confirmationEmail: string,
+  deleteUploads: boolean,
+) {
+  return apiRequest<{ message: string }>(`/admin/members/${userId}/delete`, {
+    method: 'POST',
+    body: JSON.stringify({
+      confirmation_email: confirmationEmail,
+      delete_uploads: deleteUploads,
+    }),
+  })
+}
+
+export function setUserStatus(
+  userId: number,
+  status: string,
+  rejectionReason?: string,
+  options?: { deleteUploads?: boolean },
+) {
+  return apiRequest<{
+    message: string
+    media_deleted?: number
+    media_delete_failed?: number
+  }>(`/users/${userId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({
       status,
       ...(rejectionReason ? { rejection_reason: rejectionReason } : {}),
+      ...(options?.deleteUploads ? { delete_uploads: true } : {}),
     }),
   })
 }

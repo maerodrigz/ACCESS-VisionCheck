@@ -66,6 +66,7 @@ export interface TeamMemberProfile {
   currentAssignment: CurrentAssignmentInfo | null
   portfolio: PortfolioWorkItem[]
   recentUploads: MemberUploadPreview[]
+  uploadCount: number
   dateJoined: Date | null
   aiRecommendation: string
   avatarUrl: string | null
@@ -477,6 +478,7 @@ export function buildTeamProfiles(input: {
       currentAssignment: assignment,
       portfolio,
       recentUploads,
+      uploadCount: memberMedia.length,
       dateJoined: parseDate(u.approved_at ?? u.created_at),
       aiRecommendation: '',
       avatarUrl,

@@ -9,9 +9,10 @@ export interface OperationBannerState {
 }
 
 const STATUS_CLASS: Record<OperationBannerStatus, string> = {
-  loading: 'border-[var(--color-accent-blue)]/35 bg-[var(--color-accent-blue)]/10 text-[var(--color-text-primary)]',
-  success: 'border-emerald-500/35 bg-emerald-500/10 text-emerald-100',
-  error: 'border-red-500/35 bg-red-500/10 text-red-100',
+  loading:
+    'border border-[color-mix(in_srgb,var(--color-accent-blue)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-accent-blue)_10%,transparent)] text-[var(--color-text-primary)]',
+  success: 'admin-alert admin-alert--success',
+  error: 'admin-alert admin-alert--error',
 }
 
 interface Props {
@@ -44,7 +45,7 @@ export function AdminOperationBanner({ banner, onDismiss, autoDismissMs = 6000 }
     >
       <Icon
         size={18}
-        className={`mt-0.5 shrink-0 ${banner.status === 'loading' ? 'animate-spin text-[var(--color-accent-blue)]' : ''} ${banner.status === 'success' ? 'text-emerald-400' : ''} ${banner.status === 'error' ? 'text-red-400' : ''}`}
+        className={`mt-0.5 shrink-0 ${banner.status === 'loading' ? 'animate-spin text-[var(--color-accent-blue)]' : ''} ${banner.status === 'success' ? 'text-[var(--color-success)]' : ''} ${banner.status === 'error' ? 'text-[var(--color-danger)]' : ''}`}
       />
       <p className="min-w-0 flex-1 font-semibold leading-snug">{banner.message}</p>
       {banner.status !== 'loading' && onDismiss ? (

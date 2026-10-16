@@ -66,9 +66,19 @@ async def upload_avatar(
     if cloud.startswith("https://"):
         profile_image = cloud
     else:
+        from app.services.supabase_storage import is_supabase_storage_configured, upload_media_bytes as supabase_upload
         from app.services.firebase_storage import is_firebase_storage_configured, upload_media_bytes
 
-        if is_firebase_storage_configured():
+        if is_supabase_storage_configured():
+            sb_url = supabase_upload(
+                content,
+                file_name=file.filename or "avatar.jpg",
+                folder="profiles",
+                user_id=current_user.id,
+            )
+            if sb_url:
+                profile_image = sb_url
+        if not profile_image and is_firebase_storage_configured():
             fb_url = upload_media_bytes(
                 content,
                 file_name=file.filename or "avatar.jpg",

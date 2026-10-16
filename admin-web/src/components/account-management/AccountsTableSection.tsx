@@ -17,6 +17,7 @@ interface Props {
   onChangeRole: (user: AdminAccountUser) => void
   onResetPassword: (user: AdminAccountUser) => void
   onToggleActive: (user: AdminAccountUser) => void
+  onDeleteMember: (user: AdminAccountUser) => void
 }
 
 function AccountsTable({
@@ -29,6 +30,7 @@ function AccountsTable({
   onChangeRole,
   onResetPassword,
   onToggleActive,
+  onDeleteMember,
 }: Props) {
   return (
     <div className="account-mgmt__table-wrap">
@@ -74,6 +76,7 @@ function AccountsTable({
                   onChangeRole={() => onChangeRole(u)}
                   onResetPassword={() => onResetPassword(u)}
                   onToggleActive={() => onToggleActive(u)}
+                  onDeleteMember={() => onDeleteMember(u)}
                 />
               </td>
             </tr>

@@ -56,6 +56,7 @@ admin-web/.env
 !**/.env.example
 config/firebase.json
 access_backend/secrets/*.json
+access_backend/secrets/*.key
 android/app/google-services.json
 
 # Local backend uploads (member media, not source code)

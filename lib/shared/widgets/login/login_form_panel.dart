@@ -303,7 +303,11 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
     final error = widget.error;
     if (error == null) return const [];
     final showFix = widget.onFixBackendConnection != null &&
-        (error.contains('timeout') || error.contains('Cannot reach') || error.contains('192.168'));
+        (error.contains('timeout') ||
+            error.contains('Cannot reach') ||
+            error.contains('cannot reach') ||
+            error.contains('Fix backend URL') ||
+            error.contains('192.168'));
     return [
       Container(
         padding: const EdgeInsets.all(12),

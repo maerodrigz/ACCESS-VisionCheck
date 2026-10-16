@@ -19,11 +19,10 @@ def send_registration_otp(*, phone_e164: str, code: str) -> None:
         raise RuntimeError("SMS provider is disabled (SMS_PROVIDER=none).")
 
     if provider == "log":
-        logger.warning(
-            "SMS OTP (dev log) to %s: %s",
-            phone_e164,
-            code,
-        )
+        line = f"SMS OTP (dev log) to {phone_e164}: {code}"
+        logger.warning(line)
+        # Uvicorn often hides app loggers; always mirror to the runserver console.
+        print(f"\n>>> {line} <<<\n", flush=True)
         return
 
     if provider == "semaphore":

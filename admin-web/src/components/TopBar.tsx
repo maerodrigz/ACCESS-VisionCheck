@@ -29,7 +29,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
 
   const navigate = useNavigate()
 
@@ -158,7 +158,7 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
           ) : null}
         </button>
 
-        <ProfileDropdown user={user} onLogout={logout} />
+        <ProfileDropdown user={user} />
       </div>
     </header>
   )

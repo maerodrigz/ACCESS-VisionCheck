@@ -19,14 +19,11 @@ class MobileAuthScaffold extends StatelessWidget {
   /// Used when [scrollable] is true (registration screens).
   final double headerHeightFactor;
 
-  /// Sign-in: adaptive header; body scrolls inside the white card when needed.
+  /// Sign-in: cyan hero + white form; keyboard uses inset padding (no scaffold shrink).
   final bool fixedViewport;
 
   double _headerHeight(MediaQueryData media) {
     if (fixedViewport) {
-      if (media.viewInsets.bottom > 0) {
-        return MobileAuthConstants.signInHeaderKeyboardHeight;
-      }
       final h = media.size.height * MobileAuthConstants.signInHeaderHeightFactor;
       return h.clamp(
         MobileAuthConstants.signInHeaderMinHeight,
@@ -40,65 +37,74 @@ class MobileAuthScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final headerH = _headerHeight(media);
     final keyboardOpen = media.viewInsets.bottom > 0;
+    final hideHero = fixedViewport && keyboardOpen;
 
-    Widget bodySlot(Widget child) {
-      if (scrollable) {
-        return SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.fromLTRB(
-            24,
-            4,
-            24,
-            24 + media.viewInsets.bottom,
+    Widget column = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (hideHero)
+          SizedBox(height: media.padding.top)
+        else
+          SizedBox(
+            height: _headerHeight(media),
+            child: MobileAuthHeader(compact: fixedViewport),
           ),
-          child: child,
-        );
-      }
+        Expanded(child: _bodySlot(body, media, keyboardOpen)),
+      ],
+    );
 
-      return DecoratedBox(
-        decoration: const BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.fromLTRB(
-                24,
-                8,
-                24,
-                12 + media.viewInsets.bottom,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: keyboardOpen ? 0 : constraints.maxHeight,
-                ),
-                child: child,
-              ),
-            );
-          },
-        ),
+    if (fixedViewport) {
+      column = Padding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        child: column,
       );
     }
 
     return Scaffold(
       backgroundColor: fixedViewport ? kBg : kSurface,
-      resizeToAvoidBottomInset: true,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            height: headerH,
-            child: MobileAuthHeader(
-              compact: fixedViewport,
-              minimal: fixedViewport && keyboardOpen,
+      resizeToAvoidBottomInset: !fixedViewport,
+      body: column,
+    );
+  }
+
+  Widget _bodySlot(Widget child, MediaQueryData media, bool keyboardOpen) {
+    if (scrollable) {
+      return SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          24,
+          4,
+          24,
+          24 + media.viewInsets.bottom,
+        ),
+        child: child,
+      );
+    }
+
+    const formPadding = EdgeInsets.fromLTRB(24, 8, 24, 12);
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: ColoredBox(
+        color: kSurface,
+        child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            physics: keyboardOpen
+                ? const ClampingScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Padding(
+                padding: formPadding,
+                child: child,
+              ),
             ),
-          ),
-          Expanded(child: bodySlot(body)),
-        ],
+          );
+        },
+        ),
       ),
     );
   }

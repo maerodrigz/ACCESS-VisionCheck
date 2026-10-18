@@ -506,6 +506,9 @@ class MemberDataController extends ChangeNotifier {
   /// Home tab pull-to-refresh: re-sync home data; heavier sections run in background.
   Future<void> refreshHomeTab() async {
     await refreshHomeBootstrap();
+    if (!_isOrganizationUser) {
+      unawaited(refreshRequestorRatings());
+    }
   }
 
   /// Evaluations tab pull-to-refresh.

@@ -297,9 +297,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     onProfileTap: widget.onProfileTap,
                   ),
                   if (gallerySyncing)
-                    const LinearProgressIndicator(
+                    LinearProgressIndicator(
                       minHeight: 3,
-                      color: kAccent,
+                      color: widget.requestorMode
+                          ? kRequestorPrimaryAction
+                          : kAccent,
                       backgroundColor: kBorder,
                     ),
                   _GalleryStatsRow(
@@ -324,6 +326,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           _GalleryFilterTabs(
             selected: _filter,
             onSelected: (f) => setState(() => _filter = f),
+            requestorMode: widget.requestorMode,
           ),
           Expanded(
             child: ListenableBuilder(
@@ -565,60 +568,27 @@ class _GalleryMemberHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final padding = mobilePagePaddingOf(context);
     final compact = MediaQuery.sizeOf(context).width < 360;
-
-    final titleStyle = dashText(TextStyle(
-      color: kTextPrimary,
-      fontSize: compact ? 24 : 26,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -0.45,
-      height: 1.12,
-    ));
-    if (purposeBelowTitle) {
-      return ColoredBox(
-        color: kBg,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            RequestorFeatureTitleBar(
-              title: 'Gallery',
-              titleFontSize: compact ? 24 : 26,
-              trailing: [
-                const SizedBox(width: 6),
-                MemberPageNotificationButton(onTap: onNotificationsTap),
-                MemberPageProfileAvatar(onTap: onProfileTap),
-              ],
-            ),
-            RequestorFeaturePurposeLine(text: subtitle),
-          ],
-        ),
-      );
-    }
+    final purpose = subtitle.trim();
 
     return ColoredBox(
       color: kBg,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            padding,
-            compact ? 8 : 10,
-            padding - 4,
-            compact ? 8 : 10,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Text('Gallery', style: titleStyle),
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RequestorFeatureTitleBar(
+            title: 'Gallery',
+            titleFontSize: compact ? 24 : 26,
+            lightBand: false,
+            trailing: [
               const SizedBox(width: 6),
               MemberPageNotificationButton(onTap: onNotificationsTap),
               MemberPageProfileAvatar(onTap: onProfileTap),
             ],
           ),
-        ),
+          if (purpose.isNotEmpty && purposeBelowTitle)
+            RequestorFeaturePurposeLine(text: purpose),
+        ],
       ),
     );
   }
@@ -666,7 +636,7 @@ class _GalleryStatsRow extends StatelessWidget {
               value: '$videoCount',
               label: 'Videos',
               icon: Icons.videocam_outlined,
-              iconColor: kCyan,
+              iconColor: kDashStatPurpleIcon,
             ),
           ),
         ],
@@ -904,10 +874,12 @@ class _GalleryFilterTabs extends StatelessWidget {
   const _GalleryFilterTabs({
     required this.selected,
     required this.onSelected,
+    this.requestorMode = false,
   });
 
   final _GalleryFilter selected;
   final ValueChanged<_GalleryFilter> onSelected;
+  final bool requestorMode;
 
   static const _labels = {
     _GalleryFilter.all: 'All',
@@ -960,6 +932,8 @@ class _GalleryFilterTabs extends StatelessWidget {
                       : _iconsInactive[filter]!,
                   inactiveIconColor: _inactiveIconColor(filter),
                   active: selected == filter,
+                  activeFillColor:
+                      requestorMode ? kRequestorPrimaryAction : kAccent,
                   compact: compact,
                   onTap: () => onSelected(filter),
                 ),
@@ -978,6 +952,7 @@ class _GalleryFilterTab extends StatelessWidget {
     required this.icon,
     required this.inactiveIconColor,
     required this.active,
+    required this.activeFillColor,
     required this.compact,
     required this.onTap,
   });
@@ -986,6 +961,7 @@ class _GalleryFilterTab extends StatelessWidget {
   final IconData icon;
   final Color inactiveIconColor;
   final bool active;
+  final Color activeFillColor;
   final bool compact;
   final VoidCallback onTap;
 
@@ -1005,7 +981,7 @@ class _GalleryFilterTab extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 6),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              color: active ? kAccent : Colors.transparent,
+              color: active ? activeFillColor : Colors.transparent,
             ),
             alignment: Alignment.center,
             child: Row(
@@ -1661,11 +1637,13 @@ class _GalleryPrimaryButton extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.onPressed,
+    this.backgroundColor = kMemberDashboardAccent,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback onPressed;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1676,7 +1654,7 @@ class _GalleryPrimaryButton extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: kMemberDashboardAccent,
+          backgroundColor: backgroundColor,
           foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: Size.fromHeight(compact ? 44 : kMobileMinTouch),
@@ -1757,6 +1735,7 @@ class _GalleryNoEventMediaEmptyState extends StatelessWidget {
             _GalleryPrimaryButton(
               label: 'View my requests',
               icon: Icons.description_rounded,
+              backgroundColor: kRequestorPrimaryAction,
               onPressed: onViewRequests!,
             ),
             const SizedBox(height: 8),

@@ -73,7 +73,7 @@ export function AdminLayout() {
             gridTemplateRows: 'var(--topbar-height) minmax(0, 1fr)',
           }}
         >
-          <div className="border-b border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)]">
+          <div className="admin-sidebar border-b border-[var(--color-sidebar-border)]">
             <SidebarBrand />
           </div>
 
@@ -81,7 +81,7 @@ export function AdminLayout() {
             <TopBar />
           </div>
 
-          <div className="min-h-0 overflow-hidden bg-[var(--color-sidebar-bg)]">
+          <div className="admin-sidebar flex min-h-0 flex-col overflow-hidden">
             <SidebarNav />
           </div>
 

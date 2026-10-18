@@ -179,7 +179,7 @@ class MemberDashboardRequestorFeedbackSection extends StatelessWidget {
                   child: Text(
                     'View All',
                     style: dashText(const TextStyle(
-                      color: kAccent,
+                      color: kMemberButtonPrimary,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                     )),
@@ -187,7 +187,7 @@ class MemberDashboardRequestorFeedbackSection extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             if (loading)
               _RequestorFeedbackShell(
                 child: Row(
@@ -197,7 +197,7 @@ class MemberDashboardRequestorFeedbackSection extends StatelessWidget {
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.5,
-                        color: kAccent,
+                        color: kMemberButtonPrimary,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -249,55 +249,13 @@ class MemberDashboardRequestorFeedbackSection extends StatelessWidget {
               )
             else
               _RequestorFeedbackShell(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          memberDataController.requestorRatingAverage != null
-                              ? memberDataController.requestorRatingAverage!
-                                  .toStringAsFixed(1)
-                              : 'N/A',
-                          style: memberDashboardCardTitleStyle.copyWith(fontSize: 22),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (memberDataController.requestorRatingAverage != null)
-                                RequestorFeedbackStarRow(
-                                  rating: memberDataController.requestorRatingAverage!
-                                      .round()
-                                      .clamp(1, 5),
-                                  size: 14,
-                                ),
-                              const SizedBox(height: 2),
-                              Text(
-                                memberDataController.requestorRatingCount == 1
-                                    ? '1 review received'
-                                    : '${memberDataController.requestorRatingCount} reviews received',
-                                style: memberDashboardMetaStyle.copyWith(fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (memberDataController.requestorRatings.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Divider(height: 1, color: kBorder.withValues(alpha: 0.8)),
-                      ),
-                      RequestorFeedbackEntryCard(
+                child: memberDataController.requestorRatings.isEmpty
+                    ? const SizedBox.shrink()
+                    : RequestorFeedbackEntryCard(
                         row: memberDataController.requestorRatings.first,
                         compact: true,
                         showRequestorMeta: false,
                       ),
-                    ],
-                  ],
-                ),
               ),
           ],
         );

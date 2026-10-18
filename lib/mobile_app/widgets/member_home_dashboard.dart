@@ -87,7 +87,7 @@ class MemberHomeDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: appState,
+      listenable: Listenable.merge([appState, memberDataController]),
       builder: (context, _) {
         final assignment = memberActiveAssignment();
         final taskCount = _activeTaskCount();
@@ -151,13 +151,13 @@ class MemberHomeDashboard extends StatelessWidget {
                       const SizedBox(height: 22),
                       _HomeAiEvaluationCard(onOpen: onViewPortfolio),
                       const SizedBox(height: 22),
-                      _HomeSkillProgressSection(onViewRankings: onViewRankings),
-                      const SizedBox(height: 22),
                       if (onViewAllRequestorFeedback != null)
                         MemberDashboardRequestorFeedbackSection(
                           onViewAll: onViewAllRequestorFeedback!,
                         ),
                       if (onViewAllRequestorFeedback != null) const SizedBox(height: 22),
+                      _HomeSkillProgressSection(onViewRankings: onViewRankings),
+                      const SizedBox(height: 22),
                       const _HomeAnnouncementsSection(),
                     ],
                   ),
@@ -251,7 +251,7 @@ class _HomeDarkHero extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(_horizontalPad, 4, _horizontalPad, 22),
+          padding: const EdgeInsets.fromLTRB(_horizontalPad, 0, _horizontalPad, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -260,17 +260,22 @@ class _HomeDarkHero extends StatelessWidget {
                 onNotifications: onNotifications,
                 onProfileTap: onProfileTap,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               Text(
                 '${memberDashboardGreeting()}, ${memberDashboardFirstName()}!',
-                style: memberCyanHeroTitleTextStyle(),
+                style: memberCyanHeroTitleTextStyle(fontSize: 18),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 'Here\'s what\'s happening with your documentation today.',
-                style: memberCyanHeroSubtitleTextStyle(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: memberCyanHeroSubtitleTextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               _HomeFeaturedEventCard(
                 assignment: assignment,
                 onTap: onEventTap,
@@ -326,7 +331,7 @@ class _HomeTopBar extends StatelessWidget {
           children: [
             const Expanded(
               child: AccessBrandLockup(
-                markSize: 40,
+                markSize: 38,
                 compact: true,
                 onCyanHeader: true,
               ),
@@ -535,29 +540,39 @@ class _HomeFeaturedEventCard extends StatelessWidget {
   final Challenge? assignment;
   final VoidCallback? onTap;
 
-  String _statusLabel(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending_acceptance':
-        return 'Pending';
-      case 'assigned':
-        return 'Assigned';
-      case 'in_progress':
-        return 'In Progress';
-      case 'accepted':
-        return 'Confirmed';
-      default:
-        return 'Active';
-    }
+  Widget _statusPill(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: dashText(const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+        )),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 380;
     final hasEvent = assignment != null;
     final title = hasEvent ? assignment!.title : 'No upcoming event';
-    final date = hasEvent ? (assignment!.eventDate ?? 'Date TBA') : 'Check the calendar';
-    final venue = hasEvent ? (assignment!.venue ?? '') : '';
-    final meta = venue.isNotEmpty ? '$date • $venue' : date;
-    final status = hasEvent ? _statusLabel(assignment!.status) : 'Browse';
+    final schedule =
+        hasEvent ? memberAssignmentScheduleLine(assignment!) : 'Check the calendar';
+    final venue = hasEvent ? (assignment!.venue?.trim() ?? '') : '';
+    final statusBadge = hasEvent
+        ? memberAssignmentStatusBadge(assignment!.status)
+        : (label: 'Browse', color: Colors.white, bg: Colors.transparent);
 
     return Material(
       color: Colors.transparent,
@@ -577,8 +592,9 @@ class _HomeFeaturedEventCard extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 40,
@@ -607,53 +623,69 @@ class _HomeFeaturedEventCard extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         )),
                       ),
-                      const SizedBox(height: 1),
+                      const SizedBox(height: 2),
                       Text(
                         title,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: dashText(const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          height: 1.2,
+                          height: 1.22,
                         )),
                       ),
-                      const SizedBox(height: 1),
+                      const SizedBox(height: 3),
                       Text(
-                        meta,
+                        schedule,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: dashText(TextStyle(
-                          color: Colors.white.withValues(alpha: 0.82),
+                          color: Colors.white.withValues(alpha: 0.88),
                           fontSize: 11,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.w500,
                         )),
                       ),
+                      if (venue.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          venue,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: dashText(TextStyle(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w400,
+                          )),
+                        ),
+                      ],
+                      if (narrow && hasEvent) ...[
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: _statusPill(statusBadge.label),
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
-                  ),
-                  child: Text(
-                    status,
-                    style: dashText(const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    )),
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.white.withValues(alpha: 0.8),
-                  size: 18,
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (!narrow || !hasEvent)
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 92),
+                        child: _statusPill(statusBadge.label),
+                      ),
+                    if (!narrow || !hasEvent) const SizedBox(height: 6),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.white.withValues(alpha: 0.8),
+                      size: 18,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -683,6 +715,8 @@ class _HomeHeroStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 380;
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0A1628).withValues(alpha: 0.72),
@@ -692,12 +726,14 @@ class _HomeHeroStats extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: IntrinsicHeight(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               child: _HeroStatCell(
                 icon: Icons.calendar_today_outlined,
                 value: '$taskCount',
                 label: 'My Tasks',
+                compact: compact,
                 onTap: onTasksTap,
               ),
             ),
@@ -707,6 +743,7 @@ class _HomeHeroStats extends StatelessWidget {
                 icon: Icons.photo_outlined,
                 value: '$uploadCount',
                 label: 'My Uploads',
+                compact: compact,
                 onTap: onUploadsTap,
               ),
             ),
@@ -715,7 +752,8 @@ class _HomeHeroStats extends StatelessWidget {
               child: _HeroStatCell(
                 icon: Icons.star_outline_rounded,
                 value: aiScore,
-                label: 'Avg. Quality Score',
+                label: compact ? 'Avg. Quality' : 'Avg. Quality Score',
+                compact: compact,
                 onTap: onAiScoreTap,
               ),
             ),
@@ -739,60 +777,71 @@ class _HeroStatCell extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
+    this.compact = false,
     this.onTap,
   });
 
   final IconData icon;
   final String value;
   final String label;
+  final bool compact;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final child = Padding(
-      padding: const EdgeInsets.fromLTRB(8, 11, 6, 11),
+      padding: EdgeInsets.fromLTRB(compact ? 5 : 7, 10, compact ? 4 : 5, 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 17, color: kCyan.withValues(alpha: 0.92)),
-          const SizedBox(width: 6),
+          Icon(
+            icon,
+            size: compact ? 16 : 17,
+            color: kCyan.withValues(alpha: 0.92),
+          ),
+          SizedBox(width: compact ? 4 : 5),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: dashText(const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    height: 1.05,
-                    letterSpacing: -0.2,
-                  )),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: dashText(TextStyle(
+                      color: Colors.white,
+                      fontSize: compact ? 16 : 18,
+                      fontWeight: FontWeight.w700,
+                      height: 1.05,
+                      letterSpacing: -0.2,
+                    )),
+                  ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 2),
                 Text(
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: dashText(TextStyle(
                     color: Colors.white.withValues(alpha: 0.58),
-                    fontSize: 9,
+                    fontSize: compact ? 8.5 : 9,
                     fontWeight: FontWeight.w500,
-                    height: 1.15,
+                    height: 1.12,
                   )),
                 ),
               ],
             ),
           ),
-          Icon(
-            Icons.chevron_right_rounded,
-            size: 15,
-            color: kCyan.withValues(alpha: 0.75),
-          ),
+          if (!compact)
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 15,
+              color: kCyan.withValues(alpha: 0.75),
+            ),
         ],
       ),
     );
@@ -971,31 +1020,17 @@ class _HomeTaskRow extends StatelessWidget {
     return (icon: Icons.collections_outlined, color: kGreen, bg: kGreenDim);
   }
 
-  static ({String label, Color color, Color bg}) _statusVisual(String status) {
-    final s = status.toLowerCase();
-    if (s == 'pending_acceptance' || s == 'assigned') {
-      return (label: 'Pending', color: kYellow, bg: kYellowDim);
-    }
-    if (s == 'in_progress') {
-      return (label: 'In Review', color: kAccent, bg: kBlueDim);
-    }
-    if (s == 'accepted' || s == 'completed' || s == 'done') {
-      return (label: 'Approved', color: kGreen, bg: kGreenDim);
-    }
-    return (label: status, color: kTextSecondary, bg: kSurfaceAlt);
-  }
-
-  String _taskTitle(Challenge task) {
-    final role = formatTaskRole(task.taskRole ?? 'member');
-    if (role == 'Photographer') return 'Cover Photo Editing';
-    if (role == 'Videographer') return 'Event Video Coverage';
-    return '$role Coverage';
+  String _taskSubtitle(Challenge task) {
+    final role = memberDashboardRole(assignment: task);
+    final schedule = memberAssignmentScheduleLine(task);
+    if (schedule != 'Schedule TBA') return '$role · $schedule';
+    return role;
   }
 
   @override
   Widget build(BuildContext context) {
     final visual = _taskVisual(task);
-    final status = _statusVisual(task.status);
+    final status = memberAssignmentStatusBadge(task.status);
 
     return Material(
       color: kSurface,
@@ -1040,15 +1075,15 @@ class _HomeTaskRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _taskTitle(task),
-                        maxLines: 1,
+                        task.title,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: memberDashboardCardTitleStyle.copyWith(fontSize: 13),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        task.title,
-                        maxLines: 1,
+                        _taskSubtitle(task),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: memberDashboardBodyStyle.copyWith(fontSize: 11),
                       ),
@@ -1056,21 +1091,28 @@ class _HomeTaskRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: status.bg,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    status.label,
-                    style: dashText(TextStyle(
-                      color: status.color,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    )),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 92),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: status.bg,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      status.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: dashText(TextStyle(
+                        color: status.color,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      )),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 2),
                 Icon(Icons.chevron_right_rounded, color: kTextSecondary, size: 18),
               ],
             ),
@@ -1093,7 +1135,9 @@ class _HomeRecentUploadsSection extends StatelessWidget {
   final VoidCallback? onViewPortfolio;
 
   static const _tileWidth = 118.0;
-  static const _tileHeight = 152.0;
+  static const _thumbSize = 118.0;
+  static const _textBlockHeight = 44.0;
+  static const _tileHeight = _thumbSize + 6 + _textBlockHeight;
   static const _maxRecent = 12;
 
   @override
@@ -1208,7 +1252,10 @@ class _HomeRecentUploadsSection extends StatelessWidget {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   primary: false,
-                  physics: const BouncingScrollPhysics(),
+                  clipBehavior: Clip.none,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   itemCount: recent.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (_, index) {
@@ -1246,58 +1293,84 @@ class _HomeUploadTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventName = eventNameForUpload(item);
+    final eventLabel = eventNameForUpload(item).trim();
+    final title = eventLabel.isNotEmpty ? eventLabel : item.title.trim();
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _HomeUploadImage(item: item),
-                    if (item.isVideo)
-                      Center(
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
-                            shape: BoxShape.circle,
+        child: SizedBox(
+          width: _HomeRecentUploadsSection._tileWidth,
+          height: _HomeRecentUploadsSection._tileHeight,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: _HomeRecentUploadsSection._thumbSize,
+                height: _HomeRecentUploadsSection._thumbSize,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _HomeUploadImage(item: item),
+                      if (item.isVideo)
+                        Center(
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                width: 1,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 20,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: _HomeRecentUploadsSection._textBlockHeight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Text(
+                          title.isNotEmpty ? title : 'Upload',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: memberDashboardCardTitleStyle.copyWith(
+                            fontSize: 11,
+                            height: 1.22,
                           ),
                         ),
                       ),
+                    ),
+                    Text(
+                      item.date,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: memberDashboardMetaStyle.copyWith(fontSize: 10),
+                    ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              eventName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: memberDashboardCardTitleStyle.copyWith(fontSize: 11),
-            ),
-            Text(
-              item.date,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: memberDashboardMetaStyle.copyWith(fontSize: 10),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1309,37 +1382,42 @@ class _HomeUploadSkeletonTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AspectRatio(
-          aspectRatio: 1,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: kBorder.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(12),
+    return SizedBox(
+      width: _HomeRecentUploadsSection._tileWidth,
+      height: _HomeRecentUploadsSection._tileHeight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: _HomeRecentUploadsSection._thumbSize,
+            height: _HomeRecentUploadsSection._thumbSize,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: kBorder.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          height: 10,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: kBorder.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(4),
+          const SizedBox(height: 6),
+          Container(
+            height: 10,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: kBorder.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          height: 8,
-          width: 48,
-          decoration: BoxDecoration(
-            color: kBorder.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(4),
+          const SizedBox(height: 4),
+          Container(
+            height: 8,
+            width: 48,
+            decoration: BoxDecoration(
+              color: kBorder.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1370,70 +1448,99 @@ class _HomeAiEvaluationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 340;
+
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Media Evaluation',
+          style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Get instant feedback on your media quality.',
+          style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.35),
+        ),
+      ],
+    );
+
+    final action = FilledButton(
+      onPressed: onOpen,
+      style: FilledButton.styleFrom(
+        backgroundColor: kMemberButtonPrimary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        minimumSize: narrow ? const Size.fromHeight(42) : Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        textStyle: dashText(const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        )),
+      ),
+      child: const Text('Evaluate Media'),
+    );
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
             kCyan.withValues(alpha: 0.14),
-            kAccent.withValues(alpha: 0.07),
+            kAccent.withValues(alpha: 0.06),
           ],
         ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: kCyan.withValues(alpha: 0.22)),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: kAccent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(Icons.auto_awesome_outlined, color: kAccent, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: narrow
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Media Evaluation',
-                  style: memberDashboardCardTitleStyle.copyWith(fontSize: 13),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: kCyan.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Icon(Icons.auto_awesome_outlined, color: kCyan, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: copy),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Get instant feedback on your media quality.',
-                  style: memberDashboardBodyStyle.copyWith(fontSize: 11, height: 1.35),
+                const SizedBox(height: 12),
+                action,
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: kCyan.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(Icons.auto_awesome_outlined, color: kCyan, size: 20),
                 ),
+                const SizedBox(width: 12),
+                Expanded(child: copy),
+                const SizedBox(width: 10),
+                action,
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: onOpen,
-            style: FilledButton.styleFrom(
-              backgroundColor: kDashStatPurpleIcon,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              textStyle: dashText(const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
-              )),
-            ),
-            child: const Text('Evaluate Media'),
-          ),
-        ],
-      ),
     );
   }
 }

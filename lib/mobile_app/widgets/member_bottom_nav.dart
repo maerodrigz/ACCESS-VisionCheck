@@ -17,8 +17,9 @@ class MemberBottomNav extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   static const centerTabIndex = 1;
+  /// Fixed content height inside [SafeArea]. Slightly above icon+label stack for text scaling.
   static const barHeight = 68.0;
-  static const centerFabSize = 44.0;
+  static const centerFabSize = 42.0;
 
   static const _evalFabGradientActive = [
     Color(0xFF0A1628),
@@ -65,11 +66,13 @@ class MemberBottomNav extends StatelessWidget {
         ),
         child: SafeArea(
           top: false,
-          child: SizedBox(
-            height: barHeight,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
+          child: MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.12,
+            child: SizedBox(
+              height: barHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
                 Expanded(
                   child: _MemberSideNavItem(
                     label: 'Home',
@@ -117,7 +120,8 @@ class MemberBottomNav extends StatelessWidget {
                     onTap: () => _handleTap(5),
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -152,9 +156,10 @@ class _MemberSideNavItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.only(bottom: compact ? 6 : 8, top: 4),
+          padding: EdgeInsets.symmetric(vertical: compact ? 5 : 6),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -215,9 +220,10 @@ class _CenterEvaluateNavItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.only(bottom: compact ? 6 : 8, top: 2),
+          padding: EdgeInsets.symmetric(vertical: compact ? 5 : 6),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedScale(
                 scale: active ? 1.0 : 0.96,
@@ -260,8 +266,8 @@ class _CenterEvaluateNavItem extends StatelessWidget {
                     Icons.analytics_rounded,
                     color: active
                         ? Colors.white
-                        : Colors.white.withValues(alpha: 0.88),
-                    size: compact ? 21 : 22,
+                        : Colors.white.withValues(alpha: 0.9),
+                    size: compact ? 20 : 21,
                   ),
                 ),
               ),

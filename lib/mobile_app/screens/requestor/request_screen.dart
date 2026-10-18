@@ -134,7 +134,7 @@ class _RequestScreenState extends State<RequestScreen> {
                   clipBehavior: Clip.none,
                   children: [
                     RefreshIndicator(
-                      color: kAccent,
+                      color: kRequestorPrimaryAction,
                       onRefresh: _reload,
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(
@@ -145,7 +145,7 @@ class _RequestScreenState extends State<RequestScreen> {
                             const SliverToBoxAdapter(
                               child: LinearProgressIndicator(
                                 minHeight: 3,
-                                color: kAccent,
+                                color: kRequestorPrimaryAction,
                                 backgroundColor: kBorder,
                               ),
                             ),
@@ -225,9 +225,9 @@ class _RequestScreenState extends State<RequestScreen> {
                           top: false,
                           child: Material(
                             elevation: 3,
-                            shadowColor: kAccent.withValues(alpha: 0.25),
+                            shadowColor: kRequestorPrimaryAction.withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(14),
-                            color: kAccent,
+                            color: kRequestorPrimaryAction,
                             child: InkWell(
                               onTap: _openCreateForm,
                               borderRadius: BorderRadius.circular(14),
@@ -404,7 +404,7 @@ class _SegmentFilterItem extends StatelessWidget {
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           decoration: BoxDecoration(
-            color: selected ? kAccent : Colors.transparent,
+            color: selected ? kRequestorPrimaryAction : Colors.transparent,
             borderRadius: BorderRadius.circular(13),
           ),
           child: Column(
@@ -701,8 +701,8 @@ class _EmptyState extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onClearFilter,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: kAccent,
-                    side: const BorderSide(color: kAccent),
+                    foregroundColor: kRequestorPrimaryAction,
+                    side: BorderSide(color: kRequestorPrimaryAction),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

@@ -15,21 +15,28 @@
   --color-danger: #ef4444;
 
   /* Gradients */
-  --nav-active-bg: #0052d4;
   --brand-hero-gradient: linear-gradient(135deg, #0052d4 0%, #0066ff 52%, #00c4e8 100%);
   --dashboard-stats-gradient: linear-gradient(135deg, #0052d4 0%, #0066ff 100%);
+  /* Sidebar nav (on cyan shell) */
+  --nav-active-bg: rgba(255, 255, 255, 0.94);
+  --nav-active-text: #0052d4;
+  --nav-icon-bg: rgba(255, 255, 255, 0.38);
+  --nav-icon-color: #0052d4;
+  --nav-active-icon-bg: rgba(0, 82, 212, 0.14);
+  --nav-active-icon-color: #0052d4;
 
   /* Sizing */
-  /* Fits longest nav labels (Documentation Requests, Competency Management) */
-  --sidebar-width: 256px;
+  /* Narrow cyan rail; nav uses 12px type so long labels still fit */
+  --sidebar-width: 220px;
   --card-radius: 16px;
   --topbar-height: 64px;
 
-  /* Sidebar — dark navy on both themes (matches Flutter kSidebar) */
-  --color-sidebar-bg: #1a2b4a;
-  --color-sidebar-border: rgba(255, 255, 255, 0.08);
-  --color-sidebar-text: rgba(255, 255, 255, 0.78);
-  --color-sidebar-text-muted: rgba(255, 255, 255, 0.45);
+  /* Sidebar — ACCESS cyan (matches mobile sign-in header) */
+  --color-sidebar-bg: #00c4e8;
+  --color-sidebar-gradient: linear-gradient(180deg, #5de4ff 0%, #00c4e8 55%, #00b0d8 100%);
+  --color-sidebar-border: rgba(255, 255, 255, 0.32);
+  --color-sidebar-text: #0c2d45;
+  --color-sidebar-text-muted: rgba(12, 45, 69, 0.72);
   --color-sidebar-top: #00c4e8;
   --color-sidebar-mid: #3b82f6;
   --color-sidebar-bottom: #6366f1;

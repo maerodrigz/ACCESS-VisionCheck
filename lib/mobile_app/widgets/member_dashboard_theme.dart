@@ -369,6 +369,44 @@ Challenge? memberActiveAssignment() {
   return accepted;
 }
 
+/// Assignment status pill — aligned with [MyAssignmentsScreen] backend values.
+({String label, Color color, Color bg}) memberAssignmentStatusBadge(String status) {
+  final s = status.toLowerCase();
+  if (s == 'pending_acceptance' || s == 'assigned') {
+    return (label: 'Pending', color: kYellow, bg: kYellowDim);
+  }
+  if (s == 'accepted') {
+    return (label: 'Confirmed', color: kGreen, bg: kGreenDim);
+  }
+  if (s == 'in_progress') {
+    return (label: 'In Progress', color: kAccent, bg: kBlueDim);
+  }
+  if (s == 'completed' || s == 'done') {
+    return (label: 'Completed', color: kGreen, bg: kGreenDim);
+  }
+  if (s == 'declined') {
+    return (label: 'Declined', color: kRed, bg: kRedDim);
+  }
+  final raw = status.trim();
+  if (raw.isEmpty) {
+    return (label: 'Assigned', color: kTextSecondary, bg: kSurfaceAlt);
+  }
+  return (label: raw, color: kTextSecondary, bg: kSurfaceAlt);
+}
+
+String memberAssignmentScheduleLine(Challenge task) {
+  final date = task.eventDate?.trim();
+  final time = task.eventTimeRange?.trim().isNotEmpty == true
+      ? task.eventTimeRange!.trim()
+      : task.eventTime?.trim();
+  if (date != null && date.isNotEmpty && time != null && time.isNotEmpty) {
+    return '$date · $time';
+  }
+  if (date != null && date.isNotEmpty) return date;
+  if (time != null && time.isNotEmpty) return time;
+  return 'Schedule TBA';
+}
+
 CalendarEvent? calendarEventForAssignment(Challenge assignment) {
   final requestId = assignment.requestId;
   if (requestId != null) {

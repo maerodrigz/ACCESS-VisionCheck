@@ -278,27 +278,12 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
                   ),
                 ),
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                        physics: const ClampingScrollPhysics(),
-                        padding: const EdgeInsets.only(top: 6),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: constraints.maxHeight - 6),
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: cardSideInset),
-                              child: SizedBox(
-                                width: constraints.maxWidth - cardSideInset * 2,
-                                child: formPanel,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(cardSideInset, 6, cardSideInset, 0),
+                      child: formPanel,
+                    ),
                   ),
                 ),
               ],

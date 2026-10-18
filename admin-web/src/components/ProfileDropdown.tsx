@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import {
-  ChevronDown,
-  ChevronRight,
-  KeyRound,
-  LogOut,
-  Settings,
-  User,
-} from 'lucide-react'
+import { ChevronDown, ChevronRight, KeyRound, Settings, User } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../types/auth'
 import { roleDisplayLabel } from '../lib/roles'
@@ -23,7 +16,6 @@ const ADMIN_ROUTES: Record<string, MenuId> = {
 
 interface ProfileDropdownProps {
   user: AuthUser
-  onLogout: () => void
 }
 
 function userInitial(name: string) {
@@ -66,15 +58,13 @@ function ProfileAvatar({
   )
 }
 
-export function ProfileDropdown({ user, onLogout }: ProfileDropdownProps) {
+export function ProfileDropdown({ user }: ProfileDropdownProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
   const [open, setOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
-  const [logoutOpen, setLogoutOpen] = useState(false)
-
   const role = roleDisplayLabel(user.role)
   const isAdmin = user.role === 'Admin'
 
@@ -96,10 +86,6 @@ export function ProfileDropdown({ user, onLogout }: ProfileDropdownProps) {
   useEffect(() => {
     function onEscape(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
-      if (logoutOpen) {
-        setLogoutOpen(false)
-        return
-      }
       if (changePasswordOpen) {
         setChangePasswordOpen(false)
         return
@@ -114,7 +100,7 @@ export function ProfileDropdown({ user, onLogout }: ProfileDropdownProps) {
     }
     document.addEventListener('keydown', onEscape)
     return () => document.removeEventListener('keydown', onEscape)
-  }, [open, profileOpen, changePasswordOpen, logoutOpen, closeDropdown])
+  }, [open, profileOpen, changePasswordOpen, closeDropdown])
 
   function toggleDropdown() {
     setOpen((v) => !v)
@@ -129,11 +115,6 @@ export function ProfileDropdown({ user, onLogout }: ProfileDropdownProps) {
     if (id === 'system-configuration') {
       navigate('/system-configuration')
     }
-  }
-
-  function confirmLogout() {
-    setLogoutOpen(false)
-    onLogout()
   }
 
   const menuBtn = (
@@ -249,64 +230,12 @@ export function ProfileDropdown({ user, onLogout }: ProfileDropdownProps) {
               </section>
             </>
           )}
-
-          <hr className="profile-dropdown__divider" />
-
-          <div className="profile-dropdown__logout-wrap">
-            <button
-              type="button"
-              className="profile-dropdown__link profile-dropdown__link--logout"
-              role="menuitem"
-              onClick={() => {
-                closeDropdown()
-                setLogoutOpen(true)
-              }}
-            >
-              <span className="profile-dropdown__icon" aria-hidden="true">
-                <LogOut size={18} strokeWidth={2} />
-              </span>
-              <span className="profile-dropdown__label">Logout</span>
-            </button>
-          </div>
         </div>
       </div>
 
       <MyProfileDialog open={profileOpen} user={user} onClose={() => setProfileOpen(false)} />
 
       <ChangePasswordDialog open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
-
-      {/* Logout confirmation modal */}
-      <div
-        className={['pd-modal-overlay', logoutOpen ? 'is-visible' : ''].filter(Boolean).join(' ')}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="logout-modal-title"
-        aria-hidden={!logoutOpen}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setLogoutOpen(false)
-        }}
-      >
-        <div className="pd-modal">
-          <h2 id="logout-modal-title" className="pd-modal__title">
-            Sign out?
-          </h2>
-          <p className="pd-modal__message">
-            You will return to the login screen. Any unsaved changes may be lost.
-          </p>
-          <div className="pd-modal__actions">
-            <button
-              type="button"
-              className="pd-modal__btn pd-modal__btn--cancel"
-              onClick={() => setLogoutOpen(false)}
-            >
-              Cancel
-            </button>
-            <button type="button" className="pd-modal__btn pd-modal__btn--confirm" onClick={confirmLogout}>
-              Sign out
-            </button>
-          </div>
-        </div>
-      </div>
     </>
   )
 }

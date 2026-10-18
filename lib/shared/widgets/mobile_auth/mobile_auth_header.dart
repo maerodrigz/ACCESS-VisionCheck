@@ -30,14 +30,25 @@ class MobileAuthHeader extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               18,
-              minimal ? 4 : (compact ? 2 : 10),
+              minimal ? 2 : (compact ? 2 : 10),
               18,
-              compact ? 46 : 52,
+              minimal ? 6 : (compact ? 46 : 52),
             ),
             child: minimal ? _minimalTitle() : (compact ? _signInBrandRow() : _registrationBrandColumn()),
           ),
         ),
-        const Positioned(left: 0, right: 0, bottom: 0, child: AuthWaveDivider()),
+        if (minimal)
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: ColoredBox(
+              color: kSurface,
+              child: SizedBox(height: 12),
+            ),
+          )
+        else
+          const Positioned(left: 0, right: 0, bottom: 0, child: AuthWaveDivider()),
       ],
     );
   }

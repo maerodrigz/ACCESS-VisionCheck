@@ -204,6 +204,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
     final startWeekday = (firstDay.weekday + 6) % 7;
     final rowCount = ((startWeekday + daysInMonth) / 7).ceil();
+    final primaryAction = kMemberButtonPrimary;
 
     return ColoredBox(
       color: kBg,
@@ -214,6 +215,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             RequestorFeatureTitleBar(
               title: 'Calendar',
               titleFontSize: 24,
+              lightBand: false,
               trailing: [
                 MemberPageNotificationButton(onTap: widget.onNotificationsTap),
                 MemberPageProfileAvatar(onTap: widget.onProfileTap),
@@ -236,6 +238,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             primaryTabLabel:
                 widget.forRequestor ? 'My Requests' : 'My Assignments',
             secondaryTabLabel: 'All Events',
+            accentColor: primaryAction,
+            forRequestor: widget.forRequestor,
           ),
           if (_searchExpanded)
             _CalendarSearchBar(
@@ -244,6 +248,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               onChanged: _onSearchChanged,
               onClear: _clearSearch,
               showClear: _hasActiveSearch,
+              accentColor: primaryAction,
             ),
           Expanded(
             child: ListenableBuilder(
@@ -257,7 +262,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 }
                 if (loadError != null && appState.events.isEmpty) {
                   return RefreshIndicator(
-                    color: kAccent,
+                    color: primaryAction,
                     onRefresh: memberDataController.refreshCalendarTab,
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(
@@ -284,7 +289,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     : upcoming.take(_upcomingPreviewLimit).toList();
 
                 return RefreshIndicator(
-                  color: kAccent,
+                  color: primaryAction,
                   onRefresh: () => memberDataController.refreshCalendarTab(),
                   child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(
@@ -328,6 +333,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     children: [
                                       _MonthNavButton(
                                         icon: Icons.chevron_left_rounded,
+                                        accentColor: primaryAction,
                                         onTap: _prevMonth,
                                       ),
                                       Expanded(
@@ -341,10 +347,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      _TodayPill(onTap: _goToToday),
+                                      _TodayPill(
+                                        onTap: _goToToday,
+                                        accentColor: primaryAction,
+                                      ),
                                       const SizedBox(width: 4),
                                       _MonthNavButton(
                                         icon: Icons.chevron_right_rounded,
+                                        accentColor: primaryAction,
                                         onTap: _nextMonth,
                                       ),
                                     ],
@@ -490,6 +500,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             child: MemberDashboardPrimaryButton(
                               label: 'Plan request for this date',
                               icon: Icons.add_rounded,
+                              color: primaryAction,
                               onPressed: () => widget.onPlanRequest!(_selectedDay),
                             ),
                           ),
@@ -519,8 +530,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ),
                                     child: Text(
                                       _showAllUpcoming ? 'Show less' : 'See all',
-                                      style: const TextStyle(
-                                        color: kAccent,
+                                      style: TextStyle(
+                                        color: primaryAction,
                                         fontWeight: FontWeight.w700,
                                         fontSize: 13,
                                       ),
@@ -579,6 +590,7 @@ class _CalendarSearchBar extends StatelessWidget {
     required this.onChanged,
     required this.onClear,
     required this.showClear,
+    this.accentColor = kMemberButtonPrimary,
   });
 
   final TextEditingController controller;
@@ -586,6 +598,7 @@ class _CalendarSearchBar extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
   final bool showClear;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -600,7 +613,7 @@ class _CalendarSearchBar extends StatelessWidget {
         decoration: InputDecoration(
           hintText: 'Search events by name, venue, or tag…',
           hintStyle: memberDashboardMetaStyle.copyWith(fontSize: 13),
-          prefixIcon: Icon(Icons.search_rounded, color: kAccent.withValues(alpha: 0.75), size: 22),
+          prefixIcon: Icon(Icons.search_rounded, color: accentColor.withValues(alpha: 0.75), size: 22),
           suffixIcon: showClear
               ? IconButton(
                   onPressed: onClear,
@@ -621,7 +634,7 @@ class _CalendarSearchBar extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kAccent, width: 1.5),
+            borderSide: BorderSide(color: accentColor, width: 1.5),
           ),
         ),
       ),
@@ -670,7 +683,7 @@ class _CalendarNoEventsEmptyState extends StatelessWidget {
               forRequestor && canPlan
                   ? Icons.event_available_outlined
                   : Icons.event_busy_outlined,
-              color: kAccent,
+              color: kMemberButtonPrimary,
               size: 18,
             ),
           ),
@@ -707,6 +720,8 @@ class _CalendarFilterTabs extends StatelessWidget {
     required this.searchActive,
     this.primaryTabLabel = 'My Assignments',
     this.secondaryTabLabel = 'All Events',
+    this.accentColor = kAccent,
+    this.forRequestor = false,
   });
 
   final bool myAssignmentsOnly;
@@ -715,6 +730,8 @@ class _CalendarFilterTabs extends StatelessWidget {
   final bool searchActive;
   final String primaryTabLabel;
   final String secondaryTabLabel;
+  final Color accentColor;
+  final bool forRequestor;
 
   @override
   Widget build(BuildContext context) {
@@ -726,9 +743,9 @@ class _CalendarFilterTabs extends StatelessWidget {
           Expanded(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: kBlueDim.withValues(alpha: 0.45),
+                color: kCyanDim.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kAccent.withValues(alpha: 0.1)),
+                border: Border.all(color: accentColor.withValues(alpha: 0.1)),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(3),
@@ -738,6 +755,7 @@ class _CalendarFilterTabs extends StatelessWidget {
                       child: _CalendarFilterTab(
                         label: primaryTabLabel,
                         selected: myAssignmentsOnly,
+                        accentColor: accentColor,
                         onTap: () => onChanged(true),
                       ),
                     ),
@@ -745,6 +763,7 @@ class _CalendarFilterTabs extends StatelessWidget {
                       child: _CalendarFilterTab(
                         label: secondaryTabLabel,
                         selected: !myAssignmentsOnly,
+                        accentColor: accentColor,
                         onTap: () => onChanged(false),
                       ),
                     ),
@@ -755,7 +774,7 @@ class _CalendarFilterTabs extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Material(
-            color: kBlueDim.withValues(alpha: 0.55),
+            color: kCyanDim.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
               onTap: onSearchTap,
@@ -768,14 +787,14 @@ class _CalendarFilterTabs extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: searchActive
-                        ? kAccent.withValues(alpha: 0.35)
-                        : kAccent.withValues(alpha: 0.12),
+                        ? accentColor.withValues(alpha: 0.35)
+                        : accentColor.withValues(alpha: 0.12),
                   ),
                 ),
                 child: Icon(
                   Icons.search_rounded,
                   size: 22,
-                  color: searchActive ? kAccent : kTextSecondary,
+                  color: searchActive ? accentColor : kTextSecondary,
                 ),
               ),
             ),
@@ -790,11 +809,13 @@ class _CalendarFilterTab extends StatelessWidget {
   const _CalendarFilterTab({
     required this.label,
     required this.selected,
+    required this.accentColor,
     required this.onTap,
   });
 
   final String label;
   final bool selected;
+  final Color accentColor;
   final VoidCallback onTap;
 
   @override
@@ -812,14 +833,14 @@ class _CalendarFilterTab extends StatelessWidget {
             color: selected ? kSurface : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
             border: selected
-                ? Border.all(color: kAccent.withValues(alpha: 0.15))
+                ? Border.all(color: accentColor.withValues(alpha: 0.15))
                 : null,
           ),
           child: Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: selected ? kAccent : kTextSecondary,
+              color: selected ? accentColor : kTextSecondary,
               fontSize: 13,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             ),
@@ -831,10 +852,15 @@ class _CalendarFilterTab extends StatelessWidget {
 }
 
 class _MonthNavButton extends StatelessWidget {
-  const _MonthNavButton({required this.icon, required this.onTap});
+  const _MonthNavButton({
+    required this.icon,
+    required this.onTap,
+    this.accentColor = kMemberButtonPrimary,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -849,9 +875,9 @@ class _MonthNavButton extends StatelessWidget {
           height: 36,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kAccent.withValues(alpha: 0.12)),
+            border: Border.all(color: accentColor.withValues(alpha: 0.12)),
           ),
-          child: Icon(icon, color: kAccent.withValues(alpha: 0.75), size: 20),
+          child: Icon(icon, color: accentColor.withValues(alpha: 0.75), size: 20),
         ),
       ),
     );
@@ -891,13 +917,13 @@ class _CalendarDayCell extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           color: isSelected
-              ? kAccent.withValues(alpha: 0.88)
+              ? kMemberButtonPrimary.withValues(alpha: 0.88)
               : isToday
-                  ? kAccent.withValues(alpha: 0.1)
+                  ? kMemberButtonPrimary.withValues(alpha: 0.1)
                   : Colors.white.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(10),
           border: isToday && !isSelected
-              ? Border.all(color: kAccent.withValues(alpha: 0.45))
+              ? Border.all(color: kMemberButtonPrimary.withValues(alpha: 0.45))
               : hasMyAssignment && !isSelected
                   ? Border.all(color: kAccent.withValues(alpha: 0.25))
                   : null,
@@ -911,7 +937,7 @@ class _CalendarDayCell extends StatelessWidget {
                 color: isSelected
                     ? Colors.white
                     : isToday
-                        ? kAccent
+                        ? kMemberButtonPrimary
                         : kTextPrimary,
                 fontSize: 13,
                 fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w500,
@@ -950,14 +976,18 @@ class _CalendarDayCell extends StatelessWidget {
 }
 
 class _TodayPill extends StatelessWidget {
-  const _TodayPill({required this.onTap});
+  const _TodayPill({
+    required this.onTap,
+    this.accentColor = kAccent,
+  });
 
   final VoidCallback onTap;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: kAccent.withValues(alpha: 0.12),
+      color: accentColor.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -966,9 +996,13 @@ class _TodayPill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kAccent.withValues(alpha: 0.22)),
+            border: Border.all(color: accentColor.withValues(alpha: 0.22)),
           ),
-          child: Icon(Icons.today_rounded, size: 17, color: kAccent.withValues(alpha: 0.85)),
+          child: Icon(
+            Icons.today_rounded,
+            size: 17,
+            color: accentColor.withValues(alpha: 0.85),
+          ),
         ),
       ),
     );

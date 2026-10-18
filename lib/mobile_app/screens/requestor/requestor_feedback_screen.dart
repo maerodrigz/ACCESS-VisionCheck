@@ -338,7 +338,7 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                     padding: EdgeInsets.only(bottom: 10),
                     child: LinearProgressIndicator(
                       minHeight: 3,
-                      color: kAccent,
+                      color: kRequestorPrimaryAction,
                       backgroundColor: kBorder,
                     ),
                   ),
@@ -508,7 +508,6 @@ class _NoEventsCard extends StatelessWidget {
           MemberDashboardPrimaryButton(
             label: 'Refresh',
             icon: Icons.refresh_rounded,
-            color: kAccent,
             onPressed: () => onRefresh(),
           ),
           if (RequestorShellNavigation.openRequests != null) ...[
@@ -520,8 +519,8 @@ class _NoEventsCard extends StatelessWidget {
                 icon: const Icon(Icons.description_outlined, size: 18),
                 label: const Text('View my requests'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: kAccent,
-                  side: const BorderSide(color: kAccent),
+                  foregroundColor: kRequestorPrimaryAction,
+                  side: BorderSide(color: kRequestorPrimaryAction),
                   minimumSize: Size.fromHeight(kMobileMinTouch),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
@@ -947,7 +946,10 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
                     child: SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: kAccent),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: kRequestorPrimaryAction,
+                      ),
                     ),
                   ),
                 )

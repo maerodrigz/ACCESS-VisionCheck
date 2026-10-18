@@ -94,3 +94,10 @@ html[data-theme='light'] * {
   background: color-mix(in srgb, var(--color-warning) 12%, transparent);
   color: var(--color-warning-text);
 }
+
+/** Admin shell sidebar — cyan gradient, solid fallback for older browsers */
+.admin-sidebar {
+  background-color: var(--color-sidebar-bg);
+  background-image: var(--color-sidebar-gradient);
+  color: var(--color-sidebar-text);
+}

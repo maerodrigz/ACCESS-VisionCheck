@@ -4,6 +4,9 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
+/// Filled buttons and selected filter pills on requestor tabs (Calendar, Requests, Gallery, Feedback).
+const kRequestorPrimaryAction = kMemberButtonPrimary;
+
 /// Gap between the title bar and the purpose line (keep modest).
 const kRequestorPurposeTopGap = 6.0;
 const kRequestorPurposeBottomGap = 8.0;

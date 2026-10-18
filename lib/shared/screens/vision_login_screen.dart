@@ -3,15 +3,17 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
-import 'package:access_mobile/shared/api/auth_service.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/screens/registration_choice_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
-import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_sign_in_form.dart';
+import 'package:access_mobile/shared/widgets/forgot_password_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Enterprise login for ACCESS VisionCheck — web admin and mobile.
@@ -44,6 +46,28 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     if (ended != null && ended.isNotEmpty) {
       _error = ended;
     }
+    unawaited(_recoverWhenBackendIsReachable());
+  }
+
+  /// Clears stale offline banners and restores JWT when the PC backend comes back.
+  Future<void> _recoverWhenBackendIsReachable() async {
+    final reachable = await apiClient.checkReachable();
+    if (!mounted) return;
+    if (!reachable) return;
+
+    final backendBanner = _error != null &&
+        MobileAuthSignInForm.isBackendConnectivityMessage(_error!);
+    if (!backendBanner) return;
+
+    final restored = await authController.retryPersistedSession();
+    if (!mounted) return;
+    if (restored) {
+      setState(() => _error = null);
+      widget.onAuthenticated?.call();
+      return;
+    }
+    final ended = authController.consumeSessionEndMessage();
+    setState(() => _error = ended);
   }
 
   @override
@@ -148,121 +172,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Future<void> _forgotPassword() async {
-    final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
-    var loading = false;
-    String? dialogError;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Reset password', style: TextStyle(fontWeight: FontWeight.w800)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Enter the email on your account. Members and requestors receive a temporary '
-                  'password by email when the server has SMTP configured.',
-                  style: TextStyle(height: 1.45, fontSize: 14),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Email address',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                if (dialogError != null) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    dialogError!,
-                    style: const TextStyle(color: kRed, fontSize: 13, height: 1.35),
-                  ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: loading ? null : () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: loading
-                    ? null
-                    : () async {
-                        final email = emailCtrl.text.trim();
-                        if (email.isEmpty || !email.contains('@')) {
-                          setDialogState(() => dialogError = 'Enter a valid email address.');
-                          return;
-                        }
-                        setDialogState(() {
-                          loading = true;
-                          dialogError = null;
-                        });
-                        try {
-                          final result = await authService.requestPasswordReset(email);
-                          if (!context.mounted) return;
-                          Navigator.pop(ctx);
-                          if (!mounted) return;
-                          final temp = result.temporaryPassword;
-                          await showDialog<void>(
-                            context: context,
-                            builder: (doneCtx) => AlertDialog(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              title: const Text(
-                                'Password reset',
-                                style: TextStyle(fontWeight: FontWeight.w800),
-                              ),
-                              content: Text(
-                                temp != null && temp.isNotEmpty
-                                    ? '${result.message}\n\nTemporary password: $temp'
-                                    : result.message,
-                                style: const TextStyle(height: 1.45),
-                              ),
-                              actions: [
-                                FilledButton(
-                                  onPressed: () => Navigator.pop(doneCtx),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: LoginPageTokens.secondary,
-                                  ),
-                                  child: const Text('OK'),
-                                ),
-                              ],
-                            ),
-                          );
-                        } on ApiException catch (e) {
-                          setDialogState(() {
-                            loading = false;
-                            dialogError = e.message;
-                          });
-                        } catch (_) {
-                          setDialogState(() {
-                            loading = false;
-                            dialogError = 'Could not reach the server. Check your connection.';
-                          });
-                        }
-                      },
-                style: FilledButton.styleFrom(backgroundColor: LoginPageTokens.secondary),
-                child: loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Send reset'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    emailCtrl.dispose();
+    await showForgotPasswordDialog(context, initialEmail: _emailCtrl.text.trim());
   }
 
   @override
@@ -302,6 +212,27 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Widget _narrowLayout() {
+    if (!kIsWeb) {
+      return MobileAuthScaffold(
+        scrollable: false,
+        fixedViewport: true,
+        body: MobileAuthSignInForm(
+          emailController: _emailCtrl,
+          passwordController: _passCtrl,
+          obscurePassword: _obscure,
+          rememberMe: _rememberMe,
+          loading: _loading,
+          error: _error,
+          onToggleObscure: () => setState(() => _obscure = !_obscure),
+          onRememberMeChanged: (v) => setState(() => _rememberMe = v),
+          onSubmit: _submit,
+          onForgotPassword: _forgotPassword,
+          onCreateAccount: _openRegistration,
+          onFixBackendConnection: _fixBackendConnection,
+        ),
+      );
+    }
+
     const cardSideInset = 12.0;
     final topInset = MediaQuery.paddingOf(context).top;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;

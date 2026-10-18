@@ -32,6 +32,7 @@ from app.services.media_upload_config import (
     is_video_extension,
     rules_for_category,
 )
+from app.services.supabase_storage import normalize_supabase_storage_url
 
 router = APIRouter(prefix="/media", tags=["Media"])
 
@@ -75,7 +76,7 @@ def _media_out(m, base_url: str | None = None) -> MediaOut:
     ev = m.evaluations[-1] if m.evaluations else None
     ai = m.ai_detection_results[-1] if m.ai_detection_results else None
     storage_removed = getattr(m, "storage_removed_at", None) is not None
-    url = "" if storage_removed else m.file_url
+    url = "" if storage_removed else normalize_supabase_storage_url(m.file_url or "")
     if base_url and url.startswith("/"):
         url = f"{base_url}{url}"
     return MediaOut(
@@ -252,14 +253,14 @@ async def upload_media(
             user_id=current_user.id,
         )
         if sb_url:
-            stored_url = sb_url
+            stored_url = normalize_supabase_storage_url(sb_url)
         elif not stored_url:
             raise HTTPException(
                 status_code=503,
                 detail="Supabase upload failed. Check SUPABASE_URL, bucket, and service role key.",
             )
     elif cloud.startswith("https://"):
-        stored_url = cloud
+        stored_url = normalize_supabase_storage_url(cloud)
     else:
         if is_firebase_storage_configured():
             fb_url = upload_media_bytes(

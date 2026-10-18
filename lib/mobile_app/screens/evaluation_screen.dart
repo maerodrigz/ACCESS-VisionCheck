@@ -1074,8 +1074,8 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
                     ),
                     if (ev.canRemovePracticeStorage)
                       Positioned(
-                        top: 6,
-                        left: 6,
+                        right: 4,
+                        bottom: 6,
                         child: _PracticeEvalOverflowMenu(evaluation: ev),
                       ),
                   ],
@@ -1210,13 +1210,16 @@ class _RecentEvalCard extends StatelessWidget {
                     qualityColor: accent,
                     integrityLabel: _integrityTierFor(ev),
                   ),
+                  if (ev.canRemovePracticeStorage) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _PracticeEvalOverflowMenu(evaluation: ev),
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (ev.canRemovePracticeStorage) ...[
-              _PracticeEvalOverflowMenu(evaluation: ev, compact: true),
-              const SizedBox(width: 2),
-            ],
             _ScoreBadge(
               percent: pct,
               pending: ev.isPending,
@@ -1231,18 +1234,22 @@ class _RecentEvalCard extends StatelessWidget {
 }
 
 class _PracticeEvalOverflowMenu extends StatelessWidget {
-  const _PracticeEvalOverflowMenu({required this.evaluation, this.compact = false});
+  const _PracticeEvalOverflowMenu({required this.evaluation});
 
   final Evaluation evaluation;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final button = PopupMenuButton<String>(
-      tooltip: 'More',
+    return PopupMenuButton<String>(
+      tooltip: 'More options',
       padding: EdgeInsets.zero,
-      iconSize: compact ? 20 : 18,
-      icon: Icon(Icons.more_vert_rounded, color: compact ? kDashTextSecondary : kTextPrimary),
+      splashRadius: 18,
+      constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+      icon: Icon(
+        Icons.more_vert_rounded,
+        size: 20,
+        color: kDashTextSecondary.withValues(alpha: 0.75),
+      ),
       onSelected: (value) {
         if (value == 'remove') {
           unawaited(confirmAndRemovePracticeStorage(context, evaluation: evaluation));
@@ -1254,13 +1261,6 @@ class _PracticeEvalOverflowMenu extends StatelessWidget {
           child: Text('Remove file (keep score)'),
         ),
       ],
-    );
-    if (compact) return button;
-    return Material(
-      color: Colors.white.withValues(alpha: 0.92),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: button,
     );
   }
 }

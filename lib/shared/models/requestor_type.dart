@@ -1,15 +1,13 @@
 /// Requestor sub-type for accounts whose system role is Organization (Requestor).
 enum RequestorType {
   facultyStaff(
-    label: 'Faculty / staff requestor',
-    description:
-        'For faculty and staff requesting documentation services.',
+    label: 'Faculty or staff',
+    description: 'I am faculty or staff requesting documentation from members.',
     iconName: 'faculty_staff',
   ),
   organization(
-    label: 'Organization',
-    description:
-        'For student organizations and groups requesting documentation services.',
+    label: 'Student organization',
+    description: 'We are a student org requesting documentation services.',
     iconName: 'organization',
   );
 
@@ -24,5 +22,12 @@ enum RequestorType {
   final String iconName;
 
   /// Persisted on the user record via registration `student_id` (unused for requestors).
-  String get storageValue => label;
+  String get storageValue {
+    switch (this) {
+      case RequestorType.facultyStaff:
+        return 'Faculty / staff requestor';
+      case RequestorType.organization:
+        return 'Organization';
+    }
+  }
 }

@@ -4,6 +4,7 @@ import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/widgets/access_branding.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
 class ServiceRequestsScreen extends StatefulWidget {
   final String requesterName;
@@ -281,7 +282,7 @@ class _NewRequestTabState extends State<_NewRequestTab> {
         SizedBox(width: double.infinity,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: kAccent, foregroundColor: Colors.white,
+              backgroundColor: kMemberButtonPrimary, foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               elevation: 0),

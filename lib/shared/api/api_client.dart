@@ -44,7 +44,7 @@ class ApiClient {
   static const Duration timeout = Duration(seconds: 15);
 
   /// Fast probe when scanning LAN / emulator candidates on a physical phone.
-  static const Duration probeTimeout = Duration(seconds: 2);
+  static const Duration probeTimeout = Duration(seconds: 4);
 
   /// Multipart upload + server processing (practice eval save, event coverage).
   static Duration mediaUploadTimeout({
@@ -83,11 +83,17 @@ class ApiClient {
     await warmUpConnection();
   }
 
-  /// Finds a reachable backend once at startup (parallel batches of 3).
+  /// Finds a reachable backend at startup (all candidates in parallel).
   Future<void> warmUpConnection() async {
-    if (_pinnedBaseUrl != null) return;
+    await _pinFirstReachableHost();
+  }
+
+  /// Probes [ApiConfig.candidateBaseUrls]; returns true when `/api/health` responds.
+  Future<bool> checkReachable() => _pinFirstReachableHost();
+
+  Future<bool> _pinFirstReachableHost() async {
     final candidates = ApiConfig.candidateBaseUrls();
-    if (candidates.isEmpty) return;
+    if (candidates.isEmpty) return false;
 
     Future<String?> probe(String baseUrl) async {
       try {
@@ -101,23 +107,41 @@ class ApiClient {
       return null;
     }
 
-    for (var i = 0; i < candidates.length; i += 3) {
-      final batch = candidates.skip(i).take(3).toList();
-      final hits = await Future.wait(batch.map(probe));
-      for (final hit in hits) {
-        if (hit != null) {
-          _pinnedBaseUrl = hit;
-          await _rememberWorkingBaseUrl(hit);
-          _log('Pinned API host → $hit');
-          return;
-        }
-      }
+    final hits = await Future.wait(candidates.map(probe));
+    for (var i = 0; i < candidates.length; i++) {
+      final hit = hits[i];
+      if (hit == null) continue;
+      _pinnedBaseUrl = hit;
+      await _rememberWorkingBaseUrl(hit);
+      await _autoPersistWorkingHost(hit);
+      _log('Pinned API host → $hit');
+      return true;
     }
+    _pinnedBaseUrl = null;
+    return false;
   }
 
-  Duration _timeoutForBase(String baseUrl) {
-    if (_pinnedBaseUrl != null && baseUrl == _pinnedBaseUrl) return timeout;
-    if (ApiConfig.candidateBaseUrls().length <= 1) return timeout;
+  Future<void> _autoPersistWorkingHost(String baseUrl) async {
+    if (ApiConfig.apiBaseUrlOverride.isNotEmpty ||
+        ApiConfig.apiPublicHostOverride.isNotEmpty) {
+      return;
+    }
+    final saved = ApiConfig.runtimeBaseUrl.value?.trim();
+    if (saved != null && saved.isNotEmpty && saved != baseUrl) return;
+    if (baseUrl.contains('10.0.2.2') && saved == null) {
+      return;
+    }
+    await ApiConfig.runtimeBaseUrl.save(baseUrl);
+  }
+
+  Duration _timeoutForBase(String baseUrl, {required String path}) {
+    final quickAuth =
+        path.startsWith('/auth/') || path == '/health' || path.startsWith('/health');
+    final pinnedCap = quickAuth ? const Duration(seconds: 5) : timeout;
+    if (_pinnedBaseUrl != null && baseUrl == _pinnedBaseUrl) return pinnedCap;
+    if (ApiConfig.candidateBaseUrls().length <= 1) {
+      return quickAuth ? pinnedCap : timeout;
+    }
     return probeTimeout;
   }
 
@@ -218,6 +242,15 @@ class ApiClient {
           'If it keeps failing, move closer to your router or use a shorter clip.',
         );
       }
+      if (path.contains('/auth/login')) {
+        return ApiException(
+          'Cannot reach the server at $target (timed out).\n'
+          'Wrong passwords show "Invalid credentials" right away when the API is up.\n'
+          '• Restart backend: cd access_backend && python manage.py runserver\n'
+          '• Emulator: use http://10.0.2.2:3001 (Set backend URL if needed)\n'
+          '• Physical phone: PC Wi-Fi IPv4 from ipconfig',
+        );
+      }
       return ApiException(
         'Server timeout at $target.\n'
         '• Tap the banner above and choose Set backend URL\n'
@@ -236,15 +269,17 @@ class ApiClient {
         msg.contains('connection refused') ||
         msg.contains('failed host lookup') ||
         msg.contains('network is unreachable')) {
+      final base = ApiConfig.effectiveBaseUrl;
+      final suggested = ApiConfig.suggestedPhoneBackendUrl;
       return ApiException(
-        'Cannot reach server at ${ApiConfig.baseUrl}.\n'
-        '• Start backend on the PC: cd access_backend && python manage.py runserver\n'
-        '• Physical phone? Use the PC LAN IPv4 — pass --dart-define=API_PUBLIC_HOST=192.168.x.x\n'
-        '• Android emulator uses 10.0.2.2 (not 127.0.0.1).',
+        'Cannot reach server at $base.\n'
+        '• PC running backend? cd access_backend && python manage.py runserver\n'
+        '• Phone and PC on same Wi-Fi? Tap Fix backend URL and use:\n  $suggested\n'
+        '• Update config/api.json on the PC if your IPv4 changed, then rebuild the app.',
       );
     }
     return ApiException(
-      'Cannot reach server at ${ApiConfig.baseUrl}. '
+      'Cannot reach server at ${ApiConfig.effectiveBaseUrl}. '
       'Start: cd access_backend && python manage.py runserver',
     );
   }
@@ -255,6 +290,9 @@ class ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
   }) async {
+    if (_pinnedBaseUrl == null) {
+      await _pinFirstReachableHost();
+    }
     Object? lastError;
     for (final baseUrl in _basesToTry()) {
       final queryParams = query?.map((k, v) => MapEntry(k, '$v'));
@@ -264,20 +302,24 @@ class ApiClient {
       try {
         switch (method) {
           case 'GET':
-            response = await _client.get(uri, headers: _headers).timeout(_timeoutForBase(baseUrl));
+            response = await _client
+                .get(uri, headers: _headers)
+                .timeout(_timeoutForBase(baseUrl, path: path));
             break;
           case 'POST':
             response = await _client
                 .post(uri, headers: _headers, body: jsonEncode(body))
-                .timeout(_timeoutForBase(baseUrl));
+                .timeout(_timeoutForBase(baseUrl, path: path));
             break;
           case 'PATCH':
             response = await _client
                 .patch(uri, headers: _headers, body: jsonEncode(body))
-                .timeout(_timeoutForBase(baseUrl));
+                .timeout(_timeoutForBase(baseUrl, path: path));
             break;
           case 'DELETE':
-            response = await _client.delete(uri, headers: _headers).timeout(_timeoutForBase(baseUrl));
+            response = await _client
+                .delete(uri, headers: _headers)
+                .timeout(_timeoutForBase(baseUrl, path: path));
             break;
           default:
             throw ApiException('Unsupported method $method');

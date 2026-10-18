@@ -1,4 +1,4 @@
-"""CRUD for registration SMS OTP."""
+"""CRUD for registration email OTP."""
 
 import hashlib
 import secrets
@@ -8,11 +8,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models.registration_phone_otp import RegistrationPhoneOtp
+from app.models.registration_email_otp import RegistrationEmailOtp
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
 
 
 def _hash_value(value: str) -> str:
@@ -24,31 +28,32 @@ def _generate_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-def send_otp(db: Session, phone_e164: str) -> str:
-    from app.services.sms_otp_delivery import send_registration_otp
+def send_otp(db: Session, email: str, *, fullname: str = "") -> str:
+    from app.services.registration_email import deliver_registration_otp_async
 
+    addr = _normalize_email(email)
     now = _utcnow()
     row = db.scalar(
-        select(RegistrationPhoneOtp)
-        .where(RegistrationPhoneOtp.phone_e164 == phone_e164)
-        .order_by(RegistrationPhoneOtp.id.desc())
+        select(RegistrationEmailOtp)
+        .where(RegistrationEmailOtp.email == addr)
+        .order_by(RegistrationEmailOtp.id.desc())
         .limit(1)
     )
     if row and row.last_sent_at:
         last = row.last_sent_at
         if last.tzinfo is None:
             last = last.replace(tzinfo=timezone.utc)
-        cooldown = timedelta(seconds=settings.sms_otp_resend_seconds)
+        cooldown = timedelta(seconds=settings.email_otp_resend_seconds)
         elapsed = now - last
         if elapsed < cooldown:
             wait = int((cooldown - elapsed).total_seconds())
             raise ValueError(f"Please wait {max(wait, 1)} seconds before requesting another code.")
 
     code = _generate_code()
-    expires = now + timedelta(minutes=settings.sms_otp_expire_minutes)
+    expires = now + timedelta(minutes=settings.email_otp_expire_minutes)
     db.add(
-        RegistrationPhoneOtp(
-            phone_e164=phone_e164,
+        RegistrationEmailOtp(
+            email=addr,
             code_hash=_hash_value(code),
             expires_at=expires,
             attempt_count=0,
@@ -57,35 +62,36 @@ def send_otp(db: Session, phone_e164: str) -> str:
         )
     )
     db.commit()
-    send_registration_otp(phone_e164=phone_e164, code=code)
+    deliver_registration_otp_async(to_email=addr, fullname=fullname, code=code)
     return code
 
 
-def verify_otp(db: Session, phone_e164: str, code: str) -> str:
+def verify_otp(db: Session, email: str, code: str) -> str:
+    addr = _normalize_email(email)
     now = _utcnow()
     row = db.scalar(
-        select(RegistrationPhoneOtp)
+        select(RegistrationEmailOtp)
         .where(
-            RegistrationPhoneOtp.phone_e164 == phone_e164,
-            RegistrationPhoneOtp.consumed_at.is_(None),
-            RegistrationPhoneOtp.verification_token_hash.is_(None),
+            RegistrationEmailOtp.email == addr,
+            RegistrationEmailOtp.consumed_at.is_(None),
+            RegistrationEmailOtp.verification_token_hash.is_(None),
         )
-        .order_by(RegistrationPhoneOtp.id.desc())
+        .order_by(RegistrationEmailOtp.id.desc())
         .limit(1)
     )
     if not row:
-        raise ValueError("No active verification for this number. Request a new code.")
+        raise ValueError("No active verification for this email. Request a new code.")
     expires = row.expires_at if row.expires_at.tzinfo else row.expires_at.replace(tzinfo=timezone.utc)
     if now > expires:
         raise ValueError("Verification code expired. Request a new code.")
-    if row.attempt_count >= settings.sms_otp_max_attempts:
+    if row.attempt_count >= settings.email_otp_max_attempts:
         raise ValueError("Too many failed attempts. Request a new code.")
 
     normalized_code = (code or "").strip()
     if not normalized_code.isdigit() or len(normalized_code) != 6:
         row.attempt_count += 1
         db.commit()
-        raise ValueError("Enter the 6-digit code from your SMS.")
+        raise ValueError("Enter the 6-digit code from your email.")
 
     if _hash_value(normalized_code) != row.code_hash:
         row.attempt_count += 1
@@ -94,31 +100,32 @@ def verify_otp(db: Session, phone_e164: str, code: str) -> str:
 
     token = secrets.token_urlsafe(32)
     row.verification_token_hash = _hash_value(token)
-    row.verification_token_expires_at = now + timedelta(minutes=settings.sms_otp_token_minutes)
+    row.verification_token_expires_at = now + timedelta(minutes=settings.email_otp_token_minutes)
     row.attempt_count = 0
     db.commit()
     return token
 
 
-def consume_verification_token(db: Session, phone_e164: str, token: str) -> None:
+def consume_verification_token(db: Session, email: str, token: str) -> None:
+    addr = _normalize_email(email)
     now = _utcnow()
     token_hash = _hash_value(token.strip())
     row = db.scalar(
-        select(RegistrationPhoneOtp)
+        select(RegistrationEmailOtp)
         .where(
-            RegistrationPhoneOtp.phone_e164 == phone_e164,
-            RegistrationPhoneOtp.verification_token_hash == token_hash,
+            RegistrationEmailOtp.email == addr,
+            RegistrationEmailOtp.verification_token_hash == token_hash,
         )
-        .order_by(RegistrationPhoneOtp.id.desc())
+        .order_by(RegistrationEmailOtp.id.desc())
         .limit(1)
     )
     if not row or row.consumed_at:
-        raise ValueError("Phone verification expired or invalid. Verify your number again.")
+        raise ValueError("Email verification expired or invalid. Verify your email again.")
     exp = row.verification_token_expires_at
     if not exp:
-        raise ValueError("Phone verification expired or invalid. Verify your number again.")
+        raise ValueError("Email verification expired or invalid. Verify your email again.")
     exp_utc = exp if exp.tzinfo else exp.replace(tzinfo=timezone.utc)
     if now > exp_utc:
-        raise ValueError("Phone verification expired. Verify your number again.")
+        raise ValueError("Email verification expired. Verify your email again.")
     row.consumed_at = now
     db.commit()

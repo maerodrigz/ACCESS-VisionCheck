@@ -117,7 +117,7 @@ void showRequestorCampusEventDetail(BuildContext context, CalendarEvent event) {
               child: FilledButton(
                 onPressed: () => Navigator.pop(ctx),
                 style: FilledButton.styleFrom(
-                  backgroundColor: kAccent,
+                  backgroundColor: kMemberButtonPrimary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

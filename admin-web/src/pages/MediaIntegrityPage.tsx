@@ -94,20 +94,16 @@ export function MediaIntegrityPage() {
     }
   }, [])
 
-  const handleReviewSaved = useCallback(
-    (aiRowId: number, nextStatus: ReviewStatus) => {
-      setRows((prev) =>
-        prev.map((r) =>
-          r.id === aiRowId
-            ? { ...r, review_status: nextStatus, reviewed_by_admin: isResolvedIntegrityReview(nextStatus) }
-            : r,
-        ),
-      )
-      setSelected(null)
-      void load()
-    },
-    [load],
-  )
+  const handleReviewSaved = useCallback((aiRowId: number, nextStatus: ReviewStatus) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === aiRowId
+          ? { ...r, review_status: nextStatus, reviewed_by_admin: isResolvedIntegrityReview(nextStatus) }
+          : r,
+      ),
+    )
+    setSelected(null)
+  }, [])
 
   useEffect(() => {
     load()

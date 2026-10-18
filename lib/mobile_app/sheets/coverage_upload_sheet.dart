@@ -341,7 +341,7 @@ class _CoverageUploadSheetState extends State<_CoverageUploadSheet> {
             FilledButton(
               onPressed: _uploading ? null : _submit,
               style: FilledButton.styleFrom(
-                backgroundColor: kAccent,
+                backgroundColor: kMemberButtonPrimary,
                 minimumSize: const Size.fromHeight(kMobileMinTouch),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),

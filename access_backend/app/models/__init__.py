@@ -32,7 +32,8 @@ from app.models.announcement import Announcement
 from app.models.system_branding import SystemBranding
 from app.models.system_settings import SystemSettings
 from app.models.push_device_token import PushDeviceToken
-from app.models.registration_phone_otp import RegistrationPhoneOtp
+from app.models.registration_email_otp import RegistrationEmailOtp
+from app.models.password_reset_email_otp import PasswordResetEmailOtp
 
 __all__ = [
     "Role",
@@ -63,5 +64,6 @@ __all__ = [
     "SystemBranding",
     "SystemSettings",
     "PushDeviceToken",
-    "RegistrationPhoneOtp",
+    "RegistrationEmailOtp",
+    "PasswordResetEmailOtp",
 ]

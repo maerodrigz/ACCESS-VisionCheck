@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
 /// Shown when an administrator opens the Flutter web build.
 /// Production admin UI is React (`admin-web/`), not Flutter.
@@ -66,7 +67,10 @@ class AdminReactWebRedirect extends StatelessWidget {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: onLogout,
-                  style: FilledButton.styleFrom(backgroundColor: kAccent, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: kMemberButtonPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   child: const Text('Sign out'),
                 ),
               ],

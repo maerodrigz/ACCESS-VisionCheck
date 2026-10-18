@@ -17,7 +17,7 @@ export interface PendingOrganizationRegistration {
 
 function normalizeRequestorType(raw: unknown): RequestorRegistrationKind {
   const value = String(raw ?? '').trim().toLowerCase()
-  if (value === 'organization') return 'organization'
+  if (value === 'organization' || value.includes('organization')) return 'organization'
   if (value === 'faculty' || value === 'instructor') return 'faculty_staff'
   if (value.includes('faculty') && value.includes('staff')) return 'faculty_staff'
   return 'unknown'

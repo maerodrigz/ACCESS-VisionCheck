@@ -42,7 +42,9 @@ def local_media_path(file_url: str) -> Path | None:
 
 def read_media_file_bytes(file_url: str, *, timeout: float = 12.0) -> bytes | None:
     """Read media bytes from `/uploads/...` paths or http(s) URLs."""
-    url = (file_url or "").strip()
+    from app.services.supabase_storage import normalize_supabase_storage_url
+
+    url = normalize_supabase_storage_url((file_url or "").strip())
     if not url:
         return None
 

@@ -1,20 +1,48 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LoginBrandPanel } from '../components/LoginBrandPanel'
 import { LoginFormPanel } from '../components/LoginFormPanel'
+import loginHeroBackground from '../assets/login-hero-background.jpg'
 import '../styles/login.css'
+
+const REMEMBER_EMAIL_KEY = 'access-admin-login-remember-email'
 
 export function LoginPage() {
   const { user, login, loading, initializing } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBER_EMAIL_KEY)
+      if (saved) {
+        setEmail(saved)
+        setRememberMe(true)
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    const prevHtml = document.documentElement.style.overflow
+    const prevBody = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.documentElement.style.overflow = prevHtml
+      document.body.style.overflow = prevBody
+    }
+  }, [])
 
   if (initializing) {
     return (
-      <div className="login-page flex min-h-screen items-center justify-center bg-[var(--login-bg)]">
-        <div className="text-sm font-medium text-[var(--login-text-secondary)]">Loading…</div>
+      <div className="login-page login-page--loading">
+        <div className="login-page__spinner" aria-hidden />
+        <p className="text-sm font-medium text-slate-500">Loading…</p>
       </div>
     )
   }
@@ -30,6 +58,15 @@ export function LoginPage() {
     }
     try {
       await login(email, password)
+      try {
+        if (rememberMe) {
+          localStorage.setItem(REMEMBER_EMAIL_KEY, email.trim())
+        } else {
+          localStorage.removeItem(REMEMBER_EMAIL_KEY)
+        }
+      } catch {
+        /* ignore */
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed.')
     }
@@ -38,33 +75,33 @@ export function LoginPage() {
   const formProps = {
     email,
     password,
+    rememberMe,
     error,
     loading,
     onEmailChange: setEmail,
     onPasswordChange: setPassword,
+    onRememberMeChange: setRememberMe,
     onSubmit: handleSubmit,
   }
 
   return (
-    <div className="login-page min-h-screen">
-      {/* Desktop — wide hero + narrower sign-in column (~70/30) */}
-      <div className="hidden min-h-screen lg:flex">
-        <div className="login-brand-column min-w-0 flex-1">
-          <LoginBrandPanel />
-        </div>
-        <div className="login-form-panel login-form-column flex min-h-screen shrink-0">
-          <LoginFormPanel {...formProps} />
-        </div>
+    <div className="login-page">
+      <div
+        className="login-page__photo"
+        aria-hidden
+        style={{ backgroundImage: `url(${loginHeroBackground})` }}
+      />
+      <div className="login-page__art" aria-hidden />
+      <div className="login-page__scrim" aria-hidden />
+
+      <div className="login-layout login-layout--desktop">
+        <LoginBrandPanel />
+        <LoginFormPanel {...formProps} />
       </div>
 
-      {/* Mobile — dark hero + white sheet overlapping */}
-      <div className="flex min-h-screen flex-col lg:hidden">
-        <div className="shrink-0" style={{ height: '32vh', minHeight: 220 }}>
-          <LoginBrandPanel compact />
-        </div>
-        <div className="login-sheet login-form-panel relative -mt-[22px] flex min-h-0 flex-1 flex-col">
-          <LoginFormPanel {...formProps} sheet />
-        </div>
+      <div className="login-layout login-layout--mobile">
+        <LoginBrandPanel compact />
+        <LoginFormPanel {...formProps} mobile />
       </div>
     </div>
   )

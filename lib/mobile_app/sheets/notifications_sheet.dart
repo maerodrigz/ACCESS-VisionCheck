@@ -238,7 +238,7 @@ class _NotificationCenterSheetState extends State<_NotificationCenterSheet> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: kAccent),
+            style: FilledButton.styleFrom(backgroundColor: kMemberButtonPrimary),
             child: const Text('Clear'),
           ),
         ],

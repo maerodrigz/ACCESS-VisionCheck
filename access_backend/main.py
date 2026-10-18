@@ -31,27 +31,31 @@ async def _app_lifespan(_app: FastAPI):
 
     from app.services.deferred_media_pipeline import reconcile_pending_media_evaluations
 
-    reconcile_pending_media_evaluations()
+    async def _warm_heavy_services() -> None:
+        await asyncio.to_thread(reconcile_pending_media_evaluations)
 
-    def _warm_probe_detector() -> None:
-        from app.services.dedicated_ai_detector import active_ai_detector_backend
+        def _warm_probe_detector() -> None:
+            from app.services.dedicated_ai_detector import active_ai_detector_backend
 
-        if active_ai_detector_backend() != "probe":
-            return
-        from app.services.probe_dino_detector import _get_model
+            if active_ai_detector_backend() != "probe":
+                return
+            from app.services.probe_dino_detector import _get_model
 
-        _get_model()
+            _get_model()
 
-    await asyncio.to_thread(_warm_probe_detector)
+        def _warm_fcm() -> None:
+            from app.services.firebase_admin_app import ensure_firebase_admin_app, is_fcm_configured
 
-    def _warm_fcm() -> None:
-        from app.services.firebase_admin_app import ensure_firebase_admin_app, is_fcm_configured
+            if is_fcm_configured():
+                ensure_firebase_admin_app()
 
-        if is_fcm_configured():
-            ensure_firebase_admin_app()
+        await asyncio.to_thread(_warm_probe_detector)
+        await asyncio.to_thread(_warm_fcm)
 
-    await asyncio.to_thread(_warm_fcm)
+    # Do not block login/health on PROBE/FCM init (mobile would timeout waiting for startup).
+    warm_task = asyncio.create_task(_warm_heavy_services())
     yield
+    warm_task.cancel()
 
 
 app = FastAPI(

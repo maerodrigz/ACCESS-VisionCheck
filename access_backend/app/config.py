@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 
 from dotenv import load_dotenv
-from pydantic import Field, computed_field, model_validator
+from pydantic import AliasChoices, Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -126,14 +126,23 @@ class Settings(BaseSettings):
     email_no_reply: str = Field(default="", alias="EMAIL_NO_REPLY")
     email_logo_path: str = Field(default="", alias="EMAIL_LOGO_PATH")
 
-    # Registration SMS OTP (member / requestor mobile signup)
-    sms_provider: str = Field(default="log", alias="SMS_PROVIDER")
-    semaphore_api_key: str = Field(default="", alias="SEMAPHORE_API_KEY")
-    sms_sender_name: str = Field(default="ACCESS", alias="SMS_SENDER_NAME")
-    sms_otp_expire_minutes: int = Field(default=10, alias="SMS_OTP_EXPIRE_MINUTES")
-    sms_otp_token_minutes: int = Field(default=30, alias="SMS_OTP_TOKEN_MINUTES")
-    sms_otp_resend_seconds: int = Field(default=60, alias="SMS_OTP_RESEND_SECONDS")
-    sms_otp_max_attempts: int = Field(default=5, alias="SMS_OTP_MAX_ATTEMPTS")
+    # Email OTP (registration + password reset)
+    email_otp_expire_minutes: int = Field(
+        default=10,
+        validation_alias=AliasChoices("EMAIL_OTP_EXPIRE_MINUTES", "SMS_OTP_EXPIRE_MINUTES"),
+    )
+    email_otp_token_minutes: int = Field(
+        default=30,
+        validation_alias=AliasChoices("EMAIL_OTP_TOKEN_MINUTES", "SMS_OTP_TOKEN_MINUTES"),
+    )
+    email_otp_resend_seconds: int = Field(
+        default=60,
+        validation_alias=AliasChoices("EMAIL_OTP_RESEND_SECONDS", "SMS_OTP_RESEND_SECONDS"),
+    )
+    email_otp_max_attempts: int = Field(
+        default=5,
+        validation_alias=AliasChoices("EMAIL_OTP_MAX_ATTEMPTS", "SMS_OTP_MAX_ATTEMPTS"),
+    )
 
     @model_validator(mode="after")
     def _validate_probe_risk_thresholds(self) -> "Settings":

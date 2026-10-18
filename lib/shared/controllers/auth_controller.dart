@@ -96,8 +96,8 @@ class AuthController extends ChangeNotifier {
       } else if (_isUnreachableBackend(e)) {
         final example = ApiConfig.suggestedPhoneBackendUrl;
         _sessionEndMessage =
-            'Your phone cannot reach the PC backend (Wi-Fi IP may have changed). '
-            'Tap Fix backend URL below. Example: $example';
+            'Cannot reach the PC backend (Wi-Fi IP may have changed). '
+            'Tap Set backend URL on the sign-in screen. Example: $example';
       } else {
         await prefs.remove(_sessionKey);
         _sessionEndMessage = e.message;
@@ -130,7 +130,7 @@ class AuthController extends ChangeNotifier {
     required String role,
     String? studentId,
     String? contactNumber,
-    String? phoneVerificationToken,
+    String? emailVerificationToken,
     String? adviserName,
     String? skillLevel,
   }) async {
@@ -141,7 +141,7 @@ class AuthController extends ChangeNotifier {
       role: role,
       studentId: studentId,
       contactNumber: contactNumber,
-      phoneVerificationToken: phoneVerificationToken,
+      emailVerificationToken: emailVerificationToken,
       adviserName: adviserName,
       skillLevel: skillLevel,
     );

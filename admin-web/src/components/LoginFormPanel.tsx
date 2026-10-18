@@ -1,108 +1,126 @@
 import { useState, type FormEvent } from 'react'
 import { Loader2, Lock, Mail } from 'lucide-react'
+import { useBranding } from '../context/BrandingContext'
+import { AccessOrgSealLogo } from './AccessOrgSealLogo'
 import { ForgotPasswordDialog } from './ForgotPasswordDialog'
 import { PasswordInput } from './PasswordInput'
+
+function loginTitleLines(appName: string) {
+  const title = appName.startsWith('ACCESS') ? 'ACCESS' : appName.split(' ')[0] ?? 'ACCESS'
+  const subtitle = appName.includes('VisionCheck')
+    ? 'VisionCheck'
+    : appName.replace(title, '').trim() || 'VisionCheck'
+  return { title, subtitle }
+}
 
 interface LoginFormPanelProps {
   email: string
   password: string
+  rememberMe: boolean
   error: string | null
   loading: boolean
-  sheet?: boolean
+  mobile?: boolean
   onEmailChange: (value: string) => void
   onPasswordChange: (value: string) => void
+  onRememberMeChange: (value: boolean) => void
   onSubmit: (e: FormEvent) => void
 }
 
 export function LoginFormPanel({
   email,
   password,
+  rememberMe,
   error,
   loading,
-  sheet = false,
+  mobile = false,
   onEmailChange,
   onPasswordChange,
+  onRememberMeChange,
   onSubmit,
 }: LoginFormPanelProps) {
   const [forgotOpen, setForgotOpen] = useState(false)
+  const { appName } = useBranding()
+  const { title, subtitle } = loginTitleLines(appName)
+  const sealSize = mobile ? 68 : 80
 
   return (
-    <div
-      className={[
-        'login-form-panel flex h-full flex-col',
-        sheet ? 'px-5 pb-4 pt-[18px]' : 'justify-center px-8 py-12 lg:px-10',
-      ].join(' ')}
+    <section
+      className={['login-card', mobile ? 'login-card--mobile' : ''].filter(Boolean).join(' ')}
+      aria-labelledby="login-heading"
     >
-      <div className="mx-auto w-full max-w-[420px]">
-        <h1
-          className="text-xl font-extrabold tracking-tight text-[var(--login-text)]"
-          style={{ lineHeight: 1 }}
-        >
-          Sign in
-        </h1>
-        <p className={`text-[var(--login-text-secondary)] ${sheet ? 'mt-1 text-[13px]' : 'mt-1.5 text-sm'}`}>
-          Administrator access only
-        </p>
-
-        <form onSubmit={onSubmit} className={sheet ? 'mt-3 space-y-2.5' : 'mt-8 space-y-4'}>
-          <div className="login-input-wrap">
-            <Mail size={18} strokeWidth={2} className="login-input-icon" aria-hidden />
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => onEmailChange(e.target.value)}
-              className="login-input"
-              placeholder="Email Address"
-            />
-          </div>
-
-          <div>
-            <div className="login-input-wrap">
-              <Lock size={18} strokeWidth={2} className="login-input-icon" aria-hidden />
-              <PasswordInput
-                id="password"
-                value={password}
-                onChange={onPasswordChange}
-                autoComplete="current-password"
-                placeholder="Password"
-                className="login-password-light"
-              />
-            </div>
-            <div className="mt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setForgotOpen(true)}
-                className="text-[13px] font-semibold text-[var(--login-secondary)] hover:underline"
-              >
-                Forgot Password?
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2.5 text-[13px] text-red-700">
-              {error}
-            </div>
-          )}
-
-          <button type="submit" disabled={loading} className="login-btn-primary mt-1">
-            {loading && <Loader2 size={18} className="animate-spin" />}
-            Sign in
-          </button>
-        </form>
-
-        <p className="mt-8 text-center text-[11px] text-[var(--login-text-secondary)]">
-          © 2026 ACCESS VisionCheck · USTP Oroquieta Campus
-        </p>
+      <div className="login-card__brand">
+        <AccessOrgSealLogo size={sealSize} showShadow={false} className="login-card__seal" />
+        <div className="login-card__wordmark">
+          <span className="login-card__access">{title}</span>
+          <span className="login-card__vision">{subtitle}</span>
+        </div>
       </div>
+
+      <h1 id="login-heading" className="login-card__title">
+        Sign in
+      </h1>
+      <p className="login-card__subtitle">Continue to your administrator account</p>
+
+      <form onSubmit={onSubmit} className="login-card__form">
+        <div className="login-input-wrap">
+          <Mail size={18} strokeWidth={2} className="login-input-icon" aria-hidden />
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => onEmailChange(e.target.value)}
+            className="login-input"
+            placeholder="Email Address"
+          />
+        </div>
+
+        <div className="login-input-wrap">
+          <Lock size={18} strokeWidth={2} className="login-input-icon" aria-hidden />
+          <PasswordInput
+            id="password"
+            value={password}
+            onChange={onPasswordChange}
+            autoComplete="current-password"
+            placeholder="Password"
+            className="login-password-light"
+          />
+        </div>
+
+        <div className="login-card__meta">
+          <label className="login-remember">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => onRememberMeChange(e.target.checked)}
+              className="login-remember__check"
+            />
+            Remember me
+          </label>
+          <button type="button" onClick={() => setForgotOpen(true)} className="login-link">
+            Forgot password?
+          </button>
+        </div>
+
+        {error && (
+          <div className="login-form__error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <button type="submit" disabled={loading} className="login-btn-primary">
+          {loading && <Loader2 size={18} className="animate-spin" />}
+          Sign in
+        </button>
+      </form>
+
+      <p className="login-card__legal">© 2026 ACCESS VisionCheck · USTP Oroquieta Campus</p>
 
       <ForgotPasswordDialog
         open={forgotOpen}
         initialEmail={email}
         onClose={() => setForgotOpen(false)}
       />
-    </div>
+    </section>
   )
 }

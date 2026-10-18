@@ -20,18 +20,22 @@ class RequestorHeroTopBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const Expanded(
-          child: AccessBrandLockup(markSize: 40, compact: true),
+          child: AccessBrandLockup(
+            markSize: 40,
+            compact: true,
+            onCyanHeader: true,
+          ),
         ),
         if (onNotifications != null)
-          MemberDarkHeroNotificationButton(onTap: onNotifications),
+          MemberDarkHeroNotificationButton(onTap: onNotifications, onCyanHero: true),
         if (onProfileTap != null)
-          MemberDarkHeroProfileAvatar(onTap: onProfileTap),
+          MemberDarkHeroProfileAvatar(onTap: onProfileTap, onCyanHero: true),
       ],
     );
   }
 }
 
-/// Dark top hero for requestor tabs — matches member home/gallery header rhythm.
+/// Cyan top hero for requestor tabs — matches member home and sign-in header.
 class RequestorTabHero extends StatelessWidget {
   const RequestorTabHero({
     super.key,
@@ -61,7 +65,7 @@ class RequestorTabHero extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(bottomRadius),
           bottomRight: Radius.circular(bottomRadius),
@@ -83,25 +87,17 @@ class RequestorTabHero extends StatelessWidget {
                 SizedBox(height: mini ? 10 : 14),
                 Text(
                   title,
-                  style: dashText(TextStyle(
-                    color: Colors.white,
+                  style: memberCyanHeroTitleTextStyle(
                     fontSize: mini ? 17 : 20,
                     fontWeight: titleFontWeight,
-                    height: 1.2,
-                    letterSpacing: -0.2,
-                  )),
+                  ),
                 ),
               ],
               if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   subtitle!,
-                  style: dashText(TextStyle(
-                    color: Colors.white.withValues(alpha: 0.62),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    height: 1.35,
-                  )),
+                  style: memberCyanHeroSubtitleTextStyle(),
                 ),
               ],
             ],

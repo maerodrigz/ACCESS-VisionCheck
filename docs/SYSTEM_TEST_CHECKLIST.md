@@ -32,8 +32,8 @@ Restart the backend after a reset.
 | P4 | `GET http://127.0.0.1:3001/api/health` → 200 | ☐ |
 | P5 | Admin web: `npm run dev` in `admin-web/`; login works | ☐ |
 | P6 | Mobile: backend URL set (emulator `10.0.2.2:3001` or phone LAN IP via in-app dialog) | ☐ |
-| P7 | `.env`: `SMS_PROVIDER=log` (show OTP on screen) **or** `semaphore` + key (real SMS) | ☐ |
-| P8 | `.env`: `EMAIL_ENABLED` + SMTP if testing registration/reset emails; else expect “contact admin” for mobile reset | ☐ |
+| P7 | `.env`: `EMAIL_ENABLED` + SMTP for registration and password-reset OTP emails | ☐ |
+| P8 | SMTP off (dev): registration/reset OTP shows `dev_code` in app + backend console | ☐ |
 | P9 | Optional push: Firebase service account + `google-services.json` on Android | ☐ |
 | P10 | **Supabase:** `SUPABASE_STORAGE_ENABLED=true`, URL, bucket, service role key file; `SUPABASE_MAX_UPLOAD_MB` ≥ eval upload limit | ☐ |
 
@@ -86,7 +86,7 @@ Restart the backend after a reset.
 | C6 | Gallery / events | Media lists load | ☐ |
 | C7 | Rankings / profile | Competency and profile load | ☐ |
 | C8 | Change password (Account Settings) | Success | ☐ |
-| C9 | Forgot password (login) | Admin temp in JSON on web; member email if SMTP on | ☐ |
+| C9 | Forgot password (login) | Email 6-digit OTP; dev code on screen if SMTP off | ☐ |
 | C10 | Logout → login again | Server session cleared; login works | ☐ |
 
 ---
@@ -117,8 +117,7 @@ Restart the backend after a reset.
 
 ## Known dev vs production behavior
 
-- **SMS `log`:** OTP appears in app UI and backend console; no real SMS.
-- **Email off:** Registration still works; mobile password reset tells user to contact admin.
+- **Email OTP (registration + forgot password):** With SMTP on, codes are emailed. With SMTP off, `dev_code` appears in the app and backend console.
 - **Single backend instance:** If port 3001 is “in use”, do not start a second `runserver`; restart the existing one.
 - **Practice video max length:** Backend `EVALUATION_MAX_VIDEO_SECONDS` (default 30); mobile reads limit from `/member/participation` after login.
 

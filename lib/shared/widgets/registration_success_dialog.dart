@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_widgets.dart';
 
 /// Confirms self-registration before returning the user to login.
 Future<void> showRegistrationSuccessDialog(
@@ -32,13 +33,13 @@ Future<void> showRegistrationSuccessDialog(
       ),
       content: Text(message, style: const TextStyle(height: 1.45, color: kTextSecondary)),
       actions: [
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx),
-          style: FilledButton.styleFrom(
-            backgroundColor: kAccent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        SizedBox(
+          width: double.infinity,
+          child: MobileAuthGradientButton(
+            label: confirmLabel,
+            compact: true,
+            onPressed: () => Navigator.pop(ctx),
           ),
-          child: Text(confirmLabel),
         ),
       ],
     ),

@@ -101,6 +101,33 @@ def _coherent_phone_filename(file_name: str) -> bool:
     return False
 
 
+def looks_like_reexported_media_filename(file_name: str) -> bool:
+    """Gallery saves, downloads, and screen captures (not canonical camera names)."""
+    if _coherent_phone_filename(file_name):
+        return False
+    stem = Path(file_name or "").stem.strip()
+    if not stem:
+        return False
+    if re.fullmatch(r"\d{6,}", stem):
+        return True
+    if re.match(r"^(video|download|screen_?record|screenrecording|mvimg|snapchat|tiktok)", stem, re.I):
+        return True
+    return False
+
+
+def video_provenance_has_device_identity(safe_fields: list[dict[str, str]]) -> bool:
+    """True when container metadata includes a camera/device make or model."""
+    for row in safe_fields:
+        key = (row.get("key") or row.get("label") or "").strip().lower()
+        if not key:
+            continue
+        if key in ("make", "model", "com.android.manufacturer", "com.android.model"):
+            return True
+        if "manufacturer" in key or key.endswith(".model"):
+            return True
+    return False
+
+
 def classify_photo_camera_provenance(content: bytes, file_name: str = "") -> CameraProvenanceResult:
     """Classify original photo bytes: strong / partial / absent."""
     reasons: list[str] = []
@@ -266,8 +293,8 @@ def classify_video_container_provenance(
         return CameraProvenanceResult(_STRENGTH_STRONG, reasons=reasons, safe_fields=safe_fields, is_video=True)
 
     if creation and mobile_hint:
-        reasons.append("Container creation time with mobile/video encoder hints.")
-        return CameraProvenanceResult(_STRENGTH_STRONG, reasons=reasons, safe_fields=safe_fields, is_video=True)
+        reasons.append("Container creation time with mobile/video encoder hints (no device make/model).")
+        return CameraProvenanceResult(_STRENGTH_PARTIAL, reasons=reasons, safe_fields=safe_fields, is_video=True)
 
     if creation or make or model or mobile_hint:
         if creation:

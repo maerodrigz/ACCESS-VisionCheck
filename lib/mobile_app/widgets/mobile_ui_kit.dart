@@ -262,7 +262,7 @@ class MobileOfflineBanner extends StatelessWidget {
           ),
           if (onRetry != null)
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: kAccent),
+              style: ElevatedButton.styleFrom(backgroundColor: kCyan),
               onPressed: () {
                 Navigator.pop(context);
                 onRetry!();
@@ -333,7 +333,16 @@ Future<bool> showBackendUrlDialog(BuildContext context) async {
                     height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
+                Text(
+                  'Trying now: ${ApiConfig.effectiveBaseUrl}',
+                  style: TextStyle(
+                    color: ctx.colors.textSecondary,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: controller,
                   autofocus: true,
@@ -374,7 +383,7 @@ Future<bool> showBackendUrlDialog(BuildContext context) async {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: kAccent),
+                style: ElevatedButton.styleFrom(backgroundColor: kCyan),
                 onPressed: handleSave,
                 child: const Text('Save & retry'),
               ),
@@ -537,7 +546,7 @@ class MobileErrorState extends StatelessWidget {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: onRetry,
-                  style: ElevatedButton.styleFrom(backgroundColor: kAccent),
+                  style: ElevatedButton.styleFrom(backgroundColor: kCyan),
                   child: const Text('Try Again'),
                 ),
               ],
@@ -626,7 +635,7 @@ class MobilePrimaryButton extends StatelessWidget {
     final btn = ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: kAccent,
+        backgroundColor: kCyan,
         foregroundColor: Colors.white,
         minimumSize: const Size(0, kMobileMinTouch),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

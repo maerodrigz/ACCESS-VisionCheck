@@ -1,13 +1,17 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
 import 'package:access_mobile/shared/legal/access_legal_content.dart';
 import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
-import 'package:access_mobile/shared/widgets/registration_phone_otp_panel.dart';
+import 'package:access_mobile/shared/copy/mobile_registration_copy.dart';
+import 'package:access_mobile/shared/widgets/registration_email_otp_panel.dart';
 
 /// Self-service member registration (pending admin approval).
 class MemberRegistrationScreen extends StatefulWidget {
@@ -24,13 +28,11 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _contactCtrl = TextEditingController();
-
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _loading = false;
   bool _acceptedLegal = false;
-  String? _phoneVerificationToken;
+  String? _emailVerificationToken;
   String? _error;
 
   @override
@@ -40,18 +42,17 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
-    _contactCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedLegal) {
-      setState(() => _error = 'Please agree to the Terms, Privacy Policy, and Content Standards.');
+      setState(() => _error = MobileRegistrationCopy.agreeLegalError);
       return;
     }
-    if (_phoneVerificationToken == null) {
-      setState(() => _error = 'Verify your mobile number with the SMS code before registering.');
+    if (_emailVerificationToken == null) {
+      setState(() => _error = MobileRegistrationCopy.verifyEmailBeforeSubmit);
       return;
     }
     setState(() {
@@ -65,18 +66,14 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
         password: _passwordCtrl.text,
         role: 'Member',
         studentId: _studentIdCtrl.text.trim(),
-        contactNumber: _contactCtrl.text.trim(),
-        phoneVerificationToken: _phoneVerificationToken,
+        emailVerificationToken: _emailVerificationToken,
       );
       if (!mounted) return;
       final email = _emailCtrl.text.trim();
       await showRegistrationSuccessDialog(
         context,
         title: 'Registration submitted',
-        message:
-            'Your member account is pending administrator approval. '
-            'We will email you at $email when an administrator approves or declines your registration. '
-            'Until then, Sign in will show that your account is still pending.',
+        message: MobileRegistrationCopy.memberSuccessMessage(email),
       );
       if (!mounted) return;
       Navigator.pop(context, email);
@@ -95,65 +92,37 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBg,
-      resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        backgroundColor: kSurface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: kTextPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Register as Member',
-          style: TextStyle(
-            color: kTextPrimary,
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: mobileScrollPadding(context),
-            children: [
-              const Text(
-                'Create your member account. An administrator will review and approve your registration before you can sign in.',
-                style: TextStyle(color: kTextSecondary, fontSize: 13, height: 1.45),
-              ),
-              const SizedBox(height: 20),
-              if (_error != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: kRedDim,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: kRed.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: kRed, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(_error!, style: const TextStyle(color: kRed, fontSize: 13)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              RegistrationFormField(
+    final mobileAuth = !kIsWeb;
+
+    final formBody = Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (mobileAuth) const MobileAuthBackButton(),
+          if (mobileAuth)
+            const MobileAuthSectionHeader(
+              title: MobileRegistrationCopy.memberTitle,
+              subtitle: MobileRegistrationCopy.memberSubtitle,
+            )
+          else
+            const Text(
+              MobileRegistrationCopy.memberSubtitle,
+              style: TextStyle(color: kTextSecondary, fontSize: 13, height: 1.45),
+            ),
+          const SizedBox(height: 20),
+          if (_error != null) ...[
+            mobileAuth ? mobileAuthErrorBanner(_error!) : _legacyErrorBanner(_error!),
+            const SizedBox(height: 16),
+          ],
+          RegistrationFormField(
                 label: 'Full Name',
                 controller: _nameCtrl,
                 hint: 'Juan Dela Cruz',
                 icon: Icons.person_outline,
                 validator: (v) => RegistrationValidators.required(v, label: 'Full name'),
                 textInputAction: TextInputAction.next,
+                mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 14),
               RegistrationFormField(
@@ -163,6 +132,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                 icon: Icons.badge_outlined,
                 validator: (v) => RegistrationValidators.required(v, label: 'Student ID'),
                 textInputAction: TextInputAction.next,
+                mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 14),
               RegistrationFormField(
@@ -173,26 +143,14 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                 keyboardType: TextInputType.emailAddress,
                 validator: RegistrationValidators.email,
                 textInputAction: TextInputAction.next,
+                mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Verify your mobile number',
-                style: TextStyle(
-                  color: kTextPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'We send a one-time SMS code to confirm your number before you submit.',
-                style: TextStyle(color: kTextSecondary, fontSize: 12, height: 1.4),
-              ),
-              const SizedBox(height: 12),
-              RegistrationPhoneOtpPanel(
-                phoneController: _contactCtrl,
+              RegistrationEmailOtpPanel(
+                emailController: _emailCtrl,
+                nameForGreeting: _nameCtrl.text,
                 onVerificationTokenChanged: (token) {
-                  setState(() => _phoneVerificationToken = token);
+                  setState(() => _emailVerificationToken = token);
                 },
               ),
               const SizedBox(height: 14),
@@ -210,6 +168,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                   onPressed: () => setState(() => _obscurePass = !_obscurePass),
                 ),
                 textInputAction: TextInputAction.next,
+                mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 14),
               RegistrationFormField(
@@ -228,6 +187,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                 ),
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _submit(),
+                mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 18),
               LegalAgreementCheckbox(
@@ -239,30 +199,98 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                 }),
               ),
               const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kAccent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              if (mobileAuth)
+                MobileAuthGradientButton(
+                  label: 'Register',
+                  loading: _loading,
+                  onPressed: _loading || !_acceptedLegal || _emailVerificationToken == null
+                      ? null
+                      : _submit,
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _loading || !_acceptedLegal || _emailVerificationToken == null
+                        ? null
+                        : _submit,
+                    child: _loading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            'Register',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                          ),
                   ),
-                  onPressed:
-                      _loading || !_acceptedLegal || _phoneVerificationToken == null ? null : _submit,
-                  child: _loading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Register', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
-              ),
+              if (mobileAuth) ...[
+                const SizedBox(height: 20),
+                MobileAuthTextLinkRow(
+                  prompt: 'Already have an account?',
+                  linkLabel: 'Sign In',
+                  onLinkTap: () {
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
             ],
           ),
+    );
+
+    if (mobileAuth) {
+      return MobileAuthScaffold(body: formBody);
+    }
+
+    return Scaffold(
+      backgroundColor: kBg,
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        backgroundColor: kSurface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: kTextPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Register as Member',
+          style: TextStyle(color: kTextPrimary, fontWeight: FontWeight.w700, fontSize: 17),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: mobileScrollPadding(context),
+          child: formBody,
         ),
       ),
     );
   }
+}
+
+Widget _legacyErrorBanner(String message) {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: kRedDim,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: kRed.withValues(alpha: 0.4)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.error_outline, color: kRed, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(message, style: const TextStyle(color: kRed, fontSize: 13))),
+      ],
+    ),
+  );
 }

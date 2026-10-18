@@ -126,7 +126,7 @@ Future<bool> showMemberNotificationFloatingCard(
                       child: FilledButton(
                         onPressed: () => Navigator.pop(ctx, true),
                         style: FilledButton.styleFrom(
-                          backgroundColor: kAccent,
+                          backgroundColor: kMemberButtonPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

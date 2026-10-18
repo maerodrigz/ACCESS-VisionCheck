@@ -15,7 +15,7 @@ import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 
 const _horizontalPad = 18.0;
 
-/// Member home — mock-aligned dashboard with dark hero and white content sheet.
+/// Member home — dashboard with cyan hero (sign-in header) and white content sheet.
 class MemberHomeDashboard extends StatelessWidget {
   const MemberHomeDashboard({
     super.key,
@@ -241,7 +241,7 @@ class _HomeDarkHero extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(kMemberDarkHeroBottomRadius),
           bottomRight: Radius.circular(kMemberDarkHeroBottomRadius),
@@ -263,23 +263,12 @@ class _HomeDarkHero extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 '${memberDashboardGreeting()}, ${memberDashboardFirstName()}!',
-                style: dashText(const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                  letterSpacing: -0.2,
-                )),
+                style: memberCyanHeroTitleTextStyle(),
               ),
               const SizedBox(height: 4),
               Text(
                 'Here\'s what\'s happening with your documentation today.',
-                style: dashText(TextStyle(
-                  color: Colors.white.withValues(alpha: 0.62),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  height: 1.35,
-                )),
+                style: memberCyanHeroSubtitleTextStyle(),
               ),
               const SizedBox(height: 14),
               _HomeFeaturedEventCard(
@@ -336,7 +325,11 @@ class _HomeTopBar extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Expanded(
-              child: AccessBrandLockup(markSize: 40, compact: true),
+              child: AccessBrandLockup(
+                markSize: 40,
+                compact: true,
+                onCyanHeader: true,
+              ),
             ),
             _HeroIconButton(
               icon: appState.unreadCount > 0
@@ -411,7 +404,7 @@ class _HeroIconButton extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: kDashStatPurpleIcon,
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF050C1C), width: 1.2),
+                        border: Border.all(color: kMemberCyanHeroBadgeRing, width: 1.2),
                       ),
                       child: Center(
                         child: Text(
@@ -497,7 +490,7 @@ class _HeroProfileAvatar extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: kGreen,
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF050C1C), width: 1.4),
+                      border: Border.all(color: kMemberCyanHeroBadgeRing, width: 1.4),
                     ),
                   ),
                 ),
@@ -944,7 +937,7 @@ class _HomeEmptyTasksCard extends StatelessWidget {
                 icon: const Icon(Icons.calendar_month_outlined, size: 18),
                 label: const Text('View Calendar'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: kAccent,
+                  backgroundColor: kMemberButtonPrimary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size.fromHeight(42),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1196,7 +1189,7 @@ class _HomeRecentUploadsSection extends StatelessWidget {
                           icon: const Icon(Icons.analytics_outlined, size: 18),
                           label: const Text('Start Evaluation'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: kAccent,
+                            backgroundColor: kMemberButtonPrimary,
                             foregroundColor: Colors.white,
                             minimumSize: const Size.fromHeight(42),
                             shape: RoundedRectangleBorder(

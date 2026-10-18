@@ -466,7 +466,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                         ),
                         style: FilledButton.styleFrom(
-                          backgroundColor: kAccent,
+                          backgroundColor: kMemberButtonPrimary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

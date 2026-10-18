@@ -75,7 +75,7 @@ class MemberProfileHeroSkeleton extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(kMemberProfileHeroBottomRadius),
           bottomRight: Radius.circular(kMemberProfileHeroBottomRadius),
@@ -164,7 +164,7 @@ class RequestorProfileHeroSkeleton extends StatelessWidget {
 
     return DecoratedBox(
       decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
           bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),

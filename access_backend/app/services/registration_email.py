@@ -1,13 +1,15 @@
-"""Registration lifecycle emails (pending, approved, rejected)."""
+"""Registration lifecycle emails (pending, approved, rejected) and signup OTP."""
 
 from __future__ import annotations
 
+import logging
 import threading
 
 from app.models.enums import RoleName
 from app.services.email_branding import branded_html, esc, product_name
 from app.services.email_delivery import is_email_configured, send_email
 
+logger = logging.getLogger(__name__)
 
 _NO_REPLY_PLAIN = (
     "\n\nDo not reply to this email. This mailbox is not monitored. "
@@ -156,3 +158,51 @@ def notify_registration_approved_async(*, to_email: str, fullname: str) -> None:
 
 def notify_registration_rejected_async(*, to_email: str, fullname: str, reason: str) -> None:
     _fire_and_forget(send_registration_rejected, to_email=to_email, fullname=fullname, reason=reason)
+
+
+def send_registration_otp_email(*, to_email: str, fullname: str, code: str) -> bool:
+    name = esc(fullname or "there")
+    product = esc(product_name())
+    subject = f"{product_name()}: registration verification code"
+    plain = (
+        f"Hello {fullname or 'there'},\n\n"
+        f"Your {product_name()} registration verification code is: {code}\n\n"
+        "This code expires in a few minutes. Do not share it with anyone.\n\n"
+        f"{product_name()}\n"
+        "USTP Oroquieta Campus"
+        f"{_NO_REPLY_PLAIN}"
+    )
+    inner = f"""
+    <p>Hello {name},</p>
+    <p>Use this code to verify your email for <strong>{product}</strong> registration:</p>
+    <p style="background:#f8fafc;border-left:4px solid #0052D4;padding:12px 14px;border-radius:8px;font-family:monospace;font-size:18px;letter-spacing:2px;">
+      {esc(code)}
+    </p>
+    <p>This code expires in a few minutes. Do not share it with anyone.</p>
+    {_NO_REPLY_HTML}
+    """
+    return send_email(to_email, subject, plain, html_body=branded_html(inner), automated=True)
+
+
+def deliver_registration_otp(*, to_email: str, code: str, fullname: str = "") -> bool:
+    """Send registration OTP via SMTP when configured; otherwise log to server console (dev)."""
+    if is_email_configured():
+        send_registration_otp_email(to_email=to_email, fullname=fullname, code=code)
+        return True
+    line = f"Registration OTP (dev log) to {to_email}: {code}"
+    logger.warning(line)
+    print(f"\n>>> {line} <<<\n", flush=True)
+    return False
+
+
+def deliver_registration_otp_async(*, to_email: str, code: str, fullname: str = "") -> None:
+    """Queue OTP email so registration send returns before SMTP (avoids mobile HTTP timeout)."""
+    if not is_email_configured():
+        deliver_registration_otp(to_email=to_email, fullname=fullname, code=code)
+        return
+    _fire_and_forget(
+        send_registration_otp_email,
+        to_email=to_email,
+        fullname=fullname,
+        code=code,
+    )

@@ -1,14 +1,18 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/models/requestor_type.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
 import 'package:access_mobile/shared/legal/access_legal_content.dart';
 import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
-import 'package:access_mobile/shared/widgets/registration_phone_otp_panel.dart';
+import 'package:access_mobile/shared/copy/mobile_registration_copy.dart';
+import 'package:access_mobile/shared/widgets/registration_email_otp_panel.dart';
 
 /// Self-service requestor registration (pending admin approval).
 ///
@@ -32,7 +36,6 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _adviserCtrl = TextEditingController();
-  final _contactCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
 
@@ -40,7 +43,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
   bool _obscureConfirm = true;
   bool _loading = false;
   bool _acceptedLegal = false;
-  String? _phoneVerificationToken;
+  String? _emailVerificationToken;
   String? _error;
 
   RequestorType get _type => widget.requestorType;
@@ -52,7 +55,6 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _adviserCtrl.dispose();
-    _contactCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
@@ -63,11 +65,11 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
   String get _introText {
     switch (_type) {
       case RequestorType.facultyStaff:
-        return 'Register as a faculty or staff requestor. An administrator will review your '
-            'application before you can sign in and submit documentation requests.';
+        return 'For faculty and staff who request documentation from ACCESS members. '
+            'An administrator must approve your account before you can sign in.';
       case RequestorType.organization:
-        return 'Register your student organization to request documentation services. '
-            'An administrator will review your application before you can sign in.';
+        return 'For registered student organizations that request documentation services. '
+            'An administrator must approve your account before you can sign in.';
     }
   }
 
@@ -107,11 +109,11 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedLegal) {
-      setState(() => _error = 'Please agree to the Terms and Conditions and Privacy Policy.');
+      setState(() => _error = MobileRegistrationCopy.agreeLegalError);
       return;
     }
-    if (_phoneVerificationToken == null) {
-      setState(() => _error = 'Verify your mobile number with the SMS code before registering.');
+    if (_emailVerificationToken == null) {
+      setState(() => _error = MobileRegistrationCopy.verifyEmailBeforeSubmit);
       return;
     }
     setState(() {
@@ -125,8 +127,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
         password: _passwordCtrl.text,
         role: 'Organization',
         studentId: _type.storageValue,
-        contactNumber: _contactCtrl.text.trim(),
-        phoneVerificationToken: _phoneVerificationToken,
+        emailVerificationToken: _emailVerificationToken,
         adviserName: _isOrganizationType ? _adviserCtrl.text.trim() : null,
       );
       if (!mounted) return;
@@ -134,10 +135,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
       await showRegistrationSuccessDialog(
         context,
         title: 'Registration submitted',
-        message:
-            'Your requestor account is pending administrator approval. '
-            'We will email you at $email when an administrator approves or declines your registration. '
-            'Until then, Sign in will show that your account is still pending.',
+        message: MobileRegistrationCopy.requestorSuccessMessage(email),
       );
       if (!mounted) return;
       Navigator.pop(context, email);
@@ -156,61 +154,29 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBg,
-      resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        backgroundColor: kSurface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: kTextPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          _screenTitle,
-          style: const TextStyle(
-            color: kTextPrimary,
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: mobileScrollPadding(context),
-            children: [
-              Text(
-                _introText,
-                style: const TextStyle(color: kTextSecondary, fontSize: 13, height: 1.45),
-              ),
-              const SizedBox(height: 20),
-              if (_error != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: kRedDim,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: kRed.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: kRed, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: kRed, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
+    final mobileAuth = !kIsWeb;
+
+    final formBody = Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (mobileAuth) const MobileAuthBackButton(),
+          if (mobileAuth)
+            MobileAuthSectionHeader(
+              title: _screenTitle,
+              subtitle: _introText,
+            )
+          else
+            Text(
+              _introText,
+              style: const TextStyle(color: kTextSecondary, fontSize: 13, height: 1.45),
+            ),
+          const SizedBox(height: 20),
+          if (_error != null) ...[
+            mobileAuth ? mobileAuthErrorBanner(_error!) : _orgLegacyErrorBanner(_error!),
+            const SizedBox(height: 16),
+          ],
               RegistrationFormField(
                 label: _nameLabel,
                 controller: _nameCtrl,
@@ -221,6 +187,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
                   label: _nameLabel.toLowerCase(),
                 ),
                 textInputAction: TextInputAction.next,
+                mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 14),
               RegistrationFormField(
@@ -231,6 +198,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
                 keyboardType: TextInputType.emailAddress,
                 validator: RegistrationValidators.email,
                 textInputAction: TextInputAction.next,
+                mobileAuthStyle: mobileAuth,
               ),
               if (_isOrganizationType) ...[
                 const SizedBox(height: 14),
@@ -244,27 +212,15 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
                     label: 'Admin or representative name',
                   ),
                   textInputAction: TextInputAction.next,
+                  mobileAuthStyle: mobileAuth,
                 ),
               ],
               const SizedBox(height: 14),
-              const Text(
-                'Verify your mobile number',
-                style: TextStyle(
-                  color: kTextPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'We send a one-time SMS code to confirm your number before you submit.',
-                style: TextStyle(color: kTextSecondary, fontSize: 12, height: 1.4),
-              ),
-              const SizedBox(height: 12),
-              RegistrationPhoneOtpPanel(
-                phoneController: _contactCtrl,
+              RegistrationEmailOtpPanel(
+                emailController: _emailCtrl,
+                nameForGreeting: _nameCtrl.text,
                 onVerificationTokenChanged: (token) {
-                  setState(() => _phoneVerificationToken = token);
+                  setState(() => _emailVerificationToken = token);
                 },
               ),
               const SizedBox(height: 14),
@@ -284,6 +240,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
                   onPressed: () => setState(() => _obscurePass = !_obscurePass),
                 ),
                 textInputAction: TextInputAction.next,
+                mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 14),
               RegistrationFormField(
@@ -305,6 +262,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
                 ),
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _submit(),
+                mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 18),
               LegalAgreementCheckbox(
@@ -316,41 +274,99 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
                 }),
               ),
               const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kAccent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              if (mobileAuth)
+                MobileAuthGradientButton(
+                  label: 'Register',
+                  loading: _loading,
+                  onPressed: _loading || !_acceptedLegal || _emailVerificationToken == null
+                      ? null
+                      : _submit,
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
+                    onPressed: _loading || !_acceptedLegal || _emailVerificationToken == null
+                        ? null
+                        : _submit,
+                    child: _loading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            'Register',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                          ),
                   ),
-                  onPressed:
-                      _loading || !_acceptedLegal || _phoneVerificationToken == null ? null : _submit,
-                  child: _loading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Register',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
                 ),
-              ),
+              if (mobileAuth) ...[
+                const SizedBox(height: 20),
+                MobileAuthTextLinkRow(
+                  prompt: 'Already have an account?',
+                  linkLabel: 'Sign In',
+                  onLinkTap: () {
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
             ],
           ),
+    );
+
+    if (mobileAuth) {
+      return MobileAuthScaffold(body: formBody);
+    }
+
+    return Scaffold(
+      backgroundColor: kBg,
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        backgroundColor: kSurface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: kTextPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          _screenTitle,
+          style: const TextStyle(color: kTextPrimary, fontWeight: FontWeight.w700, fontSize: 17),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: mobileScrollPadding(context),
+          child: formBody,
         ),
       ),
     );
   }
+}
+
+Widget _orgLegacyErrorBanner(String message) {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: kRedDim,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: kRed.withValues(alpha: 0.4)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.error_outline, color: kRed, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(message, style: const TextStyle(color: kRed, fontSize: 13))),
+      ],
+    ),
+  );
 }

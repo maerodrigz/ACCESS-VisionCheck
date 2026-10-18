@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Copy, Loader2, X } from 'lucide-react'
-import { requestAdminPasswordReset } from '../api/auth'
+import { Loader2, X } from 'lucide-react'
+import { completeForgotPasswordReset, sendForgotPasswordOtp } from '../api/auth'
 
 interface Props {
   open: boolean
@@ -10,19 +10,23 @@ interface Props {
 
 export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props) {
   const [email, setEmail] = useState(initialEmail)
+  const [step, setStep] = useState<0 | 1 | 2>(0)
+  const [code, setCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const [tempPassword, setTempPassword] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (open) {
       setEmail(initialEmail)
+      setStep(0)
+      setCode('')
+      setNewPassword('')
+      setConfirmPassword('')
       setError(null)
       setMessage(null)
-      setTempPassword(null)
-      setCopied(false)
       setLoading(false)
     }
   }, [open, initialEmail])
@@ -32,9 +36,11 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
   function resetState() {
     setError(null)
     setMessage(null)
-    setTempPassword(null)
-    setCopied(false)
     setLoading(false)
+    setStep(0)
+    setCode('')
+    setNewPassword('')
+    setConfirmPassword('')
   }
 
   function handleClose() {
@@ -45,17 +51,43 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setMessage(null)
-    setTempPassword(null)
     if (!email.trim()) {
-      setError('Enter the email address for your administrator account.')
+      setError('Enter the email address for your account.')
       return
     }
     setLoading(true)
     try {
-      const result = await requestAdminPasswordReset(email)
-      setMessage(result.message)
-      setTempPassword(result.temporary_password ?? null)
+      if (step === 0) {
+        const result = await sendForgotPasswordOtp(email)
+        setMessage(result.message)
+        if (result.dev_code) {
+          setCode(result.dev_code)
+          setMessage(
+            `Dev code: ${result.dev_code} (also printed in the backend terminal).`,
+          )
+        }
+        setStep(1)
+        return
+      }
+      if (code.trim().length !== 6) {
+        setError('Enter the 6-digit code from your email.')
+        return
+      }
+      if (newPassword.length < 6) {
+        setError('Password must be at least 6 characters.')
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        setError('Passwords do not match.')
+        return
+      }
+      const done = await completeForgotPasswordReset({
+        email,
+        code,
+        newPassword,
+      })
+      setMessage(done.message)
+      setStep(2)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not process request.')
     } finally {
@@ -63,16 +95,7 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
     }
   }
 
-  async function copyPassword() {
-    if (!tempPassword) return
-    try {
-      await navigator.clipboard.writeText(tempPassword)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setCopied(false)
-    }
-  }
+  const doneReset = step === 2
 
   return (
     <>
@@ -90,10 +113,12 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
         <div className="flex items-start justify-between border-b border-[var(--color-border)] px-5 py-4">
           <div>
             <h2 className="text-base font-extrabold text-[var(--color-text-primary)]">
-              Reset administrator password
+              Reset password
             </h2>
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-              We&apos;ll generate a temporary password for approved admin accounts.
+              {step === 0
+                ? 'We email a 6-digit code to your account address.'
+                : 'Enter the code and your new password.'}
             </p>
           </div>
           <button
@@ -107,48 +132,76 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
-          {!tempPassword ? (
-            <div>
-              <label htmlFor="forgot-email" className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]">
-                Admin email
-              </label>
-              <input
-                id="forgot-email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm outline-none focus:border-[var(--color-accent-cyan)] focus:ring-2 focus:ring-cyan-100"
-                placeholder="admin@access.edu"
-              />
-            </div>
-          ) : (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-              {message}
-            </div>
-          )}
+          <div>
+            <label htmlFor="forgot-email" className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]">
+              Email
+            </label>
+            <input
+              id="forgot-email"
+              type="email"
+              autoComplete="email"
+              readOnly={step === 1}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm outline-none focus:border-[var(--color-accent-cyan)] focus:ring-2 focus:ring-cyan-100 read-only:opacity-80"
+              placeholder="you@example.com"
+            />
+          </div>
 
-          {tempPassword ? (
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
-              <div className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                Temporary password
+          {step === 1 ? (
+            <>
+              <div>
+                <label htmlFor="forgot-code" className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]">
+                  6-digit code
+                </label>
+                <input
+                  id="forgot-code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm tracking-widest outline-none focus:border-[var(--color-accent-cyan)] focus:ring-2 focus:ring-cyan-100"
+                  placeholder="000000"
+                />
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <code className="flex-1 break-all rounded-lg bg-[var(--color-surface-elevated)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)]">
-                  {tempPassword}
-                </code>
-                <button
-                  type="button"
-                  onClick={copyPassword}
-                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
-                >
-                  <Copy size={14} />
-                  {copied ? 'Copied' : 'Copy'}
-                </button>
+              <div>
+                <label htmlFor="forgot-new-pass" className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]">
+                  New password
+                </label>
+                <input
+                  id="forgot-new-pass"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm outline-none focus:border-[var(--color-accent-cyan)] focus:ring-2 focus:ring-cyan-100"
+                />
               </div>
-              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-                Use this once to sign in, then change your password from the profile menu (Change password).
-              </p>
+              <div>
+                <label htmlFor="forgot-confirm-pass" className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]">
+                  Confirm password
+                </label>
+                <input
+                  id="forgot-confirm-pass"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm outline-none focus:border-[var(--color-accent-cyan)] focus:ring-2 focus:ring-cyan-100"
+                />
+              </div>
+            </>
+          ) : null}
+
+          {message && !error ? (
+            <div
+              className={`rounded-xl border px-4 py-3 text-sm ${
+                doneReset
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]'
+              }`}
+            >
+              {message}
             </div>
           ) : null}
 
@@ -158,29 +211,36 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
             </div>
           ) : null}
 
-          {!tempPassword && message && !error ? (
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-              {message}
-            </div>
-          ) : null}
-
           <div className="flex gap-2 pt-1">
+            {step === 1 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(0)
+                  setError(null)
+                }}
+                disabled={loading}
+                className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] disabled:opacity-50"
+              >
+                Back
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handleClose}
               disabled={loading}
               className="flex-1 rounded-xl border border-[var(--color-border)] py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] disabled:opacity-50"
             >
-              {tempPassword ? 'Done' : 'Cancel'}
+              {doneReset ? 'Done' : 'Cancel'}
             </button>
-            {!tempPassword ? (
+            {!doneReset ? (
               <button
                 type="submit"
                 disabled={loading}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent-blue)] py-2.5 text-sm font-bold text-white disabled:opacity-60"
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
-                Reset password
+                {step === 0 ? 'Send code' : 'Update password'}
               </button>
             ) : null}
           </div>

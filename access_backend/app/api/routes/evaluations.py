@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.member_api import EvaluationOut
 from app.services.member_score_release import evaluation_row_for_member
+from app.services.supabase_storage import normalize_supabase_storage_url
 
 router = APIRouter(prefix="/evaluations", tags=["Evaluations"])
 
@@ -47,7 +48,11 @@ def list_evaluations(
             recommendation=ev.recommendation,
         )
         storage_removed = ev.media.storage_removed_at is not None
-        file_url = "" if storage_removed else (ev.media.file_url or "")
+        file_url = (
+            ""
+            if storage_removed
+            else normalize_supabase_storage_url(ev.media.file_url or "")
+        )
         result.append(
             EvaluationOut(
                 id=ev.id,

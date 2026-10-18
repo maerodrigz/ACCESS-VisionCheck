@@ -186,8 +186,6 @@ class _RequestorSectionTitle extends StatelessWidget {
 class _RequestorProfileHeaderShell extends StatelessWidget {
   const _RequestorProfileHeaderShell();
 
-  static const _onDarkSecondary = Color(0xFF94A3B8);
-
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
@@ -195,7 +193,7 @@ class _RequestorProfileHeaderShell extends StatelessWidget {
 
     return DecoratedBox(
       decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
           bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
@@ -209,18 +207,14 @@ class _RequestorProfileHeaderShell extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back_rounded),
-                color: _onDarkSecondary,
+                color: kMemberCyanHeroSubtitleColor,
                 onPressed: () => Navigator.maybePop(context),
                 style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
               ),
               Expanded(
                 child: Text(
                   'Profile',
-                  style: dashText(const TextStyle(
-                    color: _onDarkSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  )),
+                  style: memberCyanHeroNavLabelStyle(),
                 ),
               ),
             ],
@@ -233,9 +227,6 @@ class _RequestorProfileHeaderShell extends StatelessWidget {
 
 class _RequestorProfileHeader extends StatelessWidget {
   const _RequestorProfileHeader({required this.onEdit});
-
-  static const _onDarkPrimary = Color(0xFFF8FAFC);
-  static const _onDarkSecondary = Color(0xFF94A3B8);
 
   final VoidCallback onEdit;
 
@@ -254,7 +245,7 @@ class _RequestorProfileHeader extends StatelessWidget {
 
     return DecoratedBox(
       decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
           bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
@@ -271,18 +262,14 @@ class _RequestorProfileHeader extends StatelessWidget {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back_rounded),
-                    color: _onDarkSecondary,
+                    color: kMemberCyanHeroSubtitleColor,
                     onPressed: () => Navigator.maybePop(context),
                     style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
                   ),
                   Expanded(
                     child: Text(
                       'Profile',
-                      style: dashText(const TextStyle(
-                        color: _onDarkSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      )),
+                      style: memberCyanHeroNavLabelStyle(),
                     ),
                   ),
                 ],
@@ -308,29 +295,26 @@ class _RequestorProfileHeader extends StatelessWidget {
                           displayName,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: dashText(TextStyle(
-                            color: _onDarkPrimary,
-                            fontSize: compact ? 17 : 18,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
-                            letterSpacing: -0.2,
-                          )),
+                          style: memberCyanHeroIdentityNameStyle(compact: compact),
                         ),
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Icon(Icons.apartment_rounded, size: 14, color: kCyan),
+                            const Icon(
+                              Icons.apartment_rounded,
+                              size: 14,
+                              color: kMemberCyanHeroMetaIconColor,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
                                 'Organization Requestor',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: dashText(const TextStyle(
-                                  color: kCyan,
+                                style: memberCyanHeroIdentityMetaStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                )),
+                                ),
                               ),
                             ),
                           ],
@@ -345,7 +329,7 @@ class _RequestorProfileHeader extends StatelessWidget {
                                 child: Icon(
                                   Icons.mail_outline_rounded,
                                   size: 15,
-                                  color: _onDarkSecondary,
+                                  color: kMemberCyanHeroMetaIconColor,
                                 ),
                               ),
                               const SizedBox(width: 6),
@@ -354,43 +338,45 @@ class _RequestorProfileHeader extends StatelessWidget {
                                   email,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: dashText(const TextStyle(
-                                    color: _onDarkSecondary,
-                                    fontSize: 12,
-                                    height: 1.35,
-                                  )),
+                                  style: memberCyanHeroIdentityMetaStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ],
                         const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: onEdit,
-                          icon: Icon(
-                            Icons.edit_outlined,
-                            size: compact ? 16 : 17,
-                            color: _onDarkPrimary,
-                          ),
-                          label: Text(
-                            'Edit Profile',
-                            style: dashText(const TextStyle(
-                              color: _onDarkPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            )),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _onDarkPrimary,
-                            side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: compact ? 12 : 14,
-                              vertical: compact ? 6 : 8,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                        Material(
+                          color: kSurface.withValues(alpha: 0.94),
+                          borderRadius: BorderRadius.circular(10),
+                          child: InkWell(
+                            onTap: onEdit,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: compact ? 12 : 14,
+                                vertical: compact ? 8 : 9,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.edit_outlined,
+                                    size: compact ? 16 : 17,
+                                    color: kMemberButtonPrimary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Edit Profile',
+                                    style: dashText(const TextStyle(
+                                      color: kTextPrimary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    )),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -428,7 +414,7 @@ class _RequestorAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: onDarkHero ? kCyan.withValues(alpha: 0.45) : kBorder,
+          color: onDarkHero ? Colors.white.withValues(alpha: 0.78) : kBorder,
           width: onDarkHero ? 2 : 1,
         ),
       ),

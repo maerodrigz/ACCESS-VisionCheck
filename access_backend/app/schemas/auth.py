@@ -7,23 +7,24 @@ class LoginRequest(BaseModel):
 
 
 class RegistrationOtpSendRequest(BaseModel):
-    phone: str = Field(min_length=10, max_length=40)
+    email: EmailStr
+    name: str | None = Field(None, max_length=120, description="Optional greeting on the OTP email")
 
 
 class RegistrationOtpSendResponse(BaseModel):
     message: str
-    """Present only when SMS_PROVIDER=log (local dev). Never set for real SMS."""
+    """Present when SMTP is off (local dev). Never set when email is sent for real."""
     dev_code: str | None = None
 
 
 class RegistrationOtpVerifyRequest(BaseModel):
-    phone: str = Field(min_length=10, max_length=40)
+    email: EmailStr
     code: str = Field(min_length=4, max_length=8)
 
 
 class RegistrationOtpVerifyResponse(BaseModel):
-    phone_verification_token: str
-    message: str = "Phone verified."
+    email_verification_token: str
+    message: str = "Email verified."
 
 
 class RegisterRequest(BaseModel):
@@ -35,7 +36,7 @@ class RegisterRequest(BaseModel):
     contact_number: str | None = Field(None, max_length=40)
     adviser_name: str | None = Field(None, max_length=120)
     skill_level: str | None = Field(None, max_length=60, description="Optional skill tier name")
-    phone_verification_token: str | None = Field(
+    email_verification_token: str | None = Field(
         None,
         min_length=16,
         max_length=128,
@@ -60,11 +61,21 @@ class LoginResponse(BaseModel):
     )
 
 
-class ForgotPasswordRequest(BaseModel):
+class ForgotPasswordSendRequest(BaseModel):
     email: EmailStr
 
 
-class ForgotPasswordResponse(BaseModel):
+class ForgotPasswordSendResponse(BaseModel):
     message: str
-    temporary_password: str | None = None
-    reset: bool = False
+    """Present when SMTP is off (dev): code is also printed in the backend terminal."""
+    dev_code: str | None = None
+
+
+class ForgotPasswordCompleteRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=4, max_length=8)
+    new_password: str = Field(min_length=6)
+
+
+class ForgotPasswordCompleteResponse(BaseModel):
+    message: str

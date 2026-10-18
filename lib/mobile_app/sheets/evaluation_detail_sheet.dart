@@ -7,6 +7,7 @@ import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
+import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
 String _detailAdminRemarks(Evaluation ev) {
   final r = ev.adminRemarks?.trim() ?? '';
@@ -229,7 +230,7 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kAccent,
+                  backgroundColor: kMemberButtonPrimary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -302,7 +303,7 @@ void showReportDialog(BuildContext context, Evaluation ev) {
           child: const Text('Cancel', style: TextStyle(color: kTextSecondary)),
         ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kAccent, foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(backgroundColor: kMemberButtonPrimary, foregroundColor: Colors.white),
           onPressed: () {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(

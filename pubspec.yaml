@@ -39,6 +39,7 @@ dependencies:
   google_generative_ai: ^0.4.6
   image: ^4.2.0
   shared_preferences: ^2.5.3
+  device_info_plus: ^11.5.0
   http: ^1.2.2
   flutter_facebook_auth: ^7.1.6
   url_launcher: ^6.3.1
@@ -107,7 +108,9 @@ flutter:
     - assets/images/access_app_icon.png
     - assets/images/access_launcher_foreground.png
     - assets/images/access_login_hero.png
+    - assets/images/auth_header.png
     - config/firebase.json
+    - config/api.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

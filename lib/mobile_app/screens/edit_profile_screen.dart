@@ -544,7 +544,7 @@ class _EditProfileHero extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
           bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
@@ -621,11 +621,10 @@ class _EditProfileHero extends StatelessWidget {
                 displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: dashText(const TextStyle(
-                  color: Colors.white,
+                style: memberCyanHeroTitleTextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                )),
+                ),
               ),
             const SizedBox(height: 6),
             TextButton.icon(
@@ -633,15 +632,20 @@ class _EditProfileHero extends StatelessWidget {
               icon: Icon(
                 Icons.photo_outlined,
                 size: 16,
-                color: Colors.white.withValues(alpha: uploading ? 0.45 : 0.92),
+                color: kMemberCyanHeroSubtitleColor.withValues(
+                  alpha: uploading ? 0.45 : 1,
+                ),
               ),
               label: Text(
                 'Change photo',
-                style: dashText(TextStyle(
-                  color: Colors.white.withValues(alpha: uploading ? 0.45 : 0.92),
-                  fontWeight: FontWeight.w600,
+                style: memberCyanHeroIdentityMetaStyle(
                   fontSize: 13,
-                )),
+                  fontWeight: FontWeight.w700,
+                ).copyWith(
+                  color: kMemberCyanHeroSubtitleColor.withValues(
+                    alpha: uploading ? 0.45 : 1,
+                  ),
+                ),
               ),
             ),
           ],
@@ -838,7 +842,7 @@ class _ActionBar extends StatelessWidget {
             child: FilledButton(
               onPressed: (disabled || !saveEnabled) ? null : onSave,
               style: FilledButton.styleFrom(
-                backgroundColor: kAccent,
+                backgroundColor: kMemberButtonPrimary,
                 disabledBackgroundColor: kAccent.withValues(alpha: 0.35),
                 foregroundColor: Colors.white,
                 disabledForegroundColor: Colors.white.withValues(alpha: 0.85),

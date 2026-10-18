@@ -32,8 +32,11 @@ void main() async {
   });
   await PushNotificationService.initialize();
   await ApiConfig.clearStaleOverridesWhenCompileTimeHostSet();
+  await ApiConfig.initAndroidDeviceProfile();
   await ApiConfig.loadLastWorkingBaseUrl();
   await ApiConfig.runtimeBaseUrl.load();
+  await ApiConfig.clearStaleEmulatorBackendOverride();
+  await ApiConfig.loadBundledMobileBackendDefault();
   await apiClient.warmUpConnection();
   await authController.waitForInitialization();
   // Branding loads on the splash screen so the branded UI appears immediately.

@@ -1,11 +1,14 @@
-"""Password reset email for member and requestor self-service recovery."""
+"""Password reset OTP email (and dev log when SMTP is off)."""
 
 from __future__ import annotations
 
+import logging
 import threading
 
 from app.services.email_branding import branded_html, esc, product_name
 from app.services.email_delivery import is_email_configured, send_email
+
+logger = logging.getLogger(__name__)
 
 _NO_REPLY_PLAIN = (
     "\n\nDo not reply to this email. This mailbox is not monitored. "
@@ -18,43 +21,51 @@ _NO_REPLY_HTML = (
 )
 
 
-def send_temporary_password_email(*, to_email: str, fullname: str, temporary_password: str) -> bool:
+def send_password_reset_otp_email(*, to_email: str, fullname: str, code: str) -> bool:
     name = esc(fullname or "there")
     product = esc(product_name())
-    subject = f"{product_name()}: temporary sign-in password"
+    subject = f"{product_name()}: password reset code"
     plain = (
         f"Hello {fullname or 'there'},\n\n"
-        f"A temporary password was generated for your {product_name()} account.\n\n"
-        f"Temporary password: {temporary_password}\n\n"
-        "Sign in with this password, then open Account Settings and change your password immediately.\n\n"
+        f"Your {product_name()} password reset code is: {code}\n\n"
+        "This code expires in a few minutes. Do not share it with anyone.\n\n"
         f"{product_name()}\n"
         "USTP Oroquieta Campus"
         f"{_NO_REPLY_PLAIN}"
     )
     inner = f"""
     <p>Hello {name},</p>
-    <p>A temporary password was generated for your <strong>{product}</strong> account.</p>
-    <p style="background:#f8fafc;border-left:4px solid #0052D4;padding:12px 14px;border-radius:8px;font-family:monospace;">
-      {esc(temporary_password)}
+    <p>Use this code to reset your <strong>{product}</strong> password:</p>
+    <p style="background:#f8fafc;border-left:4px solid #0052D4;padding:12px 14px;border-radius:8px;font-family:monospace;font-size:18px;letter-spacing:2px;">
+      {esc(code)}
     </p>
-    <p>Sign in with this password, then open <strong>Account Settings</strong> and change your password immediately.</p>
+    <p>This code expires in a few minutes. Do not share it with anyone.</p>
     {_NO_REPLY_HTML}
     """
     return send_email(to_email, subject, plain, html_body=branded_html(inner), automated=True)
 
 
-def notify_temporary_password_async(*, to_email: str, fullname: str, temporary_password: str) -> None:
+def deliver_password_reset_otp(*, to_email: str, code: str, fullname: str = "") -> bool:
+    """Send OTP via SMTP when configured; otherwise log to server console (dev). Returns True if emailed."""
+    if is_email_configured():
+        send_password_reset_otp_email(to_email=to_email, fullname=fullname, code=code)
+        return True
+    line = f"Password reset OTP (dev log) to {to_email}: {code}"
+    logger.warning(line)
+    print(f"\n>>> {line} <<<\n", flush=True)
+    return False
+
+
+def deliver_password_reset_otp_async(*, to_email: str, code: str, fullname: str = "") -> None:
+    """Queue OTP email so API routes return before SMTP finishes (avoids mobile HTTP timeout)."""
     if not is_email_configured():
+        deliver_password_reset_otp(to_email=to_email, code=code, fullname=fullname)
         return
 
     def _run() -> None:
         try:
-            send_temporary_password_email(
-                to_email=to_email,
-                fullname=fullname,
-                temporary_password=temporary_password,
-            )
+            send_password_reset_otp_email(to_email=to_email, fullname=fullname, code=code)
         except Exception:
-            pass
+            logger.exception("password reset OTP email failed for %s", to_email)
 
     threading.Thread(target=_run, daemon=True).start()

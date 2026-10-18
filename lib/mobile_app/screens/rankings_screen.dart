@@ -344,10 +344,6 @@ class _RankingsPageHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MyRankingCard extends StatelessWidget {
-  static const _cardBg = Color(0xFF0A1628);
-  static const _onDarkPrimary = Color(0xFFF8FAFC);
-  static const _onDarkSecondary = Color(0xFF94A3B8);
-
   const _MyRankingCard({
     required this.rank,
     required this.name,
@@ -403,12 +399,12 @@ class _MyRankingCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: _cardBg,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
         boxShadow: [
           BoxShadow(
-            color: kCyan.withValues(alpha: 0.18),
+            color: kCyan.withValues(alpha: 0.22),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -429,7 +425,7 @@ class _MyRankingCard extends StatelessWidget {
                 imageUrl: profileImageUrl,
                 radius: compact ? 22 : 24,
                 backgroundColor: kAccent,
-                borderColor: kAccent.withValues(alpha: 0.3),
+                borderColor: Colors.white.withValues(alpha: 0.92),
               ),
               const SizedBox(width: 12),
               // Name / title / competency
@@ -441,12 +437,8 @@ class _MyRankingCard extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _onDarkPrimary,
+                      style: memberCyanHeroTitleTextStyle(
                         fontSize: compact ? 15 : 16,
-                        fontWeight: FontWeight.w800,
-                        height: 1.2,
-                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -454,12 +446,10 @@ class _MyRankingCard extends StatelessWidget {
                       skillLevel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: kCyan,
+                      style: memberCyanHeroIdentityMetaStyle(
                         fontSize: compact ? 11 : 12,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
+                        fontWeight: FontWeight.w800,
+                      ).copyWith(color: kAccent),
                     ),
                     if (achievedTitle.trim().isNotEmpty &&
                         achievedTitle.trim().toLowerCase() != skillLevel.trim().toLowerCase()) ...[
@@ -468,11 +458,9 @@ class _MyRankingCard extends StatelessWidget {
                         achievedTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: _onDarkSecondary,
+                        style: memberCyanHeroIdentityMetaStyle(
                           fontSize: compact ? 10 : 11,
                           fontWeight: FontWeight.w600,
-                          height: 1.2,
                         ),
                       ),
                     ],
@@ -486,21 +474,16 @@ class _MyRankingCard extends StatelessWidget {
                 children: [
                   Text(
                     '#$rank',
-                    style: TextStyle(
-                      color: _onDarkPrimary,
+                    style: memberCyanHeroTitleTextStyle(
                       fontSize: compact ? 24 : 26,
-                      fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
-                      height: 1,
                     ),
                   ),
                   Text(
                     'rank',
-                    style: TextStyle(
-                      color: _onDarkSecondary,
+                    style: memberCyanHeroSubtitleTextStyle(
                       fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      height: 1.2,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -516,8 +499,9 @@ class _MyRankingCard extends StatelessWidget {
                   label: monthlyPeriod
                       ? '${_fmtXp(periodXp)} XP this month'
                       : '${_fmtXp(totalXp)} XP all time',
-                  color: monthlyPeriod ? kCyan : _onDarkPrimary,
-                  bgColor: Colors.white.withValues(alpha: 0.1),
+                  color: kTextPrimary,
+                  iconColor: kAccent,
+                  bgColor: kSurface,
                 ),
               ),
               if (!monthlyPeriod && periodXp > 0 && periodXp != totalXp) ...[
@@ -526,8 +510,9 @@ class _MyRankingCard extends StatelessWidget {
                   child: _XpPill(
                     icon: Icons.calendar_today_rounded,
                     label: '${_fmtXp(periodXp)} XP this month',
-                    color: kCyan,
-                    bgColor: Colors.white.withValues(alpha: 0.1),
+                    color: kTextPrimary,
+                    iconColor: kAccent,
+                    bgColor: kSurface,
                   ),
                 ),
               ] else if (monthlyPeriod && totalXp != periodXp) ...[
@@ -536,8 +521,9 @@ class _MyRankingCard extends StatelessWidget {
                   child: _XpPill(
                     icon: Icons.bolt_rounded,
                     label: '${_fmtXp(totalXp)} XP all time',
-                    color: _onDarkPrimary,
-                    bgColor: Colors.white.withValues(alpha: 0.1),
+                    color: kTextPrimary,
+                    iconColor: kAccent,
+                    bgColor: kSurface,
                   ),
                 ),
               ],
@@ -552,14 +538,14 @@ class _MyRankingCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    ColoredBox(color: Colors.white.withValues(alpha: 0.22)),
+                    ColoredBox(color: Colors.white.withValues(alpha: 0.55)),
                     FractionallySizedBox(
                       alignment: Alignment.centerLeft,
                       widthFactor: progress.clamp(0.0, 1.0),
                       child: const DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [kCyan, Color(0xFF0052D4)],
+                            colors: [Color(0xFF0052D4), Color(0xFF003DA5)],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ),
@@ -576,10 +562,12 @@ class _MyRankingCard extends StatelessWidget {
                 final subtitle = MemberCompetencySnapshot.fromAppState().progressSubtitle;
                 return Text(
                   subtitle,
-                  style: TextStyle(
-                    color: isMaxLevel ? kCyan : _onDarkSecondary,
+                  style: memberCyanHeroSubtitleTextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
+                  ).copyWith(
+                    color: isMaxLevel ? kAccent : kMemberCyanHeroSubtitleColor,
+                    fontWeight: FontWeight.w700,
                   ),
                 );
               },
@@ -597,26 +585,36 @@ class _XpPill extends StatelessWidget {
     required this.label,
     required this.color,
     required this.bgColor,
+    this.iconColor,
   });
 
   final IconData icon;
   final String label;
   final Color color;
   final Color bgColor;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
+    final glyph = iconColor ?? color;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(color: kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 13, color: glyph),
+          const SizedBox(width: 5),
           Expanded(
             child: Text(
               label,
@@ -625,7 +623,7 @@ class _XpPill extends StatelessWidget {
               style: TextStyle(
                 color: color,
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 height: 1.2,
               ),
             ),

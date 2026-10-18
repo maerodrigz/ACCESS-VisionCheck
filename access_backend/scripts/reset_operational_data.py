@@ -51,6 +51,11 @@ def main() -> None:
         action="store_true",
         help="Leave files in uploads/images and uploads/videos on disk",
     )
+    parser.add_argument(
+        "--full-wipe",
+        action="store_true",
+        help="Delete all requests/media (ignore yesterday/today keep window)",
+    )
     args = parser.parse_args()
 
     dry_run = not args.confirm or args.dry_run
@@ -63,8 +68,13 @@ def main() -> None:
 
     db = SessionLocal()
     try:
+        preserve_recent = not args.full_wipe
         if dry_run:
-            plan = build_reset_plan(db, remove_demo_users=not args.keep_demo_users)
+            plan = build_reset_plan(
+                db,
+                remove_demo_users=not args.keep_demo_users,
+                preserve_recent_requests=preserve_recent,
+            )
             print("DRY RUN — no changes made.\n")
         else:
             print("Resetting operational data...\n")
@@ -73,6 +83,7 @@ def main() -> None:
                 dry_run=False,
                 remove_demo_users=not args.keep_demo_users,
                 clear_upload_dir=not args.skip_upload_dir,
+                preserve_recent_requests=preserve_recent,
             )
             print("Done.\n")
 
@@ -92,6 +103,15 @@ def main() -> None:
                 print(f"  - {line}")
         else:
             print("\nNo demo accounts scheduled for removal.")
+
+        if plan.requests_to_keep:
+            print(f"\nDocumentation requests to keep ({len(plan.requests_to_keep)}):")
+            for line in plan.requests_to_keep:
+                print(f"  + {line}")
+        if plan.requests_to_delete:
+            print(f"\nDocumentation requests to remove ({len(plan.requests_to_delete)}):")
+            for line in plan.requests_to_delete:
+                print(f"  - {line}")
 
         if dry_run:
             print("\nTo apply, run:")

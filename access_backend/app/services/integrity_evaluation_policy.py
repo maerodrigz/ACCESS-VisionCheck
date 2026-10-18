@@ -77,6 +77,23 @@ def apply_integrity_evaluation_policy(payload: dict[str, Any]) -> dict[str, Any]
         return apply_review_gate_to_payload(out)
 
     if tier == INTEGRITY_TIER_AUTHENTIC:
+        if ai.get("requires_review") is True:
+            prov_outcome = str(ai.get("provenance_policy_outcome") or "").lower()
+            integrity_msg = (
+                _PARTIAL_PROVENANCE_MEMBER_MESSAGE
+                if prov_outcome == "source_partially_verified"
+                else _SOURCE_UNVERIFIED_MEMBER_MESSAGE
+            )
+            out["show_quality_feedback"] = False
+            out["quality_provisional"] = True
+            out["xp_eligible"] = False
+            out["xp_multiplier"] = 0.0
+            out["xp_points_preview"] = xp_preview
+            out["xp_pending"] = True
+            out["member_integrity_message"] = integrity_msg
+            base = out.get("ai_feedback") or ""
+            out["ai_feedback"] = f"{integrity_msg}\n\n{base}".strip()
+            return apply_review_gate_to_payload(out)
         out["show_quality_feedback"] = True
         out["quality_provisional"] = False
         out["xp_eligible"] = True

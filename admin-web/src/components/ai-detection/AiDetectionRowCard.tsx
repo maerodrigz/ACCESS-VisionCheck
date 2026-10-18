@@ -1,5 +1,5 @@
 import type { AiDetectionRow } from '../../api/media'
-import { adminMediaStreamUrl, mediaUrl } from '../../api/media'
+import { adminIntegrityPreviewUrl } from '../../api/media'
 import { formatScannedDate, isProbeSmokeTestRow, isVideoDetectionRow } from '../../lib/aiDetection'
 import { MediaPreviewContent } from '../media-library/MediaPreviewContent'
 import { AiProbability, ReviewStatusBadge, RiskBadge } from './Badges'
@@ -11,7 +11,12 @@ interface Props {
 }
 
 export function AiDetectionRowCard({ row, showFormat = true, onDetails }: Props) {
-  const previewUrl = row.media_id ? adminMediaStreamUrl(row.media_id) : mediaUrl(row.media_url)
+  const previewUrl = adminIntegrityPreviewUrl({
+    mediaId: row.media_id,
+    mediaUrl: row.media_url,
+    fileName: row.media_name,
+    fileType: row.file_type,
+  })
   const isVideo = isVideoDetectionRow(row)
   const probeSmoke = isProbeSmokeTestRow(row)
 

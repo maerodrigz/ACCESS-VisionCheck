@@ -90,6 +90,14 @@ function apiMediaOrigin(): string {
   return ''
 }
 
+/** Legacy Supabase signed URLs missing `/storage/v1` (404 in browser). */
+export function normalizeSupabaseStorageUrl(path: string): string {
+  if (!path.includes('supabase.co/object/') || path.includes('/storage/v1/object/')) {
+    return path
+  }
+  return path.replace('.supabase.co/object/', '.supabase.co/storage/v1/object/')
+}
+
 /** Strip any host from stored `/uploads/...` paths so Vite dev proxy can serve them. */
 function uploadsRelativePath(path: string): string | null {
   const trimmed = path.trim()
@@ -125,8 +133,33 @@ export function adminMediaStreamUrl(mediaId: number): string {
   return `${base}?access_token=${encodeURIComponent(token)}`
 }
 
+/**
+ * Media Integrity previews: prefer Supabase/cloud HTTPS URLs (Range + img/video friendly).
+ * Fall back to authenticated stream for local `/uploads/...` only.
+ */
+export function adminIntegrityPreviewUrl(input: {
+  mediaId?: number
+  mediaUrl?: string | null
+  fileName?: string | null
+  fileType?: string | null
+}): string {
+  const direct = mediaUrl(input.mediaUrl)
+  if (direct.startsWith('https://') || direct.startsWith('http://')) {
+    const path = mediaPathOnly(direct).toLowerCase()
+    if (!path.startsWith('/uploads/')) {
+      return direct
+    }
+  }
+  if (input.mediaId) {
+    return adminMediaStreamUrl(input.mediaId)
+  }
+  return direct
+}
+
 export function mediaUrl(path?: string | null): string {
   if (!path) return ''
+
+  path = normalizeSupabaseStorageUrl(path)
 
   const uploadsPath = uploadsRelativePath(path)
   if (uploadsPath) {

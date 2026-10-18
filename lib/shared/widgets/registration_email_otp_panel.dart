@@ -2,24 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/api/auth_service.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/copy/mobile_registration_copy.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
 
-/// SMS OTP verification before member / requestor registration.
-class RegistrationPhoneOtpPanel extends StatefulWidget {
-  const RegistrationPhoneOtpPanel({
+/// Email OTP verification before member / requestor registration.
+class RegistrationEmailOtpPanel extends StatefulWidget {
+  const RegistrationEmailOtpPanel({
     super.key,
-    required this.phoneController,
+    required this.emailController,
+    this.nameForGreeting,
     required this.onVerificationTokenChanged,
   });
 
-  final TextEditingController phoneController;
+  final TextEditingController emailController;
+  final String? nameForGreeting;
   final ValueChanged<String?> onVerificationTokenChanged;
 
   @override
-  State<RegistrationPhoneOtpPanel> createState() => _RegistrationPhoneOtpPanelState();
+  State<RegistrationEmailOtpPanel> createState() => _RegistrationEmailOtpPanelState();
 }
 
-class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
+class _RegistrationEmailOtpPanelState extends State<RegistrationEmailOtpPanel> {
   final _codeCtrl = TextEditingController();
   bool _sending = false;
   bool _verifying = false;
@@ -28,9 +32,26 @@ class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    widget.emailController.addListener(_onEmailChanged);
+  }
+
+  @override
   void dispose() {
+    widget.emailController.removeListener(_onEmailChanged);
     _codeCtrl.dispose();
     super.dispose();
+  }
+
+  void _onEmailChanged() {
+    if (_verified || _codeCtrl.text.isNotEmpty || _status != null) {
+      setState(() {
+        _status = null;
+        _error = null;
+      });
+      _clearVerification();
+    }
   }
 
   void _clearVerification() {
@@ -38,10 +59,18 @@ class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
     widget.onVerificationTokenChanged(null);
   }
 
+  String? _emailError() {
+    final email = widget.emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      return 'Enter your email address above, then tap Send code.';
+    }
+    return null;
+  }
+
   Future<void> _sendCode() async {
-    final phone = widget.phoneController.text.trim();
-    if (phone.isEmpty) {
-      setState(() => _error = 'Enter your mobile number first.');
+    final emailErr = _emailError();
+    if (emailErr != null) {
+      setState(() => _error = emailErr);
       return;
     }
     setState(() {
@@ -51,7 +80,10 @@ class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
     });
     _clearVerification();
     try {
-      final result = await authService.sendRegistrationOtp(phone);
+      final result = await authService.sendRegistrationOtp(
+        email: widget.emailController.text.trim(),
+        name: widget.nameForGreeting?.trim(),
+      );
       if (!mounted) return;
       setState(() {
         _sending = false;
@@ -79,10 +111,14 @@ class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
   }
 
   Future<void> _verifyCode() async {
-    final phone = widget.phoneController.text.trim();
+    final emailErr = _emailError();
+    if (emailErr != null) {
+      setState(() => _error = emailErr);
+      return;
+    }
     final code = _codeCtrl.text.trim();
-    if (phone.isEmpty || code.isEmpty) {
-      setState(() => _error = 'Enter your number and the 6-digit code.');
+    if (code.isEmpty) {
+      setState(() => _error = 'Enter the 6-digit verification code from your email.');
       return;
     }
     setState(() {
@@ -90,12 +126,15 @@ class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
       _error = null;
     });
     try {
-      final token = await authService.verifyRegistrationOtp(phone: phone, code: code);
+      final token = await authService.verifyRegistrationOtp(
+        email: widget.emailController.text.trim(),
+        code: code,
+      );
       if (!mounted) return;
       setState(() {
         _verifying = false;
         _verified = true;
-        _status = 'Mobile number verified.';
+        _status = 'Email verified.';
       });
       widget.onVerificationTokenChanged(token);
     } on ApiException catch (e) {
@@ -120,75 +159,43 @@ class _RegistrationPhoneOtpPanelState extends State<RegistrationPhoneOtpPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        RegistrationFormField(
-          label: 'Mobile Number',
-          controller: widget.phoneController,
-          hint: '09XX XXX XXXX',
-          icon: Icons.phone_outlined,
-          keyboardType: TextInputType.phone,
-          enabled: !_verified,
-          validator: (v) => RegistrationValidators.required(v, label: 'Mobile number'),
-          textInputAction: TextInputAction.next,
-          onChanged: (_) {
-            if (_verified || _codeCtrl.text.isNotEmpty || _status != null) {
-              setState(() {
-                _status = null;
-                _error = null;
-              });
-              _clearVerification();
-            }
-          },
+        const Text(
+          MobileRegistrationCopy.emailVerificationTitle,
+          style: TextStyle(
+            color: kTextPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _sending || _verified ? null : _sendCode,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: kAccent,
-                  side: const BorderSide(color: kAccent),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: _sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Send code', style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
+        const SizedBox(height: 6),
+        const Text(
+          MobileRegistrationCopy.emailVerificationBody,
+          style: TextStyle(color: kTextSecondary, fontSize: 12, height: 1.4),
+        ),
+        const SizedBox(height: 12),
+        MobileAuthOutlineButton(
+          label: 'Send code',
+          loading: _sending,
+          onPressed: _sending || _verified ? null : _sendCode,
         ),
         const SizedBox(height: 12),
         RegistrationFormField(
           label: 'Verification code',
           controller: _codeCtrl,
-          hint: '6-digit SMS code',
-          icon: Icons.sms_outlined,
+          hint: '6-digit code',
+          icon: Icons.mark_email_read_outlined,
           keyboardType: TextInputType.number,
           enabled: !_verified,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) => _verifyCode(),
+          mobileAuthStyle: true,
         ),
         const SizedBox(height: 10),
-        FilledButton(
+        MobileAuthGradientButton(
+          label: _verified ? 'Email verified' : 'Confirm code',
+          loading: _verifying,
+          compact: true,
           onPressed: _verifying || _verified ? null : _verifyCode,
-          style: FilledButton.styleFrom(
-            backgroundColor: kAccent,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-          ),
-          child: _verifying
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : Text(
-                  _verified ? 'Verified' : 'Verify number',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
         ),
         if (_status != null) ...[
           const SizedBox(height: 8),

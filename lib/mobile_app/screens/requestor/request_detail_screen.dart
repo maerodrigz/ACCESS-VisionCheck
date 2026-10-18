@@ -620,7 +620,6 @@ class _CompletedActionsSection extends StatelessWidget {
             MemberDashboardPrimaryButton(
               label: 'View event gallery',
               icon: Icons.photo_library_rounded,
-              color: kAccent,
               onPressed: onViewGallery,
             ),
             const SizedBox(height: 8),

@@ -233,7 +233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Profile header — dark hero (matches home dashboard + profile skeleton).
+// Profile header — cyan mini-hero (matches sign-in + home dashboard).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Top bar only when profile body failed to load (header stays pinned).
@@ -246,15 +246,13 @@ class _ProfileHeaderShell extends StatelessWidget {
   final bool compact;
   final VoidCallback? onNotificationsTap;
 
-  static const _onDarkSecondary = Color(0xFF94A3B8);
-
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
 
     return DecoratedBox(
       decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(kMemberProfileHeroBottomRadius),
           bottomRight: Radius.circular(kMemberProfileHeroBottomRadius),
@@ -270,23 +268,20 @@ class _ProfileHeaderShell extends StatelessWidget {
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back_rounded),
-                  color: _onDarkSecondary,
+                  color: kMemberCyanHeroSubtitleColor,
                   iconSize: 22,
                   style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
                 ),
               Expanded(
                 child: Text(
                   'Profile',
-                  style: dashText(const TextStyle(
-                    color: _onDarkSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  )),
+                  style: memberCyanHeroNavLabelStyle(),
                 ),
               ),
               MemberDarkHeroNotificationButton(
                 onTap: onNotificationsTap,
                 compact: compact,
+                onCyanHero: true,
               ),
             ],
           ),
@@ -297,9 +292,6 @@ class _ProfileHeaderShell extends StatelessWidget {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  static const _onDarkPrimary = Color(0xFFF8FAFC);
-  static const _onDarkSecondary = Color(0xFF94A3B8);
-  static const _heroBg = Color(0xFF0A1628);
   const _ProfileHeader({
     required this.onEdit,
     required this.compact,
@@ -348,7 +340,7 @@ class _ProfileHeader extends StatelessWidget {
 
     return DecoratedBox(
       decoration: const BoxDecoration(
-        gradient: kMemberDarkHeroGradient,
+        gradient: kMemberDashboardHeroGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(kMemberProfileHeroBottomRadius),
           bottomRight: Radius.circular(kMemberProfileHeroBottomRadius),
@@ -368,23 +360,20 @@ class _ProfileHeader extends StatelessWidget {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back_rounded),
-                      color: _onDarkSecondary,
+                      color: kMemberCyanHeroSubtitleColor,
                       iconSize: 22,
                       style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
                     ),
                   Expanded(
                     child: Text(
                       'Profile',
-                      style: dashText(const TextStyle(
-                        color: _onDarkSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      )),
+                      style: memberCyanHeroNavLabelStyle(),
                     ),
                   ),
                   MemberDarkHeroNotificationButton(
                     onTap: onNotificationsTap,
                     compact: compact,
+                    onCyanHero: true,
                   ),
                 ],
               ),
@@ -414,29 +403,23 @@ class _ProfileHeader extends StatelessWidget {
                             displayName,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: dashText(TextStyle(
-                              color: _onDarkPrimary,
-                              fontSize: compact ? 18 : 20,
-                              fontWeight: FontWeight.w800,
-                              height: 1.15,
-                              letterSpacing: -0.3,
-                            )),
+                            style: memberCyanHeroIdentityNameStyle(compact: compact),
                           ),
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            const Icon(Icons.badge_outlined, size: 13, color: kCyan),
+                            const Icon(
+                              Icons.badge_outlined,
+                              size: 13,
+                              color: kMemberCyanHeroMetaIconColor,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
                                 'Title: $titleLabel',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: dashText(const TextStyle(
-                                  color: kCyan,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                )),
+                                style: memberCyanHeroIdentityMetaStyle(),
                               ),
                             ),
                           ],
@@ -447,7 +430,7 @@ class _ProfileHeader extends StatelessWidget {
                             const Icon(
                               Icons.workspace_premium_outlined,
                               size: 13,
-                              color: _onDarkSecondary,
+                              color: kMemberCyanHeroMetaIconColor,
                             ),
                             const SizedBox(width: 4),
                             Flexible(
@@ -455,11 +438,9 @@ class _ProfileHeader extends StatelessWidget {
                                 'Skill: $competencyLevel',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: dashText(const TextStyle(
-                                  color: _onDarkSecondary,
-                                  fontSize: 12,
+                                style: memberCyanHeroIdentityMetaStyle(
                                   fontWeight: FontWeight.w500,
-                                )),
+                                ),
                               ),
                             ),
                           ],
@@ -471,7 +452,7 @@ class _ProfileHeader extends StatelessWidget {
                               const Icon(
                                 Icons.email_outlined,
                                 size: 13,
-                                color: _onDarkSecondary,
+                                color: kMemberCyanHeroMetaIconColor,
                               ),
                               const SizedBox(width: 4),
                               Flexible(
@@ -479,11 +460,9 @@ class _ProfileHeader extends StatelessWidget {
                                   email,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: dashText(const TextStyle(
-                                    color: _onDarkSecondary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w400,
-                                  )),
+                                  style: memberCyanHeroIdentityMetaStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
@@ -495,38 +474,49 @@ class _ProfileHeader extends StatelessWidget {
                           children: [
                             if (statusLabel.isNotEmpty)
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isActive ? 10 : 8,
+                                  vertical: isActive ? 5 : 3,
                                 ),
                                 decoration: BoxDecoration(
                                   color: isActive
-                                      ? kGreen.withValues(alpha: 0.1)
-                                      : kYellow.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(6),
+                                      ? kGreen
+                                      : kSurface.withValues(alpha: 0.94),
+                                  borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: isActive
-                                        ? kGreen.withValues(alpha: 0.3)
-                                        : kYellow.withValues(alpha: 0.3),
+                                    color: isActive ? kGreen : kYellow,
+                                    width: isActive ? 0 : 1.2,
                                   ),
+                                  boxShadow: isActive
+                                      ? [
+                                          BoxShadow(
+                                            color: kGreen.withValues(alpha: 0.35),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
                                       isActive
-                                          ? Icons.check_circle_outline_rounded
+                                          ? Icons.check_circle_rounded
                                           : Icons.schedule_rounded,
-                                      size: 11,
-                                      color: isActive ? kGreen : kYellow,
+                                      size: isActive ? 14 : 11,
+                                      color: isActive ? Colors.white : kYellow,
                                     ),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: 5),
                                     Text(
                                       statusLabel,
                                       style: dashText(TextStyle(
-                                        color: isActive ? kGreen : kYellow,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
+                                        color: isActive
+                                            ? Colors.white
+                                            : kMemberCyanHeroSubtitleColor,
+                                        fontSize: isActive ? 12 : 11,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: isActive ? 0.2 : 0,
                                       )),
                                     ),
                                   ],
@@ -535,7 +525,7 @@ class _ProfileHeader extends StatelessWidget {
                             const Spacer(),
                             // Edit profile button
                             Material(
-                              color: Colors.white.withValues(alpha: 0.12),
+                              color: kSurface.withValues(alpha: 0.94),
                               borderRadius: BorderRadius.circular(8),
                               child: InkWell(
                                 onTap: onEdit,
@@ -551,13 +541,13 @@ class _ProfileHeader extends StatelessWidget {
                                       Icon(
                                         Icons.edit_outlined,
                                         size: compact ? 14 : 15,
-                                        color: _onDarkPrimary,
+                                        color: kMemberButtonPrimary,
                                       ),
                                       const SizedBox(width: 5),
                                       Text(
                                         'Edit Profile',
                                         style: dashText(const TextStyle(
-                                          color: _onDarkPrimary,
+                                          color: kTextPrimary,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
                                         )),
@@ -609,7 +599,7 @@ class _ProfileAvatar extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(
               color: onDarkHero
-                  ? kCyan.withValues(alpha: 0.45)
+                  ? Colors.white.withValues(alpha: 0.78)
                   : kAccent.withValues(alpha: 0.3),
               width: 2,
             ),
@@ -643,7 +633,7 @@ class _ProfileAvatar extends StatelessWidget {
                 color: kAccent,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: onDarkHero ? _ProfileHeader._heroBg : kSurface,
+                  color: onDarkHero ? kMemberCyanHeroBadgeRing : kSurface,
                   width: 1.5,
                 ),
               ),

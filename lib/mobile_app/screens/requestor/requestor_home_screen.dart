@@ -388,7 +388,7 @@ class _CreateRequestCard extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                 ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: kAccent,
+                  backgroundColor: kMemberButtonPrimary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size.fromHeight(46),
                   elevation: 0,

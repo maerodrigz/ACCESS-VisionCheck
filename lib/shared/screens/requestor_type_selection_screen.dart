@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/models/requestor_type.dart';
 import 'package:access_mobile/shared/screens/organization_registration_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
+import 'package:access_mobile/shared/copy/mobile_registration_copy.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_widgets.dart';
 
 /// Choose faculty/staff or organization before the requestor registration form.
 class RequestorTypeSelectionScreen extends StatefulWidget {
@@ -32,94 +36,55 @@ class _RequestorTypeSelectionScreenState extends State<RequestorTypeSelectionScr
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBg,
-      appBar: AppBar(
-        backgroundColor: kSurface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: kTextPrimary),
-          onPressed: () => Navigator.pop(context),
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!kIsWeb) const MobileAuthBackButton(),
+        const MobileAuthSectionHeader(
+          title: MobileRegistrationCopy.requestorTypeTitle,
+          subtitle: MobileRegistrationCopy.requestorTypeSubtitle,
         ),
-        title: const Text(
-          'Requestor Type',
-          style: TextStyle(
-            color: kTextPrimary,
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
+        const SizedBox(height: 20),
+        for (var i = 0; i < RequestorType.values.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          _RequestorTypeOptionCard(
+            type: RequestorType.values[i],
+            selected: _selected == RequestorType.values[i],
+            onTap: () => setState(() => _selected = RequestorType.values[i]),
           ),
+        ],
+        const SizedBox(height: 24),
+        MobileAuthGradientButton(
+          label: 'Continue',
+          onPressed: _selected == null ? null : _continue,
         ),
-      ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                children: [
-                  const Text(
-                    'Tell us what type of requestor you are.',
-                    style: TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Choose the option that best describes you or your organization.',
-                    style: TextStyle(
-                      color: kTextSecondary,
-                      fontSize: 14,
-                      height: 1.45,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  for (var i = 0; i < RequestorType.values.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 12),
-                    _RequestorTypeOptionCard(
-                      type: RequestorType.values[i],
-                      selected: _selected == RequestorType.values[i],
-                      onTap: () => setState(() => _selected = RequestorType.values[i]),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kAccent,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: kAccent.withValues(alpha: 0.35),
-                    disabledForegroundColor: Colors.white.withValues(alpha: 0.85),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: _selected == null ? null : _continue,
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+        if (!kIsWeb) ...[
+          const SizedBox(height: 16),
+          MobileAuthTextLinkRow(
+            prompt: 'Already have an account?',
+            linkLabel: 'Sign In',
+            onLinkTap: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ],
     );
+
+    if (kIsWeb) {
+      return Scaffold(
+        backgroundColor: kBg,
+        appBar: AppBar(
+          backgroundColor: kSurface,
+          elevation: 0,
+          title: const Text('Requestor Type', style: TextStyle(fontWeight: FontWeight.w700)),
+        ),
+        body: SafeArea(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: body)),
+      );
+    }
+
+    return MobileAuthScaffold(body: body);
   }
 }
 
@@ -138,26 +103,19 @@ class _RequestorTypeOptionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? kBlueDim : kSurface,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? kAccent : kBorder,
+              color: selected ? kCyan : kBorder,
               width: selected ? 2 : 1,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: selected ? 0.06 : 0.04),
-                blurRadius: selected ? 10 : 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: Row(
             children: [
@@ -166,12 +124,12 @@ class _RequestorTypeOptionCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: selected ? kCyanDim : kAccent.withValues(alpha: 0.08),
+                  color: selected ? kCyanDim : kCyan.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   _iconFor(type),
-                  color: selected ? kCyan : kAccent,
+                  color: kCyan,
                   size: 26,
                 ),
               ),
@@ -203,7 +161,7 @@ class _RequestorTypeOptionCard extends StatelessWidget {
               Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 16,
-                color: selected ? kAccent : kIconInactive,
+                color: selected ? kCyan : kIconInactive,
               ),
             ],
           ),

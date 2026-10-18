@@ -1,5 +1,9 @@
+import 'dart:convert';
+
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart'
     show ChangeNotifier, defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Backend API configuration. Sync with `access_backend/.env` and
@@ -86,12 +90,22 @@ class ApiConfig {
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      // Physical phone → developer must pass API_PUBLIC_HOST.
-      // Emulator → 10.0.2.2 works because the emulator routes it to the
-      // host PC's loopback interface.
-      return apiPublicHostOverride.isNotEmpty
-          ? apiPublicHostOverride
-          : androidEmulatorHost;
+      if (apiPublicHostOverride.isNotEmpty) {
+        return apiPublicHostOverride;
+      }
+      final runtime = runtimeBaseUrl.value?.trim();
+      if (runtime != null && runtime.isNotEmpty) {
+        try {
+          return Uri.parse(runtime).host;
+        } catch (_) {}
+      }
+      // Physical phone (default): PC LAN IP from config/api.json / knownLanHosts.
+      // Emulator only: flutter run --dart-define=API_PUBLIC_HOST=10.0.2.2
+      if (_androidIsPhysicalDevice == false) {
+        return androidEmulatorHost;
+      }
+      if (knownLanHosts.isNotEmpty) return knownLanHosts.first;
+      return androidEmulatorHost;
     }
 
     if (defaultTargetPlatform == TargetPlatform.iOS) {
@@ -115,6 +129,7 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
+    '192.168.8.94',
     '192.168.8.96',
     '192.168.8.98',
     '10.68.93.169',
@@ -134,6 +149,13 @@ class ApiConfig {
     }
     final sameOrigin = _webSameOriginBaseUrl;
     if (sameOrigin != null) return sameOrigin;
+    final runtime = runtimeBaseUrl.value?.trim();
+    if (runtime != null && runtime.isNotEmpty) {
+      return runtime.replaceAll(RegExp(r'/+$'), '');
+    }
+    if (_lastWorkingBaseUrl != null && _lastWorkingBaseUrl!.isNotEmpty) {
+      return _lastWorkingBaseUrl!;
+    }
     return 'http://$host:$port';
   }
 
@@ -155,7 +177,13 @@ class ApiConfig {
   /// Absolute URL for `/uploads/...` paths returned by the API.
   static String mediaUrl(String? path) {
     if (path == null || path.isEmpty) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      // Legacy Supabase signed URLs missing /storage/v1 (404 on device).
+      if (path.contains('supabase.co/object/') && !path.contains('/storage/v1/object/')) {
+        return path.replaceFirst('.supabase.co/object/', '.supabase.co/storage/v1/object/');
+      }
+      return path;
+    }
     final normalized = path.startsWith('/') ? path : '/$path';
     return '$effectiveBaseUrl$normalized';
   }
@@ -184,6 +212,60 @@ class ApiConfig {
       await prefs.remove('access.api_base_url_override');
     } catch (_) {}
     await runtimeBaseUrl.clear();
+  }
+
+  /// Dev default from [config/api.json] (bundled asset). Used on Android when
+  /// no runtime URL is saved so physical phones do not stay on 10.0.2.2 only.
+  /// Drop saved 10.0.2.2 override — that host is emulator-only and breaks physical phones.
+  static Future<void> clearStaleEmulatorBackendOverride() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    final saved = runtimeBaseUrl.value?.trim().toLowerCase() ?? '';
+    if (saved.contains('10.0.2.2')) {
+      await runtimeBaseUrl.clear();
+    }
+    if (_lastWorkingBaseUrl != null &&
+        _lastWorkingBaseUrl!.toLowerCase().contains('10.0.2.2')) {
+      await forgetLastWorkingBaseUrl(_lastWorkingBaseUrl!);
+    }
+  }
+
+  static Future<void> loadBundledMobileBackendDefault() async {
+    if (kIsWeb) return;
+    if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.iOS) {
+      return;
+    }
+    if (apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty) {
+      return;
+    }
+    try {
+      final raw = await rootBundle.loadString('config/api.json');
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final base = (map['API_BASE_URL'] as String?)?.trim();
+      if (base == null || base.isEmpty) return;
+      final existing = runtimeBaseUrl.value?.trim();
+      if (existing == null || existing.isEmpty) {
+        await runtimeBaseUrl.save(base);
+        return;
+      }
+      // Refresh when bundled dev IP changed (e.g. Wi-Fi DHCP) or stale emulator host.
+      if (existing.contains('10.0.2.2') || existing != base) {
+        await runtimeBaseUrl.save(base);
+        return;
+      }
+      // Wrong subnet saved (e.g. old 192.168.8.96 while bundled says .94).
+      try {
+        final bundledHost = Uri.parse(base).host;
+        final existingHost = Uri.parse(existing.startsWith('http') ? existing : 'http://$existing').host;
+        if (bundledHost != existingHost &&
+            bundledHost.startsWith('192.168.') &&
+            existingHost.startsWith('192.168.')) {
+          await runtimeBaseUrl.save(base);
+        }
+      } catch (_) {}
+    } catch (_) {
+      // Asset missing or invalid — ignore.
+    }
   }
 
   static Future<void> loadLastWorkingBaseUrl() async {
@@ -219,10 +301,33 @@ class ApiConfig {
     } catch (_) {}
   }
 
+  /// Set from [initAndroidDeviceProfile] in mobile main() before API calls.
+  static bool? _androidIsPhysicalDevice;
+
+  static Future<void> initAndroidDeviceProfile() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final info = await DeviceInfoPlugin().androidInfo;
+      _androidIsPhysicalDevice = info.isPhysicalDevice;
+    } catch (_) {
+      _androidIsPhysicalDevice = true;
+    }
+  }
+
+  /// True when Android build targets the Studio emulator (no phone LAN override).
+  static bool get androidEmulatorDefault {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    if (apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty) {
+      return false;
+    }
+    final runtime = runtimeBaseUrl.value?.trim();
+    return runtime == null || runtime.isEmpty;
+  }
+
   /// Base URLs to try in order when the backend is unreachable.
   ///
-  /// Order matters on physical phones: saved/runtime URLs first, then LAN
-  /// fallbacks, emulator alias last (10.0.2.2 is wrong on real devices).
+  /// Physical phone: saved/runtime URL first, then LAN fallbacks.
+  /// Emulator (no override): [10.0.2.2] first so login is not delayed by stale LAN IPs.
   static List<String> candidateBaseUrls() {
     final out = <String>[];
 
@@ -237,6 +342,7 @@ class ApiConfig {
     final explicitCompileTimeHost =
         apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty;
     final runtime = runtimeBaseUrl.value;
+    final emulatorDefault = androidEmulatorDefault;
 
     add(apiBaseUrlOverride);
     if (explicitCompileTimeHost) {
@@ -247,8 +353,12 @@ class ApiConfig {
     if (!explicitCompileTimeHost) {
       add(runtime);
       add(_lastWorkingBaseUrl);
-      // On Android, try known LAN IPs before 10.0.2.2 (emulator-only alias).
+      if (_androidIsPhysicalDevice != false) {
+        add('http://${knownLanHosts.first}:$port');
+      }
       if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+        add(baseUrl);
+      } else if (!emulatorDefault) {
         add(baseUrl);
       }
     }
@@ -259,7 +369,9 @@ class ApiConfig {
       for (final h in knownLanHosts) {
         add('http://$h:$port');
       }
-      add('http://$androidEmulatorHost:$port');
+      if (_androidIsPhysicalDevice == false) {
+        add('http://$androidEmulatorHost:$port');
+      }
     }
 
     if (kIsWeb && _webSameOriginBaseUrl == null) {

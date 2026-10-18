@@ -5,13 +5,14 @@ import mimetypes
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.services.supabase_storage import normalize_supabase_storage_url
 
 from app.api.deps import require_admin
 from app.core.security import decode_access_token
@@ -97,7 +98,7 @@ def _media_json(m) -> dict:
         "id": m.id,
         "file_name": m.file_name,
         "file_type": m.file_type,
-        "file_url": m.file_url,
+        "file_url": normalize_supabase_storage_url(m.file_url or ""),
         "request_id": m.request_id,
         "media_category": getattr(m, "media_category", "member_evaluation" if is_standalone else "event_documentation"),
         "approval_status": getattr(m, "approval_status", "not_applicable"),
@@ -391,7 +392,7 @@ def _evaluation_json(db: Session, ev) -> dict:
         "media_id": ev.media_id,
         "media_name": name,
         "file_name": name,
-        "file_url": media.file_url if media else "",
+        "file_url": normalize_supabase_storage_url(media.file_url or "") if media else "",
         "member_name": member,
         "uploader_name": member,
         "is_standalone": is_standalone,
@@ -515,8 +516,9 @@ def stream_admin_media(
     if not media or not media.file_url:
         raise HTTPException(status_code=404, detail="Media not found")
 
+    file_url = normalize_supabase_storage_url(media.file_url or "")
     content_type = _admin_media_content_type(media.file_name, media.file_type)
-    local = local_media_path(media.file_url)
+    local = local_media_path(file_url)
     if local is not None:
         return FileResponse(
             local,
@@ -525,14 +527,18 @@ def stream_admin_media(
             headers={"Cache-Control": "private, max-age=120"},
         )
 
-    content = read_media_file_bytes(media.file_url, timeout=120.0)
+    # Remote storage (Supabase): redirect so the browser can use Range requests for <video>.
+    if file_url.startswith("http://") or file_url.startswith("https://"):
+        return RedirectResponse(url=file_url, status_code=307)
+
+    content = read_media_file_bytes(file_url, timeout=120.0)
     if not content:
         raise HTTPException(status_code=404, detail="Media file unavailable")
 
     return Response(
         content=content,
         media_type=content_type,
-        headers={"Cache-Control": "private, max-age=120"},
+        headers={"Cache-Control": "private, max-age=120", "Accept-Ranges": "bytes"},
     )
 
 
@@ -561,28 +567,15 @@ def _parse_stored_exif(raw: str | None) -> dict | None:
 
 
 def _resolve_exif_metadata(ai) -> dict | None:
-    stored = _parse_stored_exif(getattr(ai, "exif_metadata", None))
-    if stored:
-        return stored
-
-    media = ai.media
-    if not media or not media.file_url:
-        return None
-
-    from app.services.ai_authenticity_detector import extract_exif_metadata
-    from app.services.media_file_bytes import read_media_file_bytes
-
-    content = read_media_file_bytes(media.file_url)
-    if not content:
-        return None
-    return extract_exif_metadata(content, media.file_name or "")
+    """Return persisted EXIF/provenance JSON only (no remote download on list/save APIs)."""
+    return _parse_stored_exif(getattr(ai, "exif_metadata", None))
 
 
 def _ai_detection_json(ai) -> dict:
     media = ai.media
     uploader = media.uploader if media else None
     name = media.file_name if media else ""
-    url = media.file_url if media else ""
+    url = normalize_supabase_storage_url(media.file_url or "") if media else ""
     file_type = media.file_type if media else None
     result = ai.detection_result or ""
     is_ai = "ai" in result.lower() or "generated" in result.lower()

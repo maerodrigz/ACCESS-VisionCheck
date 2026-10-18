@@ -157,10 +157,12 @@ def list_approved_event_gallery(
 
 def gallery_media_json(m: MediaFile, base_url: str | None = None) -> dict:
     """Member gallery payload — excludes evaluation scores and AI metadata."""
+    from app.services.supabase_storage import normalize_supabase_storage_url
+
     req = m.request
     if req is None or m.request_id is None:
         raise ValueError("Gallery media must be linked to a documentation request")
-    url = m.file_url
+    url = normalize_supabase_storage_url(m.file_url or "")
     if base_url and url.startswith("/"):
         url = f"{base_url}{url}"
     return {

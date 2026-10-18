@@ -23,8 +23,11 @@ def main() -> int:
 
     api_base = os.environ.get("SMOKE_API_BASE", f"http://127.0.0.1:{settings.api_port}/api")
     print(f"API base: {api_base}")
-    print(f"SMS provider: {(settings.sms_provider or 'log').strip().lower()}")
     print(f"Email configured: {is_email_configured()}")
+    print(
+        f"Email OTP limits (min/resend/attempts): "
+        f"{settings.email_otp_expire_minutes}/{settings.email_otp_resend_seconds}/{settings.email_otp_max_attempts}"
+    )
     print(f"Evaluation max video (sec): {settings.evaluation_max_video_seconds}")
     print(f"Supabase storage: {'on' if is_supabase_storage_configured() else 'off (local uploads/)'}")
     print()
@@ -44,11 +47,8 @@ def main() -> int:
 
     if not is_email_configured():
         print(
-            "NOTE Email off: registration/reset emails skipped; "
-            "mobile forgot-password will say contact admin."
+            "NOTE Email off: registration/reset OTP uses dev_code in API + backend console (no real email)."
         )
-    if (settings.sms_provider or "log").strip().lower() == "log":
-        print("NOTE SMS log mode: OTP shown in app and server console (no real SMS).")
 
     print("\nNext: python scripts/api_connectivity_smoke.py")
     print("Checklist: docs/SYSTEM_TEST_CHECKLIST.md")

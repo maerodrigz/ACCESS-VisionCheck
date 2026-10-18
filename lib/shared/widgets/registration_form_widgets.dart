@@ -18,6 +18,7 @@ class RegistrationFormField extends StatelessWidget {
     this.onFieldSubmitted,
     this.enabled = true,
     this.onChanged,
+    this.mobileAuthStyle = false,
   });
 
   final String label;
@@ -33,17 +34,19 @@ class RegistrationFormField extends StatelessWidget {
   final void Function(String)? onFieldSubmitted;
   final bool enabled;
   final void Function(String)? onChanged;
+  final bool mobileAuthStyle;
 
   @override
   Widget build(BuildContext context) {
+    final radius = mobileAuthStyle ? 12.0 : 10.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: kTextSecondary,
-            fontSize: 12,
+          style: TextStyle(
+            color: mobileAuthStyle ? kTextPrimary : kTextSecondary,
+            fontSize: mobileAuthStyle ? 13 : 12,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -65,21 +68,21 @@ class RegistrationFormField extends StatelessWidget {
                 : null,
             suffixIcon: suffix,
             filled: true,
-            fillColor: kSurfaceAlt,
+            fillColor: mobileAuthStyle ? kSurface : kSurfaceAlt,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(radius),
               borderSide: const BorderSide(color: kBorder),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(radius),
               borderSide: const BorderSide(color: kBorder),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: kAccent, width: 1.5),
+              borderRadius: BorderRadius.circular(radius),
+              borderSide: BorderSide(color: mobileAuthStyle ? kCyan : kAccent, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(radius),
               borderSide: const BorderSide(color: kRed),
             ),
           ),
@@ -96,25 +99,28 @@ class RegistrationTypeCard extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.onTap,
+    this.mobileAuthStyle = false,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final VoidCallback onTap;
+  final bool mobileAuthStyle;
 
   @override
   Widget build(BuildContext context) {
+    final radius = mobileAuthStyle ? 12.0 : 14.0;
     return Material(
       color: kSurface,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(radius),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(radius),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(radius),
             border: Border.all(color: kBorder),
             boxShadow: [
               BoxShadow(
@@ -130,10 +136,16 @@ class RegistrationTypeCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: kAccent.withValues(alpha: 0.1),
+                  color: mobileAuthStyle
+                      ? kCyanDim
+                      : kAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: kAccent, size: 26),
+                child: Icon(
+                  icon,
+                  color: mobileAuthStyle ? kCyan : kAccent,
+                  size: 26,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(

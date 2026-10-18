@@ -176,6 +176,7 @@ class AccessBrandLockup extends StatelessWidget {
     this.markSize = 40,
     this.compact = false,
     this.lightBackground = false,
+    this.onCyanHeader = false,
   });
 
   final double markSize;
@@ -184,11 +185,25 @@ class AccessBrandLockup extends StatelessWidget {
   /// Wordmark colors for light headers (VisionCheck uses primary text).
   final bool lightBackground;
 
+  /// Sign-in / dashboard cyan hero: white ACCESS, primary blue VisionCheck + shadow.
+  final bool onCyanHeader;
+
   @override
   Widget build(BuildContext context) {
     final titleSize = compact ? 15.0 : 17.0;
     final subtitleSize = compact ? 13.0 : 15.0;
     final gap = compact ? 10.0 : 12.0;
+
+    final accessColor = onCyanHeader
+        ? Colors.white
+        : (lightBackground ? kTextPrimary : kCyan);
+    final visionColor = onCyanHeader
+        ? kAccent
+        : (lightBackground ? kTextPrimary : Colors.white);
+    const cyanWordmarkShadows = [
+      Shadow(color: Color(0x66000000), blurRadius: 8, offset: Offset(0, 2)),
+      Shadow(color: Color(0x33000000), blurRadius: 2, offset: Offset(0, 1)),
+    ];
 
     final wordmark = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,11 +214,12 @@ class AccessBrandLockup extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: kCyan,
+            color: accessColor,
             fontSize: titleSize,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.2,
             height: 1.05,
+            shadows: onCyanHeader ? cyanWordmarkShadows : null,
           ),
         ),
         Text(
@@ -211,10 +227,11 @@ class AccessBrandLockup extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: Colors.white,
+            color: visionColor,
             fontSize: subtitleSize,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w800,
             height: 1.15,
+            shadows: onCyanHeader ? cyanWordmarkShadows : null,
           ),
         ),
       ],

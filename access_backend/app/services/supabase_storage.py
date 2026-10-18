@@ -99,6 +99,27 @@ def upload_media_bytes(
         return None
 
 
+def _ensure_storage_v1_path(path: str) -> str:
+    """Supabase sign API may return `/object/sign/...` without the `/storage/v1` prefix."""
+    if path.startswith("/object/") and not path.startswith("/storage/v1/object/"):
+        return f"/storage/v1{path}"
+    return path
+
+
+def normalize_supabase_storage_url(url: str | None) -> str:
+    """Fix stored or legacy URLs so mobile/web clients can GET the object."""
+    if not url or not url.strip():
+        return url or ""
+    normalized = url.strip()
+    if "supabase.co/object/" in normalized and "/storage/v1/object/" not in normalized:
+        normalized = normalized.replace(
+            ".supabase.co/object/",
+            ".supabase.co/storage/v1/object/",
+            1,
+        )
+    return normalized
+
+
 def _public_or_signed_url(client: httpx.Client, bucket: str, object_path: str) -> str:
     public = (
         f"{_base_url()}/storage/v1/object/public/{bucket}/{quote(object_path, safe='/')}"
@@ -121,9 +142,9 @@ def _public_or_signed_url(client: httpx.Client, bucket: str, object_path: str) -
     data = resp.json()
     signed = (data.get("signedURL") or data.get("signedUrl") or "").strip()
     if signed.startswith("/"):
-        return f"{_base_url()}{signed}"
+        return f"{_base_url()}{_ensure_storage_v1_path(signed)}"
     if signed.startswith("http"):
-        return signed
+        return normalize_supabase_storage_url(signed)
     return public
 
 
@@ -135,12 +156,18 @@ def object_path_from_supabase_url(url: str) -> tuple[str, str] | None:
         if "supabase.co" not in parsed.netloc:
             return None
     path = unquote(parsed.path or "")
+    if path.startswith("/object/") and "/storage/v1/object/" not in path:
+        path = _ensure_storage_v1_path(path)
     bucket = (settings.supabase_storage_bucket or "").strip()
     markers = (
         f"/storage/v1/object/public/{bucket}/",
         f"/storage/v1/object/sign/{bucket}/",
         f"/storage/v1/object/authenticated/{bucket}/",
         f"/storage/v1/object/{bucket}/",
+        f"/object/public/{bucket}/",
+        f"/object/sign/{bucket}/",
+        f"/object/authenticated/{bucket}/",
+        f"/object/{bucket}/",
     )
     for marker in markers:
         idx = path.find(marker)

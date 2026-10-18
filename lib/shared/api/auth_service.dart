@@ -18,9 +18,13 @@ class AuthService {
     return user;
   }
 
-  Future<RegistrationOtpSendResult> sendRegistrationOtp(String phone) async {
+  Future<RegistrationOtpSendResult> sendRegistrationOtp({
+    required String email,
+    String? name,
+  }) async {
     final data = await _api.post('/auth/registration-otp/send', {
-      'phone': phone.trim(),
+      'email': email.trim().toLowerCase(),
+      if (name != null && name.isNotEmpty) 'name': name.trim(),
     }) as Map<String, dynamic>;
     return RegistrationOtpSendResult(
       message: (data['message'] as String?) ?? 'Verification code sent.',
@@ -29,14 +33,14 @@ class AuthService {
   }
 
   Future<String> verifyRegistrationOtp({
-    required String phone,
+    required String email,
     required String code,
   }) async {
     final data = await _api.post('/auth/registration-otp/verify', {
-      'phone': phone.trim(),
+      'email': email.trim().toLowerCase(),
       'code': code.trim(),
     }) as Map<String, dynamic>;
-    return data['phone_verification_token'] as String;
+    return data['email_verification_token'] as String;
   }
 
   Future<void> register({
@@ -46,7 +50,7 @@ class AuthService {
     required String role,
     String? studentId,
     String? contactNumber,
-    String? phoneVerificationToken,
+    String? emailVerificationToken,
     String? adviserName,
     String? skillLevel,
   }) async {
@@ -57,22 +61,34 @@ class AuthService {
       'role': role,
       if (studentId != null && studentId.isNotEmpty) 'student_id': studentId,
       if (contactNumber != null && contactNumber.isNotEmpty) 'contact_number': contactNumber,
-      if (phoneVerificationToken != null && phoneVerificationToken.isNotEmpty)
-        'phone_verification_token': phoneVerificationToken,
+      if (emailVerificationToken != null && emailVerificationToken.isNotEmpty)
+        'email_verification_token': emailVerificationToken,
       if (adviserName != null && adviserName.isNotEmpty) 'adviser_name': adviserName,
       if (skillLevel != null && skillLevel.isNotEmpty) 'skill_level': skillLevel,
     });
   }
 
-  Future<ForgotPasswordResult> requestPasswordReset(String email) async {
-    final data = await _api.post('/auth/forgot-password', {
+  Future<ForgotPasswordSendResult> sendForgotPasswordOtp(String email) async {
+    final data = await _api.post('/auth/forgot-password/send', {
       'email': email.trim().toLowerCase(),
     }) as Map<String, dynamic>;
-    return ForgotPasswordResult(
-      message: (data['message'] as String?) ?? 'Request submitted.',
-      temporaryPassword: data['temporary_password'] as String?,
-      reset: data['reset'] == true,
+    return ForgotPasswordSendResult(
+      message: (data['message'] as String?) ?? 'If an account exists, a code was sent.',
+      devCode: data['dev_code'] as String?,
     );
+  }
+
+  Future<String> completeForgotPasswordReset({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final data = await _api.post('/auth/forgot-password/complete', {
+      'email': email.trim().toLowerCase(),
+      'code': code.trim(),
+      'new_password': newPassword,
+    }) as Map<String, dynamic>;
+    return (data['message'] as String?) ?? 'Password updated.';
   }
 
   Future<void> logout() async {
@@ -85,16 +101,11 @@ class AuthService {
   }
 }
 
-class ForgotPasswordResult {
-  const ForgotPasswordResult({
-    required this.message,
-    this.temporaryPassword,
-    this.reset = false,
-  });
+class ForgotPasswordSendResult {
+  const ForgotPasswordSendResult({required this.message, this.devCode});
 
   final String message;
-  final String? temporaryPassword;
-  final bool reset;
+  final String? devCode;
 }
 
 class RegistrationOtpSendResult {

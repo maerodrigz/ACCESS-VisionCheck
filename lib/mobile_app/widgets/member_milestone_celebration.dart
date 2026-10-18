@@ -69,7 +69,7 @@ Future<void> showMemberMilestoneCelebration(
                 child: FilledButton(
                   onPressed: () => Navigator.pop(ctx),
                   style: FilledButton.styleFrom(
-                    backgroundColor: kAccent,
+                    backgroundColor: kMemberButtonPrimary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

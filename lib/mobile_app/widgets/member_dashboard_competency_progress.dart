@@ -624,7 +624,6 @@ class MemberDashboardCompetencyProgress extends StatelessWidget {
                 MemberDashboardPrimaryButton(
                   label: 'View Competency',
                   icon: Icons.arrow_forward_rounded,
-                  color: kMemberPrimary,
                   onPressed: () => showMemberCompetencySheet(context),
                 ),
               ],

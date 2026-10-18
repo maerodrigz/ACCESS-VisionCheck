@@ -6,13 +6,16 @@ import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/user_model.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
 
 // ── ACCESS VisionCheck member UI palette ─────────────────────────────────────
-// Primary blue  → buttons, active nav, selected states ([kMemberPrimary] / kAccent)
-// ACCESS cyan   → branding, icons, highlights, section accents
+// Primary blue  → stat icons, competency accents, bottom nav ([kMemberPrimary] / kAccent)
+// ACCESS cyan   → branding, filled buttons, section accents
 // See also shared [theme.dart] for semantic success / warning / danger tokens.
 
 const kMemberPrimary = kAccent;
+/// Solid primary actions (FilledButton, [MemberDashboardPrimaryButton]).
+const kMemberButtonPrimary = kCyan;
 const kMemberCyan = kCyan;
 const kMemberDashboardAccent = kMemberCyan;
 const kMemberDashboardAccentLight = kCyanDim;
@@ -60,7 +63,7 @@ const kMemberDashboardSectionGap = 26.0;
 const kMemberDashboardSectionTitleGap = 14.0;
 const kMemberDashboardCardPadding = 20.0;
 
-/// Dark hero shell (home dashboard, calendar mini-hero).
+/// Dark hero shell (profile, gallery mini-hero, detail screens).
 const kMemberDarkHeroBottomRadius = 28.0;
 const kMemberDarkHeroMiniBottomRadius = 20.0;
 
@@ -77,6 +80,99 @@ const kMemberDarkHeroGradient = LinearGradient(
   ],
   stops: [0.0, 0.55, 1.0],
 );
+
+/// Cyan hero (sign-in header): home dashboard, profile mini-heroes.
+const kMemberDashboardHeroGradient = MobileAuthConstants.headerGradient;
+
+const kMemberDarkHeroBadgeRing = Color(0xFF050C1C);
+const kMemberCyanHeroBadgeRing = Color(0xFF00B0D8);
+
+const kMemberCyanHeroTitleShadows = <Shadow>[
+  Shadow(color: Color(0x73000000), blurRadius: 10, offset: Offset(0, 2)),
+  Shadow(color: Color(0x40000000), blurRadius: 3, offset: Offset(0, 1)),
+];
+
+/// Subtitle on cyan: deep slate (readable on light + mid cyan, not washed-out white).
+const kMemberCyanHeroSubtitleColor = Color(0xFF0C2D45);
+
+TextStyle memberCyanHeroTitleTextStyle({
+  double fontSize = 20,
+  FontWeight fontWeight = FontWeight.w700,
+  double letterSpacing = -0.2,
+}) =>
+    dashText(TextStyle(
+      color: Colors.white,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      height: 1.2,
+      letterSpacing: letterSpacing,
+      shadows: kMemberCyanHeroTitleShadows,
+    ));
+
+TextStyle memberCyanHeroSubtitleTextStyle({
+  double fontSize = 12,
+  FontWeight fontWeight = FontWeight.w600,
+}) =>
+    dashText(TextStyle(
+      color: kMemberCyanHeroSubtitleColor,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      height: 1.35,
+    ));
+
+/// Meta row icons on cyan (avoid [kCyan] on the cyan gradient).
+const kMemberCyanHeroMetaIconColor = kAccent;
+
+TextStyle memberCyanHeroNavLabelStyle() =>
+    memberCyanHeroSubtitleTextStyle(fontSize: 13, fontWeight: FontWeight.w700);
+
+TextStyle memberCyanHeroIdentityNameStyle({required bool compact}) =>
+    memberCyanHeroTitleTextStyle(fontSize: compact ? 18 : 20);
+
+TextStyle memberCyanHeroIdentityMetaStyle({
+  double fontSize = 12,
+  FontWeight fontWeight = FontWeight.w600,
+}) =>
+    memberCyanHeroSubtitleTextStyle(fontSize: fontSize, fontWeight: fontWeight);
+
+/// Rounded-bottom cyan shell for profile / gallery tab headers.
+class MemberCyanMiniHero extends StatelessWidget {
+  const MemberCyanMiniHero({
+    super.key,
+    required this.child,
+    this.bottomRadius = kMemberDarkHeroMiniBottomRadius,
+    this.clip = true,
+  });
+
+  final Widget child;
+  final double bottomRadius;
+  final bool clip;
+
+  @override
+  Widget build(BuildContext context) {
+    final decoration = BoxDecoration(
+      gradient: kMemberDashboardHeroGradient,
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(bottomRadius),
+        bottomRight: Radius.circular(bottomRadius),
+      ),
+    );
+
+    if (clip) {
+      return DecoratedBox(
+        decoration: decoration,
+        child: ClipRRect(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(bottomRadius),
+            bottomRight: Radius.circular(bottomRadius),
+          ),
+          child: child,
+        ),
+      );
+    }
+    return DecoratedBox(decoration: decoration, child: child);
+  }
+}
 
 /// Cyan → indigo → purple (ACCESS logo palette). Home featured event card, profile stats.
 const kMemberBrandAccentGradient = LinearGradient(
@@ -601,7 +697,7 @@ class MemberDashboardPrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
-    this.color = kMemberPrimary,
+    this.color = kMemberButtonPrimary,
   });
 
   final String label;
@@ -771,10 +867,16 @@ class MemberDashboardSkeleton extends StatelessWidget {
 
 /// Notification bell for dark mini-hero headers (matches Home hero styling).
 class MemberDarkHeroNotificationButton extends StatelessWidget {
-  const MemberDarkHeroNotificationButton({super.key, this.onTap, this.compact = false});
+  const MemberDarkHeroNotificationButton({
+    super.key,
+    this.onTap,
+    this.compact = false,
+    this.onCyanHero = false,
+  });
 
   final VoidCallback? onTap;
   final bool compact;
+  final bool onCyanHero;
 
   static const _buttonSize = 40.0;
 
@@ -833,7 +935,12 @@ class MemberDarkHeroNotificationButton extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: kDashStatPurpleIcon,
                               shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFF050C1C), width: 1.2),
+                              border: Border.all(
+                                color: onCyanHero
+                                    ? kMemberCyanHeroBadgeRing
+                                    : kMemberDarkHeroBadgeRing,
+                                width: 1.2,
+                              ),
                             ),
                             child: Center(
                               child: Text(
@@ -1041,10 +1148,16 @@ class MemberPageProfileAvatar extends StatelessWidget {
 
 /// Profile avatar for dark mini-hero headers (Home, Calendar, Gallery, Rankings).
 class MemberDarkHeroProfileAvatar extends StatelessWidget {
-  const MemberDarkHeroProfileAvatar({super.key, this.onTap, this.compact = false});
+  const MemberDarkHeroProfileAvatar({
+    super.key,
+    this.onTap,
+    this.compact = false,
+    this.onCyanHero = false,
+  });
 
   final VoidCallback? onTap;
   final bool compact;
+  final bool onCyanHero;
 
   double get _avatarSize => compact ? 34.0 : 38.0;
   double get _touchSize => compact ? 40.0 : kMobileMinTouch;
@@ -1120,7 +1233,9 @@ class MemberDarkHeroProfileAvatar extends StatelessWidget {
                             color: kGreen,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: const Color(0xFF050C1C),
+                              color: onCyanHero
+                                  ? kMemberCyanHeroBadgeRing
+                                  : kMemberDarkHeroBadgeRing,
                               width: 1.4,
                             ),
                           ),

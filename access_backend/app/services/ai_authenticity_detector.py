@@ -358,7 +358,7 @@ def detect_ai_generated_from_frames(
             apply_provenance_policy=frame_policy,
         )
         if video_provenance is not None and active_ai_detector_backend() == "probe":
-            out = apply_probe_provenance_policy(out, video_provenance)
+            out = apply_probe_provenance_policy(out, video_provenance, file_name=file_name)
             out["exif_metadata"] = _video_provenance_exif_panel(video_provenance, file_name)
         return out
 
@@ -377,7 +377,7 @@ def detect_ai_generated_from_frames(
         out = dict(best)
         out["frames_scanned"] = len(sampled)
         if video_provenance is not None:
-            out = apply_probe_provenance_policy(out, video_provenance)
+            out = apply_probe_provenance_policy(out, video_provenance, file_name=file_name)
             out["exif_metadata"] = _video_provenance_exif_panel(video_provenance, file_name)
         return out
 

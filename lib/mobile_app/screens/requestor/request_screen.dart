@@ -679,7 +679,7 @@ class _EmptyState extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onCreate,
                   style: FilledButton.styleFrom(
-                    backgroundColor: kAccent,
+                    backgroundColor: kMemberButtonPrimary,
                     foregroundColor: Colors.white,
                     minimumSize: const Size.fromHeight(46),
                     shape: RoundedRectangleBorder(

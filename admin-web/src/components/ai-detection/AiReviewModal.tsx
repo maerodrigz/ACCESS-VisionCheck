@@ -9,7 +9,7 @@ import {
   updateAiDetectionReview,
 } from '../../api/admin'
 import type { AiDetectionRow, AiReviewHistoryEntry, ReviewStatus } from '../../api/media'
-import { adminMediaStreamUrl, isVideoMediaPath, mediaUrl } from '../../api/media'
+import { adminIntegrityPreviewUrl, isVideoMediaPath } from '../../api/media'
 import { MediaPreviewContent } from '../media-library/MediaPreviewContent'
 import { formatScannedDate } from '../../lib/aiDetection'
 import {
@@ -194,7 +194,12 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
     }
   }
 
-  const previewUrl = row.media_id ? adminMediaStreamUrl(row.media_id) : mediaUrl(row.media_url)
+  const previewUrl = adminIntegrityPreviewUrl({
+    mediaId: row.media_id,
+    mediaUrl: row.media_url,
+    fileName: row.media_name,
+    fileType: row.file_type,
+  })
   const isVideo =
     isVideoMediaPath(row.media_name) ||
     isVideoMediaPath(row.media_url) ||

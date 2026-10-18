@@ -91,6 +91,29 @@ class PracticeEvaluationVideoGuardrailsTest(unittest.TestCase):
         self.assertTrue(out["requires_review"])
         self.assertEqual(out["provenance_policy_outcome"], "source_partially_verified")
 
+    def test_gallery_numeric_video_filename_forces_review(self) -> None:
+        base = {
+            "verdict": "authentic",
+            "probability": 0.03,
+            "raw_detector_probability": 0.03,
+            "risk_level": "low",
+            "requires_review": False,
+            "detail": "Low risk.",
+        }
+        strong_encoder_only = CameraProvenanceResult(
+            "strong",
+            reasons=["Container creation time with mobile/video encoder hints."],
+            safe_fields=[{"key": "creation_time", "label": "creation_time", "value": "2026-01-01"}],
+            is_video=True,
+        )
+        out = apply_probe_provenance_policy(
+            base,
+            strong_encoder_only,
+            file_name="1000442341",
+        )
+        self.assertTrue(out["requires_review"])
+        self.assertEqual(out["provenance_policy_outcome"], "source_partially_verified")
+
 
 if __name__ == "__main__":
     unittest.main()

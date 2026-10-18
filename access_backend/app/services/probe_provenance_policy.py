@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.camera_provenance import CameraProvenanceResult
+from app.services.camera_provenance import (
+    CameraProvenanceResult,
+    looks_like_reexported_media_filename,
+    video_provenance_has_device_identity,
+)
 from app.services.ai_authenticity_detector import probe_risk_level_from_probability
 
 SOURCE_UNVERIFIED_DETAIL = (
@@ -19,11 +23,44 @@ _PARTIAL_LOW_DETAIL = (
 )
 
 
+def _normalize_video_provenance(
+    provenance: CameraProvenanceResult,
+    *,
+    file_name: str = "",
+) -> CameraProvenanceResult:
+    """Practice videos: do not treat encoder-only or gallery-save metadata as fully verified."""
+    if not provenance.is_video:
+        return provenance
+    reasons = list(provenance.reasons)
+    strength = provenance.strength
+    has_device = video_provenance_has_device_identity(provenance.safe_fields)
+
+    if strength == "strong" and not has_device:
+        reasons.append("Video container lacks verified device make/model.")
+        strength = "partial"
+
+    if looks_like_reexported_media_filename(file_name) and strength == "strong":
+        reasons.append("Filename suggests a gallery save or re-export; admin review required.")
+        strength = "partial"
+
+    if strength == provenance.strength and reasons == list(provenance.reasons):
+        return provenance
+    return CameraProvenanceResult(
+        strength,
+        reasons=reasons,
+        safe_fields=list(provenance.safe_fields),
+        is_video=True,
+    )
+
+
 def apply_probe_provenance_policy(
     ai_detection: dict[str, Any],
     provenance: CameraProvenanceResult,
+    *,
+    file_name: str = "",
 ) -> dict[str, Any]:
     """Merge provenance policy into ai_detection without changing probability fields."""
+    provenance = _normalize_video_provenance(provenance, file_name=file_name)
     out = dict(ai_detection)
     p_raw = out.get("raw_detector_probability")
     if p_raw is None:

@@ -1,7 +1,5 @@
 """Single login API for Admin (Web) and Member/Organization (Mobile)."""
 
-import secrets
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -21,10 +19,13 @@ from app.services.security_policy import (
     record_failed_login,
     security_config,
 )
-from app.crud import registration_phone_otp as phone_otp_crud
+from app.crud import password_reset_email_otp as reset_otp_crud
+from app.crud import registration_email_otp as email_otp_crud
 from app.schemas.auth import (
-    ForgotPasswordRequest,
-    ForgotPasswordResponse,
+    ForgotPasswordCompleteRequest,
+    ForgotPasswordCompleteResponse,
+    ForgotPasswordSendRequest,
+    ForgotPasswordSendResponse,
     LoginRequest,
     LoginResponse,
     RegisterRequest,
@@ -35,7 +36,7 @@ from app.schemas.auth import (
     UserOut,
 )
 from app.schemas.common import MessageResponse
-from app.services import password_reset_email, registration_email
+from app.services import registration_email
 from app.services.email_delivery import is_email_configured
 from app.services.phone_normalize import normalize_ph_mobile
 
@@ -138,66 +139,69 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/forgot-password", response_model=ForgotPasswordResponse)
-def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    """Issue a temporary password. Admin: returned in JSON. Member/requestor: emailed when SMTP is on."""
-    generic = ForgotPasswordResponse(
-        message=(
-            "If an account exists for this email, password recovery instructions have been sent "
-            "or a temporary password was generated."
-        ),
-        reset=False,
-    )
+_GENERIC_RESET_SEND = (
+    "If an account exists for this email, a 6-digit reset code was sent. "
+    "Check your inbox (and spam folder)."
+)
+
+
+@router.post("/forgot-password/send", response_model=ForgotPasswordSendResponse)
+def forgot_password_send(body: ForgotPasswordSendRequest, db: Session = Depends(get_db)):
+    """Email a 6-digit OTP for password reset (all approved roles). Dev: code on screen when SMTP is off."""
+    generic = ForgotPasswordSendResponse(message=_GENERIC_RESET_SEND, dev_code=None)
     user = user_crud.get_by_email(db, body.email)
     if not user or not user.is_active:
         return generic
     if user.status != UserStatus.APPROVED:
-        return ForgotPasswordResponse(
+        return ForgotPasswordSendResponse(
             message=(
                 "This account is not active for sign-in. "
                 "Contact your ACCESS administrator for help."
             ),
-            reset=False,
+            dev_code=None,
         )
 
-    role_name = user.role.role_name if user.role else None
-    temp_password = secrets.token_urlsafe(10)
-    user_crud.set_password(db, user, temp_password)
+    try:
+        code = reset_otp_crud.send_otp(
+            db,
+            user.email,
+            fullname=user.fullname or user.email,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
+
+    if is_email_configured():
+        return ForgotPasswordSendResponse(message=_GENERIC_RESET_SEND, dev_code=None)
+    return ForgotPasswordSendResponse(
+        message=(
+            "Development mode: your reset code is shown below on this screen "
+            "(and printed in the backend terminal)."
+        ),
+        dev_code=code,
+    )
+
+
+@router.post("/forgot-password/complete", response_model=ForgotPasswordCompleteResponse)
+def forgot_password_complete(body: ForgotPasswordCompleteRequest, db: Session = Depends(get_db)):
+    """Verify email OTP and set a new password."""
+    user = user_crud.get_by_email(db, body.email)
+    if not user or not user.is_active or user.status != UserStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not reset password. Check your email and code, or request a new code.",
+        )
+    try:
+        reset_otp_crud.verify_and_consume(db, user.email, body.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    assert_password_meets_policy(db, body.new_password)
+    user_crud.set_password(db, user, body.new_password)
     clear_login_failures(db, user)
-
-    if role_name == RoleName.ADMIN:
-        return ForgotPasswordResponse(
-            message=(
-                "A temporary password was generated. Sign in with it below, "
-                "then update your password from Account Management."
-            ),
-            temporary_password=temp_password,
-            reset=True,
-        )
-
-    if role_name in (RoleName.MEMBER, RoleName.ORGANIZATION):
-        if is_email_configured():
-            password_reset_email.notify_temporary_password_async(
-                to_email=user.email,
-                fullname=user.fullname or user.email,
-                temporary_password=temp_password,
-            )
-            return ForgotPasswordResponse(
-                message=(
-                    "If an account exists for this email, a temporary password was sent. "
-                    "Check your inbox, sign in, then change your password in Account Settings."
-                ),
-                reset=False,
-            )
-        return ForgotPasswordResponse(
-            message=(
-                "Email is not configured on the server. "
-                "Contact your ACCESS administrator to reset your password."
-            ),
-            reset=False,
-        )
-
-    return generic
+    session_crud.revoke_sessions_for_user(db, user.id)
+    return ForgotPasswordCompleteResponse(
+        message="Password updated. Sign in with your new password.",
+    )
 
 
 @router.post("/logout", response_model=MessageResponse)
@@ -213,42 +217,49 @@ def _registration_role_key(role: str) -> str:
     return role.strip().lower()
 
 
+_GENERIC_REGISTRATION_OTP = (
+    "If this email is available for registration, a 6-digit verification code was sent. "
+    "Check your inbox (and spam folder)."
+)
+
+
 @router.post("/registration-otp/send", response_model=RegistrationOtpSendResponse)
 def send_registration_otp(body: RegistrationOtpSendRequest, db: Session = Depends(get_db)):
+    email = str(body.email).strip().lower()
+    if user_crud.get_by_email(db, email):
+        return RegistrationOtpSendResponse(message=_GENERIC_REGISTRATION_OTP, dev_code=None)
     try:
-        phone_e164 = normalize_ph_mobile(body.phone)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    try:
-        code = phone_otp_crud.send_otp(db, phone_e164)
+        code = email_otp_crud.send_otp(
+            db,
+            email,
+            fullname=(body.name or "").strip(),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    provider = (settings.sms_provider or "log").strip().lower()
-    if provider == "log":
-        msg = (
+    if is_email_configured():
+        return RegistrationOtpSendResponse(message=_GENERIC_REGISTRATION_OTP, dev_code=None)
+    return RegistrationOtpSendResponse(
+        message=(
             "Development mode: your verification code is shown below on this screen "
             "(and printed in the backend terminal)."
-        )
-        return RegistrationOtpSendResponse(message=msg, dev_code=code)
-    return RegistrationOtpSendResponse(
-        message="Verification code sent via SMS.",
-        dev_code=None,
+        ),
+        dev_code=code,
     )
 
 
 @router.post("/registration-otp/verify", response_model=RegistrationOtpVerifyResponse)
 def verify_registration_otp(body: RegistrationOtpVerifyRequest, db: Session = Depends(get_db)):
+    email = str(body.email).strip().lower()
+    if user_crud.get_by_email(db, email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This email is already registered. Sign in or use Forgot password.",
+        )
     try:
-        phone_e164 = normalize_ph_mobile(body.phone)
+        token = email_otp_crud.verify_otp(db, email, body.code)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    try:
-        token = phone_otp_crud.verify_otp(db, phone_e164, body.code)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return RegistrationOtpVerifyResponse(phone_verification_token=token)
+    return RegistrationOtpVerifyResponse(email_verification_token=token)
 
 
 @router.post("/register", response_model=MessageResponse)
@@ -260,22 +271,25 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
             detail="Administrator accounts cannot be registered through the mobile app.",
         )
     if role_key in ("member", "organization"):
-        if not body.contact_number or not body.phone_verification_token:
+        if not body.email_verification_token:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Verify your mobile number before submitting registration.",
+                detail="Verify your email with the code before submitting registration.",
             )
         try:
-            phone_e164 = normalize_ph_mobile(body.contact_number)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        try:
-            phone_otp_crud.consume_verification_token(
-                db, phone_e164, body.phone_verification_token
+            email_otp_crud.consume_verification_token(
+                db,
+                str(body.email).strip().lower(),
+                body.email_verification_token,
             )
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        contact_for_user = phone_e164
+        contact_for_user = None
+        if body.contact_number and body.contact_number.strip():
+            try:
+                contact_for_user = normalize_ph_mobile(body.contact_number)
+            except ValueError as exc:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     else:
         contact_for_user = body.contact_number
 

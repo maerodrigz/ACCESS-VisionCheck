@@ -184,10 +184,10 @@ def update_user_status(
                 status_code=400,
                 detail="delete_uploads is only allowed when setting status to rejected.",
             )
-        if not user.role or user.role.role_name != RoleName.MEMBER:
+        if not user.role or user.role.role_name not in (RoleName.MEMBER, RoleName.ORGANIZATION):
             raise HTTPException(
                 status_code=400,
-                detail="delete_uploads applies to Member accounts only.",
+                detail="delete_uploads applies to Member and Organization accounts only.",
             )
 
     media_deleted = 0

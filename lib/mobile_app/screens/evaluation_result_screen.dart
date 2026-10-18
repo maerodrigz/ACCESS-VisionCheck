@@ -12,6 +12,7 @@ import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/shared/api/gemini_service.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
@@ -53,6 +54,7 @@ class EvaluationResultScreen extends StatefulWidget {
     this.submissionTitle,
     this.adminReviewStatus,
     this.adminRemarks,
+    this.fetchLiveGemini = false,
   });
 
   final EvaluationResultMedia media;
@@ -64,19 +66,45 @@ class EvaluationResultScreen extends StatefulWidget {
   final String? submissionTitle;
   final String? adminReviewStatus;
   final String? adminRemarks;
+  /// When true, loads Gemini mentor text after scores are shown (saves time on the analyzing screen).
+  final bool fetchLiveGemini;
 
   @override
   State<EvaluationResultScreen> createState() => _EvaluationResultScreenState();
 }
 
 class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
+  MediaEvaluationFeedback? _geminiFeedback;
+
   @override
   void initState() {
     super.initState();
+    _geminiFeedback = widget.geminiFeedback;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       memberDataController.celebratePendingMilestones(context);
+      _maybeFetchLiveGemini();
     });
+  }
+
+  Future<void> _maybeFetchLiveGemini() async {
+    if (!widget.fetchLiveGemini) return;
+    if (widget.result.geminiFeedback != null && !widget.result.geminiFeedbackIsLocal) {
+      return;
+    }
+    if (!widget.result.showQualityFeedbackEffective || widget.result.scoresHeldForReview) {
+      return;
+    }
+    if (widget.result.aiDetection.requiresReview) {
+      return;
+    }
+    try {
+      final gemini = await GeminiService.generateMediaEvaluationFeedback(
+        scoresOnly: widget.result,
+      ).timeout(const Duration(seconds: 30));
+      if (!mounted || gemini == null) return;
+      setState(() => _geminiFeedback = gemini);
+    } catch (_) {}
   }
 
   String get _formattedDate {
@@ -125,12 +153,13 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
               const SizedBox(height: 8),
               MediaEvaluationResultsPanel(
                 result: widget.result,
-                gemini: widget.geminiFeedback,
+                gemini: _geminiFeedback ?? widget.geminiFeedback,
                 compact: true,
                 dense: true,
                 useBreakdownCard: true,
                 showOverallHeader: false,
-                feedbackIsLocalFallback: widget.result.geminiFeedbackIsLocal,
+                feedbackIsLocalFallback: _geminiFeedback == null &&
+                    (widget.result.geminiFeedbackIsLocal || widget.fetchLiveGemini),
               ),
               const SizedBox(height: 10),
             ] else ...[
@@ -167,7 +196,7 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
                   ? () => openEvaluationDetailedAnalysis(
                         context,
                         result: widget.result,
-                        geminiFeedback: widget.geminiFeedback,
+                        geminiFeedback: _geminiFeedback ?? widget.geminiFeedback,
                         title: widget.media.name,
                         initialTab: 0,
                       )
@@ -363,6 +392,7 @@ void openEvaluationResultScreen(
   String? submissionTitle,
   String? adminReviewStatus,
   String? adminRemarks,
+  bool fetchLiveGemini = false,
 }) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
@@ -376,6 +406,7 @@ void openEvaluationResultScreen(
         submissionTitle: submissionTitle,
         adminReviewStatus: adminReviewStatus,
         adminRemarks: adminRemarks,
+        fetchLiveGemini: fetchLiveGemini,
       ),
     ),
   );

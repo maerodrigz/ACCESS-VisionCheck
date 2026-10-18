@@ -3,7 +3,7 @@ import 'package:access_mobile/shared/models/requestor_type.dart';
 import 'package:access_mobile/shared/screens/organization_registration_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-/// Choose Faculty, Instructor, or Organization before the requestor registration form.
+/// Choose faculty/staff or organization before the requestor registration form.
 class RequestorTypeSelectionScreen extends StatefulWidget {
   const RequestorTypeSelectionScreen({super.key});
 
@@ -214,10 +214,8 @@ class _RequestorTypeOptionCard extends StatelessWidget {
 
   static IconData _iconFor(RequestorType type) {
     switch (type) {
-      case RequestorType.faculty:
+      case RequestorType.facultyStaff:
         return Icons.school_rounded;
-      case RequestorType.instructor:
-        return Icons.menu_book_rounded;
       case RequestorType.organization:
         return Icons.groups_rounded;
     }

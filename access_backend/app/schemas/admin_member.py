@@ -41,7 +41,7 @@ class UserStatusUpdate(BaseModel):
     rejection_reason: str | None = Field(None, max_length=500)
     delete_uploads: bool = Field(
         default=False,
-        description="When deactivating a Member, permanently delete their uploaded media files.",
+        description="When deactivating a Member or Organization, delete their uploaded media files.",
     )
 
 
@@ -56,12 +56,12 @@ class MemberRemoveBody(BaseModel):
 
 
 class MemberDeleteBody(BaseModel):
-    """Permanent delete — requires typing the member email."""
+    """Permanent delete — requires typing the account email (Member or Organization)."""
 
     confirmation_email: str = Field(..., min_length=3, max_length=255)
     delete_uploads: bool = Field(
         default=False,
-        description="Also delete photos/videos uploaded by this member.",
+        description="Also delete photos/videos uploaded by this user.",
     )
 
 

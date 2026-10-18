@@ -119,6 +119,7 @@ class MediaOut(BaseModel):
     ai_probability: float | None = None
     feedback: str | None = None
     processing_status: str | None = None
+    storage_removed: bool = False
 
 
 class GalleryMediaOut(BaseModel):
@@ -163,6 +164,7 @@ class EvaluationOut(BaseModel):
     quality_level: str | None = None
     recommendation: str | None = None
     criteria_json: str | None = None
+    storage_removed: bool = False
 
 
 class FeedbackCreate(BaseModel):

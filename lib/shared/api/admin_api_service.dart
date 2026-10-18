@@ -3,6 +3,9 @@ import 'package:access_mobile/shared/constants/api_config.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/services/media_upload_service.dart';
 
+/// Legacy Flutter web admin API. Canonical admin UI is React (`admin-web/`).
+/// Mobile only uses [AdminApiService.fetchGeminiDailySummary] indirectly; prefer
+/// [member_api_service.dart] for member/requestor flows.
 class AdminApiService {
   AdminApiService(this._api);
   final ApiClient _api;

@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import shutil
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import delete, func, select
@@ -66,6 +67,44 @@ def extra_keep_emails_from_env() -> set[str]:
     return {part.strip().lower() for part in raw.split(",") if part.strip()}
 
 
+def user_registered_today(user: User) -> bool:
+    """True when the account was created on the current UTC calendar day."""
+    created = user.created_at
+    if created is None:
+        return False
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    return created.astimezone(timezone.utc).date() == now.date()
+
+
+def is_real_registration_email(email: str, demo: set[str]) -> bool:
+    """Non-seed email (e.g. personal or campus mail), not create_tables demo identities."""
+    return email.strip().lower() not in demo
+
+
+def should_keep_user_on_reset(
+    user: User,
+    *,
+    is_admin: bool,
+    email: str,
+    demo: set[str],
+    keep_extra: set[str],
+    remove_demo_users: bool,
+) -> bool:
+    """
+    When trimming accounts: keep admins, KEEP_USER_EMAILS, real (non-demo) emails,
+    and any account registered today (UTC). Demo seed logins are removed otherwise.
+    """
+    if not remove_demo_users:
+        return True
+    if is_admin or email in keep_extra:
+        return True
+    if is_real_registration_email(email, demo):
+        return True
+    return user_registered_today(user)
+
+
 @dataclass
 class ResetPlan:
     counts: dict[str, int] = field(default_factory=dict)
@@ -98,9 +137,14 @@ def build_reset_plan(db: Session, *, remove_demo_users: bool = True) -> ResetPla
         email = user.email.strip().lower()
         role_name = user.role.role_name if user.role else ""
         is_admin = admin_role is not None and user.role_id == admin_role.id
-        keep = is_admin or email in keep_extra or (remove_demo_users and email not in demo)
-        if not remove_demo_users:
-            keep = True
+        keep = should_keep_user_on_reset(
+            user,
+            is_admin=is_admin,
+            email=email,
+            demo=demo,
+            keep_extra=keep_extra,
+            remove_demo_users=remove_demo_users,
+        )
         if keep:
             plan.users_to_keep.append(f"{email} ({role_name})")
         else:
@@ -186,10 +230,16 @@ def reset_operational_data(
         for user in db.scalars(select(User)).all():
             email = user.email.strip().lower()
             is_admin = admin_role is not None and user.role_id == admin_role.id
-            if is_admin or email in keep_extra:
+            if should_keep_user_on_reset(
+                user,
+                is_admin=is_admin,
+                email=email,
+                demo=demo,
+                keep_extra=keep_extra,
+                remove_demo_users=True,
+            ):
                 continue
-            if email in demo:
-                to_remove.append(user)
+            to_remove.append(user)
         admin_count = db.scalar(
             select(func.count())
             .select_from(User)

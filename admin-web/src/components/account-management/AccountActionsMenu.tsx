@@ -159,7 +159,7 @@ export function AccountActionsMenu({
             : undefined
         }
       />
-      {user.role === 'Member' && onDeleteMember ? (
+      {(user.role === 'Member' || user.role === 'Organization') && onDeleteMember ? (
         <>
           <hr className="account-mgmt__menu-divider" />
           <MenuItem

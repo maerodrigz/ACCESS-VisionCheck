@@ -60,7 +60,8 @@ List<AccessLegalSection> accessLegalSections(
 
 String registrationAudienceLabel(RegistrationLegalAudience audience) => switch (audience) {
       RegistrationLegalAudience.member => 'Documentation member',
-      RegistrationLegalAudience.requestor => 'Requestor (faculty, instructor, or organization)',
+      RegistrationLegalAudience.requestor =>
+        'Requestor (faculty / staff, or organization)',
     };
 
 /// Profile, login footer, and admin: combined overview.
@@ -169,7 +170,7 @@ const _requestorTermsSections = [
   AccessLegalSection(
     heading: '1. About ACCESS VisionCheck',
     body:
-        'These Terms and Conditions apply to you as a requestor (faculty, instructor, or student organization) '
+        'These Terms and Conditions apply to you as a requestor (faculty, staff, or student organization) '
         'using ACCESS VisionCheck at USTP Oroquieta Campus. By registering, you agree to the rules below.',
   ),
   AccessLegalSection(
@@ -331,7 +332,7 @@ const _requestorPrivacySections = [
     heading: '1. Privacy Policy for requestors',
     body:
         'This policy describes how ACCESS VisionCheck handles your information when you register and use '
-        'a requestor account (faculty, instructor, or organization).',
+        'a requestor account (faculty / staff, or organization).',
   ),
   AccessLegalSection(
     heading: '2. Information we collect from requestors',

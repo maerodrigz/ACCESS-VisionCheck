@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     # Practice evaluation uploads (short clips; can exceed 100 MB at higher quality).
     evaluation_max_upload_mb: int = Field(default=350, alias="EVALUATION_MAX_UPLOAD_MB")
     evaluation_max_video_seconds: int = Field(default=30, alias="EVALUATION_MAX_VIDEO_SECONDS")
+    evaluation_video_sample_frames: int = Field(default=4, alias="EVALUATION_VIDEO_SAMPLE_FRAMES")
 
     # Firebase Storage — photos/videos (optional; mobile can also send cloud_file_url)
     firebase_storage_bucket: str = Field(default="", alias="FIREBASE_STORAGE_BUCKET")
@@ -97,7 +98,7 @@ class Settings(BaseSettings):
     facebook_page_album_id: str = Field(default="", alias="FACEBOOK_PAGE_ALBUM_ID")
 
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-3-flash-preview", alias="GEMINI_MODEL")
+    gemini_model: str = Field(default="gemini-3.8-flash", alias="GEMINI_MODEL")
 
     # Dedicated AI detector backend: probe (PROBE-DINOv2 @ 1344px cap) or univfd.
     ai_detector_backend: str = Field(default="probe", alias="AI_DETECTOR_BACKEND")
@@ -121,6 +122,8 @@ class Settings(BaseSettings):
     email_from: str = Field(default="", alias="EMAIL_FROM")
     email_from_name: str = Field(default="ACCESS VisionCheck", alias="EMAIL_FROM_NAME")
     email_reply_to: str = Field(default="", alias="EMAIL_REPLY_TO")
+    # Registration (pending / approved / declined) and other automated mail — not monitored.
+    email_no_reply: str = Field(default="", alias="EMAIL_NO_REPLY")
     email_logo_path: str = Field(default="", alias="EMAIL_LOGO_PATH")
 
     # Registration SMS OTP (member / requestor mobile signup)

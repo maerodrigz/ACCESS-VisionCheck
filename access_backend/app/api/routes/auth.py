@@ -35,7 +35,8 @@ from app.schemas.auth import (
     UserOut,
 )
 from app.schemas.common import MessageResponse
-from app.services import registration_email
+from app.services import password_reset_email, registration_email
+from app.services.email_delivery import is_email_configured
 from app.services.phone_normalize import normalize_ph_mobile
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -139,39 +140,64 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    """Issue a temporary admin password (admin portal recovery — no email service yet)."""
+    """Issue a temporary password. Admin: returned in JSON. Member/requestor: emailed when SMTP is on."""
     generic = ForgotPasswordResponse(
         message=(
-            "If an administrator account exists for this email, "
-            "a temporary password has been generated."
+            "If an account exists for this email, password recovery instructions have been sent "
+            "or a temporary password was generated."
         ),
         reset=False,
     )
     user = user_crud.get_by_email(db, body.email)
     if not user or not user.is_active:
         return generic
-    if user.role.role_name != RoleName.ADMIN:
-        return generic
     if user.status != UserStatus.APPROVED:
         return ForgotPasswordResponse(
             message=(
-                "This administrator account is not active for sign-in. "
-                "Contact another administrator for help."
+                "This account is not active for sign-in. "
+                "Contact your ACCESS administrator for help."
             ),
             reset=False,
         )
 
+    role_name = user.role.role_name if user.role else None
     temp_password = secrets.token_urlsafe(10)
     user_crud.set_password(db, user, temp_password)
     clear_login_failures(db, user)
-    return ForgotPasswordResponse(
-        message=(
-            "A temporary password was generated. Sign in with it below, "
-            "then update your password from Account Management."
-        ),
-        temporary_password=temp_password,
-        reset=True,
-    )
+
+    if role_name == RoleName.ADMIN:
+        return ForgotPasswordResponse(
+            message=(
+                "A temporary password was generated. Sign in with it below, "
+                "then update your password from Account Management."
+            ),
+            temporary_password=temp_password,
+            reset=True,
+        )
+
+    if role_name in (RoleName.MEMBER, RoleName.ORGANIZATION):
+        if is_email_configured():
+            password_reset_email.notify_temporary_password_async(
+                to_email=user.email,
+                fullname=user.fullname or user.email,
+                temporary_password=temp_password,
+            )
+            return ForgotPasswordResponse(
+                message=(
+                    "If an account exists for this email, a temporary password was sent. "
+                    "Check your inbox, sign in, then change your password in Account Settings."
+                ),
+                reset=False,
+            )
+        return ForgotPasswordResponse(
+            message=(
+                "Email is not configured on the server. "
+                "Contact your ACCESS administrator to reset your password."
+            ),
+            reset=False,
+        )
+
+    return generic
 
 
 @router.post("/logout", response_model=MessageResponse)
@@ -272,5 +298,6 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         to_email=user.email,
         fullname=user.fullname or user.email,
         role_name=role_name,
+        student_id=user.student_id,
     )
     return MessageResponse(message="Registration submitted. Awaiting admin approval.")

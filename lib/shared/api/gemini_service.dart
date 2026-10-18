@@ -8,7 +8,7 @@ class GeminiService {
     required PhotoEvaluationResult scoresOnly,
   }) async {
     try {
-      final raw = await memberApiService.fetchGeminiMediaFeedback(scoresOnly.toJson());
+      final raw = await memberApiService.fetchGeminiMediaFeedback(scoresOnly.toGeminiRequestJson());
       if (raw == null) return null;
       final feedback = MediaEvaluationFeedback.fromJson(raw);
       return feedback.copyWithEnergeticTone();

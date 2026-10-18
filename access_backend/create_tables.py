@@ -389,6 +389,16 @@ def upgrade_feedback_admin_review_schema() -> None:
             conn.execute(text(stmt))
 
 
+def upgrade_media_storage_removed_schema() -> None:
+    """Member can drop cloud bytes while keeping evaluation scores."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS storage_removed_at TIMESTAMPTZ"
+            )
+        )
+
+
 def upgrade_media_curation_schema() -> None:
     """Server-side best picks and album grouping for event media."""
     with engine.begin() as conn:
@@ -475,6 +485,7 @@ def main() -> None:
     upgrade_event_media_skip_approval_workflow()
     upgrade_feedback_admin_review_schema()
     upgrade_media_curation_schema()
+    upgrade_media_storage_removed_schema()
 
     db = SessionLocal()
     try:

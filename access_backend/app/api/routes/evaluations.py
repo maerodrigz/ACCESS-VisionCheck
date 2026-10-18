@@ -46,12 +46,14 @@ def list_evaluations(
             quality_level=ev.quality_level,
             recommendation=ev.recommendation,
         )
+        storage_removed = ev.media.storage_removed_at is not None
+        file_url = "" if storage_removed else (ev.media.file_url or "")
         result.append(
             EvaluationOut(
                 id=ev.id,
                 media_id=ev.media_id,
                 file_name=ev.media.file_name,
-                file_url=ev.media.file_url,
+                file_url=file_url,
                 sharpness_score=sharpness_score,
                 brightness_score=brightness_score,
                 contrast_score=contrast_score,
@@ -67,6 +69,7 @@ def list_evaluations(
                 quality_level=quality_level,
                 recommendation=recommendation,
                 criteria_json=criteria_json,
+                storage_removed=storage_removed,
             )
         )
     return result

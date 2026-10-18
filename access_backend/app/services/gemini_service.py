@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import urllib.error
 import urllib.request
@@ -10,13 +11,16 @@ from typing import Any
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 def _gemini_generate(prompt: str, *, timeout: int = 45) -> str | None:
     key = (settings.gemini_api_key or "").strip()
     if not key:
+        logger.warning("Gemini skipped: GEMINI_API_KEY is not set")
         return None
 
-    model = (settings.gemini_model or "gemini-1.5-flash").strip()
+    model = (settings.gemini_model or "gemini-3.8-flash").strip()
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}"
         f":generateContent?key={key}"
@@ -31,7 +35,17 @@ def _gemini_generate(prompt: str, *, timeout: int = 45) -> str | None:
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:300]
+        logger.warning(
+            "Gemini HTTP %s model=%s body=%s",
+            exc.code,
+            model,
+            body,
+        )
+        return None
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+        logger.warning("Gemini request failed model=%s err=%s", model, exc)
         return None
 
     candidates = data.get("candidates") or []

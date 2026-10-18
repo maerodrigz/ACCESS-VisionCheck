@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
+import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
 import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
@@ -81,6 +84,29 @@ class EvaluationReportScreen extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         title: Text('Evaluation Report', style: dashText(const TextStyle(fontWeight: FontWeight.w800, fontSize: 18))),
+        actions: [
+          if (evaluation.canRemovePracticeStorage)
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert_rounded, color: kDashTextPrimary),
+              onSelected: (value) {
+                if (value == 'remove') {
+                  unawaited(
+                    confirmAndRemovePracticeStorage(
+                      context,
+                      evaluation: evaluation,
+                      popAfterSuccess: true,
+                    ),
+                  );
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'remove',
+                  child: Text('Remove file (keep score)'),
+                ),
+              ],
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: mobileScrollPadding(context, top: 8, bottom: 28),
@@ -221,7 +247,9 @@ class _ReportMediaHeader extends StatelessWidget {
       );
 
   bool get _hasNetworkMedia =>
-      evaluation.imageUrl != null && evaluation.imageUrl!.trim().isNotEmpty;
+      !evaluation.storageRemoved &&
+      evaluation.imageUrl != null &&
+      evaluation.imageUrl!.trim().isNotEmpty;
 
   void _openMedia(BuildContext context) {
     final notice = integrityReviewReason?.trim();
@@ -310,7 +338,13 @@ class _ReportMediaHeader extends StatelessWidget {
                     ],
                   ],
                 ),
-                if (canOpenMedia) ...[
+                if (evaluation.storageRemoved) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'The original file was removed to save storage. Scores and feedback below are unchanged.',
+                    style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.4),
+                  ),
+                ] else if (canOpenMedia) ...[
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
@@ -340,6 +374,15 @@ class _ReportMediaHeader extends StatelessWidget {
   }
 
   Widget _mediaPreview(BuildContext context) {
+    if (evaluation.storageRemoved) {
+      return EvaluationMediaThumbnail(
+        imageUrl: null,
+        mediaType: evaluation.mediaType,
+        height: 200,
+        storageRemoved: true,
+        fallbackIconColor: kEvalSecondary,
+      );
+    }
     if (_isVideo && _hasNetworkMedia) {
       return EvalNetworkVideoPreviewTile(
         videoUrl: evaluation.imageUrl!,

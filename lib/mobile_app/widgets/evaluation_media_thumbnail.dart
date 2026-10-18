@@ -18,9 +18,11 @@ class EvaluationMediaThumbnail extends StatefulWidget {
     this.borderRadius,
     this.fallbackIconColor,
     this.fallbackIconSize = 36,
+    this.storageRemoved = false,
   });
 
   final String? imageUrl;
+  final bool storageRemoved;
   final String? mediaType;
   final Uint8List? memoryBytes;
   final double height;
@@ -110,6 +112,15 @@ class _EvaluationMediaThumbnailState extends State<EvaluationMediaThumbnail> {
     final accent = widget.fallbackIconColor ?? kAccent;
     final radius = widget.borderRadius;
 
+    if (widget.storageRemoved) {
+      var removed = _storageRemovedPlaceholder(accent);
+      removed = SizedBox(width: widget.width, height: widget.height, child: removed);
+      if (radius != null) {
+        removed = ClipRRect(borderRadius: radius, child: removed);
+      }
+      return removed;
+    }
+
     Widget child;
     if (_isVideo) {
       if (_videoFrame != null) {
@@ -181,6 +192,29 @@ class _EvaluationMediaThumbnailState extends State<EvaluationMediaThumbnail> {
           _isVideo ? Icons.videocam_rounded : Icons.photo_rounded,
           color: accent,
           size: widget.fallbackIconSize,
+        ),
+      ),
+    );
+  }
+
+  Widget _storageRemovedPlaceholder(Color accent) {
+    return ColoredBox(
+      color: kSurfaceAlt,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.cloud_off_outlined, color: kTextSecondary, size: widget.fallbackIconSize * 0.85),
+              const SizedBox(height: 4),
+              Text(
+                'File removed',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: kTextSecondary, fontSize: 10, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
         ),
       ),
     );

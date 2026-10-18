@@ -13,7 +13,7 @@ enum DeferredPollOutcome {
 class DeferredMediaEvaluationPoll {
   DeferredMediaEvaluationPoll({
     this.fetchMediaById,
-    this.pollInterval = const Duration(seconds: 2),
+    this.pollInterval = const Duration(milliseconds: 1200),
     this.photoMaxDuration = const Duration(minutes: 3),
     this.videoMaxDuration = const Duration(minutes: 6),
     this.transientErrorRetries = 2,

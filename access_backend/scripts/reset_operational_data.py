@@ -44,7 +44,7 @@ def main() -> None:
     parser.add_argument(
         "--keep-demo-users",
         action="store_true",
-        help="Do not delete demo seed accounts (member@access.edu, etc.)",
+        help="Keep all accounts; only clear requests/media (no demo account removal)",
     )
     parser.add_argument(
         "--skip-upload-dir",

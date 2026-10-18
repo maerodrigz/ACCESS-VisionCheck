@@ -12,14 +12,25 @@ try:
 except ImportError:  # pragma: no cover
     cv2 = None  # type: ignore
 
-DEFAULT_SAMPLE_COUNT = 6
+DEFAULT_SAMPLE_COUNT = 4
+
+
+def _default_sample_count() -> int:
+    try:
+        from app.config import settings
+
+        return max(2, min(8, int(settings.evaluation_video_sample_frames)))
+    except Exception:
+        return DEFAULT_SAMPLE_COUNT
 
 
 def ffmpeg_available() -> bool:
     return shutil.which("ffmpeg") is not None
 
 
-def extract_frames(content: bytes, ext: str, *, max_frames: int = DEFAULT_SAMPLE_COUNT) -> list[bytes]:
+def extract_frames(content: bytes, ext: str, *, max_frames: int | None = None) -> list[bytes]:
+    if max_frames is None:
+        max_frames = _default_sample_count()
     ext = ext if ext.startswith(".") else f".{ext}"
     if not content:
         return []

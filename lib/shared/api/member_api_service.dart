@@ -9,6 +9,13 @@ class MemberApiService {
 
   String _mediaUrl(String path) => mediaUrl(path);
 
+  String? _mediaFileUrlFromJson(Map<String, dynamic> m) {
+    if (m['storage_removed'] == true) return '';
+    final raw = m['file_url'] as String?;
+    if (raw == null || raw.isEmpty) return raw;
+    return _mediaUrl(raw);
+  }
+
   Future<Map<String, dynamic>> getProfile() async {
     final data = await apiClient.get('/member/profile');
     return Map<String, dynamic>.from(data as Map);
@@ -188,7 +195,15 @@ class MemberApiService {
     final data = await apiClient.get('/media/$mediaId');
     if (data is! Map) return null;
     final m = Map<String, dynamic>.from(data);
-    m['file_url'] = _mediaUrl(m['file_url'] as String? ?? '');
+    m['file_url'] = _mediaFileUrlFromJson(m);
+    return m;
+  }
+
+  /// Frees cloud/disk bytes for a practice eval. Scores and XP are unchanged.
+  Future<Map<String, dynamic>> removePracticeMediaStorage(int mediaId) async {
+    final data = await apiClient.delete('/media/$mediaId/storage');
+    final m = Map<String, dynamic>.from(data as Map);
+    m['file_url'] = _mediaFileUrlFromJson(m);
     return m;
   }
 
@@ -219,7 +234,7 @@ class MemberApiService {
     final data = await apiClient.get(path);
     return (data as List).map((e) {
       final m = Map<String, dynamic>.from(e as Map);
-      m['file_url'] = _mediaUrl(m['file_url'] as String? ?? '');
+      m['file_url'] = _mediaFileUrlFromJson(m);
       return m;
     }).toList();
   }
@@ -318,7 +333,7 @@ class MemberApiService {
     final data = await apiClient.get('/evaluations?mine=true');
     return (data as List).map((e) {
       final m = Map<String, dynamic>.from(e as Map);
-      m['file_url'] = mediaUrl(m['file_url'] as String?);
+      m['file_url'] = _mediaFileUrlFromJson(m);
       return m;
     }).toList();
   }

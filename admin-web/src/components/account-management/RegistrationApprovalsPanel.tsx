@@ -25,7 +25,7 @@ import { parsePendingRegistration, type PendingRegistration } from '../../lib/te
 const TABS: { id: RegistrationApprovalTab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'members', label: 'Members' },
-  { id: 'faculty_instructors', label: 'Faculty & instructors' },
+  { id: 'faculty_instructors', label: 'Faculty / staff' },
   { id: 'organizations', label: 'Organizations' },
 ]
 
@@ -134,7 +134,7 @@ export function RegistrationApprovalsPanel({ initialTab = 'all', onBack, onTabCh
           <div>
             <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Registration approvals</h2>
             <p className="text-xs text-[var(--color-text-secondary)]">
-              Review pending sign-ups for members, faculty, instructors, and organizations. Admin accounts are
+              Review pending sign-ups for members, faculty / staff, and organizations. Admin accounts are
               created manually and do not appear here.
             </p>
           </div>
@@ -189,7 +189,7 @@ export function RegistrationApprovalsPanel({ initialTab = 'all', onBack, onTabCh
             <section className="space-y-2">
               {tab === 'all' && (
                 <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                  Faculty & instructors ({visibleFaculty.length})
+                  Faculty / staff ({visibleFaculty.length})
                 </h3>
               )}
               <PendingOrganizationRegistrationsTable

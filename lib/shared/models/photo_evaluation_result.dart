@@ -448,6 +448,19 @@ class PhotoEvaluationResult {
     };
   }
 
+  /// Payload for POST /ai/media-evaluation-feedback (scores only, no cached local Gemini).
+  Map<String, dynamic> toGeminiRequestJson() {
+    final map = toJson();
+    map.remove('gemini_feedback');
+    map.remove('gemini_feedback_is_local');
+    map['member_scores_released'] = memberScoresReleasedEffective;
+    map['show_quality_feedback'] = showQualityFeedbackEffective;
+    map['scoring_engine'] = scoringModel.contains('efficientnet')
+        ? 'efficientnet-b0+ffmpeg'
+        : (scoringModel.isNotEmpty ? scoringModel : 'efficientnet-b0+ffmpeg');
+    return map;
+  }
+
   static PhotoEvaluationResult? fromJson(Map<String, dynamic>? j) {
     if (j == null) return null;
     final raw = j['criteria'];

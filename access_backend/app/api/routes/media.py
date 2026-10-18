@@ -23,6 +23,7 @@ from app.models.media_constants import (
 from app.models.user import User
 from app.schemas.member_api import MediaEvaluateOut, MediaOut
 from app.services.deferred_media_pipeline import media_processing_status, schedule_deferred_media_evaluation
+from app.services.upload_bytes_cache import stash_evaluation_upload
 from app.services.media_evaluator import evaluate_bytes
 from app.services.media_upload_config import (
     assert_evaluation_video_duration,
@@ -73,7 +74,8 @@ def _validate_upload_file(db: Session, ext: str, content: bytes, media_category:
 def _media_out(m, base_url: str | None = None) -> MediaOut:
     ev = m.evaluations[-1] if m.evaluations else None
     ai = m.ai_detection_results[-1] if m.ai_detection_results else None
-    url = m.file_url
+    storage_removed = getattr(m, "storage_removed_at", None) is not None
+    url = "" if storage_removed else m.file_url
     if base_url and url.startswith("/"):
         url = f"{base_url}{url}"
     return MediaOut(
@@ -89,7 +91,27 @@ def _media_out(m, base_url: str | None = None) -> MediaOut:
         ai_probability=ai.ai_probability if ai else None,
         feedback=ev.feedback if ev else None,
         processing_status=media_processing_status(m),
+        storage_removed=storage_removed,
     )
+
+
+@router.delete("/{media_id}/storage")
+def remove_practice_media_storage(
+    media_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    """Member: free Supabase/disk space. Evaluation scores and ranking XP are kept."""
+    m = media_crud.get(db, media_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Media not found")
+    if m.uploaded_by != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only remove your own uploads.")
+    try:
+        m = media_crud.remove_practice_storage_only(db, m)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _media_out(m)
 
 
 @router.get("", response_model=list[MediaOut])
@@ -216,25 +238,30 @@ async def upload_media(
                 detail=f"Daily evaluation limit reached ({daily_limit} uploads per day).",
             )
 
+    from app.services.supabase_storage import is_supabase_storage_configured, upload_media_bytes as supabase_upload
+    from app.services.firebase_storage import is_firebase_storage_configured, upload_media_bytes
+
     cloud = (cloud_file_url or "").strip()
     stored_url: str | None = None
 
-    if cloud.startswith("https://"):
+    if is_supabase_storage_configured():
+        sb_url = supabase_upload(
+            content,
+            file_name=display_name,
+            folder="media",
+            user_id=current_user.id,
+        )
+        if sb_url:
+            stored_url = sb_url
+        elif not stored_url:
+            raise HTTPException(
+                status_code=503,
+                detail="Supabase upload failed. Check SUPABASE_URL, bucket, and service role key.",
+            )
+    elif cloud.startswith("https://"):
         stored_url = cloud
     else:
-        from app.services.supabase_storage import is_supabase_storage_configured, upload_media_bytes as supabase_upload
-        from app.services.firebase_storage import is_firebase_storage_configured, upload_media_bytes
-
-        if is_supabase_storage_configured():
-            sb_url = supabase_upload(
-                content,
-                file_name=display_name,
-                folder="media",
-                user_id=current_user.id,
-            )
-            if sb_url:
-                stored_url = sb_url
-        if not stored_url and is_firebase_storage_configured():
+        if is_firebase_storage_configured():
             fb_url = upload_media_bytes(
                 content,
                 file_name=display_name,
@@ -281,6 +308,7 @@ async def upload_media(
     if media_category == MEDIA_CATEGORY_EVALUATION and settings_crud.is_ai_media_evaluation_enabled(db):
         metadata_copy = evaluation_metadata
         media_id = row.id
+        stash_evaluation_upload(media_id, content)
 
         def _enqueue_pipeline() -> None:
             schedule_deferred_media_evaluation(media_id, metadata_copy)

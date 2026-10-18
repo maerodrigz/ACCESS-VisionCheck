@@ -48,6 +48,14 @@ def media_evaluation_feedback(
         body.evaluation,
         member_first_name=first_name,
     )
+    if feedback is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Gemini feedback is temporarily unavailable. "
+                "Check GEMINI_API_KEY and GEMINI_MODEL in the backend .env, then restart the server."
+            ),
+        )
     return MediaEvaluationFeedbackOut(feedback=feedback)
 
 

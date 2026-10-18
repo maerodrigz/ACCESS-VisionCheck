@@ -1,14 +1,10 @@
 /// Requestor sub-type for accounts whose system role is Organization (Requestor).
 enum RequestorType {
-  faculty(
-    label: 'Faculty',
-    description: 'For faculty members requesting documentation services.',
-    iconName: 'faculty',
-  ),
-  instructor(
-    label: 'Instructor',
-    description: 'For instructors requesting documentation services.',
-    iconName: 'instructor',
+  facultyStaff(
+    label: 'Faculty / staff requestor',
+    description:
+        'For faculty and staff requesting documentation services.',
+    iconName: 'faculty_staff',
   ),
   organization(
     label: 'Organization',

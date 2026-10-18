@@ -805,7 +805,11 @@ class MemberDataController extends ChangeNotifier {
     );
     appState.gallery
       ..clear()
-      ..addAll(media.map(_galleryFromApi));
+      ..addAll(
+        media
+            .where((m) => m['storage_removed'] != true)
+            .map(_galleryFromApi),
+      );
   }
 
   Future<void> _syncEvaluationsSection() async {
@@ -1238,7 +1242,11 @@ class MemberDataController extends ChangeNotifier {
       final media = (results[3] as List).cast<Map<String, dynamic>>();
       appState.gallery
         ..clear()
-        ..addAll(media.map(_galleryFromApi));
+        ..addAll(
+          media
+              .where((m) => m['storage_removed'] != true)
+              .map(_galleryFromApi),
+        );
 
       notifyListeners();
       appState.notifyListeners();
@@ -1267,6 +1275,19 @@ class MemberDataController extends ChangeNotifier {
     return _evaluationFromApi(row);
   }
 
+  /// Removes practice upload bytes only. Returns an error message on failure.
+  Future<String?> removePracticeEvaluationStorage(int mediaId) async {
+    try {
+      await memberApiService.removePracticeMediaStorage(mediaId);
+      await refreshEvaluationsTab();
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString().replaceFirst('ApiException: ', '').trim();
+    }
+  }
+
   Evaluation _evaluationFromApi(Map<String, dynamic> e) {
     PhotoEvaluationResult? parsed;
     final criteriaRaw = e['criteria_json'] as String?;
@@ -1279,6 +1300,8 @@ class MemberDataController extends ChangeNotifier {
     }
     final evaluatedRaw = e['evaluated_at'] as String?;
     final evaluatedAt = evaluatedRaw != null ? DateTime.tryParse(evaluatedRaw) : null;
+    final storageRemoved = e['storage_removed'] == true;
+    final fileUrlRaw = e['file_url'] as String?;
     return Evaluation(
       id: 'MED-${e['media_id']}',
       title: e['file_name'] as String? ?? 'Upload',
@@ -1288,7 +1311,8 @@ class MemberDataController extends ChangeNotifier {
       feedback: parsed?.feedback ?? e['feedback'] as String? ?? '',
       date: _formatIso(evaluatedRaw),
       evaluatedAt: evaluatedAt,
-      imageUrl: e['file_url'] as String?,
+      imageUrl: storageRemoved ? null : fileUrlRaw,
+      storageRemoved: storageRemoved,
       criteria: parsed?.criteria ?? const [],
       qualityLevel: parsed?.qualityLevel ?? e['quality_level'] as String?,
       mediaType: parsed?.mediaType ??

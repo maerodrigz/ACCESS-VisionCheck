@@ -10,35 +10,57 @@ from app.services.email_delivery import is_email_configured, send_email
 
 
 _NO_REPLY_PLAIN = (
-    "\n\nThis is an automated message. You do not need to reply. "
+    "\n\nDo not reply to this email. This mailbox is not monitored. "
+    "Registration updates (pending review, approved, or declined) are sent automatically only. "
     "For help, contact your ACCESS administrator through official campus channels."
 )
 _NO_REPLY_HTML = (
     '<p style="margin-top:16px;font-size:12px;color:#64748b;line-height:1.45;">'
-    "This is an automated message. You do not need to reply. "
+    "<strong>Do not reply to this email.</strong> This mailbox is not monitored. "
+    "Registration updates (pending review, approved, or declined) are sent automatically only. "
     "For help, contact your ACCESS administrator through official campus channels."
     "</p>"
 )
 
 
-def _role_label(role_name: str | None) -> str:
+def _requestor_subtype_label(student_id: str | None) -> str:
+    value = (student_id or "").strip().lower()
+    if value == "organization":
+        return "student organization requestor"
+    if value in ("faculty", "instructor"):
+        return "faculty / staff requestor"
+    if "faculty" in value and "staff" in value:
+        return "faculty / staff requestor"
+    if value:
+        return value
+    return "requestor"
+
+
+def _registration_type_label(role_name: str | None, student_id: str | None) -> str:
     if role_name == RoleName.ORGANIZATION:
-        return "requestor (organization)"
+        return _requestor_subtype_label(student_id)
     return "member"
 
 
-def send_registration_received(*, to_email: str, fullname: str, role_name: str | None) -> bool:
+def send_registration_received(
+    *,
+    to_email: str,
+    fullname: str,
+    role_name: str | None,
+    student_id: str | None = None,
+) -> bool:
+    type_label = _registration_type_label(role_name, student_id)
     name = esc(fullname or "there")
-    role = esc(_role_label(role_name))
+    role = esc(type_label)
     product = esc(product_name())
     subject = f"{product_name()}: registration received"
     plain = (
         f"Hello {fullname or 'there'},\n\n"
-        f"We received your {_role_label(role_name)} registration for {product_name()}.\n"
+        f"We received your {type_label} registration for {product_name()}.\n"
         "An administrator will review your application. "
         "You will receive another email when your account is approved or declined.\n\n"
         "You cannot sign in until an administrator approves your account.\n\n"
-        f"— {product_name()}\n"
+        f"{product_name()}\n"
         "USTP Oroquieta Campus"
         f"{_NO_REPLY_PLAIN}"
     )
@@ -112,8 +134,20 @@ def _fire_and_forget(fn, **kwargs) -> None:
     threading.Thread(target=_run, daemon=True).start()
 
 
-def notify_registration_received_async(*, to_email: str, fullname: str, role_name: str | None) -> None:
-    _fire_and_forget(send_registration_received, to_email=to_email, fullname=fullname, role_name=role_name)
+def notify_registration_received_async(
+    *,
+    to_email: str,
+    fullname: str,
+    role_name: str | None,
+    student_id: str | None = None,
+) -> None:
+    _fire_and_forget(
+        send_registration_received,
+        to_email=to_email,
+        fullname=fullname,
+        role_name=role_name,
+        student_id=student_id,
+    )
 
 
 def notify_registration_approved_async(*, to_email: str, fullname: str) -> None:

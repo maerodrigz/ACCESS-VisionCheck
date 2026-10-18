@@ -62,11 +62,8 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
 
   String get _introText {
     switch (_type) {
-      case RequestorType.faculty:
-        return 'Register as a faculty requestor. An administrator will review your '
-            'application before you can sign in and submit documentation requests.';
-      case RequestorType.instructor:
-        return 'Register as an instructor requestor. An administrator will review your '
+      case RequestorType.facultyStaff:
+        return 'Register as a faculty or staff requestor. An administrator will review your '
             'application before you can sign in and submit documentation requests.';
       case RequestorType.organization:
         return 'Register your student organization to request documentation services. '
@@ -76,8 +73,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
 
   String get _nameLabel {
     switch (_type) {
-      case RequestorType.faculty:
-      case RequestorType.instructor:
+      case RequestorType.facultyStaff:
         return 'Full Name';
       case RequestorType.organization:
         return 'Organization Name';
@@ -86,10 +82,8 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
 
   String get _nameHint {
     switch (_type) {
-      case RequestorType.faculty:
+      case RequestorType.facultyStaff:
         return 'Prof. Maria Santos';
-      case RequestorType.instructor:
-        return 'Instructor Juan Dela Cruz';
       case RequestorType.organization:
         return 'USTP Engineering Society';
     }
@@ -97,8 +91,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
 
   IconData get _nameIcon {
     switch (_type) {
-      case RequestorType.faculty:
-      case RequestorType.instructor:
+      case RequestorType.facultyStaff:
         return Icons.person_outline;
       case RequestorType.organization:
         return Icons.business_outlined;

@@ -1,8 +1,7 @@
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/constants/api_config.dart';
-import 'package:access_mobile/shared/services/firebase_storage_service.dart';
 
-/// Uploads media to Firebase (when configured) then registers with the FastAPI backend.
+/// Uploads media through the FastAPI backend (Supabase Storage when enabled on server).
 abstract final class MediaUploadService {
   static Future<Map<String, dynamic>> uploadMedia({
     required ApiClient client,
@@ -13,12 +12,6 @@ abstract final class MediaUploadService {
     String? evaluationMetadata,
     int? userId,
   }) async {
-    final cloudUrl = await FirebaseStorageService.uploadMedia(
-      bytes: bytes,
-      fileName: fileName,
-      userId: userId,
-    );
-
     final data = await client.postMultipart(
       '/media/upload',
       fileBytes: bytes,
@@ -27,15 +20,11 @@ abstract final class MediaUploadService {
         if (requestId != null) 'request_id': '$requestId',
         if (displayName != null) 'file_name': displayName,
         if (evaluationMetadata != null) 'evaluation_metadata': evaluationMetadata,
-        if (cloudUrl != null) 'cloud_file_url': cloudUrl,
       },
       timeout: ApiClient.mediaUploadTimeout(byteLength: bytes.length, fileName: fileName),
     );
     final m = Map<String, dynamic>.from(data as Map);
     m['file_url'] = ApiConfig.mediaUrl(m['file_url'] as String? ?? '');
-    if (cloudUrl != null) {
-      m['cloud_file_url'] = cloudUrl;
-    }
     return m;
   }
 
@@ -45,19 +34,11 @@ abstract final class MediaUploadService {
     required String fileName,
     required int userId,
   }) async {
-    final cloudUrl = await FirebaseStorageService.uploadProfileAvatar(
-      bytes: bytes,
-      fileName: fileName,
-      userId: userId,
-    );
-
     final data = await client.postMultipart(
       '/profile/avatar',
       fileBytes: bytes,
       fileName: fileName,
-      fields: {
-        if (cloudUrl != null) 'cloud_file_url': cloudUrl,
-      },
+      fields: {},
     );
     return Map<String, dynamic>.from(data as Map);
   }

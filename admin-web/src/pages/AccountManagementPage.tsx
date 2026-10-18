@@ -304,7 +304,7 @@ export function AccountManagementPage() {
 
   function handleDeleteMember(user: AdminAccountUser) {
     setOpenMenuId(null)
-    if (user.role !== 'Member') return
+    if (user.role !== 'Member' && user.role !== 'Organization') return
     setMemberDelete(user)
   }
 
@@ -597,6 +597,7 @@ export function AccountManagementPage() {
             memberName={memberDelete.name}
             memberEmail={memberDelete.email}
             userId={memberDelete.user_id}
+            accountRole={memberDelete.role}
             loading={memberDeleteLoading}
             onConfirm={(deleteUploads, email) => void confirmMemberDelete(deleteUploads, email)}
             onCancel={() => {

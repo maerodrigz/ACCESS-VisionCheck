@@ -25,10 +25,32 @@ def is_email_configured() -> bool:
     return True
 
 
-def _from_header() -> str:
+def _no_reply_address() -> str:
+    explicit = (settings.email_no_reply or "").strip()
+    if explicit:
+        return explicit
+    from_addr = settings.email_from.strip()
+    if "@" in from_addr:
+        domain = from_addr.split("@", 1)[1].lower()
+        return f"noreply@{domain}"
+    return ""
+
+
+def _from_header(*, automated: bool = False) -> str:
     from_addr = settings.email_from.strip()
     from_name = product_name()
+    if automated:
+        from_name = f"{from_name} (do not reply)" if from_name else "Do not reply"
     return f"{from_name} <{from_addr}>" if from_name else from_addr
+
+
+def _apply_automated_headers(msg: EmailMessage | MIMEMultipart) -> None:
+    msg["Auto-Submitted"] = "auto-generated"
+    msg["X-Auto-Response-Suppress"] = "All"
+    msg["Precedence"] = "auto_reply"
+    no_reply = _no_reply_address()
+    if no_reply:
+        msg["Reply-To"] = no_reply
 
 
 def _build_message(
@@ -39,7 +61,7 @@ def _build_message(
     *,
     automated: bool = False,
 ) -> EmailMessage | MIMEMultipart:
-    from_hdr = _from_header()
+    from_hdr = _from_header(automated=automated)
     reply_to = "" if automated else (settings.email_reply_to or "").strip()
 
     logo = logo_path()
@@ -50,10 +72,10 @@ def _build_message(
         msg["From"] = from_hdr
         msg["To"] = to
         msg["Subject"] = subject.strip()[:200]
-        if reply_to:
-            msg["Reply-To"] = reply_to
         if automated:
-            msg["Auto-Submitted"] = "auto-generated"
+            _apply_automated_headers(msg)
+        elif reply_to:
+            msg["Reply-To"] = reply_to
         msg.set_content(plain_body.strip())
         if html_body:
             msg.add_alternative(html_body.strip(), subtype="html")
@@ -63,10 +85,10 @@ def _build_message(
     root["From"] = from_hdr
     root["To"] = to
     root["Subject"] = subject.strip()[:200]
-    if reply_to:
-        root["Reply-To"] = reply_to
     if automated:
-        root["Auto-Submitted"] = "auto-generated"
+        _apply_automated_headers(root)
+    elif reply_to:
+        root["Reply-To"] = reply_to
 
     related = MIMEMultipart("related")
     alt = MIMEMultipart("alternative")

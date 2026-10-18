@@ -64,7 +64,37 @@ class AuthService {
     });
   }
 
-  void logout() => _api.setToken(null);
+  Future<ForgotPasswordResult> requestPasswordReset(String email) async {
+    final data = await _api.post('/auth/forgot-password', {
+      'email': email.trim().toLowerCase(),
+    }) as Map<String, dynamic>;
+    return ForgotPasswordResult(
+      message: (data['message'] as String?) ?? 'Request submitted.',
+      temporaryPassword: data['temporary_password'] as String?,
+      reset: data['reset'] == true,
+    );
+  }
+
+  Future<void> logout() async {
+    try {
+      await _api.post('/auth/logout', {});
+    } catch (_) {
+      // Token may already be invalid; still clear local session.
+    }
+    _api.setToken(null);
+  }
+}
+
+class ForgotPasswordResult {
+  const ForgotPasswordResult({
+    required this.message,
+    this.temporaryPassword,
+    this.reset = false,
+  });
+
+  final String message;
+  final String? temporaryPassword;
+  final bool reset;
 }
 
 class RegistrationOtpSendResult {

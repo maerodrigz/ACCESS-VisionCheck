@@ -59,10 +59,11 @@ def permanently_delete_member(
     user = user_crud.get_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Member not found")
-    if not user.role or user.role.role_name != RoleName.MEMBER:
+    role_name = user.role.role_name if user.role else None
+    if role_name not in (RoleName.MEMBER, RoleName.ORGANIZATION):
         raise HTTPException(
             status_code=400,
-            detail="Only Member accounts can be permanently deleted.",
+            detail="Only Member or Organization (requestor) accounts can be permanently deleted.",
         )
     if user.id == admin.id:
         raise HTTPException(status_code=400, detail="You cannot delete your own account")
@@ -84,21 +85,23 @@ def permanently_delete_member(
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    deleted_kind = "requestor" if role_name == RoleName.ORGANIZATION else "member"
     db.add(
         AuditLog(
             user_id=admin.id,
             action="member_deleted",
             description=(
-                f"Permanently deleted member {user_id} ({typed})"
+                f"Permanently deleted {deleted_kind} {user_id} ({typed})"
                 + (f"; {media_deleted} media file(s) removed" if body.delete_uploads else "")
             ),
         )
     )
     db.commit()
 
-    msg = "Member account permanently deleted."
+    label = "Requestor account" if role_name == RoleName.ORGANIZATION else "Member account"
+    msg = f"{label} permanently deleted."
     if body.delete_uploads and media_deleted:
-        msg = f"Member account deleted. {media_deleted} media file(s) removed."
+        msg = f"{label} deleted. {media_deleted} media file(s) removed."
         if media_failed:
             msg += f" {media_failed} file(s) could not be removed."
     return MessageResponse(message=msg)

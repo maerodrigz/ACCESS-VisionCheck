@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
+import 'package:access_mobile/shared/api/auth_service.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/screens/registration_choice_screen.dart';
@@ -146,25 +147,122 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     });
   }
 
-  void _forgotPassword() {
-    showDialog<void>(
+  Future<void> _forgotPassword() async {
+    final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
+    var loading = false;
+    String? dialogError;
+
+    await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Reset password', style: TextStyle(fontWeight: FontWeight.w800)),
-        content: const Text(
-          'Contact your ACCESS VisionCheck administrator to reset your password.',
-          style: TextStyle(height: 1.45),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: FilledButton.styleFrom(backgroundColor: LoginPageTokens.secondary),
-            child: const Text('OK'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Reset password', style: TextStyle(fontWeight: FontWeight.w800)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Enter the email on your account. Members and requestors receive a temporary '
+                  'password by email when the server has SMTP configured.',
+                  style: TextStyle(height: 1.45, fontSize: 14),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Email address',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (dialogError != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    dialogError!,
+                    style: const TextStyle(color: kRed, fontSize: 13, height: 1.35),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: loading ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: loading
+                    ? null
+                    : () async {
+                        final email = emailCtrl.text.trim();
+                        if (email.isEmpty || !email.contains('@')) {
+                          setDialogState(() => dialogError = 'Enter a valid email address.');
+                          return;
+                        }
+                        setDialogState(() {
+                          loading = true;
+                          dialogError = null;
+                        });
+                        try {
+                          final result = await authService.requestPasswordReset(email);
+                          if (!context.mounted) return;
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          final temp = result.temporaryPassword;
+                          await showDialog<void>(
+                            context: context,
+                            builder: (doneCtx) => AlertDialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              title: const Text(
+                                'Password reset',
+                                style: TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                              content: Text(
+                                temp != null && temp.isNotEmpty
+                                    ? '${result.message}\n\nTemporary password: $temp'
+                                    : result.message,
+                                style: const TextStyle(height: 1.45),
+                              ),
+                              actions: [
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(doneCtx),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: LoginPageTokens.secondary,
+                                  ),
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                        } on ApiException catch (e) {
+                          setDialogState(() {
+                            loading = false;
+                            dialogError = e.message;
+                          });
+                        } catch (_) {
+                          setDialogState(() {
+                            loading = false;
+                            dialogError = 'Could not reach the server. Check your connection.';
+                          });
+                        }
+                      },
+                style: FilledButton.styleFrom(backgroundColor: LoginPageTokens.secondary),
+                child: loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Send reset'),
+              ),
+            ],
+          );
+        },
       ),
     );
+    emailCtrl.dispose();
   }
 
   @override

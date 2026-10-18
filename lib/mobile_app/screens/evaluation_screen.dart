@@ -16,6 +16,7 @@ import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart
 import 'package:access_mobile/mobile_app/widgets/evaluation_how_it_works_guide.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_ai_chip_illustration.dart';
 import 'package:access_mobile/mobile_app/utils/practice_evaluation_display.dart';
+import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
 
 class EvaluationScreen extends StatefulWidget {
   const EvaluationScreen({super.key, this.onNotificationsTap, this.onProfileTap});
@@ -1071,6 +1072,12 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
                         compact: true,
                       ),
                     ),
+                    if (ev.canRemovePracticeStorage)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: _PracticeEvalOverflowMenu(evaluation: ev),
+                      ),
                   ],
                 ),
               ),
@@ -1138,6 +1145,7 @@ class _EvalMediaPreview extends StatelessWidget {
       height: height,
       fallbackIconColor: accent,
       fallbackIconSize: 36,
+      storageRemoved: ev.storageRemoved,
     );
   }
 }
@@ -1205,7 +1213,10 @@ class _RecentEvalCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 6),
+            if (ev.canRemovePracticeStorage) ...[
+              _PracticeEvalOverflowMenu(evaluation: ev, compact: true),
+              const SizedBox(width: 2),
+            ],
             _ScoreBadge(
               percent: pct,
               pending: ev.isPending,
@@ -1215,6 +1226,41 @@ class _RecentEvalCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PracticeEvalOverflowMenu extends StatelessWidget {
+  const _PracticeEvalOverflowMenu({required this.evaluation, this.compact = false});
+
+  final Evaluation evaluation;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = PopupMenuButton<String>(
+      tooltip: 'More',
+      padding: EdgeInsets.zero,
+      iconSize: compact ? 20 : 18,
+      icon: Icon(Icons.more_vert_rounded, color: compact ? kDashTextSecondary : kTextPrimary),
+      onSelected: (value) {
+        if (value == 'remove') {
+          unawaited(confirmAndRemovePracticeStorage(context, evaluation: evaluation));
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: 'remove',
+          child: Text('Remove file (keep score)'),
+        ),
+      ],
+    );
+    if (compact) return button;
+    return Material(
+      color: Colors.white.withValues(alpha: 0.92),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: button,
     );
   }
 }
@@ -1337,6 +1383,7 @@ class _EvalThumbnail extends StatelessWidget {
           height: size,
           fallbackIconColor: accent,
           fallbackIconSize: 22,
+          storageRemoved: ev.storageRemoved,
         ),
       ),
     );

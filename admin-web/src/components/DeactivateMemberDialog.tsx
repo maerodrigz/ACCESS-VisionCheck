@@ -101,13 +101,17 @@ export function DeactivateMemberDialog({
               onChange={(e) => setDeleteUploads(e.target.checked)}
             />
             <span className="text-sm text-[var(--color-text-primary)]">
-              Also permanently delete all photos and videos uploaded by this member
+              Also permanently delete all photos and videos uploaded by this account
               <span className="mt-1 block text-xs font-normal text-[var(--color-text-secondary)]">
                 Removes files from server storage and the media library. This cannot be undone.
               </span>
             </span>
           </label>
         </div>
+        <p className="px-5 pb-1 text-xs text-[var(--color-text-secondary)]">
+          To permanently delete an account (member or requestor), use Account Management → Actions →
+          Delete account permanently.
+        </p>
         <div className="flex gap-2 px-5 py-4">
           <button
             type="button"

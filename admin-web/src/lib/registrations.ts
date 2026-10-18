@@ -1,6 +1,6 @@
 import { parseDate } from './teamMembers'
 
-export type RequestorRegistrationKind = 'faculty' | 'instructor' | 'organization' | 'unknown'
+export type RequestorRegistrationKind = 'faculty_staff' | 'organization' | 'unknown'
 
 export type RegistrationApprovalTab = 'all' | 'members' | 'faculty_instructors' | 'organizations'
 
@@ -17,18 +17,16 @@ export interface PendingOrganizationRegistration {
 
 function normalizeRequestorType(raw: unknown): RequestorRegistrationKind {
   const value = String(raw ?? '').trim().toLowerCase()
-  if (value === 'faculty') return 'faculty'
-  if (value === 'instructor') return 'instructor'
   if (value === 'organization') return 'organization'
+  if (value === 'faculty' || value === 'instructor') return 'faculty_staff'
+  if (value.includes('faculty') && value.includes('staff')) return 'faculty_staff'
   return 'unknown'
 }
 
 export function requestorTypeLabel(kind: RequestorRegistrationKind): string {
   switch (kind) {
-    case 'faculty':
-      return 'Faculty'
-    case 'instructor':
-      return 'Instructor'
+    case 'faculty_staff':
+      return 'Faculty / staff requestor'
     case 'organization':
       return 'Organization'
     default:
@@ -36,8 +34,9 @@ export function requestorTypeLabel(kind: RequestorRegistrationKind): string {
   }
 }
 
+/** Faculty, staff, and legacy faculty/instructor sign-ups (same requestor path). */
 export function isFacultyOrInstructor(reg: PendingOrganizationRegistration): boolean {
-  return reg.requestorType === 'faculty' || reg.requestorType === 'instructor'
+  return reg.requestorType === 'faculty_staff'
 }
 
 export function isOrganizationRequestor(reg: PendingOrganizationRegistration): boolean {

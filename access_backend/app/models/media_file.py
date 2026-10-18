@@ -44,6 +44,8 @@ class MediaFile(Base):
     facebook_published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_best_shot: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     album_name_override: Mapped[str | None] = mapped_column(String(255))
+    # Member removed blob from storage; evaluation + scores kept for averages and XP.
+    storage_removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     uploader = relationship("User", back_populates="uploaded_media")
     request = relationship("DocumentationRequest", back_populates="media_files")

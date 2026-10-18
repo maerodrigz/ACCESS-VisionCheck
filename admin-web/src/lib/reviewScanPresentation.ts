@@ -3,7 +3,7 @@ import { aiReviewRiskTier } from './aiDetection'
 
 export type VisualRiskBand = 'LOW' | 'SUSPICIOUS' | 'HIGH'
 
-export type CameraMetadataStatus = 'Present' | 'Missing' | 'Unknown'
+export type CameraMetadataStatus = 'Present' | 'Partial' | 'Missing' | 'Unknown'
 
 const MANUAL_REVIEW_STATUSES: ReviewStatus[] = ['pending_review', 'needs_further_review']
 
@@ -67,14 +67,23 @@ function findFieldValue(fields: ExifMetadataField[], keys: string[], labelInclud
   return undefined
 }
 
-/** Camera-identifying EXIF present (make/model), not provenance verification. */
+function isVideoContainerMeta(meta: ExifMetadata): boolean {
+  return meta.is_video === true || meta.format === 'video_container'
+}
+
+/** Camera-identifying metadata (photo EXIF or video container), display only. */
 export function cameraMetadataStatus(meta?: ExifMetadata): CameraMetadataStatus {
   if (!meta) return 'Unknown'
   const fields = meta.fields ?? []
-  const make = findFieldValue(fields, ['Make', 'make'], ['camera make'])
+  const make = findFieldValue(fields, ['Make', 'make'], ['camera make', 'manufacturer'])
   const model = findFieldValue(fields, ['Model', 'model'], ['camera model'])
   if (make || model) return 'Present'
+  const strength = (meta.camera_provenance_strength ?? '').toLowerCase()
+  if (strength === 'partial') return 'Partial'
+  if (strength === 'strong') return 'Present'
+  if (strength === 'absent' || (!meta.has_exif && fields.length === 0)) return 'Missing'
   if (!meta.has_exif || fields.length === 0) return 'Missing'
+  if (isVideoContainerMeta(meta) && fields.length > 0) return 'Partial'
   return 'Unknown'
 }
 
@@ -85,21 +94,38 @@ export interface CameraFileDisplayRow {
 
 const EXIF_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
 
-/** Format EXIF datetime strings for display without timezone conversion. */
+function formatCaptureParts(year: string, month: number, day: number, hour24: number, minute: string): string {
+  const monthIdx = Math.max(0, Math.min(11, month - 1))
+  const ampm = hour24 >= 12 ? 'PM' : 'AM'
+  const hour12 = hour24 % 12 || 12
+  return `${EXIF_MONTHS[monthIdx]} ${day}, ${year} · ${hour12}:${minute} ${ampm}`
+}
+
+/** Format EXIF or ISO container datetime strings for display without timezone conversion. */
 export function formatExifCaptureDate(raw: string): string {
   const text = normalizeScanDisplayText(raw)
   const exif = text.match(/^(\d{4}):(\d{2}):(\d{2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/)
   if (exif) {
-    const year = exif[1]
-    const monthIdx = Math.max(0, Math.min(11, parseInt(exif[2], 10) - 1))
-    const day = parseInt(exif[3], 10)
-    const hour24 = parseInt(exif[4], 10)
-    const minute = exif[5]
-    const ampm = hour24 >= 12 ? 'PM' : 'AM'
-    const hour12 = hour24 % 12 || 12
-    return `${EXIF_MONTHS[monthIdx]} ${day}, ${year} · ${hour12}:${minute} ${ampm}`
+    return formatCaptureParts(exif[1], parseInt(exif[2], 10), parseInt(exif[3], 10), parseInt(exif[4], 10), exif[5])
+  }
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/)
+  if (iso) {
+    return formatCaptureParts(iso[1], parseInt(iso[2], 10), parseInt(iso[3], 10), parseInt(iso[4], 10), iso[5])
   }
   return text
+}
+
+function formatFileFormatLabel(meta: ExifMetadata): string | undefined {
+  const format = meta.format ? normalizeScanDisplayText(meta.format) : ''
+  if (!format || !fieldHasValue(format)) return undefined
+  if (format === 'video_container') return 'Video container (MP4/MOV metadata)'
+  return format
+}
+
+function capitalizeWord(raw: string): string {
+  const t = raw.trim()
+  if (!t) return t
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
 }
 
 function parsePixelDimension(raw?: string): number | null {
@@ -125,16 +151,32 @@ export function cameraFileDisplayRows(meta?: ExifMetadata): CameraFileDisplayRow
 
   const fields = meta.fields ?? []
   const rows: CameraFileDisplayRow[] = []
+  const videoContainer = isVideoContainerMeta(meta)
 
-  const make = findFieldValue(fields, ['Make'], ['camera make'])
-  const model = findFieldValue(fields, ['Model'], ['camera model'])
-  const captureRaw = findFieldValue(fields, ['DateTimeOriginal', 'DateTime', 'DateTimeDigitized'], [
-    'date taken',
-    'file date',
-    'digitized',
-    'capture',
-  ])
+  const strength = (meta.camera_provenance_strength ?? '').trim()
+  if (strength) {
+    rows.push({ label: 'Camera provenance', value: capitalizeWord(strength) })
+  }
+
+  const make = findFieldValue(
+    fields,
+    ['Make', 'make', 'com.android.manufacturer'],
+    ['camera make', 'manufacturer'],
+  )
+  const model = findFieldValue(fields, ['Model', 'model', 'com.android.model'], ['camera model'])
+  const captureRaw = findFieldValue(
+    fields,
+    [
+      'DateTimeOriginal',
+      'DateTime',
+      'DateTimeDigitized',
+      'creation_time',
+      'com.apple.quicktime.creationdate',
+    ],
+    ['date taken', 'file date', 'digitized', 'capture', 'creation'],
+  )
   const software = findFieldValue(fields, ['Software'], ['software'])
+  const handler = findFieldValue(fields, ['handler_name', 'encoder'], ['handler', 'encoder'])
   const widthRaw = findFieldValue(
     fields,
     ['ImageWidth', 'ExifImageWidth', 'PixelXDimension'],
@@ -146,15 +188,21 @@ export function cameraFileDisplayRows(meta?: ExifMetadata): CameraFileDisplayRow
     ['height', 'image height', 'image length'],
   )
 
-  if (make) rows.push({ label: 'Camera Make', value: make })
-  if (model) rows.push({ label: 'Camera Model', value: model })
-  if (captureRaw) rows.push({ label: 'Capture Date', value: formatExifCaptureDate(captureRaw) })
+  if (make) rows.push({ label: videoContainer ? 'Device make' : 'Camera Make', value: make })
+  if (model) rows.push({ label: videoContainer ? 'Device model' : 'Camera Model', value: model })
+  if (captureRaw) {
+    rows.push({
+      label: videoContainer ? 'Container creation time' : 'Capture Date',
+      value: formatExifCaptureDate(captureRaw),
+    })
+  }
   const resolution = formatImageResolution(widthRaw, heightRaw)
   if (resolution) rows.push({ label: 'Image Resolution', value: resolution })
 
-  const format = meta.format ? normalizeScanDisplayText(meta.format) : undefined
-  if (format && fieldHasValue(format)) rows.push({ label: 'File Format', value: format })
+  const formatLabel = formatFileFormatLabel(meta)
+  if (formatLabel) rows.push({ label: 'File Format', value: formatLabel })
   if (software) rows.push({ label: 'Camera Software', value: software })
+  if (handler && videoContainer) rows.push({ label: 'Container encoder', value: handler })
 
   return rows
 }
@@ -195,6 +243,10 @@ export function integrityAssessmentSummary(row: AiDetectionRow): string {
   if (cam === 'Present') {
     parts.push(
       'Camera information is present in the file metadata, but this does not establish image authenticity.',
+    )
+  } else if (cam === 'Partial') {
+    parts.push(
+      'Video or file container metadata is only partially verified (for example, creation time without full device identity).',
     )
   } else if (cam === 'Missing') {
     parts.push('Camera-identifying metadata is missing or incomplete.')

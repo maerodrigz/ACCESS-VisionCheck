@@ -14,6 +14,7 @@ from app.crud import media as media_crud
 from app.database import SessionLocal
 from app.models.media_constants import MEDIA_CATEGORY_EVALUATION
 from app.services.media_file_bytes import read_media_file_bytes
+from app.services.upload_bytes_cache import take_evaluation_upload
 from app.services.media_pipeline import _payload_from_preview_metadata, run_pipeline
 
 if TYPE_CHECKING:
@@ -88,7 +89,9 @@ def run_deferred_media_pipeline_job(
 
             preview = _payload_from_preview_metadata(evaluation_metadata)
             if preview is None:
-                file_bytes = read_media_file_bytes(media.file_url, timeout=120.0)
+                file_bytes = take_evaluation_upload(media_id)
+                if not file_bytes:
+                    file_bytes = read_media_file_bytes(media.file_url, timeout=120.0)
                 if not file_bytes:
                     logger.error(
                         "deferred pipeline: could not read stored bytes for media_id=%s url=%s",

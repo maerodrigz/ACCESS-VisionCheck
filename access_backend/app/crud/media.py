@@ -248,8 +248,33 @@ def _delete_media_file_from_disk(file_url: str | None) -> None:
         local.unlink(missing_ok=True)
 
 
+# Placeholder when the member frees cloud storage but keeps the evaluation row.
+REMOVED_STORAGE_FILE_URL = "/uploads/__storage_removed__"
+
+
+def remove_practice_storage_only(db: Session, media: MediaFile) -> MediaFile:
+    """Delete Supabase/disk bytes only. Keeps media + evaluation rows (scores, XP, averages)."""
+    if media.media_category != MEDIA_CATEGORY_EVALUATION:
+        raise ValueError("Only practice evaluation uploads can use remove storage.")
+    if media.storage_removed_at is not None:
+        raise ValueError("File storage was already removed for this submission.")
+    if not media.evaluations:
+        raise ValueError("Wait until evaluation finishes before removing the file.")
+
+    old_url = media.file_url
+    if old_url and old_url != REMOVED_STORAGE_FILE_URL:
+        _delete_media_file_from_disk(old_url)
+
+    media.file_url = REMOVED_STORAGE_FILE_URL
+    media.storage_removed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(media)
+    return media
+
+
 def delete_media(db: Session, media: MediaFile) -> None:
-    _delete_media_file_from_disk(media.file_url)
+    if media.file_url and media.file_url != REMOVED_STORAGE_FILE_URL:
+        _delete_media_file_from_disk(media.file_url)
     try:
         db.delete(media)
         db.commit()

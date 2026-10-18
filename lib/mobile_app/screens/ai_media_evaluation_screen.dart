@@ -17,7 +17,6 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
-import 'package:access_mobile/shared/api/gemini_service.dart';
 import 'package:access_mobile/shared/api/member_api_service.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
@@ -363,6 +362,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
 
       PhotoEvaluationResult finalResult;
       MediaEvaluationFeedback? feedback;
+      var fetchLiveGemini = false;
 
       if (!scored.showQualityFeedbackEffective || scored.scoresHeldForReview) {
         setState(() => _phase = _EvalPhase.idle);
@@ -373,25 +373,11 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         feedback = scored.geminiFeedback;
         finalResult = scored;
       } else {
-        var isLocal = true;
-        MediaEvaluationFeedback mentorFeedback = MediaEvaluationFeedback.fromLocal(scored);
-        try {
-          final gemini = await GeminiService.generateMediaEvaluationFeedback(
-            scoresOnly: scored,
-          ).timeout(const Duration(seconds: 18));
-          if (gemini != null) {
-            mentorFeedback = gemini;
-            isLocal = false;
-          }
-        } on TimeoutException {
-          // Fall back to rule-based mentor copy below.
-        } catch (_) {
-          // Backend offline, no API key, or scores held: keep local summary.
-        }
-        if (!mounted) return;
         setState(() => _phase = _EvalPhase.idle);
-        feedback = mentorFeedback;
-        finalResult = scored.copyWithGemini(mentorFeedback, geminiFeedbackIsLocal: isLocal);
+        final local = MediaEvaluationFeedback.fromLocal(scored);
+        feedback = local;
+        finalResult = scored.copyWithGemini(local, geminiFeedbackIsLocal: true);
+        fetchLiveGemini = true;
       }
 
       if (!mounted) return;
@@ -436,6 +422,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         qualityWarnings: warnings,
         adminReviewStatus: evalRow['review_status'] as String?,
         adminRemarks: evalRow['admin_remarks'] as String?,
+        fetchLiveGemini: fetchLiveGemini,
         onEvaluateAgain: () {
           Navigator.of(context).pop();
           if (mounted) {

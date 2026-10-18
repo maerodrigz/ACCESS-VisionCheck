@@ -60,33 +60,37 @@ async def upload_avatar(
     if len(content) > max_bytes:
         raise HTTPException(status_code=400, detail="Image is too large")
 
+    from app.services.supabase_storage import is_supabase_storage_configured, upload_media_bytes as supabase_upload
+    from app.services.firebase_storage import is_firebase_storage_configured, upload_media_bytes
+
     cloud = (cloud_file_url or "").strip()
     profile_image: str | None = None
 
-    if cloud.startswith("https://"):
+    if is_supabase_storage_configured():
+        sb_url = supabase_upload(
+            content,
+            file_name=file.filename or "avatar.jpg",
+            folder="profiles",
+            user_id=current_user.id,
+        )
+        if sb_url:
+            profile_image = sb_url
+        elif not profile_image:
+            raise HTTPException(
+                status_code=503,
+                detail="Supabase upload failed. Check SUPABASE_URL, bucket, and service role key.",
+            )
+    elif cloud.startswith("https://"):
         profile_image = cloud
-    else:
-        from app.services.supabase_storage import is_supabase_storage_configured, upload_media_bytes as supabase_upload
-        from app.services.firebase_storage import is_firebase_storage_configured, upload_media_bytes
-
-        if is_supabase_storage_configured():
-            sb_url = supabase_upload(
-                content,
-                file_name=file.filename or "avatar.jpg",
-                folder="profiles",
-                user_id=current_user.id,
-            )
-            if sb_url:
-                profile_image = sb_url
-        if not profile_image and is_firebase_storage_configured():
-            fb_url = upload_media_bytes(
-                content,
-                file_name=file.filename or "avatar.jpg",
-                folder="profiles",
-                user_id=current_user.id,
-            )
-            if fb_url:
-                profile_image = fb_url
+    elif is_firebase_storage_configured():
+        fb_url = upload_media_bytes(
+            content,
+            file_name=file.filename or "avatar.jpg",
+            folder="profiles",
+            user_id=current_user.id,
+        )
+        if fb_url:
+            profile_image = fb_url
 
     if not profile_image:
         upload_root = Path(settings.upload_dir)

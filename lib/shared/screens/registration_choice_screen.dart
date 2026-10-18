@@ -56,7 +56,7 @@ class RegistrationChoiceScreen extends StatelessWidget {
             RegistrationTypeCard(
               title: 'Register as Requestor',
               subtitle:
-                  'For faculty, instructors, and organizations requesting documentation services',
+                  'For faculty, staff, and organizations requesting documentation services',
               icon: Icons.description_rounded,
               onTap: () async {
                 final email = await Navigator.push<String>(

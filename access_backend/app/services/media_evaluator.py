@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -129,11 +130,9 @@ def evaluate_video(
     if not frame_bytes:
         return None
 
-    frame_metrics: list[dict[str, Any]] = []
-    for fb in frame_bytes:
-        m = _analyze_image(fb)
-        if m is not None:
-            frame_metrics.append(m)
+    workers = min(4, max(1, len(frame_bytes)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        frame_metrics = [m for m in pool.map(_analyze_image, frame_bytes) if m is not None]
     if not frame_metrics:
         return None
 

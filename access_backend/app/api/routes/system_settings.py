@@ -74,6 +74,8 @@ def _ai_evaluation_payload(cfg: dict) -> dict:
                 "and generates encouraging, human-friendly feedback for members. Gemini does not "
                 "change or invent scores."
             ),
+            "configured": bool((settings.gemini_api_key or "").strip()),
+            "model": (settings.gemini_model or "").strip() or "gemini-3.8-flash",
             "configurable": False,
         },
         "max_evaluation_uploads_per_day": cfg["max_evaluation_uploads_per_day"],

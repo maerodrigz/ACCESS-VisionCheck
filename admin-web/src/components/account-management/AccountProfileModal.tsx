@@ -151,7 +151,8 @@ function ProfileContent({
       ) : null}
       {user.student_id ? (
         <p className="account-mgmt__profile-meta">
-          <strong>Student ID:</strong> {user.student_id}
+          <strong>{isRequestorRole(user.role) ? 'Requestor type' : 'Student ID'}:</strong>{' '}
+          {user.student_id}
         </p>
       ) : null}
       {user.contact_number ? (

@@ -162,7 +162,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    authService.logout();
+    await authService.logout();
     _user = null;
     appState.clearMemberProfile();
     memberDataController.resetForLogout();

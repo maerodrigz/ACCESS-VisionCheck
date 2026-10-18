@@ -75,6 +75,7 @@ class Evaluation {
   final String? adminRemarks;
   final DateTime? evaluatedAt;
   final bool isAnalysisInProgress;
+  final bool storageRemoved;
   Evaluation({
     required this.id,
     required this.title,
@@ -98,7 +99,20 @@ class Evaluation {
     this.adminRemarks,
     this.evaluatedAt,
     this.isAnalysisInProgress = false,
+    this.storageRemoved = false,
   });
+
+  int? get practiceMediaId {
+    const prefix = 'MED-';
+    if (!id.startsWith(prefix)) return null;
+    return int.tryParse(id.substring(prefix.length));
+  }
+
+  bool get canRemovePracticeStorage =>
+      !storageRemoved &&
+      !isAnalysisInProgress &&
+      practiceMediaId != null &&
+      !isPending;
 
   bool get isPending => score == 0 && !isAnalysisInProgress;
 

@@ -7,6 +7,11 @@ abstract final class MemberReviewStatus {
     return n == 'pending_review' || n == 'needs_further_review';
   }
 
+  /// Automated PROBE clearance — not a human admin decision and not a manual queue item.
+  static bool isAutomatedLowAiRisk(String? raw) {
+    return normalize(raw) == 'automated_low_ai_risk';
+  }
+
   /// Final admin (or terminal) decision — not automated-only clearance.
   static bool isFinalAdminDecision(String? raw) {
     final n = normalize(raw);

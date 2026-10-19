@@ -15,7 +15,9 @@ import { formatScannedDate } from '../../lib/aiDetection'
 import {
   cameraMetadataStatus,
   integrityAssessmentSummary,
-  integrityReviewReason,
+  integrityNeedsAdminAction,
+  integrityManualReviewReason,
+  integrityProvenanceNotes,
   INTEGRITY_AI_DISCLAIMER,
   visualAiRiskBand,
   visualAiRiskColor,
@@ -204,7 +206,9 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
     isVideoMediaPath(row.media_name) ||
     isVideoMediaPath(row.media_url) ||
     row.file_type?.toLowerCase().includes('video') === true
-  const reviewReason = integrityReviewReason(row)
+  const needsAdminAction = integrityNeedsAdminAction(row)
+  const provenanceNotes = integrityProvenanceNotes(row)
+  const manualReviewReason = integrityManualReviewReason(row)
   const visualBand = visualAiRiskBand(row)
   const visualRiskColor = visualAiRiskColor(visualBand)
   const cameraMeta = cameraMetadataStatus(row.exif_metadata)
@@ -265,6 +269,17 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pr-0.5 lg:max-h-full">
                 <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
                   <h3 className="mb-1 text-sm font-bold text-[var(--color-text-primary)]">Integrity Assessment</h3>
+                  {!needsAdminAction ? (
+                    <p className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/90 px-3 py-2 text-[11px] leading-snug text-emerald-950 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100">
+                      <span className="font-bold">No admin action required.</span> This scan was auto-cleared. Provenance
+                      notes and technical details are for audit only.
+                    </p>
+                  ) : (
+                    <p className="mb-2 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-[11px] leading-snug text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                      <span className="font-bold">Manual review required.</span> Choose an admin decision below when you
+                      have finished checking this upload.
+                    </p>
+                  )}
                   <dl className="divide-y divide-[var(--color-border)]">
                     <AssessmentRow label="Visual AI Risk">
                       <span className="inline-flex items-center justify-end gap-1.5">
@@ -279,10 +294,17 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                     <AssessmentRow label="Review Status">
                       <ReviewStatusBadge status={row.review_status} />
                     </AssessmentRow>
-                    {reviewReason ? (
-                      <AssessmentRow label="Review Reason">
+                    {needsAdminAction && manualReviewReason ? (
+                      <AssessmentRow label="Review reason">
                         <span className="max-w-[14rem] text-left text-[11px] font-medium leading-snug sm:text-right">
-                          {reviewReason}
+                          {manualReviewReason}
+                        </span>
+                      </AssessmentRow>
+                    ) : null}
+                    {provenanceNotes ? (
+                      <AssessmentRow label={needsAdminAction ? 'Provenance context' : 'Provenance notes'}>
+                        <span className="max-w-[14rem] text-left text-[11px] font-medium leading-snug sm:text-right">
+                          {provenanceNotes}
                         </span>
                       </AssessmentRow>
                     ) : null}
@@ -336,7 +358,9 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
           >
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <div className="min-w-0">
-                <h3 className="text-xs font-bold text-[var(--color-text-primary)]">Admin Decision</h3>
+                <h3 className="text-xs font-bold text-[var(--color-text-primary)]">
+                  {needsAdminAction ? 'Admin decision' : 'Optional override'}
+                </h3>
                 {selectedActionLabel ? (
                   <p className="text-[10px] leading-snug text-[var(--color-text-secondary)]">
                     <span className="font-semibold text-[var(--color-text-primary)]">{selectedActionLabel}</span>

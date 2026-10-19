@@ -103,6 +103,8 @@ class AiDetectionResult {
 
   bool get isSourceUnverified {
     final outcome = (provenancePolicyOutcome ?? '').toLowerCase();
+    if (outcome == 'low_ai_risk') return false;
+    if (requiresReviewFlag == false) return false;
     return outcome == 'source_unverified' || outcome == 'source_partially_verified';
   }
 

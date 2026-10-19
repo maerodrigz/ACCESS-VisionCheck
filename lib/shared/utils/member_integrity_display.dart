@@ -103,6 +103,19 @@ MemberIntegrityBannerModel memberIntegrityBannerModel({
 }) {
   final admin = adminReviewStatus;
 
+  if (MemberReviewStatus.isAutomatedLowAiRisk(admin)) {
+    return MemberIntegrityBannerModel(
+      heading: 'Low AI authenticity risk',
+      subtitle: 'Auto-cleared',
+      detail:
+          'Automated screening found low AI-generation risk with acceptable provenance. '
+          'No administrator review is required for this submission.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+      secondaryAutomatedLine: automatedScreeningSecondaryLine(automated),
+    );
+  }
+
   if (MemberReviewStatus.isFinalAdminDecision(admin)) {
     if (MemberReviewStatus.isAdminConfirmedHuman(admin)) {
       return MemberIntegrityBannerModel(
@@ -270,6 +283,17 @@ PhotoEvaluationResult applyAdminReviewToPhotoResult(
   PhotoEvaluationResult result,
   String? adminReviewStatus,
 ) {
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus)) {
+    return result.copyWithIntegrity(
+      qualityProvisional: false,
+      xpPending: false,
+      xpEligible: true,
+      showQualityFeedback: true,
+      memberScoresReleased: true,
+      reviewGateMessage: '',
+      memberIntegrityMessage: '',
+    );
+  }
   if (!MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) return result;
   if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
     return result.copyWithIntegrity(

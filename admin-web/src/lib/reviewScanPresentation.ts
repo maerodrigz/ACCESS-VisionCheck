@@ -74,14 +74,15 @@ function isVideoContainerMeta(meta: ExifMetadata): boolean {
 /** Camera-identifying metadata (photo EXIF or video container), display only. */
 export function cameraMetadataStatus(meta?: ExifMetadata): CameraMetadataStatus {
   if (!meta) return 'Unknown'
+  const strength = (meta.camera_provenance_strength ?? '').toLowerCase()
+  if (strength === 'strong') return 'Present'
+  if (strength === 'partial') return 'Partial'
+  if (strength === 'absent') return 'Missing'
   const fields = meta.fields ?? []
   const make = findFieldValue(fields, ['Make', 'make'], ['camera make', 'manufacturer'])
   const model = findFieldValue(fields, ['Model', 'model'], ['camera model'])
-  if (make || model) return 'Present'
-  const strength = (meta.camera_provenance_strength ?? '').toLowerCase()
-  if (strength === 'partial') return 'Partial'
-  if (strength === 'strong') return 'Present'
-  if (strength === 'absent' || (!meta.has_exif && fields.length === 0)) return 'Missing'
+  if (make && model) return 'Present'
+  if (make || model) return 'Partial'
   if (!meta.has_exif || fields.length === 0) return 'Missing'
   if (isVideoContainerMeta(meta) && fields.length > 0) return 'Partial'
   return 'Unknown'
@@ -153,11 +154,6 @@ export function cameraFileDisplayRows(meta?: ExifMetadata): CameraFileDisplayRow
   const rows: CameraFileDisplayRow[] = []
   const videoContainer = isVideoContainerMeta(meta)
 
-  const strength = (meta.camera_provenance_strength ?? '').trim()
-  if (strength) {
-    rows.push({ label: 'Camera provenance', value: capitalizeWord(strength) })
-  }
-
   const make = findFieldValue(
     fields,
     ['Make', 'make', 'com.android.manufacturer'],
@@ -188,6 +184,17 @@ export function cameraFileDisplayRows(meta?: ExifMetadata): CameraFileDisplayRow
     ['height', 'image height', 'image length'],
   )
 
+  const strength = (meta.camera_provenance_strength ?? '').trim().toLowerCase()
+  if (strength) {
+    let provLabel = capitalizeWord(strength)
+    if (strength === 'partial' && (make || model)) {
+      provLabel = 'Partial (device tags in file; not full in-camera proof)'
+    } else if (strength === 'strong') {
+      provLabel = 'Strong (coherent in-camera metadata)'
+    }
+    rows.push({ label: 'Camera provenance', value: provLabel })
+  }
+
   if (make) rows.push({ label: videoContainer ? 'Device make' : 'Camera Make', value: make })
   if (model) rows.push({ label: videoContainer ? 'Device model' : 'Camera Model', value: model })
   if (captureRaw) {
@@ -207,21 +214,44 @@ export function cameraFileDisplayRows(meta?: ExifMetadata): CameraFileDisplayRow
   return rows
 }
 
-/** Short manual-review reason for the integrity modal (display only). */
-export function integrityReviewReason(row: AiDetectionRow): string | null {
+export function integrityNeedsAdminAction(row: AiDetectionRow): boolean {
+  return MANUAL_REVIEW_STATUSES.includes(row.review_status)
+}
+
+/** Row label: manual queue vs automated provenance context (avoids "Review Reason" on auto-cleared scans). */
+export function integrityContextRowLabel(row: AiDetectionRow): string {
+  if (integrityNeedsAdminAction(row)) return 'Review reason'
+  return 'Provenance notes'
+}
+
+/** EXIF / provenance context (not a request for admin review when status is auto-cleared). */
+export function integrityProvenanceNotes(row: AiDetectionRow): string | null {
   const meta = row.exif_metadata
   const reasons =
     meta?.camera_provenance_reasons
       ?.map((r) => normalizeScanDisplayText(r))
       .filter((r) => r.length > 0) ?? []
   if (reasons.length > 0) return reasons.join(' ')
-  const outcome = meta?.provenance_policy_outcome?.trim()
+  return null
+}
+
+/** Why this item is in the manual review queue (display only). */
+export function integrityManualReviewReason(row: AiDetectionRow): string | null {
+  if (!integrityNeedsAdminAction(row)) return null
+  const notes = integrityProvenanceNotes(row)
+  if (notes) return notes
+  const outcome = row.exif_metadata?.provenance_policy_outcome?.trim()
   if (outcome) return outcome.replace(/_/g, ' ')
-  if (!MANUAL_REVIEW_STATUSES.includes(row.review_status)) return null
   const band = visualAiRiskBand(row)
   if (band === 'HIGH') return 'Elevated AI-generation risk'
   if (band === 'SUSPICIOUS') return 'Suspicious AI-generation indicators'
   return 'Manual review required'
+}
+
+/** @deprecated Use integrityProvenanceNotes or integrityManualReviewReason */
+export function integrityReviewReason(row: AiDetectionRow): string | null {
+  if (integrityNeedsAdminAction(row)) return integrityManualReviewReason(row)
+  return integrityProvenanceNotes(row)
 }
 
 /** Plain-language assessment summary for administrators (no raw EXIF strings). */
@@ -263,7 +293,9 @@ export function integrityAssessmentSummary(row: AiDetectionRow): string {
       parts.push('Manual review is required.')
     }
   } else if (status === 'automated_low_ai_risk') {
-    parts.push('Automated routing marked this scan as low AI risk with acceptable provenance for the current policy.')
+    parts.push(
+      'Automated routing marked this scan as low AI risk with acceptable provenance. No administrator action is required unless you disagree and override below.',
+    )
   } else if (status === 'verified_human') {
     parts.push('An administrator verified this media as human-made.')
   } else if (status === 'confirmed_ai_generated') {

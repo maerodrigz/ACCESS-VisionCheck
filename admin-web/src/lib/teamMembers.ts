@@ -1,4 +1,5 @@
 import { isVideoMediaPath, mediaUrl } from '../api/media'
+import { scoreToPercent } from './mediaEvaluationScores'
 
 export type TeamFilterChip =
   | 'all'
@@ -382,7 +383,7 @@ export function buildTeamProfiles(input: {
   for (const e of evaluations) {
     const mid = Number(e.media_id)
     const score = Number(e.overall_score ?? 0)
-    if (mid) evalByMedia.set(mid, score * 100)
+    if (mid) evalByMedia.set(mid, scoreToPercent(score))
   }
 
   const mediaByMember = new Map<number, Record<string, unknown>[]>()

@@ -56,6 +56,8 @@ def cmd_runserver(args: argparse.Namespace) -> None:
     print(f"  Docs:   {public}/docs")
     print(f"  Health: {public}/api/health")
     print(f"  Local:  http://127.0.0.1:{port}/api/health")
+    if reload:
+        print("  Reload: on (code changes restart the worker; stop stray uvicorn on the same port if LAN sees stale API).")
     print("Press CTRL+C to stop.\n")
 
     uvicorn.run(

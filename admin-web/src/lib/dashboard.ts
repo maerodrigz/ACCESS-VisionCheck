@@ -20,6 +20,7 @@ import {
 import { fetchNotifications } from '../api/notifications'
 import type { DashboardStats } from '../types/auth'
 import { formatTimeAgo, parseNotification, type AdminNotification } from './notifications'
+import { isGoodQualityScore, scoreToPercent } from './mediaEvaluationScores'
 
 export interface HomeOverviewStats {
   pendingRequests: number
@@ -411,13 +412,13 @@ function buildRecentActivity(
   for (const e of evaluations.slice(0, 30)) {
     const label = String(e.detection_result ?? e.ai_result ?? '').toLowerCase()
     if (label !== 'suspicious' && label !== 'ai_generated' && !label.includes('generated')) continue
-    const score = Number(e.overall_score ?? 0) * 100
+    const scorePct = scoreToPercent(Number(e.overall_score ?? 0))
     items.push({
       date: parseDate(e.evaluated_at ?? e.created_at),
       item: {
         kind: 'media',
         title: `Media integrity flag: ${String(e.file_name ?? e.media_name ?? 'file')}`,
-        subtitle: `${String(e.member_name ?? '')} · ${Math.round(score)}% quality`,
+        subtitle: `${String(e.member_name ?? '')} · ${Math.round(scorePct)}% quality`,
         status: 'Integrity',
         time: formatTimeAgo(e.evaluated_at ?? e.created_at),
       },
@@ -520,8 +521,8 @@ function buildEvalOverview(
     const score = Number(e.overall_score ?? 0)
     const detection = String(e.detection_result ?? '').toLowerCase()
     const isFlagged = detection === 'ai_generated' || detection === 'suspicious'
-    const isGood = !isFlagged && score >= 0.75
-    const isNeeds = !isFlagged && score < 0.75
+    const isGood = !isFlagged && isGoodQualityScore(score)
+    const isNeeds = !isFlagged && !isGoodQualityScore(score)
 
     if (day >= last7Start && day < tomorrow) {
       evalCurrent++
@@ -575,7 +576,7 @@ function buildEvalTrend(evaluations: Record<string, unknown>[], today: Date): Ev
 
       evaluated++
       if (isFlagged) ai++
-      else if (score >= 0.75) good++
+      else if (isGoodQualityScore(score)) good++
       else needs++
     }
 

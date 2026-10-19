@@ -13,3 +13,8 @@ export function scoreToPercent(raw: number): number {
 export function formatScorePercent(raw: number): string {
   return `${Math.round(scoreToPercent(raw))}%`
 }
+
+/** Good quality band (matches dashboard 75% on legacy 0–1 scale). */
+export function isGoodQualityScore(raw: number, minPercent = 75): boolean {
+  return scoreToPercent(raw) >= minPercent
+}

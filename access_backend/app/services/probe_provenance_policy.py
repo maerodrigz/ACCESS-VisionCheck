@@ -91,15 +91,24 @@ def apply_probe_provenance_policy(
             outcome = "high_ai_risk"
     elif strength == "partial":
         if visual_risk == "low":
-            requires_review = True
-            outcome = "source_partially_verified"
-            base = str(out.get("detail") or "")
-            partial_detail = (
-                f"{_PARTIAL_LOW_DETAIL} Administrative review is required before "
-                "scores and coaching are released."
+            # Videos saved/re-exported without device identity still need officer review.
+            video_needs_manual_review = provenance.is_video and (
+                looks_like_reexported_media_filename(file_name)
+                or not video_provenance_has_device_identity(provenance.safe_fields)
             )
-            if partial_detail not in base:
-                out["detail"] = f"{base} {partial_detail}".strip()
+            if video_needs_manual_review:
+                requires_review = True
+                outcome = "source_partially_verified"
+                base = str(out.get("detail") or "")
+                partial_detail = (
+                    f"{_PARTIAL_LOW_DETAIL} Administrative review is required before "
+                    "scores and coaching are released."
+                )
+                if partial_detail not in base:
+                    out["detail"] = f"{base} {partial_detail}".strip()
+            else:
+                requires_review = False
+                outcome = "low_ai_risk"
         else:
             requires_review = True
             outcome = "elevated_ai_risk" if visual_risk == "suspicious" else "high_ai_risk"

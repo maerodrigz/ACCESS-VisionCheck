@@ -78,7 +78,7 @@ class PracticeEvaluationVideoGuardrailsTest(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 422)
         self.assertEqual(ctx.exception.detail, "Video duration must not exceed 30 seconds.")
 
-    def test_partial_provenance_low_risk_requires_review(self) -> None:
+    def test_partial_provenance_low_risk_photo_auto_clears(self) -> None:
         base = {
             "verdict": "authentic",
             "probability": 0.05,
@@ -87,9 +87,17 @@ class PracticeEvaluationVideoGuardrailsTest(unittest.TestCase):
             "requires_review": False,
             "detail": "Low risk.",
         }
-        out = apply_probe_provenance_policy(base, CameraProvenanceResult("partial", reasons=["test"]))
-        self.assertTrue(out["requires_review"])
-        self.assertEqual(out["provenance_policy_outcome"], "source_partially_verified")
+        out = apply_probe_provenance_policy(
+            base,
+            CameraProvenanceResult(
+                "partial",
+                reasons=["Partial camera tag (test)."],
+                safe_fields=[{"key": "Make", "label": "Make", "value": "Apple"}],
+            ),
+            file_name="club_event.jpg",
+        )
+        self.assertFalse(out["requires_review"])
+        self.assertEqual(out["provenance_policy_outcome"], "low_ai_risk")
 
     def test_gallery_numeric_video_filename_forces_review(self) -> None:
         base = {

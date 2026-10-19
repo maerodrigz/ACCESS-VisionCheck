@@ -73,16 +73,21 @@ def test_strong_provenance_probe_low_no_review(mock_p: float) -> None:
     assert initial_review_status(label, prob, ai_detection=ai) == PROBE_LOW_RISK_REVIEW_STATUS
 
 
-def test_partial_provenance_probe_low_needs_admin_review() -> None:
+def test_partial_provenance_probe_low_photo_auto_clears() -> None:
     mock_p = 0.05
     ai = _probe_detection(mock_p, _partial())
-    assert ai["requires_review"] is True
-    assert ai["provenance_policy_outcome"] == "source_partially_verified"
+    assert ai["requires_review"] is False
+    assert ai["provenance_policy_outcome"] == "low_ai_risk"
     payload = _payload(ai)
-    assert payload["xp_pending"] is True
-    assert payload["show_quality_feedback"] is False
+    assert payload["xp_pending"] is False
+    assert payload["show_quality_feedback"] is True
     prob, label, _ = _ai_from_payload(ai)
-    assert initial_review_status(label, prob, ai_detection=ai) == "needs_further_review"
+    assert initial_review_status(label, prob, ai_detection=ai) == PROBE_LOW_RISK_REVIEW_STATUS
+    db = MagicMock()
+    cfg = {"enable_ai_detection": True, "auto_generate_review_alerts": True}
+    with patch("app.services.media_pipeline.settings_crud.settings_payload", return_value=cfg):
+        with patch("app.services.media_pipeline.settings_crud.is_notification_enabled", return_value=True):
+            assert _should_notify_admin_ai_flag(db, label, prob, ai_info=ai) is False
 
 
 def test_absent_provenance_probe_low_source_unverified() -> None:

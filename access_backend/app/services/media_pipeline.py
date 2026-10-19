@@ -18,6 +18,7 @@ from app.models.media_constants import MEDIA_CATEGORY_EVALUATION
 from app.models.media_evaluation import MediaEvaluation
 from app.models.media_file import MediaFile
 from app.services.media_upload_config import (
+    DEFAULT_VIDEO_EXTENSIONS,
     EvaluationVideoDurationError,
     check_evaluation_video_duration,
     is_video_extension,
@@ -38,6 +39,44 @@ from app.services.media_evaluator import (
 
 logger = logging.getLogger(__name__)
 
+_PRACTICE_VIDEO_EXTENSIONS = frozenset(DEFAULT_VIDEO_EXTENSIONS)
+
+
+def _is_practice_eval_video_file_name(file_name: str) -> bool:
+    ext = Path(file_name).suffix.lower()
+    return ext in _PRACTICE_VIDEO_EXTENSIONS
+
+
+def _video_ai_scan_incomplete(ai_info: dict | None) -> bool:
+    """True when a video upload has no completed PROBE/UnivFD authenticity result."""
+    if not isinstance(ai_info, dict) or not ai_info:
+        return True
+    if is_deferred_authenticity_preview(ai_info):
+        return True
+    if str(ai_info.get("detector_backend", "")).strip():
+        return False
+    if ai_info.get("raw_detector_probability") is not None or ai_info.get("probability") is not None:
+        return False
+    if str(ai_info.get("verdict", "")).strip():
+        return False
+    return True
+
+
+def _fallback_video_ai_scan_required() -> dict:
+    return {
+        "verdict": "suspicious",
+        "confidence": 0.5,
+        "probability": 0.5,
+        "raw_detector_probability": 0.5,
+        "risk_level": "suspicious",
+        "requires_review": True,
+        "detector_backend": "probe",
+        "detail": (
+            "Video AI authenticity scan did not complete (FFmpeg frame extract, PROBE checkpoint, "
+            "or stored bytes missing). Officer review is required. This is not verified as human capture."
+        ),
+    }
+
 
 def _guard_practice_evaluation_video_bytes(
     db: Session,
@@ -46,7 +85,7 @@ def _guard_practice_evaluation_video_bytes(
     eval_file_name: str,
 ) -> bool:
     """Return False when stored video bytes fail practice length rules (pipeline should abort)."""
-    if media.media_category != MEDIA_CATEGORY_EVALUATION or not file_bytes:
+    if getattr(media, "media_category", None) != MEDIA_CATEGORY_EVALUATION or not file_bytes:
         return True
     ext = Path(eval_file_name).suffix.lower()
     if not ext or not is_video_extension(db, ext, MEDIA_CATEGORY_EVALUATION):
@@ -163,6 +202,20 @@ def run_pipeline(
             quality_level = "Fair"
             recommendation = "For Officer Review"
             ai_info = {}
+
+    if _is_practice_eval_video_file_name(eval_file_name) and _video_ai_scan_incomplete(ai_info):
+        logger.warning(
+            "practice eval video missing AI scan media_id=%s file=%s",
+            media.id,
+            eval_file_name,
+        )
+        ai_info = _fallback_video_ai_scan_required()
+        if payload:
+            payload = dict(payload)
+            payload["ai_detection"] = ai_info
+            payload = apply_integrity_evaluation_policy(payload)
+            criteria_json = json.dumps(payload)
+            feedback = payload.get("ai_feedback") or feedback
 
     ai_prob, ai_label, detection_remarks = _ai_from_payload(ai_info)
     exif_payload = ai_info.get("exif_metadata")

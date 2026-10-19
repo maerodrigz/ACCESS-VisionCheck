@@ -362,7 +362,13 @@ def detect_ai_generated_from_frames(
             out["exif_metadata"] = _video_provenance_exif_panel(video_provenance, file_name)
         return out
 
-    indices = _frame_sample_indices(len(frame_bytes_list), max_samples=5)
+    try:
+        from app.services.ffmpeg_frames import _default_sample_count
+
+        max_frame_samples = max(3, _default_sample_count())
+    except Exception:
+        max_frame_samples = 5
+    indices = _frame_sample_indices(len(frame_bytes_list), max_samples=max_frame_samples)
     sampled = [frame_bytes_list[i] for i in indices]
     results = [
         detect_ai_generated(frame, file_name=file_name, apply_provenance_policy=frame_policy)

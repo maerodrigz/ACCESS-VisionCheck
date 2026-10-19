@@ -405,6 +405,17 @@ export function canPublishToFacebook(item: MediaAsset): boolean {
   )
 }
 
+/** Public HTTPS URL for browser share (not the authenticated admin stream). */
+export function facebookShareUrl(item: MediaAsset): string {
+  const direct = mediaUrl(item.fileUrl)
+  if (direct.startsWith('https://') || direct.startsWith('http://')) {
+    if (!direct.includes('/admin/media/') && !direct.includes('/api/admin/media/')) {
+      return direct
+    }
+  }
+  return item.thumbnailUrl
+}
+
 export function recentUploads(items: MediaAsset[], limit = 24): MediaAsset[] {
   return items.slice(0, limit)
 }

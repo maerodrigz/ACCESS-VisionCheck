@@ -428,6 +428,12 @@ def upgrade_media_curation_schema() -> None:
             conn.execute(text(stmt))
 
 
+def upgrade_media_files_file_url_text() -> None:
+    """Supabase signed URLs exceed VARCHAR(500); store compact refs or legacy long URLs."""
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE media_files ALTER COLUMN file_url TYPE TEXT"))
+
+
 def upgrade_documentation_requests_schema() -> None:
     """Extended requestor form fields (time, coverage requirements, reschedule history)."""
     with engine.begin() as conn:
@@ -505,6 +511,7 @@ def main() -> None:
     upgrade_feedback_admin_review_schema()
     upgrade_media_curation_schema()
     upgrade_media_storage_removed_schema()
+    upgrade_media_files_file_url_text()
 
     db = SessionLocal()
     try:

@@ -48,6 +48,7 @@ import {
   albumKey,
   buildAlbums,
   canPublishToFacebook,
+  facebookShareUrl,
   computeMediaStats,
   filterAlbumsBySearch,
   filterMedia,
@@ -89,6 +90,7 @@ export function MediaLibraryPage() {
   const [galleryKind, setGalleryKind] = useState<GalleryKind>('photos')
   const [fbFilter, setFbFilter] = useState<FbChip>('all')
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
+  const [uploadRequestId, setUploadRequestId] = useState<number | null>(null)
   const [selectedAlbumName, setSelectedAlbumName] = useState<string | null>(null)
   const [previewItem, setPreviewItem] = useState<MediaAsset | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -137,7 +139,7 @@ export function MediaLibraryPage() {
       })
       setAll(syncedItems)
       setAlbums(albumList)
-      setRequests(approved.length > 0 ? approved : reqs)
+      setRequests(approved)
       setPreviewItem((prev) => {
         if (!prev) return null
         const found = syncedItems.find((m) => m.id === prev.id)
@@ -209,6 +211,31 @@ export function MediaLibraryPage() {
       }),
     [all],
   )
+  const uploadRequestOptions = useMemo(() => {
+    return requests
+      .map((r) => {
+        const id = Number(r.request_id ?? r.id ?? 0)
+        if (!id) return null
+        const title = String(r.event_name ?? r.title ?? 'Documentation request').trim()
+        return { id, label: `${title} (#${id})` }
+      })
+      .filter((o): o is { id: number; label: string } => o != null)
+  }, [requests])
+
+  const resolvedUploadRequestId = useMemo(() => {
+    if (
+      uploadRequestId &&
+      uploadRequestOptions.some((o) => o.id === uploadRequestId)
+    ) {
+      return uploadRequestId
+    }
+    if (selectedAlbumId) {
+      const album = albums.find((a) => a.id === selectedAlbumId)
+      if (album?.requestId) return album.requestId
+    }
+    return uploadRequestOptions[0]?.id ?? 0
+  }, [albums, selectedAlbumId, uploadRequestId, uploadRequestOptions])
+
   const stats = useMemo(() => computeMediaStats(all, albums), [all, albums])
   const bestPickItems = useMemo(() => pendingBestShots(all), [all])
   const bestPickPublishReady = useMemo(
@@ -352,7 +379,7 @@ export function MediaLibraryPage() {
       const result = await publishOneToFacebookBrowser({
         id: item.id,
         fileName: item.fileName,
-        thumbnailUrl: item.thumbnailUrl,
+        thumbnailUrl: facebookShareUrl(item),
         captionPrefix: message,
       })
       await load()
@@ -400,12 +427,18 @@ export function MediaLibraryPage() {
       showMsg('Only administrators can upload media.')
       return
     }
-    if (requests.length === 0) {
-      showMsg('Approve a documentation request before uploading event media.')
+    if (uploadRequestOptions.length === 0) {
+      showMsg(
+        'Approve or complete a documentation request before uploading event media.',
+        'error',
+      )
       return
     }
-    const requestId = Number(requests[0].request_id ?? requests[0].id ?? 0)
-    if (!requestId) return
+    const requestId = resolvedUploadRequestId
+    if (!requestId) {
+      showMsg('Could not determine which event to attach uploads to. Refresh and try again.', 'error')
+      return
+    }
 
     const fileList = Array.from(files)
     setUploading(true)
@@ -736,6 +769,15 @@ export function MediaLibraryPage() {
             </button>
             {isAdmin && (
               <>
+                {uploadRequestOptions.length > 1 ? (
+                  <AdminSelect
+                    aria-label="Upload target event"
+                    value={String(resolvedUploadRequestId || '')}
+                    onChange={(v) => setUploadRequestId(Number(v) || null)}
+                    options={uploadRequestOptions.map((o) => ({ value: String(o.id), label: o.label }))}
+                    className="h-10 min-w-[12rem] shrink-0"
+                  />
+                ) : null}
                 <input
                   ref={fileInputRef}
                   type="file"

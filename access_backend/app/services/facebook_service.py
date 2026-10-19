@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -161,6 +162,39 @@ def inspect_page_token() -> dict:
     }
 
 
+def _coerce_stored_media_url(file_url: str) -> str:
+    """Resolve compact Supabase refs and legacy paths to a fetchable URL string."""
+    from app.services.supabase_storage import is_supabase_storage_ref, normalize_supabase_storage_url
+
+    raw = (file_url or "").strip()
+    if not raw:
+        return raw
+    if is_supabase_storage_ref(raw):
+        return normalize_supabase_storage_url(raw)
+    return raw
+
+
+def _is_temp_upload_path(path: Path) -> bool:
+    try:
+        return path.is_file() and path.resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
+    except (ValueError, OSError):
+        return path.is_file() and str(path).startswith(tempfile.gettempdir())
+
+
+def _temp_file_from_stored_media(file_url: str, *, suffix: str) -> Path | None:
+    from app.services.media_file_bytes import read_media_file_bytes
+
+    content = read_media_file_bytes(file_url, timeout=120.0)
+    if not content:
+        return None
+    ext = suffix if suffix.startswith(".") else f".{suffix}"
+    fd, path = tempfile.mkstemp(suffix=ext or ".bin")
+    os.close(fd)
+    temp = Path(path)
+    temp.write_bytes(content)
+    return temp
+
+
 def resolve_image_source(file_url: str, file_type: str) -> tuple[str | None, Path | None]:
     """Return (public_http_url, local_file_path) for image media."""
     if file_type == "video":
@@ -168,7 +202,8 @@ def resolve_image_source(file_url: str, file_type: str) -> tuple[str | None, Pat
     if not file_url or not file_url.strip():
         return None, None
 
-    url = file_url.strip()
+    raw = file_url.strip()
+    url = _coerce_stored_media_url(raw)
     if url.startswith("http://") or url.startswith("https://"):
         return url, None
 
@@ -179,6 +214,11 @@ def resolve_image_source(file_url: str, file_type: str) -> tuple[str | None, Pat
     if local.is_file():
         public = f"{settings.public_api_url.rstrip('/')}/{url.lstrip('/')}"
         return public, local
+
+    suffix = Path(raw.split("?", 1)[0]).suffix or ".jpg"
+    temp = _temp_file_from_stored_media(raw, suffix=suffix)
+    if temp is not None:
+        return None, temp
 
     public = f"{settings.public_api_url.rstrip('/')}/{url.lstrip('/')}"
     return public, None
@@ -256,8 +296,11 @@ def resolve_media_source(file_url: str, file_type: str) -> tuple[str | None, Pat
     """Return (public_http_url, local_file_path) for photo or video media."""
     if not file_url or not file_url.strip():
         return None, None
+    if file_type != "video":
+        return resolve_image_source(file_url, file_type)
 
-    url = file_url.strip()
+    raw = file_url.strip()
+    url = _coerce_stored_media_url(raw)
     if url.startswith("http://") or url.startswith("https://"):
         return url, None
 
@@ -269,6 +312,11 @@ def resolve_media_source(file_url: str, file_type: str) -> tuple[str | None, Pat
         public = f"{settings.public_api_url.rstrip('/')}/{url.lstrip('/')}"
         return public, local
 
+    suffix = Path(raw.split("?", 1)[0]).suffix or ".mp4"
+    temp = _temp_file_from_stored_media(raw, suffix=suffix)
+    if temp is not None:
+        return None, temp
+
     public = f"{settings.public_api_url.rstrip('/')}/{url.lstrip('/')}"
     return public, None
 
@@ -276,30 +324,38 @@ def resolve_media_source(file_url: str, file_type: str) -> tuple[str | None, Pat
 def post_media_to_facebook(message: str, *, file_url: str, file_type: str) -> str:
     """Publish photo or video event documentation to the configured Facebook Page."""
     if file_type == "video":
-        _, local_path = resolve_media_source(file_url, file_type)
-        if local_path and local_path.is_file():
-            return post_video_to_facebook(message, local_path=local_path)
-        public_url, _ = resolve_media_source(file_url, file_type)
-        if public_url:
-            from app.services.media_file_bytes import read_media_file_bytes
-            import tempfile
+        from app.services.media_file_bytes import read_media_file_bytes
 
-            content = read_media_file_bytes(public_url, timeout=120.0)
-            if content:
-                suffix = Path(file_url.split("?")[0]).suffix or ".mp4"
-                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                    tmp.write(content)
-                    temp_path = Path(tmp.name)
-                try:
-                    return post_video_to_facebook(message, local_path=temp_path)
-                finally:
-                    temp_path.unlink(missing_ok=True)
-        raise FacebookServiceError(
-            "video_unreachable",
-            "Video must be reachable (local disk or Firebase HTTPS URL) for Graph API upload.",
-        )
+        public_url, local_path = resolve_media_source(file_url, file_type)
+        temp_path: Path | None = None
+        try:
+            upload_path = local_path if local_path and local_path.is_file() else None
+            if upload_path is None and public_url:
+                content = read_media_file_bytes(public_url, timeout=120.0)
+                if content:
+                    suffix = Path(file_url.split("?", 1)[0]).suffix or ".mp4"
+                    fd, path = tempfile.mkstemp(suffix=suffix)
+                    os.close(fd)
+                    temp_path = Path(path)
+                    temp_path.write_bytes(content)
+                    upload_path = temp_path
+            if upload_path and upload_path.is_file():
+                return post_video_to_facebook(message, local_path=upload_path)
+            raise FacebookServiceError(
+                "video_unreachable",
+                "Video must be reachable (local disk, Supabase, or HTTPS URL) for Graph API upload.",
+            )
+        finally:
+            if temp_path and temp_path.is_file():
+                temp_path.unlink(missing_ok=True)
+            if local_path and _is_temp_upload_path(local_path):
+                local_path.unlink(missing_ok=True)
     public_url, local_path = resolve_image_source(file_url, file_type)
-    return post_to_facebook(message, image_url=public_url, local_path=local_path)
+    try:
+        return post_to_facebook(message, image_url=public_url, local_path=local_path)
+    finally:
+        if local_path and _is_temp_upload_path(local_path):
+            local_path.unlink(missing_ok=True)
 
 
 def _upload_page_photo(

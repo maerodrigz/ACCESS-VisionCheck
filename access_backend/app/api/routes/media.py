@@ -1,6 +1,7 @@
 """Media uploads and repository."""
 
 import asyncio
+import logging
 import uuid
 from pathlib import Path
 
@@ -253,11 +254,11 @@ async def upload_media(
             user_id=current_user.id,
         )
         if sb_url:
-            stored_url = normalize_supabase_storage_url(sb_url)
-        elif not stored_url:
-            raise HTTPException(
-                status_code=503,
-                detail="Supabase upload failed. Check SUPABASE_URL, bucket, and service role key.",
+            # Store compact ref (sb_url) in DB; API responses resolve to HTTPS via normalize_supabase_storage_url.
+            stored_url = sb_url.strip()
+        else:
+            logging.getLogger(__name__).warning(
+                "Supabase upload failed; falling back to local disk storage."
             )
     elif cloud.startswith("https://"):
         stored_url = normalize_supabase_storage_url(cloud)

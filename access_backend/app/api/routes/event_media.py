@@ -20,6 +20,7 @@ from app.crud import system_settings as settings_crud
 from app.services.facebook_publish_guard import ensure_facebook_publishing_enabled
 from app.services.facebook_service import inspect_page_token, list_page_albums, resolve_page_album_id
 from app.services.event_facebook_publish import bulk_publish_event_media
+from app.services.supabase_storage import normalize_supabase_storage_url
 
 router = APIRouter(prefix="/admin/event-media", tags=["Event Media"])
 
@@ -45,7 +46,7 @@ def _event_media_json(m) -> dict:
         "id": m.id,
         "file_name": m.file_name,
         "file_type": m.file_type,
-        "file_url": m.file_url,
+        "file_url": normalize_supabase_storage_url(m.file_url or ""),
         "request_id": m.request_id,
         "media_category": m.media_category,
         "approval_status": m.approval_status,

@@ -99,6 +99,8 @@ Add a short bullet to this file (or `docs/SELF_ANNEALING.md`) under **Incident l
 - **2026-10:** Practice video eval inconsistent — partial provenance + low PROBE skipped admin review; 60s limit was UI-only. Fix: `check_evaluation_video_duration` on upload + deferred pipeline; partial/absent provenance both gate scores; mobile re-checks duration at pick and submit.
 - **2026-10:** Admin notification center showed member milestones and assignment echo pings; clicks used `view_result` / wrong refs and opened Media gallery. Fix: admin inbox allowlist + `list_for_admin_inbox` (not `list_all`), drop redundant `notify_admins` on assign/accept, route media alerts to Media Integrity not gallery.
 - **2026-10:** Member push/tray taps only synced inbox — no deep link. Fix: FCM data + `bindNotificationOpenHandler` + `openedFromPush`; ranking admin feedback must open performance sheet, not eval report; requestor `view_request` refetch when ID missing from cache.
+- **2026-10:** Admin web Media Gallery upload 500 with Supabase on — signed `file_url` exceeded `media_files.file_url` VARCHAR(500). Store compact `supabase-ref:{bucket}/{path}` in DB; widen column to TEXT via `upgrade_media_files_file_url_text()`; fall back to local disk if Supabase POST fails.
+- **2026-10:** Facebook publish failed after Supabase ref storage — `resolve_image_source` treated `supabase-ref:...` as a local path (`PUBLIC_API_URL/supabase-ref:...`). Fix: resolve refs to HTTPS or download bytes for Graph multipart upload; browser share uses `facebookShareUrl()` (HTTPS `file_url`), not admin stream JWT URLs.
 
 ## 11. Media blob storage — Supabase (project decision)
 

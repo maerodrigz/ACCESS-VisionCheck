@@ -16,6 +16,8 @@ interface AccessBrandProps {
   compact?: boolean
   /** Cyan sidebar: white ACCESS + primary blue VisionCheck. */
   onCyanBackground?: boolean
+  /** Stacked lockup on a light surface (e.g. admin sign-in panel). */
+  stackedOnLight?: boolean
 }
 
 /** App logo lockup — ribbon A mark + ACCESS VisionCheck wordmark. */
@@ -26,10 +28,13 @@ export function AccessBrand({
   className = '',
   compact = false,
   onCyanBackground = false,
+  stackedOnLight = false,
 }: AccessBrandProps) {
   const titleClass =
     variant === 'stacked'
-      ? 'text-[2rem] font-extrabold tracking-tight text-[var(--color-accent-cyan)] sm:text-[2.125rem]'
+      ? stackedOnLight
+        ? 'text-[1.625rem] font-extrabold tracking-tight text-[var(--color-accent-cyan)] sm:text-[1.75rem]'
+        : 'text-[2rem] font-extrabold tracking-tight text-[var(--color-accent-cyan)] sm:text-[2.125rem]'
       : onCyanBackground
         ? compact
           ? 'text-[12px] font-extrabold tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.22)]'
@@ -40,7 +45,9 @@ export function AccessBrand({
 
   const subtitleClass =
     variant === 'stacked'
-      ? 'text-xl font-semibold text-white sm:text-[1.35rem]'
+      ? stackedOnLight
+        ? 'text-lg font-extrabold text-[var(--color-text-primary,#0f172a)] sm:text-xl'
+        : 'text-xl font-semibold text-white sm:text-[1.35rem]'
       : onCyanBackground
         ? compact
           ? 'text-[10px] font-extrabold text-[var(--color-accent-primary)] drop-shadow-[0_1px_1px_rgba(255,255,255,0.35)]'

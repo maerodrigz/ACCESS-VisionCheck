@@ -3,7 +3,8 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LoginBrandPanel } from '../components/LoginBrandPanel'
 import { LoginFormPanel } from '../components/LoginFormPanel'
-import loginHeroBackground from '../assets/login-hero-background.jpg'
+import { LoginSplitCurve } from '../components/LoginSplitCurve'
+import loginCameraBg from '../assets/login-camera-bg.png'
 import '../styles/login.css'
 
 const REMEMBER_EMAIL_KEY = 'access-admin-login-remember-email'
@@ -28,13 +29,9 @@ export function LoginPage() {
   }, [])
 
   useEffect(() => {
-    const prevHtml = document.documentElement.style.overflow
-    const prevBody = document.body.style.overflow
-    document.documentElement.style.overflow = 'hidden'
-    document.body.style.overflow = 'hidden'
+    document.documentElement.classList.add('access-login-active')
     return () => {
-      document.documentElement.style.overflow = prevHtml
-      document.body.style.overflow = prevBody
+      document.documentElement.classList.remove('access-login-active')
     }
   }, [])
 
@@ -86,22 +83,21 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
-      <div
-        className="login-page__photo"
-        aria-hidden
-        style={{ backgroundImage: `url(${loginHeroBackground})` }}
-      />
-      <div className="login-page__art" aria-hidden />
-      <div className="login-page__scrim" aria-hidden />
-
-      <div className="login-layout login-layout--desktop">
-        <LoginBrandPanel />
-        <LoginFormPanel {...formProps} />
-      </div>
-
-      <div className="login-layout login-layout--mobile">
-        <LoginBrandPanel compact />
-        <LoginFormPanel {...formProps} mobile />
+      <div className="login-shell">
+        <div className="login-shell__photo" aria-hidden>
+          <div
+            className="login-shell__photo-bg"
+            style={{ '--login-hero-image': `url(${loginCameraBg})` } as React.CSSProperties}
+          />
+        </div>
+        <div className="login-shell__scrim" aria-hidden />
+        <LoginSplitCurve />
+        <div className="login-shell__brand">
+          <LoginBrandPanel />
+        </div>
+        <main className="login-shell__auth">
+          <LoginFormPanel {...formProps} />
+        </main>
       </div>
     </div>
   )

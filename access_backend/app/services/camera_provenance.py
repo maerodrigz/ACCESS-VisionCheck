@@ -166,6 +166,11 @@ def _safe_field_values(provenance: CameraProvenanceResult, key: str) -> str:
     return ""
 
 
+def photo_has_make_and_model(provenance: CameraProvenanceResult) -> bool:
+    """Both device Make and Model tags present (typical OEM camera EXIF)."""
+    return bool(_safe_field_values(provenance, "Make") and _safe_field_values(provenance, "Model"))
+
+
 def photo_has_credible_in_camera_identity(provenance: CameraProvenanceResult, *, file_name: str = "") -> bool:
     """True when partial/strong tags look like an original camera capture, not a bare download."""
     if provenance.is_video:
@@ -188,12 +193,13 @@ def photo_likely_download_or_resave(
     """Downloads, gallery re-saves, and stripped metadata should not auto-clear on low PROBE risk."""
     if provenance.is_video:
         return False
-    if looks_like_reexported_media_filename(file_name):
-        return True
     if provenance.strength == "absent":
         return True
 
     credible = photo_has_credible_in_camera_identity(provenance, file_name=file_name)
+
+    if looks_like_reexported_media_filename(file_name) and not photo_has_make_and_model(provenance):
+        return True
 
     flags = (exif_metadata or {}).get("flags") or []
     flag_codes = {

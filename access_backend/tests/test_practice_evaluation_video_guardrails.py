@@ -99,7 +99,7 @@ class PracticeEvaluationVideoGuardrailsTest(unittest.TestCase):
         self.assertTrue(out["requires_review"])
         self.assertEqual(out["provenance_policy_outcome"], "source_unverified")
 
-    def test_download_filename_photo_needs_review(self) -> None:
+    def test_download_filename_photo_auto_clears_with_credible_make_model(self) -> None:
         base = {
             "verdict": "authentic",
             "probability": 0.05,
@@ -113,11 +113,30 @@ class PracticeEvaluationVideoGuardrailsTest(unittest.TestCase):
             "strong",
             reasons=["Camera make/model present (test)."],
             safe_fields=[
-                {"key": "Make", "label": "Make", "value": "Canon"},
-                {"key": "Model", "label": "Model", "value": "EOS"},
+                {"key": "Make", "label": "Make", "value": "INFINIX MOBILITY LIMITED"},
+                {"key": "Model", "label": "Model", "value": "Infinix X695"},
             ],
         )
         out = apply_probe_provenance_policy(base, strong, file_name="images (1).jpg")
+        self.assertFalse(out["requires_review"])
+        self.assertEqual(out["provenance_policy_outcome"], "low_ai_risk")
+
+    def test_download_filename_photo_needs_review_without_make_model(self) -> None:
+        base = {
+            "verdict": "authentic",
+            "probability": 0.05,
+            "raw_detector_probability": 0.05,
+            "risk_level": "low",
+            "requires_review": False,
+            "detail": "Low risk.",
+            "exif_metadata": {"has_exif": True, "flags": [], "fields": []},
+        }
+        partial = CameraProvenanceResult(
+            "partial",
+            reasons=["Encoder tag only (test)."],
+            safe_fields=[{"key": "Software", "label": "Software", "value": "unknown"}],
+        )
+        out = apply_probe_provenance_policy(base, partial, file_name="images (1).jpg")
         self.assertTrue(out["requires_review"])
 
     def test_gallery_numeric_video_filename_forces_review(self) -> None:

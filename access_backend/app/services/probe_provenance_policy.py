@@ -8,6 +8,7 @@ from app.services.camera_provenance import (
     CameraProvenanceResult,
     looks_like_reexported_media_filename,
     photo_has_credible_in_camera_identity,
+    photo_has_make_and_model,
     photo_likely_download_or_resave,
     video_provenance_has_device_identity,
 )
@@ -30,10 +31,12 @@ def _normalize_photo_provenance(
     *,
     file_name: str = "",
 ) -> CameraProvenanceResult:
-    """Downloads often keep camera EXIF; filename still forces officer review."""
+    """Downloads often keep camera EXIF; bad filenames downgrade strong tags unless Make+Model are present."""
     if provenance.is_video:
         return provenance
     if not looks_like_reexported_media_filename(file_name):
+        return provenance
+    if photo_has_make_and_model(provenance):
         return provenance
     if provenance.strength != "strong":
         return provenance

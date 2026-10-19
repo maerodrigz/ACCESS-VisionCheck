@@ -294,15 +294,16 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                     <AssessmentRow label="Review Status">
                       <ReviewStatusBadge status={row.review_status} />
                     </AssessmentRow>
-                    {needsAdminAction && manualReviewReason ? (
-                      <AssessmentRow label="Review reason">
-                        <span className="max-w-[14rem] text-left text-[11px] font-medium leading-snug sm:text-right">
-                          {manualReviewReason}
-                        </span>
-                      </AssessmentRow>
-                    ) : null}
-                    {provenanceNotes ? (
-                      <AssessmentRow label={needsAdminAction ? 'Provenance context' : 'Provenance notes'}>
+                    {needsAdminAction ? (
+                      manualReviewReason ? (
+                        <AssessmentRow label="Review reason">
+                          <span className="max-w-[14rem] text-left text-[11px] font-medium leading-snug sm:text-right">
+                            {manualReviewReason}
+                          </span>
+                        </AssessmentRow>
+                      ) : null
+                    ) : provenanceNotes ? (
+                      <AssessmentRow label="Provenance notes">
                         <span className="max-w-[14rem] text-left text-[11px] font-medium leading-snug sm:text-right">
                           {provenanceNotes}
                         </span>

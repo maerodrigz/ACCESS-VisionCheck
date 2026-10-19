@@ -15,6 +15,7 @@ import {
   fetchServiceRequests,
   uploadMediaFile,
 } from '../api/admin'
+import { ApiError } from '../api/client'
 import {
   bulkPublishEventMediaToFacebook,
   fetchEventMedia,
@@ -122,9 +123,18 @@ export function MediaLibraryPage() {
 
   const applyGalleryCore = useCallback(
     (eventRows: Awaited<ReturnType<typeof fetchEventMedia>>, reqs: Record<string, unknown>[]) => {
+      if (!Array.isArray(eventRows)) {
+        throw new Error('Event media API returned an invalid response. Restart the backend and reload.')
+      }
+      if (!Array.isArray(reqs)) {
+        throw new Error('Documentation requests API returned an invalid response.')
+      }
       const syncedItems = parseEventMediaRows(eventRows).map(refreshAssetFlags)
       const albumList = buildAlbums(syncedItems)
-      const approved = reqs.filter((r) => String(r.status ?? '').toLowerCase() === 'approved')
+      const approved = reqs.filter((r) => {
+        const s = String(r.status ?? '').toLowerCase()
+        return s === 'approved' || s === 'completed'
+      })
       setAll(syncedItems)
       setAlbums(albumList)
       setRequests(approved.length > 0 ? approved : reqs)
@@ -145,7 +155,20 @@ export function MediaLibraryPage() {
       applyGalleryCore(eventRows, reqs)
       void loadFacebookExtras()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load media gallery')
+      let msg = 'Failed to load media gallery'
+      if (e instanceof ApiError) {
+        msg =
+          e.status === 404
+            ? `${e.message} Try restarting the API (python manage.py runserver) so /admin/event-media is registered.`
+            : e.message
+      } else if (e instanceof Error) {
+        msg = e.message
+      }
+      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
+        msg =
+          'Cannot reach the API. Run admin-web with npm run dev (uses /api proxy) or set VITE_API_BASE_URL to your backend, then restart Vite.'
+      }
+      setError(msg)
       setAll([])
       setAlbums([])
       setFbHistory([])
@@ -1110,9 +1133,10 @@ function FacebookCredentialsReminder({ config }: { config: FacebookConfigStatus 
           You can still publish <strong>one best pick at a time</strong> using browser share (opens Facebook in a new
           tab). Allow pop-ups for this site.
         </p>
-        {config.missing.length > 0 && (
+        {(config.missing?.length ?? 0) > 0 && (
           <p className="mt-1.5 text-xs font-semibold">
-            Add to <code className="rounded bg-amber-500/20 px-1 text-amber-50">access_backend/.env</code>: {config.missing.join(', ')}
+            Add to <code className="rounded bg-amber-500/20 px-1 text-amber-50">access_backend/.env</code>:{' '}
+            {(config.missing ?? []).join(', ')}
           </p>
         )}
         <button

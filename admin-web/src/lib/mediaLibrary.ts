@@ -1,4 +1,4 @@
-import { mediaUrl, isVideoMediaPath } from '../api/media'
+import { adminMediaStreamUrl, mediaUrl, isVideoMediaPath } from '../api/media'
 import type { ApprovalStatus, EventMediaRow, FacebookPublishStatus, MediaCategory } from '../api/eventMedia'
 
 export interface MediaLibraryStats {
@@ -163,6 +163,7 @@ function isVideoMedia(fileType: string, fileName: string, fileUrl: string): bool
 
 function mapEventRow(row: EventMediaRow): MediaAsset | null {
   const id = row.id
+  if (!id) return null
   const eventTitle = row.event_title ?? 'Uncategorized Event'
   const requestId = row.request_id
   const albumName = row.album_name_override?.trim() || eventTitle
@@ -205,7 +206,7 @@ function mapEventRow(row: EventMediaRow): MediaAsset | null {
     isBestShot: Boolean(row.is_best_shot) && fbStatus !== 'published',
     isVideo,
     isPhoto: !isVideo,
-    thumbnailUrl: mediaUrl(fileUrl),
+    thumbnailUrl: adminMediaStreamUrl(id) || mediaUrl(fileUrl),
     mediaTypeLabel: isVideo ? 'Video' : 'Photo',
     uploaderRoleLabel: isVideo ? 'Videographer' : 'Photographer',
     publishedStatusLabel: fbStatusLabel(fbStatus),

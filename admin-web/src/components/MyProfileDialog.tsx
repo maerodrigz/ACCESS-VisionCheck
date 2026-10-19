@@ -22,50 +22,64 @@ export function MyProfileDialog({ open, user, onClose }: Props) {
   const [uploading, setUploading] = useState(false)
   const [savingName, setSavingName] = useState(false)
   const [name, setName] = useState(user.name)
+  const [email, setEmail] = useState(user.email)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
     setName(user.name)
+    setEmail(user.email)
     setError(null)
     setSuccess(null)
-  }, [open, user.name])
+  }, [open, user.name, user.email])
 
   if (!open) return null
 
   const role = roleDisplayLabel(user.role)
   const nameDirty = name.trim() !== user.name.trim()
+  const emailDirty = email.trim().toLowerCase() !== user.email.trim().toLowerCase()
 
   function handleClose() {
     setError(null)
     setSuccess(null)
     setName(user.name)
+    setEmail(user.email)
     onClose()
   }
 
   async function handleSaveName() {
     const trimmed = name.trim()
+    const trimmedEmail = email.trim()
     if (!trimmed) {
       setError('Name cannot be empty.')
       return
     }
-    if (!nameDirty) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Enter a valid email address.')
+      return
+    }
+    if (!nameDirty && !emailDirty) return
 
     setError(null)
     setSuccess(null)
     setSavingName(true)
     try {
-      const profile = await updateProfile({ name: trimmed })
+      const profile = await updateProfile({
+        ...(nameDirty ? { name: trimmed } : {}),
+        ...(emailDirty ? { email: trimmedEmail } : {}),
+      })
       updateUser({
         name: profile.name,
         email: profile.email,
         profileImage: profileImageUrl(profile),
       })
       setName(profile.name)
-      setSuccess('Name updated.')
+      setEmail(profile.email)
+      setSuccess('Profile updated.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update name.')
+      const message = err instanceof Error ? err.message : 'Could not update profile.'
+      setError(/already in use/i.test(message) ? 'This email is already registered.' : message)
     } finally {
       setSavingName(false)
     }
@@ -119,7 +133,7 @@ export function MyProfileDialog({ open, user, onClose }: Props) {
             <h2 id="my-profile-title" className="pd-modal__title">
               My Profile
             </h2>
-            <p className="pd-modal__message mt-1">Update your profile photo and display name.</p>
+            <p className="pd-modal__message mt-1">Update your profile photo, display name, and email.</p>
           </div>
           <button
             type="button"
@@ -171,29 +185,39 @@ export function MyProfileDialog({ open, user, onClose }: Props) {
             <label htmlFor="my-profile-name" className="pd-modal__detail-label block">
               Name
             </label>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <input
-                id="my-profile-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={120}
-                className="admin-input w-full flex-1 rounded-xl px-3 py-2 text-sm"
-                autoComplete="name"
-              />
-              <button
-                type="button"
-                className="pd-modal__btn pd-modal__btn--primary shrink-0 disabled:opacity-50"
-                onClick={() => void handleSaveName()}
-                disabled={!nameDirty || savingName}
-              >
-                {savingName ? 'Saving…' : 'Save name'}
-              </button>
-            </div>
+            <input
+              id="my-profile-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={120}
+              className="admin-input w-full rounded-xl px-3 py-2 text-sm"
+              autoComplete="name"
+            />
           </div>
-          <div className="pd-modal__detail-row">
-            <span className="pd-modal__detail-label">Email</span>
-            <span className="pd-modal__detail-value">{user.email}</span>
+          <div className="space-y-1.5">
+            <label htmlFor="my-profile-email" className="pd-modal__detail-label block">
+              Email
+            </label>
+            <input
+              id="my-profile-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              maxLength={255}
+              className="admin-input w-full rounded-xl px-3 py-2 text-sm"
+              autoComplete="email"
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="pd-modal__btn pd-modal__btn--primary shrink-0 disabled:opacity-50"
+              onClick={() => void handleSaveName()}
+              disabled={(!nameDirty && !emailDirty) || savingName}
+            >
+              {savingName ? 'Saving…' : 'Save changes'}
+            </button>
           </div>
           <div className="pd-modal__detail-row">
             <span className="pd-modal__detail-label">Role</span>

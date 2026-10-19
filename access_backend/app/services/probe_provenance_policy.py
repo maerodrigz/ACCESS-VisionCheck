@@ -7,6 +7,8 @@ from typing import Any
 from app.services.camera_provenance import (
     CameraProvenanceResult,
     looks_like_reexported_media_filename,
+    photo_has_credible_in_camera_identity,
+    photo_likely_download_or_resave,
     video_provenance_has_device_identity,
 )
 from app.services.ai_authenticity_detector import probe_risk_level_from_probability
@@ -21,6 +23,28 @@ _PARTIAL_LOW_DETAIL = (
     "Automated visual analysis indicates low AI risk. Camera provenance is "
     "only partially verified; scores may remain provisional until review if required."
 )
+
+
+def _normalize_photo_provenance(
+    provenance: CameraProvenanceResult,
+    *,
+    file_name: str = "",
+) -> CameraProvenanceResult:
+    """Downloads often keep camera EXIF; filename still forces officer review."""
+    if provenance.is_video:
+        return provenance
+    if not looks_like_reexported_media_filename(file_name):
+        return provenance
+    if provenance.strength != "strong":
+        return provenance
+    reasons = list(provenance.reasons)
+    reasons.append("Filename suggests a gallery save or download; admin review required.")
+    return CameraProvenanceResult(
+        "partial",
+        reasons=reasons,
+        safe_fields=list(provenance.safe_fields),
+        is_video=False,
+    )
 
 
 def _normalize_video_provenance(
@@ -61,7 +85,9 @@ def apply_probe_provenance_policy(
 ) -> dict[str, Any]:
     """Merge provenance policy into ai_detection without changing probability fields."""
     provenance = _normalize_video_provenance(provenance, file_name=file_name)
+    provenance = _normalize_photo_provenance(provenance, file_name=file_name)
     out = dict(ai_detection)
+    exif_meta = out.get("exif_metadata") if isinstance(out.get("exif_metadata"), dict) else None
     p_raw = out.get("raw_detector_probability")
     if p_raw is None:
         p_raw = out.get("probability")
@@ -91,24 +117,49 @@ def apply_probe_provenance_policy(
             outcome = "high_ai_risk"
     elif strength == "partial":
         if visual_risk == "low":
-            # Videos saved/re-exported without device identity still need officer review.
             video_needs_manual_review = provenance.is_video and (
                 looks_like_reexported_media_filename(file_name)
                 or not video_provenance_has_device_identity(provenance.safe_fields)
             )
-            if video_needs_manual_review:
+            photo_needs_manual_review = photo_likely_download_or_resave(
+                file_name=file_name,
+                provenance=provenance,
+                exif_metadata=exif_meta,
+            )
+            photo_auto_clear = (
+                not provenance.is_video
+                and not photo_needs_manual_review
+                and photo_has_credible_in_camera_identity(provenance, file_name=file_name)
+            )
+            if video_needs_manual_review or photo_needs_manual_review:
                 requires_review = True
-                outcome = "source_partially_verified"
-                base = str(out.get("detail") or "")
-                partial_detail = (
-                    f"{_PARTIAL_LOW_DETAIL} Administrative review is required before "
-                    "scores and coaching are released."
+                outcome = (
+                    "source_unverified"
+                    if photo_needs_manual_review and not provenance.is_video
+                    else "source_partially_verified"
                 )
-                if partial_detail not in base:
-                    out["detail"] = f"{base} {partial_detail}".strip()
-            else:
+                base = str(out.get("detail") or "")
+                if photo_needs_manual_review and not provenance.is_video:
+                    download_detail = (
+                        "This file looks like a download, re-save, or export without verified "
+                        "in-camera provenance. Administrative review is required before scores "
+                        "and coaching are released."
+                    )
+                    if download_detail not in base:
+                        out["detail"] = download_detail if not base else f"{base} {download_detail}".strip()
+                else:
+                    partial_detail = (
+                        f"{_PARTIAL_LOW_DETAIL} Administrative review is required before "
+                        "scores and coaching are released."
+                    )
+                    if partial_detail not in base:
+                        out["detail"] = f"{base} {partial_detail}".strip()
+            elif photo_auto_clear:
                 requires_review = False
                 outcome = "low_ai_risk"
+            else:
+                requires_review = True
+                outcome = "source_partially_verified"
         else:
             requires_review = True
             outcome = "elevated_ai_risk" if visual_risk == "suspicious" else "high_ai_risk"

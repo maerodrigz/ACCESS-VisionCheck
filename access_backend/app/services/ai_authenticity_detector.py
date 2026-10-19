@@ -129,7 +129,7 @@ def _detect_ai_generated_probe(
         }
         if apply_provenance_policy:
             prov = provenance if provenance is not None else classify_photo_camera_provenance(content, file_name)
-            return apply_probe_provenance_policy(fail_payload, prov)
+            return apply_probe_provenance_policy(fail_payload, prov, file_name=file_name)
         return fail_payload
 
     p = float(max(0.0, min(1.0, raw_p)))
@@ -179,7 +179,7 @@ def _detect_ai_generated_probe(
     }
     if apply_provenance_policy:
         prov = provenance if provenance is not None else classify_photo_camera_provenance(content, file_name)
-        payload = apply_probe_provenance_policy(payload, prov)
+        payload = apply_probe_provenance_policy(payload, prov, file_name=file_name)
         if isinstance(payload.get("exif_metadata"), dict):
             meta = dict(payload["exif_metadata"])
             meta["camera_provenance_strength"] = payload.get("camera_provenance_strength")

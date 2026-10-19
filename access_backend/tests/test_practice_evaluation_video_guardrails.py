@@ -78,7 +78,7 @@ class PracticeEvaluationVideoGuardrailsTest(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 422)
         self.assertEqual(ctx.exception.detail, "Video duration must not exceed 30 seconds.")
 
-    def test_partial_provenance_low_risk_photo_auto_clears(self) -> None:
+    def test_partial_provenance_low_risk_incomplete_identity_needs_review(self) -> None:
         base = {
             "verdict": "authentic",
             "probability": 0.05,
@@ -96,8 +96,29 @@ class PracticeEvaluationVideoGuardrailsTest(unittest.TestCase):
             ),
             file_name="club_event.jpg",
         )
-        self.assertFalse(out["requires_review"])
-        self.assertEqual(out["provenance_policy_outcome"], "low_ai_risk")
+        self.assertTrue(out["requires_review"])
+        self.assertEqual(out["provenance_policy_outcome"], "source_unverified")
+
+    def test_download_filename_photo_needs_review(self) -> None:
+        base = {
+            "verdict": "authentic",
+            "probability": 0.05,
+            "raw_detector_probability": 0.05,
+            "risk_level": "low",
+            "requires_review": False,
+            "detail": "Low risk.",
+            "exif_metadata": {"has_exif": True, "flags": [], "fields": []},
+        }
+        strong = CameraProvenanceResult(
+            "strong",
+            reasons=["Camera make/model present (test)."],
+            safe_fields=[
+                {"key": "Make", "label": "Make", "value": "Canon"},
+                {"key": "Model", "label": "Model", "value": "EOS"},
+            ],
+        )
+        out = apply_probe_provenance_policy(base, strong, file_name="images (1).jpg")
+        self.assertTrue(out["requires_review"])
 
     def test_gallery_numeric_video_filename_forces_review(self) -> None:
         base = {

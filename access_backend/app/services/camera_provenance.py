@@ -110,7 +110,109 @@ def looks_like_reexported_media_filename(file_name: str) -> bool:
         return False
     if re.fullmatch(r"\d{6,}", stem):
         return True
-    if re.match(r"^(video|download|screen_?record|screenrecording|mvimg|snapchat|tiktok)", stem, re.I):
+    if re.match(
+        r"^(video|download|screen_?record|screenrecording|mvimg|snapchat|tiktok|"
+        r"image|images|photo|pics?|picture|saved|copy|screenshot|screen|thumb|blob|temp)",
+        stem,
+        re.I,
+    ):
+        return True
+    if re.search(r"\(\d+\)$", stem):
+        return True
+    lower = stem.lower()
+    for hint in (
+        "whatsapp",
+        "telegram",
+        "facebook",
+        "instagram",
+        "pinterest",
+        "twitter",
+        "reddit",
+        "messenger",
+        "viber",
+        "chrome",
+        "browser",
+    ):
+        if hint in lower:
+            return True
+    return False
+
+
+_RESAVE_SOFTWARE_HINTS = (
+    "google photos",
+    "snapseed",
+    "instagram",
+    "facebook",
+    "whatsapp",
+    "telegram",
+    "pinterest",
+    "canva",
+    "photoshop",
+    "lightroom",
+    "gimp",
+    "paint",
+    "microsoft",
+    "windows photo",
+    "gallery",
+    "share",
+    "save",
+)
+
+
+def _safe_field_values(provenance: CameraProvenanceResult, key: str) -> str:
+    for row in provenance.safe_fields:
+        if (row.get("key") or row.get("label")) == key:
+            return _clean_text(row.get("value"))
+    return ""
+
+
+def photo_has_credible_in_camera_identity(provenance: CameraProvenanceResult, *, file_name: str = "") -> bool:
+    """True when partial/strong tags look like an original camera capture, not a bare download."""
+    if provenance.is_video:
+        return provenance.strength == "strong"
+    make = _safe_field_values(provenance, "Make")
+    model = _safe_field_values(provenance, "Model")
+    if make and model:
+        return True
+    if _coherent_phone_filename(file_name) and (make or model):
+        return True
+    return provenance.strength == "strong"
+
+
+def photo_likely_download_or_resave(
+    *,
+    file_name: str,
+    provenance: CameraProvenanceResult,
+    exif_metadata: dict[str, Any] | None,
+) -> bool:
+    """Downloads, gallery re-saves, and stripped metadata should not auto-clear on low PROBE risk."""
+    if provenance.is_video:
+        return False
+    if looks_like_reexported_media_filename(file_name):
+        return True
+    if provenance.strength == "absent":
+        return True
+
+    credible = photo_has_credible_in_camera_identity(provenance, file_name=file_name)
+
+    flags = (exif_metadata or {}).get("flags") or []
+    flag_codes = {
+        str(f.get("code"))
+        for f in flags
+        if isinstance(f, dict) and f.get("code")
+    }
+    if not credible and flag_codes & {"jpeg_no_exif", "png_webp_no_exif", "no_exif", "missing_camera_make_model"}:
+        return True
+
+    software = ""
+    for row in (exif_metadata or {}).get("fields") or []:
+        if isinstance(row, dict) and row.get("key") == "Software":
+            software = _clean_text(row.get("value")).lower()
+            break
+    if software and any(h in software for h in _RESAVE_SOFTWARE_HINTS):
+        return True
+
+    if provenance.strength == "partial" and not credible:
         return True
     return False
 

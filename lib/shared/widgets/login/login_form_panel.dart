@@ -184,9 +184,7 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
   }
 
   Widget _buildCard() {
-    final compact = _emailFocus.hasFocus ||
-        _passwordFocus.hasFocus ||
-        MediaQuery.viewInsetsOf(context).bottom > 0;
+    final compact = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: LoginPageTokens.maxFormWidth),

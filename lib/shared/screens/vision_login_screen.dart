@@ -43,7 +43,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   bool _rememberMe = false;
   bool _loading = false;
   String? _error;
-  bool _signInFieldsFocused = false;
 
   @override
   void initState() {
@@ -51,11 +50,29 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     // Keep login hero in sync with GET /branding (tagline, custom logo, app name).
     unawaited(brandingController.refresh());
     _loadRememberedEmail();
-    final ended = authController.consumeSessionEndMessage();
-    if (ended != null && ended.isNotEmpty) {
-      _error = ended;
+    // Drop stale session messages on mobile so sign-in stays clean (no banner/snack).
+    if (kIsWeb) {
+      final ended = authController.consumeSessionEndMessage();
+      if (ended != null && ended.isNotEmpty) {
+        _error = ended;
+      }
+    } else {
+      authController.consumeSessionEndMessage();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.maybeOf(context)?.clearSnackBars();
+      });
     }
     unawaited(_recoverWhenBackendIsReachable());
+  }
+
+  void _setLoginError(String? message) {
+    if (kIsWeb) {
+      setState(() => _error = message);
+      return;
+    }
+    // Mobile sign-in: no snackbars (they read as a yellow strip above the keyboard).
+    setState(() => _error = null);
   }
 
   /// Clears stale offline banners and restores JWT when the PC backend comes back.
@@ -74,8 +91,12 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       widget.onAuthenticated?.call();
       return;
     }
-    final ended = authController.consumeSessionEndMessage();
-    setState(() => _error = ended);
+    if (kIsWeb) {
+      final ended = authController.consumeSessionEndMessage();
+      setState(() => _error = ended);
+    } else {
+      authController.consumeSessionEndMessage();
+    }
   }
 
   @override
@@ -109,7 +130,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
     if (email.isEmpty || pass.isEmpty) {
-      setState(() => _error = 'Please fill in all fields.');
+      _setLoginError('Please fill in all fields.');
       return;
     }
     setState(() {
@@ -123,19 +144,16 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       setState(() => _loading = false);
       widget.onAuthenticated?.call();
     } on ApiException catch (e) {
-      setState(() {
-        _loading = false;
-        _error = switch (e.code) {
-          'pending' || 'rejected' => e.message,
-          'removed' => 'Your account has been removed. Please contact the administrator.',
-          _ => _loginFailureMessage(e),
-        };
-      });
+      final message = switch (e.code) {
+        'pending' || 'rejected' => e.message,
+        'removed' => 'Your account has been removed. Please contact the administrator.',
+        _ => _loginFailureMessage(e),
+      };
+      setState(() => _loading = false);
+      _setLoginError(message);
     } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = e.toString();
-      });
+      setState(() => _loading = false);
+      _setLoginError(e.toString());
     }
   }
 
@@ -162,11 +180,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     await showForgotPasswordDialog(context, initialEmail: _emailCtrl.text.trim());
   }
 
-  void _onSignInTypingFocus(bool focused) {
-    if (_signInFieldsFocused == focused) return;
-    setState(() => _signInFieldsFocused = focused);
-  }
-
   String _loginFailureMessage(ApiException e) {
     final lower = e.message.toLowerCase();
     if (e.statusCode == 401 &&
@@ -183,10 +196,35 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 900;
 
+    // One scaffold only on phone sign-in (nested scaffolds leave a colored strip above the keyboard).
+    if (!kIsWeb && !wide) {
+      return _mobileSignInScaffold();
+    }
+
     return Scaffold(
       backgroundColor: wide ? LoginPageTokens.background : const Color(0xFF0C3340),
       resizeToAvoidBottomInset: true,
       body: wide ? _wideLayout() : _narrowLayout(),
+    );
+  }
+
+  Widget _mobileSignInScaffold() {
+    return MobileAuthScaffold(
+      scrollable: false,
+      fixedViewport: true,
+      body: MobileAuthSignInForm(
+        key: const ValueKey('mobile_sign_in_form'),
+        emailController: _emailCtrl,
+        passwordController: _passCtrl,
+        obscurePassword: _obscure,
+        rememberMe: _rememberMe,
+        loading: _loading,
+        onToggleObscure: () => setState(() => _obscure = !_obscure),
+        onRememberMeChanged: (v) => setState(() => _rememberMe = v),
+        onSubmit: _submit,
+        onForgotPassword: _forgotPassword,
+        onCreateAccount: _openRegistration,
+      ),
     );
   }
 
@@ -215,32 +253,10 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Widget _narrowLayout() {
-    if (!kIsWeb) {
-      return MobileAuthScaffold(
-        scrollable: false,
-        fixedViewport: true,
-        hideHeroBranding: _signInFieldsFocused,
-        body: MobileAuthSignInForm(
-          emailController: _emailCtrl,
-          passwordController: _passCtrl,
-          obscurePassword: _obscure,
-          rememberMe: _rememberMe,
-          loading: _loading,
-          error: _error,
-          onToggleObscure: () => setState(() => _obscure = !_obscure),
-          onRememberMeChanged: (v) => setState(() => _rememberMe = v),
-          onSubmit: _submit,
-          onForgotPassword: _forgotPassword,
-          onCreateAccount: _openRegistration,
-          onTypingFocusChanged: _onSignInTypingFocus,
-        ),
-      );
-    }
-
     const cardSideInset = 12.0;
     final topInset = MediaQuery.paddingOf(context).top;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final hideBrandHero = keyboardOpen || _signInFieldsFocused;
+    final hideBrandHero = keyboardOpen;
 
     final formPanel = LoginFormPanel(
       key: const ValueKey('mobile-login-card'),
@@ -256,7 +272,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       onSubmit: _submit,
       onForgotPassword: _forgotPassword,
       onCreateAccount: kIsWeb ? null : _openRegistration,
-      onSignInFieldsFocused: _onSignInTypingFocus,
     );
 
     return Stack(

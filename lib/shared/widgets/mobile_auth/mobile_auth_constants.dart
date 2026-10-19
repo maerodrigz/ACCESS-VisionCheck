@@ -11,7 +11,7 @@ abstract final class MobileAuthConstants {
   static const signInHeaderMinHeight = 220.0;
   static const signInHeaderMaxHeight = 268.0;
   /// Minimal chrome above the form when the keyboard is open (excludes status bar).
-  static const signInHeaderKeyboardBodyHeight = 40.0;
+  static const signInHeaderKeyboardBodyHeight = 28.0;
   static const fieldRadius = 12.0;
   static const buttonRadius = 12.0;
 

@@ -94,10 +94,8 @@ class AuthController extends ChangeNotifier {
         }
         await prefs.remove(_sessionKey);
       } else if (_isUnreachableBackend(e)) {
-        final example = ApiConfig.suggestedPhoneBackendUrl;
-        _sessionEndMessage =
-            'Cannot reach the PC backend (Wi-Fi IP may have changed). '
-            'Check Wi-Fi and that the server is running. Example: $example';
+        // Keep saved session; mobile sign-in stays clean (fix URL under Account settings).
+        _sessionEndMessage = null;
       } else {
         await prefs.remove(_sessionKey);
         _sessionEndMessage = e.message;

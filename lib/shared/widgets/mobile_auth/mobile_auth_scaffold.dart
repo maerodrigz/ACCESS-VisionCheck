@@ -11,7 +11,6 @@ class MobileAuthScaffold extends StatelessWidget {
     this.scrollable = true,
     this.headerHeightFactor = MobileAuthConstants.headerHeightFactor,
     this.fixedViewport = false,
-    this.hideHeroBranding = false,
   });
 
   final Widget body;
@@ -20,11 +19,8 @@ class MobileAuthScaffold extends StatelessWidget {
   /// Used when [scrollable] is true (registration screens).
   final double headerHeightFactor;
 
-  /// Sign-in: cyan hero + white form; keyboard uses inset padding (no scaffold shrink).
+  /// Sign-in: cyan hero + white form sheet above the keyboard.
   final bool fixedViewport;
-
-  /// Hide cyan hero while email/password is focused (before keyboard inset animates).
-  final bool hideHeroBranding;
 
   double _headerHeight(MediaQueryData media) {
     if (fixedViewport) {
@@ -41,42 +37,29 @@ class MobileAuthScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardOpen = media.viewInsets.bottom > 0;
-    final hideHero = fixedViewport && (keyboardOpen || hideHeroBranding);
 
     Widget column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AnimatedSize(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeInOut,
-          alignment: Alignment.topCenter,
-          child: hideHero
-              ? SizedBox(height: media.padding.top)
-              : SizedBox(
-                  height: _headerHeight(media),
-                  child: MobileAuthHeader(compact: fixedViewport),
-                ),
+        SizedBox(
+          height: _headerHeight(media),
+          child: MobileAuthHeader(compact: fixedViewport),
         ),
-        Expanded(child: _bodySlot(body, media, keyboardOpen || hideHeroBranding)),
+        Expanded(child: _bodySlot(body, media)),
       ],
     );
 
-    if (fixedViewport) {
-      column = Padding(
-        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-        child: column,
-      );
-    }
-
     return Scaffold(
-      backgroundColor: fixedViewport ? kBg : kSurface,
-      resizeToAvoidBottomInset: !fixedViewport,
-      body: column,
+      backgroundColor: kSurface,
+      resizeToAvoidBottomInset: true,
+      body: ColoredBox(
+        color: fixedViewport ? kSurface : kBg,
+        child: column,
+      ),
     );
   }
 
-  Widget _bodySlot(Widget child, MediaQueryData media, bool keyboardOpen) {
+  Widget _bodySlot(Widget child, MediaQueryData media) {
     if (scrollable) {
       return SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -97,21 +80,22 @@ class MobileAuthScaffold extends StatelessWidget {
       child: ColoredBox(
         color: kSurface,
         child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            physics: keyboardOpen
-                ? const ClampingScrollPhysics()
-                : const NeverScrollableScrollPhysics(),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          builder: (context, constraints) {
+            final minBodyHeight = constraints.maxHeight - formPadding.vertical;
+            return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              physics: const ClampingScrollPhysics(),
               child: Padding(
                 padding: formPadding,
-                child: child,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: minBodyHeight > 0 ? minBodyHeight : 0,
+                  ),
+                  child: child,
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
         ),
       ),
     );

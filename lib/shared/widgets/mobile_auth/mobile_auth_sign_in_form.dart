@@ -12,13 +12,11 @@ class MobileAuthSignInForm extends StatefulWidget {
     required this.obscurePassword,
     required this.rememberMe,
     required this.loading,
-    required this.error,
     required this.onToggleObscure,
     required this.onRememberMeChanged,
     required this.onSubmit,
     required this.onForgotPassword,
     this.onCreateAccount,
-    this.onTypingFocusChanged,
   });
 
   final TextEditingController emailController;
@@ -26,13 +24,11 @@ class MobileAuthSignInForm extends StatefulWidget {
   final bool obscurePassword;
   final bool rememberMe;
   final bool loading;
-  final String? error;
   final VoidCallback onToggleObscure;
   final ValueChanged<bool> onRememberMeChanged;
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
   final VoidCallback? onCreateAccount;
-  final ValueChanged<bool>? onTypingFocusChanged;
 
   @override
   State<MobileAuthSignInForm> createState() => _MobileAuthSignInFormState();
@@ -42,71 +38,46 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
   late final FocusNode _emailFocus;
   late final FocusNode _passwordFocus;
 
+  /// Small fixed padding only — large values fight the framework and steal focus.
+  static const _fieldScrollPadding = EdgeInsets.all(20);
+
   @override
   void initState() {
     super.initState();
     _emailFocus = FocusNode();
     _passwordFocus = FocusNode();
-    for (final node in [_emailFocus, _passwordFocus]) {
-      node.addListener(_onFocusChange);
-    }
   }
 
   @override
   void dispose() {
-    for (final node in [_emailFocus, _passwordFocus]) {
-      node.removeListener(_onFocusChange);
-      node.dispose();
-    }
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
-  }
-
-  void _onFocusChange() {
-    if (!mounted) return;
-    final typing = _emailFocus.hasFocus || _passwordFocus.hasFocus;
-    widget.onTypingFocusChanged?.call(typing);
-    setState(() {});
-  }
-
-  bool _compactLayout(BuildContext context) {
-    if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
-    return _emailFocus.hasFocus || _passwordFocus.hasFocus;
-  }
-
-  String? _displayError() {
-    final raw = widget.error;
-    if (raw == null || raw.isEmpty) return null;
-    if (raw.length > 120) {
-      return '${raw.substring(0, 117)}…';
-    }
-    return raw;
   }
 
   @override
   Widget build(BuildContext context) {
-    final compact = _compactLayout(context);
-    final displayError = _displayError();
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-    final fields = Column(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!compact)
-          const MobileAuthSectionHeader(
-            title: 'Sign In',
-            subtitle: 'Continue to your account.',
-            compact: true,
-          ),
-        if (!compact) const SizedBox(height: 12),
-        if (displayError != null) ...[
-          mobileAuthErrorBanner(displayError, maxLines: compact ? 2 : 2),
-          SizedBox(height: compact ? 6 : 8),
-        ],
+        const MobileAuthSectionHeader(
+          title: 'Sign In',
+          subtitle: 'Continue to your account.',
+          compact: true,
+        ),
+        const SizedBox(height: 12),
         TextField(
+          key: const ValueKey('mobile_sign_in_email'),
           controller: widget.emailController,
           focusNode: _emailFocus,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
+          scrollPadding: _fieldScrollPadding,
+          cursorColor: kAccent,
+          enableInteractiveSelection: true,
           onSubmitted: (_) => _passwordFocus.requestFocus(),
           decoration: mobileAuthInputDecoration(
             hint: 'Email Address',
@@ -114,12 +85,16 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
             dense: true,
           ),
         ),
-        SizedBox(height: compact ? 8 : 10),
+        const SizedBox(height: 10),
         TextField(
+          key: const ValueKey('mobile_sign_in_password'),
           controller: widget.passwordController,
           focusNode: _passwordFocus,
           obscureText: widget.obscurePassword,
           textInputAction: TextInputAction.done,
+          scrollPadding: _fieldScrollPadding,
+          cursorColor: kAccent,
+          enableInteractiveSelection: true,
           onSubmitted: (_) => widget.onSubmit(),
           decoration: mobileAuthInputDecoration(
             hint: 'Password',
@@ -137,66 +112,47 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
             ),
           ),
         ),
-        if (compact)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            SizedBox(
+              height: 22,
+              width: 22,
+              child: Checkbox(
+                value: widget.rememberMe,
+                onChanged: (v) => widget.onRememberMeChanged(v ?? false),
+                activeColor: kCyan,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text('Remember Me', style: TextStyle(fontSize: 13, color: kTextSecondary)),
+            const Spacer(),
+            TextButton(
               onPressed: widget.onForgotPassword,
               style: TextButton.styleFrom(
                 foregroundColor: kCyan,
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: const Text(
                 'Forgot Password?',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               ),
             ),
-          ),
-        if (!compact) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              SizedBox(
-                height: 22,
-                width: 22,
-                child: Checkbox(
-                  value: widget.rememberMe,
-                  onChanged: (v) => widget.onRememberMeChanged(v ?? false),
-                  activeColor: kCyan,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Text('Remember Me', style: TextStyle(fontSize: 13, color: kTextSecondary)),
-              const Spacer(),
-              TextButton(
-                onPressed: widget.onForgotPassword,
-                style: TextButton.styleFrom(
-                  foregroundColor: kCyan,
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text(
-                  'Forgot Password?',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-        ],
-        SizedBox(height: compact ? 8 : 16),
+          ],
+        ),
+        const SizedBox(height: 16),
         MobileAuthGradientButton(
           label: 'Sign In',
           loading: widget.loading,
           onPressed: widget.loading ? null : widget.onSubmit,
           compact: true,
         ),
-        if (!compact && widget.onCreateAccount != null) ...[
+        if (widget.onCreateAccount != null) ...[
           const SizedBox(height: 10),
           MobileAuthTextLinkRow(
             prompt: "Don't have an account?",
@@ -204,34 +160,19 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
             onLinkTap: widget.onCreateAccount!,
           ),
         ],
-      ],
-    );
-
-    if (compact) {
-      return fields;
-    }
-
-    const footer = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        LegalFooterLinks(useLoginTokens: false),
-        SizedBox(height: 4),
-        Text(
-          '© 2026 ACCESS VisionCheck · USTP Oroquieta',
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: kTextSecondary, fontSize: 10),
-        ),
-      ],
-    );
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        fields,
-        footer,
+        SizedBox(height: keyboardOpen ? 16 : 32),
+        if (!keyboardOpen) ...[
+          const LegalFooterLinks(useLoginTokens: false),
+          const SizedBox(height: 4),
+          Text(
+            '© 2026 ACCESS VisionCheck · USTP Oroquieta',
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: kTextSecondary, fontSize: 10),
+          ),
+          SizedBox(height: bottomInset + 10),
+        ],
       ],
     );
   }

@@ -183,6 +183,8 @@ ThemeData buildAccessLightTheme() {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
+      backgroundColor: kTextPrimary,
+      contentTextStyle: const TextStyle(color: Colors.white),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
     navigationBarTheme: NavigationBarThemeData(

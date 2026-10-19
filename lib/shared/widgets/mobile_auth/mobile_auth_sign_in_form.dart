@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:access_mobile/shared/constants/api_config.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_widgets.dart';
@@ -19,7 +18,7 @@ class MobileAuthSignInForm extends StatefulWidget {
     required this.onSubmit,
     required this.onForgotPassword,
     this.onCreateAccount,
-    this.onFixBackendConnection,
+    this.onTypingFocusChanged,
   });
 
   final TextEditingController emailController;
@@ -33,18 +32,7 @@ class MobileAuthSignInForm extends StatefulWidget {
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
   final VoidCallback? onCreateAccount;
-  final VoidCallback? onFixBackendConnection;
-
-  static bool isBackendConnectivityMessage(String message) {
-    final lower = message.toLowerCase();
-    return lower.contains('cannot reach') ||
-        lower.contains("can't reach") ||
-        lower.contains('pc backend') ||
-        lower.contains('fix backend') ||
-        lower.contains('set backend') ||
-        lower.contains('backend url') ||
-        lower.contains('wi-fi ip');
-  }
+  final ValueChanged<bool>? onTypingFocusChanged;
 
   @override
   State<MobileAuthSignInForm> createState() => _MobileAuthSignInFormState();
@@ -74,7 +62,10 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
   }
 
   void _onFocusChange() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final typing = _emailFocus.hasFocus || _passwordFocus.hasFocus;
+    widget.onTypingFocusChanged?.call(typing);
+    setState(() {});
   }
 
   bool _compactLayout(BuildContext context) {
@@ -85,11 +76,6 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
   String? _displayError() {
     final raw = widget.error;
     if (raw == null || raw.isEmpty) return null;
-    if (widget.onFixBackendConnection != null &&
-        MobileAuthSignInForm.isBackendConnectivityMessage(raw)) {
-      final host = ApiConfig.effectiveBaseUrl;
-      return 'Cannot reach the backend at $host. Same Wi-Fi as the PC? Tap Set backend URL.';
-    }
     if (raw.length > 120) {
       return '${raw.substring(0, 117)}…';
     }
@@ -216,21 +202,6 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
             prompt: "Don't have an account?",
             linkLabel: 'Sign Up',
             onLinkTap: widget.onCreateAccount!,
-          ),
-        ],
-        if (!compact && widget.onFixBackendConnection != null) ...[
-          const SizedBox(height: 2),
-          Center(
-            child: TextButton.icon(
-              onPressed: widget.onFixBackendConnection,
-              icon: const Icon(Icons.dns_outlined, size: 14),
-              label: const Text('Set backend URL'),
-              style: TextButton.styleFrom(
-                foregroundColor: kTextSecondary,
-                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
           ),
         ],
       ],

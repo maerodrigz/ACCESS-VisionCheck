@@ -17,7 +17,7 @@ class LoginFormPanel extends StatefulWidget {
     required this.onSubmit,
     required this.onForgotPassword,
     this.onCreateAccount,
-    this.onFixBackendConnection,
+    this.onSignInFieldsFocused,
     this.compact = false,
     this.cardStyle = false,
   });
@@ -33,7 +33,7 @@ class LoginFormPanel extends StatefulWidget {
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
   final VoidCallback? onCreateAccount;
-  final VoidCallback? onFixBackendConnection;
+  final ValueChanged<bool>? onSignInFieldsFocused;
   final bool compact;
 
   /// Phone layout: white card with sign-in form plus create-account / backend links.
@@ -45,6 +45,34 @@ class LoginFormPanel extends StatefulWidget {
 
 class _LoginFormPanelState extends State<LoginFormPanel> {
   static const _radius = 16.0;
+  late final FocusNode _emailFocus;
+  late final FocusNode _passwordFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailFocus = FocusNode();
+    _passwordFocus = FocusNode();
+    for (final node in [_emailFocus, _passwordFocus]) {
+      node.addListener(_onSignInFieldFocus);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final node in [_emailFocus, _passwordFocus]) {
+      node.removeListener(_onSignInFieldFocus);
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  void _onSignInFieldFocus() {
+    if (!mounted) return;
+    final focused = _emailFocus.hasFocus || _passwordFocus.hasFocus;
+    widget.onSignInFieldsFocused?.call(focused);
+    if (widget.cardStyle) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,20 +100,12 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ..._errorBlock(),
-                    if (!kIsWeb && widget.onFixBackendConnection != null) ...[
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: widget.onFixBackendConnection,
-                          icon: const Icon(Icons.dns_outlined, size: 16),
-                          label: const Text('Set backend URL'),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
                     TextField(
                       controller: widget.emailController,
+                      focusNode: _emailFocus,
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) => _passwordFocus.requestFocus(),
                       decoration: _fieldDecoration('Email Address', Icons.email_outlined),
                     ),
                     const SizedBox(height: 16),
@@ -164,6 +184,10 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
   }
 
   Widget _buildCard() {
+    final compact = _emailFocus.hasFocus ||
+        _passwordFocus.hasFocus ||
+        MediaQuery.viewInsetsOf(context).bottom > 0;
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: LoginPageTokens.maxFormWidth),
       child: Container(
@@ -188,31 +212,35 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Sign in',
-              style: TextStyle(
-                color: LoginPageTokens.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                height: 1.1,
+            if (!compact) ...[
+              const Text(
+                'Sign in',
+                style: TextStyle(
+                  color: LoginPageTokens.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  height: 1.1,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Access your account',
-              style: TextStyle(
-                color: LoginPageTokens.textSecondary.withValues(alpha: 0.95),
-                fontSize: 13,
-                height: 1.35,
+              const SizedBox(height: 4),
+              Text(
+                'Access your account',
+                style: TextStyle(
+                  color: LoginPageTokens.textSecondary.withValues(alpha: 0.95),
+                  fontSize: 13,
+                  height: 1.35,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ..._errorBlock(spacing: 12),
+              const SizedBox(height: 16),
+            ],
+            ..._errorBlock(spacing: compact ? 8 : 12),
             TextField(
               controller: widget.emailController,
+              focusNode: _emailFocus,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              onSubmitted: (_) => _passwordFocus.requestFocus(),
               decoration: _fieldDecoration(
                 'Email Address',
                 Icons.person_outline_rounded,
@@ -233,7 +261,7 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
               onSubmit: widget.onSubmit,
               useHover: kIsWeb,
             ),
-            if (widget.onCreateAccount != null) ...[
+            if (!compact && widget.onCreateAccount != null) ...[
               const SizedBox(height: 18),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -258,41 +286,26 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
                 ],
               ),
             ],
-            if (!kIsWeb && widget.onFixBackendConnection != null) ...[
-              const SizedBox(height: 4),
-              Center(
-                child: TextButton.icon(
-                  onPressed: widget.onFixBackendConnection,
-                  icon: const Icon(Icons.dns_outlined, size: 14),
-                  label: const Text('Set backend URL'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: LoginPageTokens.textSecondary,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
+            if (!compact) ...[
+              const SizedBox(height: 20),
+              const LegalFooterLinks(useLoginTokens: true),
+              const SizedBox(height: 10),
+              const Text(
+                '© 2026 ACCESS VisionCheck',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: LoginPageTokens.textSecondary, fontSize: 11),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                'USTP Oroquieta Campus',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: LoginPageTokens.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
-            const SizedBox(height: 20),
-            const LegalFooterLinks(useLoginTokens: true),
-            const SizedBox(height: 10),
-            const Text(
-              '© 2026 ACCESS VisionCheck',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: LoginPageTokens.textSecondary, fontSize: 11),
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              'USTP Oroquieta Campus',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: LoginPageTokens.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
           ],
         ),
       ),
@@ -302,12 +315,6 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
   List<Widget> _errorBlock({double spacing = 16}) {
     final error = widget.error;
     if (error == null) return const [];
-    final showFix = widget.onFixBackendConnection != null &&
-        (error.contains('timeout') ||
-            error.contains('Cannot reach') ||
-            error.contains('cannot reach') ||
-            error.contains('Fix backend URL') ||
-            error.contains('192.168'));
     return [
       Container(
         padding: const EdgeInsets.all(12),
@@ -326,14 +333,6 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
           ],
         ),
       ),
-      if (showFix) ...[
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: widget.onFixBackendConnection,
-          icon: const Icon(Icons.dns_outlined, size: 16),
-          label: const Text('Fix backend URL'),
-        ),
-      ],
       SizedBox(height: spacing),
     ];
   }
@@ -341,7 +340,9 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
   Widget _passwordField({bool placeholder = false}) {
     return TextField(
       controller: widget.passwordController,
+      focusNode: _passwordFocus,
       obscureText: widget.obscurePassword,
+      textInputAction: TextInputAction.done,
       onSubmitted: (_) => widget.onSubmit(),
       decoration: _fieldDecoration(
         'Password',

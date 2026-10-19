@@ -1,3 +1,4 @@
+import { scoreToPercent } from './mediaEvaluationScores'
 import { parseDate } from './teamMembers'
 
 export type EvaluationSourceFilter = 'all' | 'practice' | 'event' | 'flagged'
@@ -43,7 +44,7 @@ function num(raw: unknown): number | null {
 export function parseEvaluationSummary(raw: Record<string, unknown>): EvaluationSummary {
   return {
     totalEvaluated: Number(raw.total_evaluated ?? 0),
-    averageOverallScore: Number(raw.average_overall_score ?? 0),
+    averageOverallScore: scoreToPercent(Number(raw.average_overall_score ?? 0)),
     humanMediaCount: Number(raw.human_media_count ?? 0),
     aiSuspiciousCount: Number(raw.ai_suspicious_count ?? 0),
   }
@@ -61,7 +62,7 @@ export function parseEvaluation(raw: Record<string, unknown>): EvaluationReviewI
     sourceLabel: String(raw.source_label ?? (sourceType === 'practice' ? 'Practice evaluation' : 'Event coverage')),
     eventTitle: (raw.event_title as string | null) ?? null,
     requestId: raw.request_id != null ? Number(raw.request_id) : null,
-    overallScore: Number(raw.overall_score ?? 0),
+    overallScore: scoreToPercent(Number(raw.overall_score ?? 0)),
     qualityLevel: (raw.quality_level as string | null) ?? null,
     recommendation: (raw.recommendation as string | null) ?? null,
     feedback: (raw.feedback as string | null) ?? null,
@@ -69,11 +70,11 @@ export function parseEvaluation(raw: Record<string, unknown>): EvaluationReviewI
     aiProbability: num(raw.ai_probability),
     aiResult: (raw.ai_result as string | null) ?? (raw.detection_result as string | null) ?? null,
     evaluatedAt: parseDate(raw.evaluated_at ?? raw.created_at),
-    sharpnessScore: num(raw.sharpness_score),
-    brightnessScore: num(raw.brightness_score),
-    contrastScore: num(raw.contrast_score),
-    blurScore: num(raw.blur_score),
-    noiseScore: num(raw.noise_score),
+    sharpnessScore: num(raw.sharpness_score) != null ? scoreToPercent(num(raw.sharpness_score)!) : null,
+    brightnessScore: num(raw.brightness_score) != null ? scoreToPercent(num(raw.brightness_score)!) : null,
+    contrastScore: num(raw.contrast_score) != null ? scoreToPercent(num(raw.contrast_score)!) : null,
+    blurScore: num(raw.blur_score) != null ? scoreToPercent(num(raw.blur_score)!) : null,
+    noiseScore: num(raw.noise_score) != null ? scoreToPercent(num(raw.noise_score)!) : null,
   }
 }
 

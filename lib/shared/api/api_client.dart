@@ -166,6 +166,10 @@ class ApiClient {
       _request('GET', path, query: queryParameters);
   Future<dynamic> post(String path, Map<String, dynamic> body) =>
       _request('POST', path, body: body);
+
+  /// Login must not failover across every LAN IP (wrong host → false "Invalid credentials").
+  Future<dynamic> postLogin(String path, Map<String, dynamic> body) =>
+      _request('POST', path, body: body, hosts: ApiConfig.loginBaseUrls());
   Future<dynamic> patch(String path, Map<String, dynamic> body) =>
       _request('PATCH', path, body: body);
   Future<dynamic> delete(String path) => _request('DELETE', path);
@@ -289,12 +293,14 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
+    List<String>? hosts,
   }) async {
-    if (_pinnedBaseUrl == null) {
+    final hostList = hosts ?? _basesToTry();
+    if (hosts == null && _pinnedBaseUrl == null) {
       await _pinFirstReachableHost();
     }
     Object? lastError;
-    for (final baseUrl in _basesToTry()) {
+    for (final baseUrl in hostList) {
       final queryParams = query?.map((k, v) => MapEntry(k, '$v'));
       final uri = _uriForBase(baseUrl, path, queryParams);
       _log('$method $uri${body == null ? '' : '  body=${_truncate(jsonEncode(body))}'}');

@@ -97,7 +97,7 @@ class AuthController extends ChangeNotifier {
         final example = ApiConfig.suggestedPhoneBackendUrl;
         _sessionEndMessage =
             'Cannot reach the PC backend (Wi-Fi IP may have changed). '
-            'Tap Set backend URL on the sign-in screen. Example: $example';
+            'Check Wi-Fi and that the server is running. Example: $example';
       } else {
         await prefs.remove(_sessionKey);
         _sessionEndMessage = e.message;

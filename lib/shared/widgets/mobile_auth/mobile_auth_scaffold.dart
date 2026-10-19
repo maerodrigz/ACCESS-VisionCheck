@@ -11,6 +11,7 @@ class MobileAuthScaffold extends StatelessWidget {
     this.scrollable = true,
     this.headerHeightFactor = MobileAuthConstants.headerHeightFactor,
     this.fixedViewport = false,
+    this.hideHeroBranding = false,
   });
 
   final Widget body;
@@ -21,6 +22,9 @@ class MobileAuthScaffold extends StatelessWidget {
 
   /// Sign-in: cyan hero + white form; keyboard uses inset padding (no scaffold shrink).
   final bool fixedViewport;
+
+  /// Hide cyan hero while email/password is focused (before keyboard inset animates).
+  final bool hideHeroBranding;
 
   double _headerHeight(MediaQueryData media) {
     if (fixedViewport) {
@@ -38,19 +42,23 @@ class MobileAuthScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final keyboardOpen = media.viewInsets.bottom > 0;
-    final hideHero = fixedViewport && keyboardOpen;
+    final hideHero = fixedViewport && (keyboardOpen || hideHeroBranding);
 
     Widget column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (hideHero)
-          SizedBox(height: media.padding.top)
-        else
-          SizedBox(
-            height: _headerHeight(media),
-            child: MobileAuthHeader(compact: fixedViewport),
-          ),
-        Expanded(child: _bodySlot(body, media, keyboardOpen)),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: hideHero
+              ? SizedBox(height: media.padding.top)
+              : SizedBox(
+                  height: _headerHeight(media),
+                  child: MobileAuthHeader(compact: fixedViewport),
+                ),
+        ),
+        Expanded(child: _bodySlot(body, media, keyboardOpen || hideHeroBranding)),
       ],
     );
 

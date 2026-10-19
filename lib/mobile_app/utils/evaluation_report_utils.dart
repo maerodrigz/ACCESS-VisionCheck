@@ -2,6 +2,31 @@ import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dar
 import 'package:access_mobile/shared/controllers/app_state.dart' hide AiDetectionResult;
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/utils/member_integrity_display.dart';
+import 'package:access_mobile/shared/models/member_review_status.dart';
+
+AiDetectionResult _fallbackAiDetection(String? reviewStatus) {
+  final status = reviewStatus?.trim().toLowerCase();
+  if (status == 'pending_review' || status == 'needs_further_review') {
+    return const AiDetectionResult(
+      verdict: 'suspicious',
+      confidence: 0.5,
+      detail: 'Awaiting administrative review before scores are released.',
+      requiresReviewFlag: true,
+    );
+  }
+  if (MemberReviewStatus.isAdminConfirmedAi(status)) {
+    return const AiDetectionResult(
+      verdict: 'ai_generated',
+      confidence: 0.9,
+      detail: 'Confirmed by an administrator.',
+    );
+  }
+  return const AiDetectionResult(
+    verdict: 'authentic',
+    confidence: 0.85,
+    detail: 'No AI-generation artifacts detected.',
+  );
+}
 
 /// Builds a [PhotoEvaluationResult] from a saved [Evaluation] row.
 PhotoEvaluationResult? evaluationToPhotoResult(Evaluation ev) {
@@ -16,11 +41,7 @@ PhotoEvaluationResult? evaluationToPhotoResult(Evaluation ev) {
     feedback: ev.feedback,
     improvementSuggestions: '',
     recommendation: ev.recommendation ?? 'Needs Improvement',
-    aiDetection: const AiDetectionResult(
-      verdict: 'authentic',
-      confidence: 0.85,
-      detail: 'No AI-generation artifacts detected.',
-    ),
+    aiDetection: _fallbackAiDetection(ev.reviewStatus),
     mediaType: ev.mediaType ?? 'photo',
     scoringModel: ev.scoringModel ?? 'efficientnet_b0',
     geminiFeedback: ev.geminiFeedback,

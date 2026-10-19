@@ -13,7 +13,20 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    if not plain or not hashed:
+        return False
+    stored = hashed.strip()
+    if stored.startswith("$2"):
+        try:
+            return bcrypt.checkpw(plain.encode("utf-8"), stored.encode("utf-8"))
+        except (ValueError, TypeError):
+            return False
+    # Legacy dev rows stored plain text; treat as valid once, then re-hash on login.
+    return plain == stored
+
+
+def password_hash_is_legacy(stored: str) -> bool:
+    return not (stored or "").strip().startswith("$2")
 
 
 def create_access_token(data: dict, *, expire_minutes: int | None = None) -> str:

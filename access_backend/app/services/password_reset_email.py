@@ -45,14 +45,24 @@ def send_password_reset_otp_email(*, to_email: str, fullname: str, code: str) ->
     return send_email(to_email, subject, plain, html_body=branded_html(inner), automated=True)
 
 
+def _log_otp_fallback(*, to_email: str, code: str, reason: str) -> None:
+    line = f"{reason} OTP for {to_email}: {code}"
+    logger.warning(line)
+    print(f"\n>>> {line} <<<\n", flush=True)
+
+
 def deliver_password_reset_otp(*, to_email: str, code: str, fullname: str = "") -> bool:
     """Send OTP via SMTP when configured; otherwise log to server console (dev). Returns True if emailed."""
     if is_email_configured():
-        send_password_reset_otp_email(to_email=to_email, fullname=fullname, code=code)
-        return True
-    line = f"Password reset OTP (dev log) to {to_email}: {code}"
-    logger.warning(line)
-    print(f"\n>>> {line} <<<\n", flush=True)
+        ok = send_password_reset_otp_email(to_email=to_email, fullname=fullname, code=code)
+        if not ok:
+            _log_otp_fallback(
+                to_email=to_email,
+                code=code,
+                reason="Password reset email failed (check SMTP settings).",
+            )
+        return ok
+    _log_otp_fallback(to_email=to_email, code=code, reason="Password reset OTP (dev log)")
     return False
 
 
@@ -64,8 +74,19 @@ def deliver_password_reset_otp_async(*, to_email: str, code: str, fullname: str 
 
     def _run() -> None:
         try:
-            send_password_reset_otp_email(to_email=to_email, fullname=fullname, code=code)
+            ok = send_password_reset_otp_email(to_email=to_email, fullname=fullname, code=code)
+            if not ok:
+                _log_otp_fallback(
+                    to_email=to_email,
+                    code=code,
+                    reason="Password reset email failed (check SMTP / spam).",
+                )
         except Exception:
             logger.exception("password reset OTP email failed for %s", to_email)
+            _log_otp_fallback(
+                to_email=to_email,
+                code=code,
+                reason="Password reset email error (see server log).",
+            )
 
     threading.Thread(target=_run, daemon=True).start()

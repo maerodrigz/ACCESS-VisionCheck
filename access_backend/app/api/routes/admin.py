@@ -406,7 +406,7 @@ def _evaluation_json(db: Session, ev) -> dict:
         "blur_score": ev.blur_score,
         "noise_score": ev.noise_score,
         "overall_score": ev.overall_score,
-        "admin_remarks": ev.feedback,
+        "admin_remarks": ai.admin_remarks if ai else None,
         "feedback": ev.feedback,
         "quality_level": ev.quality_level,
         "recommendation": ev.recommendation,
@@ -444,7 +444,11 @@ def update_evaluation_remarks(
     ev = eval_crud.get_by_id(db, evaluation_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Evaluation not found")
-    eval_crud.update_feedback(db, ev, body.admin_remarks)
+    ai = eval_crud.get_ai_for_media(db, ev.media_id)
+    if ai is not None:
+        eval_crud.update_ai_review(db, ai, admin_remarks=body.admin_remarks)
+    else:
+        eval_crud.update_feedback(db, ev, body.admin_remarks)
     return _evaluation_json(db, ev)
 
 

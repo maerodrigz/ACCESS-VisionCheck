@@ -138,7 +138,8 @@ erDiagram
 
 - **Roles:** Admin, Member, Organization  
 - **Skill levels:** Novice → Master (score ranges 0.0–1.0)  
-- **Admin user:** `admin@access.edu` / `admin123`
+- **Admin user:** `admin@access.edu` / `admin123` (created by `create_tables.py`)  
+- **Demo members, sample requests, rankings:** only when `SEED_DEMO_DATA=true` (or run `python seed_sample_data.py`)
 
 ## Reset operational data (keep accounts)
 

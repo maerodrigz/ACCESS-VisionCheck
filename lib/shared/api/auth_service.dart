@@ -6,7 +6,7 @@ class AuthService {
   final ApiClient _api;
 
   Future<AuthUser> login(String email, String password) async {
-    final data = await _api.post('/auth/login', {
+    final data = await _api.postLogin('/auth/login', {
       'email': email.trim().toLowerCase(),
       'password': password,
     }) as Map<String, dynamic>;

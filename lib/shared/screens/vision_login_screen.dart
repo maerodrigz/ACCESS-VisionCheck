@@ -7,7 +7,6 @@ import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/screens/registration_choice_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
-import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
@@ -15,6 +14,15 @@ import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.da
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_sign_in_form.dart';
 import 'package:access_mobile/shared/widgets/forgot_password_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+bool _isBackendConnectivityMessage(String message) {
+  final lower = message.toLowerCase();
+  return lower.contains('cannot reach') ||
+      lower.contains("can't reach") ||
+      lower.contains('pc backend') ||
+      lower.contains('backend url') ||
+      lower.contains('wi-fi ip');
+}
 
 /// Enterprise login for ACCESS VisionCheck — web admin and mobile.
 class VisionLoginScreen extends StatefulWidget {
@@ -35,6 +43,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   bool _rememberMe = false;
   bool _loading = false;
   String? _error;
+  bool _signInFieldsFocused = false;
 
   @override
   void initState() {
@@ -55,8 +64,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     if (!mounted) return;
     if (!reachable) return;
 
-    final backendBanner = _error != null &&
-        MobileAuthSignInForm.isBackendConnectivityMessage(_error!);
+    final backendBanner = _error != null && _isBackendConnectivityMessage(_error!);
     if (!backendBanner) return;
 
     final restored = await authController.retryPersistedSession();
@@ -120,7 +128,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
         _error = switch (e.code) {
           'pending' || 'rejected' => e.message,
           'removed' => 'Your account has been removed. Please contact the administrator.',
-          _ => e.message,
+          _ => _loginFailureMessage(e),
         };
       });
     } catch (e) {
@@ -150,29 +158,25 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     );
   }
 
-  Future<void> _fixBackendConnection() async {
-    final changed = await showBackendUrlDialog(context);
-    if (!mounted || !changed) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    final restored = await authController.retryPersistedSession();
-    if (!mounted) return;
-    if (restored) {
-      setState(() => _loading = false);
-      widget.onAuthenticated?.call();
-      return;
-    }
-    final ended = authController.consumeSessionEndMessage();
-    setState(() {
-      _loading = false;
-      _error = ended ?? 'Backend updated. Sign in with your email and password.';
-    });
-  }
-
   Future<void> _forgotPassword() async {
     await showForgotPasswordDialog(context, initialEmail: _emailCtrl.text.trim());
+  }
+
+  void _onSignInTypingFocus(bool focused) {
+    if (_signInFieldsFocused == focused) return;
+    setState(() => _signInFieldsFocused = focused);
+  }
+
+  String _loginFailureMessage(ApiException e) {
+    final lower = e.message.toLowerCase();
+    if (e.statusCode == 401 &&
+        (lower.contains('invalid credentials') || lower.contains('invalid email'))) {
+      return 'Invalid email or password. Use the exact email on your account '
+          '(check Profile if you changed it). On a phone, open Account settings and '
+          'confirm Backend connection points to your PC.';
+    }
+    if (lower.contains('locked')) return e.message;
+    return e.message;
   }
 
   @override
@@ -204,7 +208,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
             onSubmit: _submit,
             onForgotPassword: _forgotPassword,
             onCreateAccount: kIsWeb ? null : _openRegistration,
-            onFixBackendConnection: kIsWeb ? null : _fixBackendConnection,
           ),
         ),
       ],
@@ -216,6 +219,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       return MobileAuthScaffold(
         scrollable: false,
         fixedViewport: true,
+        hideHeroBranding: _signInFieldsFocused,
         body: MobileAuthSignInForm(
           emailController: _emailCtrl,
           passwordController: _passCtrl,
@@ -228,7 +232,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
           onSubmit: _submit,
           onForgotPassword: _forgotPassword,
           onCreateAccount: _openRegistration,
-          onFixBackendConnection: _fixBackendConnection,
+          onTypingFocusChanged: _onSignInTypingFocus,
         ),
       );
     }
@@ -236,6 +240,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     const cardSideInset = 12.0;
     final topInset = MediaQuery.paddingOf(context).top;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final hideBrandHero = keyboardOpen || _signInFieldsFocused;
 
     final formPanel = LoginFormPanel(
       key: const ValueKey('mobile-login-card'),
@@ -251,7 +256,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       onSubmit: _submit,
       onForgotPassword: _forgotPassword,
       onCreateAccount: kIsWeb ? null : _openRegistration,
-      onFixBackendConnection: kIsWeb ? null : _fixBackendConnection,
+      onSignInFieldsFocused: _onSignInTypingFocus,
     );
 
     return Stack(
@@ -268,15 +273,13 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  alignment: Alignment.topCenter,
-                  child: LoginBrandPanel(
-                    compact: true,
-                    dense: keyboardOpen,
+                if (!hideBrandHero)
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeInOut,
+                    alignment: Alignment.topCenter,
+                    child: const LoginBrandPanel(compact: true),
                   ),
-                ),
                 Expanded(
                   child: Align(
                     alignment: Alignment.topCenter,

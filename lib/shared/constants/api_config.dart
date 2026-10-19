@@ -381,6 +381,50 @@ class ApiConfig {
     return out;
   }
 
+  /// Sign-in only: never sweep every LAN IP (avoids hitting another PC's backend).
+  static List<String> loginBaseUrls() {
+    final out = <String>[];
+
+    void add(String? v) {
+      if (v == null) return;
+      final trimmed = v.trim();
+      if (trimmed.isEmpty) return;
+      final normalized = trimmed.replaceAll(RegExp(r'/+$'), '');
+      if (!out.contains(normalized)) out.add(normalized);
+    }
+
+    final explicitCompileTimeHost =
+        apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty;
+    final emulatorDefault = androidEmulatorDefault;
+
+    add(apiBaseUrlOverride);
+    if (explicitCompileTimeHost) {
+      add(baseUrl);
+    }
+    add(_webSameOriginBaseUrl);
+
+    if (!explicitCompileTimeHost) {
+      add(runtimeBaseUrl.value);
+      add(_lastWorkingBaseUrl);
+      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+        add(baseUrl);
+      } else if (emulatorDefault) {
+        add('http://$androidEmulatorHost:$port');
+      } else {
+        add(baseUrl);
+      }
+    }
+
+    if (kIsWeb && _webSameOriginBaseUrl == null) {
+      add('http://$apiWebHostOverride:$defaultPort');
+    }
+
+    if (out.isEmpty) {
+      add(baseUrl);
+    }
+    return out;
+  }
+
   /// Live, listenable runtime override (in-memory + SharedPreferences).
   static final RuntimeBaseUrl runtimeBaseUrl = RuntimeBaseUrl._();
 

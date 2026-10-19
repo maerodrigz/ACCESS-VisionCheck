@@ -118,10 +118,28 @@ def _seed_user(
     return True
 
 
+def seed_demo_data_enabled() -> bool:
+    """Optional local demo users, sample requests, and rankings (off by default)."""
+    return os.environ.get("SEED_DEMO_DATA", "").strip().lower() in ("1", "true", "yes")
+
+
 def seed_default_users(db, role_ids: dict[str, int], skill_ids: dict[str, int]) -> None:
-    """Default accounts for testing Admin Web + Mobile apps."""
+    """Bootstrap admin login only. Demo member/org accounts require SEED_DEMO_DATA=true."""
+    if _seed_user(
+        db,
+        email="admin@access.edu",
+        fullname="Admin User",
+        password="admin123",
+        role_id=role_ids["Admin"],
+        skill_level_id=skill_ids["Master"],
+        status="approved",
+    ):
+        print("  -> Admin: admin@access.edu / admin123")
+
+
+def seed_demo_accounts(db, role_ids: dict[str, int], skill_ids: dict[str, int]) -> None:
+    """Sample member, organization, and USTP student accounts for local UI testing."""
     accounts = [
-        ("admin@access.edu", "Admin User", "admin123", "Admin", skill_ids["Master"], "approved"),
         ("member@access.edu", "Juan Dela Cruz", "member123", "Member", skill_ids["Beginner"], "approved"),
         ("org@access.edu", "USTP Engineering Society", "org123", "Organization", None, "approved"),
     ]
@@ -493,11 +511,15 @@ def main() -> None:
         role_ids = seed_roles(db)
         skill_ids = seed_skill_levels(db)
         seed_default_users(db, role_ids, skill_ids)
-        seed_member_demo(db)
-        seed_sample_approved_documentation(db)
-        from app.seed.sample_data import seed_sample_dataset
+        if seed_demo_data_enabled():
+            seed_demo_accounts(db, role_ids, skill_ids)
+            seed_member_demo(db)
+            seed_sample_approved_documentation(db)
+            from app.seed.sample_data import seed_sample_dataset
 
-        seed_sample_dataset(db)
+            seed_sample_dataset(db)
+        else:
+            print("  -> Demo accounts and sample requests skipped (set SEED_DEMO_DATA=true to enable).")
         _print_setup_success()
     finally:
         db.close()
@@ -511,7 +533,8 @@ def _print_setup_success() -> None:
         print(f"  • {name}")
     print()
     print("Next: python manage.py runserver")
-    print("Optional: python seed_sample_data.py  (re-apply sample rows on existing DB)")
+    print("Optional demo data: set SEED_DEMO_DATA=true && python create_tables.py")
+    print("Or: python seed_sample_data.py  (re-apply sample rows on existing DB)")
 
 
 SAMPLE_APPROVED_TITLE = "Sample Approved Event"

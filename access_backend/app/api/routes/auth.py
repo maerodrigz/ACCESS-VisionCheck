@@ -42,6 +42,23 @@ from app.services.phone_normalize import normalize_ph_mobile
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+# Seed/demo domains have no MX records (mail to admin@access.edu always bounces).
+_NON_DELIVERABLE_EMAIL_DOMAINS = frozenset({"access.edu"})
+
+
+def _reject_non_deliverable_otp_email(email: str) -> None:
+    domain = email.rsplit("@", 1)[-1].strip().lower()
+    if domain not in _NON_DELIVERABLE_EMAIL_DOMAINS:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=(
+            "This address cannot receive email (access.edu is sign-in demo only, not a real mailbox). "
+            "Use Gmail, Outlook, or your school email for verification codes. "
+            "Admins: sign in, open Profile, and set a real email, then use Forgot password with that address."
+        ),
+    )
+
 
 def _redirect_hint(role_name: str) -> str:
     """Flutter uses this to know which platform to open after login."""
@@ -61,7 +78,8 @@ def _user_out(user: User) -> UserOut:
 
 @router.post("/login", response_model=LoginResponse)
 def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    existing = user_crud.get_by_email(db, body.email)
+    email = str(body.email).strip().lower()
+    existing = user_crud.get_by_email(db, email)
     if existing and is_account_locked(existing):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -77,7 +95,7 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
             },
         )
 
-    user = user_crud.authenticate(db, body.email, body.password)
+    user = user_crud.authenticate(db, email, body.password)
     if not user:
         if existing:
             record_failed_login(db, existing)
@@ -148,8 +166,10 @@ _GENERIC_RESET_SEND = (
 @router.post("/forgot-password/send", response_model=ForgotPasswordSendResponse)
 def forgot_password_send(body: ForgotPasswordSendRequest, db: Session = Depends(get_db)):
     """Email a 6-digit OTP for password reset (all approved roles). Dev: code on screen when SMTP is off."""
+    email = str(body.email).strip().lower()
+    _reject_non_deliverable_otp_email(email)
     generic = ForgotPasswordSendResponse(message=_GENERIC_RESET_SEND, dev_code=None)
-    user = user_crud.get_by_email(db, body.email)
+    user = user_crud.get_by_email(db, email)
     if not user or not user.is_active:
         return generic
     if user.status != UserStatus.APPROVED:
@@ -226,6 +246,7 @@ _GENERIC_REGISTRATION_OTP = (
 @router.post("/registration-otp/send", response_model=RegistrationOtpSendResponse)
 def send_registration_otp(body: RegistrationOtpSendRequest, db: Session = Depends(get_db)):
     email = str(body.email).strip().lower()
+    _reject_non_deliverable_otp_email(email)
     if user_crud.get_by_email(db, email):
         return RegistrationOtpSendResponse(message=_GENERIC_REGISTRATION_OTP, dev_code=None)
     try:

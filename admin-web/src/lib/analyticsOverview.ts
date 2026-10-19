@@ -1,4 +1,5 @@
 import type { AnalyticsSnapshot } from './analytics'
+import { scoreToPercent } from './mediaEvaluationScores'
 
 export interface DateRange {
   start: Date
@@ -408,12 +409,6 @@ function countInRanges(dates: Date[], range: DateRange, prev: DateRange): { curr
     else if (inRange(d, prev)) previous++
   }
   return { current, previous }
-}
-
-function scoreToPercent(raw: number): number {
-  if (raw <= 0) return 0
-  if (raw <= 1) return raw * 100
-  return raw
 }
 
 function qualityBucket(scorePct: number): keyof typeof QUALITY_COLORS {

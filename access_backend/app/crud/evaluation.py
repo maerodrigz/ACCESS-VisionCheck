@@ -115,10 +115,13 @@ def summary_stats(db: Session) -> dict:
     ai_suspicious = 0
     for ev in rows:
         ai = get_ai_for_media(db, ev.media_id)
-        if not ai or not ai.detection_result:
+        label = (ai.detection_result or "").strip().lower() if ai else ""
+        if not label:
             ai_suspicious += 1
-        elif ai.detection_result == "human":
+        elif label in ("human", "authentic"):
             human += 1
+        elif label in ("suspicious", "ai_generated", "ai"):
+            ai_suspicious += 1
         else:
             ai_suspicious += 1
     return {

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.security import hash_password, verify_password
+from app.core.security import hash_password, password_hash_is_legacy, verify_password
 from app.models.enums import RoleName, UserStatus
 from app.models.role import Role
 from app.models.skill_level import SkillLevel
@@ -11,10 +11,13 @@ from app.models.user import User
 
 
 def get_by_email(db: Session, email: str) -> User | None:
+    normalized = email.strip().lower()
+    if not normalized:
+        return None
     return db.scalar(
         select(User)
         .options(joinedload(User.role), joinedload(User.skill_level))
-        .where(User.email == email.lower())
+        .where(func.lower(User.email) == normalized)
     )
 
 
@@ -95,6 +98,10 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     user = get_by_email(db, email)
     if not user or not verify_password(password, user.password):
         return None
+    if password_hash_is_legacy(user.password):
+        user.password = hash_password(password)
+        db.commit()
+        db.refresh(user)
     if not user.is_active:
         return None
     return user

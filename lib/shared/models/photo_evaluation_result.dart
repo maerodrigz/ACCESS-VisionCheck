@@ -461,6 +461,29 @@ class PhotoEvaluationResult {
     return map;
   }
 
+  /// Criteria JSON uses 1–5; legacy DB snapshots may store 0–1 under `legacy.overall_score`.
+  static double parseOverallScoreFromJson(Map<String, dynamic> j) {
+    final raw = (j['overall_score'] as num?)?.toDouble();
+    final legacy = j['legacy'];
+    final legacyOverall = legacy is Map ? (legacy['overall_score'] as num?)?.toDouble() : null;
+
+    if (raw != null) {
+      if (raw <= 1.0) {
+        if (legacyOverall != null && legacyOverall <= 1.0) {
+          return (legacyOverall * 5).clamp(0.0, 5.0);
+        }
+        return (raw * 5).clamp(0.0, 5.0);
+      }
+      return raw.clamp(0.0, 5.0);
+    }
+    if (legacyOverall != null) {
+      return legacyOverall <= 1.0
+          ? (legacyOverall * 5).clamp(0.0, 5.0)
+          : legacyOverall.clamp(0.0, 5.0);
+    }
+    return 3;
+  }
+
   static PhotoEvaluationResult? fromJson(Map<String, dynamic>? j) {
     if (j == null) return null;
     final raw = j['criteria'];
@@ -471,7 +494,7 @@ class PhotoEvaluationResult {
     final geminiRaw = j['gemini_feedback'];
     return PhotoEvaluationResult(
       criteria: list,
-      overallScore: (j['overall_score'] as num?)?.toDouble() ?? 3,
+      overallScore: parseOverallScoreFromJson(j),
       qualityLevel: j['quality_level'] as String? ?? 'Fair',
       feedback: j['ai_feedback'] as String? ?? j['feedback'] as String? ?? '',
       improvementSuggestions: j['improvement_suggestions'] as String? ?? '',

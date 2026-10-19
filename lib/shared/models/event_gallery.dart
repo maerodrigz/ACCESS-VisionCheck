@@ -1,5 +1,4 @@
 import 'package:access_mobile/shared/constants/api_config.dart';
-import 'package:access_mobile/shared/services/facebook_links.dart';
 
 /// Approved event/documentation media item for the member gallery.
 class EventGalleryMedia {
@@ -253,27 +252,6 @@ List<EventGalleryAlbum> buildEventGalleryAlbums(
     return b.totalCount.compareTo(a.totalCount);
   });
   return albums;
-}
-
-/// Best link for requestors when event media was published to Facebook.
-EventGalleryFacebookLink? resolveEventGalleryFacebookLink(
-  Iterable<EventGalleryMedia> media,
-) {
-  final postIds = media
-      .where((m) => m.isPublishedToFacebook)
-      .map((m) => m.facebookPostId!)
-      .toSet();
-  if (postIds.isEmpty) return null;
-  if (postIds.length == 1) {
-    final direct = FacebookLinks.postUrl(postIds.first);
-    if (direct != null) {
-      return EventGalleryFacebookLink(url: direct, labelsDirectPost: true);
-    }
-  }
-  return EventGalleryFacebookLink(
-    url: FacebookLinks.pageUrl,
-    labelsDirectPost: false,
-  );
 }
 
 /// Recent event albums for the horizontal Gallery row (newest first).

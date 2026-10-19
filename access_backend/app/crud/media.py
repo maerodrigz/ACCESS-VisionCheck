@@ -126,7 +126,11 @@ def list_approved_event_gallery(
     limit: int | None = None,
     offset: int = 0,
 ) -> list[MediaFile]:
-    """Approved event documentation media linked to approved requests."""
+    """Event documentation media for member and requestor galleries.
+
+    Includes approved and completed requests. Completed events are where
+    admins usually upload the finished photos and videos.
+    """
     q = (
         select(MediaFile)
         .options(
@@ -137,7 +141,7 @@ def list_approved_event_gallery(
         .where(MediaFile.media_category == MEDIA_CATEGORY_EVENT)
         .where(MediaFile.approval_status != APPROVAL_REJECTED)
         .where(MediaFile.request_id.isnot(None))
-        .where(DocumentationRequest.status == "approved")
+        .where(func.lower(DocumentationRequest.status).in_(("approved", "completed")))
     )
     if file_type:
         q = q.where(MediaFile.file_type == file_type)

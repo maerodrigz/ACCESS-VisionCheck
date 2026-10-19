@@ -307,6 +307,13 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
           final past = appState.feedbacks.map(_displayFeedback).toList();
           final teamRatingGroups = _groupMemberRatingsByRequest(_memberRatingsMine);
           final selected = _requestFromKey(_selectedKey);
+          final selectedRequestId = selected?.requestId ??
+              int.tryParse(_selectedKey?.split('|').first ?? '');
+          final submittedOverall = selectedRequestId == null
+              ? null
+              : appState.feedbacks
+                  .where((fb) => fb.requestId == selectedRequestId)
+                  .firstOrNull;
           final loading = memberDataController.isLoading && appState.serviceRequests.isEmpty;
           final syncing = memberDataController.isLoading && appState.serviceRequests.isNotEmpty;
           final deepLinkMiss = widget.initialRequestId != null &&
@@ -365,24 +372,18 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                     messageHint: _selectedTypeOption.messageHint,
                     selectedKey: _selectedKey,
                     rating: _rating,
+                    submittedOverall: submittedOverall,
                     selectedRequest: selected,
                     rateable: rateable,
                     completion: completion,
                     onTypeChanged: (t) => setState(() => _type = t),
                     onEventChanged: (k) {
-                      final req = _requestFromKey(k);
-                      if (req != null && completion.fullyDone(req)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'This event is fully complete. Pick another event or view your submissions below.',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                        return;
-                      }
-                      setState(() => _selectedKey = k);
+                      setState(() {
+                        _selectedKey = k;
+                        _rating = 0;
+                        _type = 'Documentation quality';
+                        _msgCtrl.clear();
+                      });
                     },
                     onRatingChanged: (r) => setState(() => _rating = r),
                     submitting: _submitting,
@@ -599,6 +600,7 @@ class _FeedbackFormCard extends StatefulWidget {
     required this.messageHint,
     required this.selectedKey,
     required this.rating,
+    required this.submittedOverall,
     required this.selectedRequest,
     required this.rateable,
     required this.completion,
@@ -617,6 +619,7 @@ class _FeedbackFormCard extends StatefulWidget {
   final String messageHint;
   final String? selectedKey;
   final int rating;
+  final EventFeedback? submittedOverall;
   final ServiceRequest? selectedRequest;
   final List<ServiceRequest> rateable;
   final RequestorFeedbackCompletion completion;
@@ -707,7 +710,8 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       );
       return;
     }
-    final requestId = int.tryParse(widget.selectedKey!.split('|').first);
+    final requestId = widget.selectedRequest?.requestId ??
+        int.tryParse(widget.selectedKey!.split('|').first);
     if (requestId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid event selection'), backgroundColor: kRed),
@@ -818,10 +822,20 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
 
   @override
   Widget build(BuildContext context) {
-    final requestId = widget.selectedRequest?.requestId;
-    final eventDone =
-        requestId != null && widget.completion.eventDone(requestId);
-    final overallRequired = requestId != null && !eventDone && widget.completion.teamDone(requestId);
+    final requestId = widget.selectedRequest?.requestId ??
+        int.tryParse(widget.selectedKey?.split('|').first ?? '');
+    final eventDone = requestId != null &&
+        (widget.completion.eventDone(requestId) || widget.submittedOverall != null);
+    final teamDone = requestId != null && widget.completion.teamDone(requestId);
+    final overallRequired = requestId != null && !eventDone && teamDone;
+    final lockedParts = widget.submittedOverall == null
+        ? null
+        : _submittedOverallParts(widget.submittedOverall!);
+    final shownRating = eventDone
+        ? (widget.submittedOverall?.rating ?? widget.rating)
+        : widget.rating;
+    final shownType = eventDone ? (lockedParts?.$1 ?? widget.type) : widget.type;
+    final lockedMessage = lockedParts?.$2 ?? '';
 
     return MemberDashboardCard(
       child: Column(
@@ -852,92 +866,110 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
               loading: _loadingTeam,
             ),
           ],
-          const SizedBox(height: 20),
-          Text(
-            overallRequired ? 'Overall event feedback' : 'Overall event feedback (optional)',
-            style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            overallRequired
-                ? 'Rate the documentation service for this event (required if team ratings are done).'
-                : 'Optional comments about documentation service for this event.',
-            style: memberDashboardMetaStyle.copyWith(fontSize: 11),
-          ),
-          if (eventDone) ...[
-            const SizedBox(height: 8),
+          if (widget.selectedRequest == null) ...[
+            const SizedBox(height: 16),
             Text(
-              'Service feedback already submitted for this event.',
+              'Select an event to rate.',
+              style: memberDashboardMetaStyle,
+            ),
+          ] else ...[
+            const SizedBox(height: 20),
+            Text(
+              eventDone
+                  ? 'Overall event feedback'
+                  : overallRequired
+                      ? 'Overall event feedback'
+                      : 'Overall event feedback (optional)',
+              style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              eventDone
+                  ? 'Locked. This rating was already submitted.'
+                  : overallRequired
+                      ? 'Rate the documentation service for this event (required if team ratings are done).'
+                      : 'Optional comments about documentation service for this event.',
               style: memberDashboardMetaStyle.copyWith(
                 fontSize: 11,
-                color: kGreen,
-                fontWeight: FontWeight.w600,
+                color: eventDone ? kTextSecondary : null,
+                fontWeight: eventDone ? FontWeight.w600 : null,
               ),
             ),
-          ],
-          const SizedBox(height: 10),
-          _FeedbackTypePicker(
-            types: widget.types,
-            selected: widget.type,
-            onChanged: widget.onTypeChanged,
-          ),
-          const SizedBox(height: 16),
-          Text('Overall rating', style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              ...List.generate(
-                5,
-                (i) => GestureDetector(
-                  onTap: () => widget.onRatingChanged(i + 1),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Icon(
-                      i < widget.rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                      color: i < widget.rating ? kYellow : kTextSecondary,
-                      size: 34,
+            const SizedBox(height: 10),
+            if (eventDone)
+              _LockedOverallFeedback(
+                typeLabel: shownType,
+                rating: shownRating,
+                ratingLabel: shownRating > 0 ? _ratingLabel(shownRating) : null,
+                ratingColor: shownRating > 0 ? _ratingColor(shownRating) : kTextSecondary,
+                message: lockedMessage,
+              )
+            else ...[
+              _FeedbackTypePicker(
+                types: widget.types,
+                selected: shownType,
+                onChanged: widget.onTypeChanged,
+              ),
+              const SizedBox(height: 16),
+              Text('Overall rating', style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  ...List.generate(
+                    5,
+                    (i) => GestureDetector(
+                      onTap: () => widget.onRatingChanged(i + 1),
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Icon(
+                          i < shownRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                          color: i < shownRating ? kYellow : kTextSecondary,
+                          size: 34,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (shownRating > 0) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      _ratingLabel(shownRating),
+                      style: memberDashboardMetaStyle.copyWith(
+                        color: _ratingColor(shownRating),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              if (widget.rating > 0) ...[
-                const SizedBox(width: 6),
-                Text(
-                  _ratingLabel(widget.rating),
-                  style: memberDashboardMetaStyle.copyWith(
-                    color: _ratingColor(widget.rating),
-                    fontWeight: FontWeight.w700,
+              const SizedBox(height: 18),
+              Text('Your message', style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: widget.msgCtrl,
+                maxLines: 4,
+                style: memberDashboardBodyStyle.copyWith(color: kTextPrimary),
+                decoration: InputDecoration(
+                  hintText: widget.messageHint,
+                  hintStyle: memberDashboardMetaStyle,
+                  filled: true,
+                  fillColor: kSurfaceAlt,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+                    borderSide: const BorderSide(color: kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+                    borderSide: const BorderSide(color: kBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+                    borderSide: const BorderSide(color: kAccent),
                   ),
                 ),
-              ],
+              ),
             ],
-          ),
-          const SizedBox(height: 18),
-          Text('Your message', style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: widget.msgCtrl,
-            maxLines: 4,
-            style: memberDashboardBodyStyle.copyWith(color: kTextPrimary),
-            decoration: InputDecoration(
-              hintText: widget.messageHint,
-              hintStyle: memberDashboardMetaStyle,
-              filled: true,
-              fillColor: kSurfaceAlt,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-                borderSide: const BorderSide(color: kBorder),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-                borderSide: const BorderSide(color: kBorder),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-                borderSide: const BorderSide(color: kAccent),
-              ),
-            ),
-          ),
+          ],
+          if (requestId != null && !(eventDone && teamDone)) ...[
           const SizedBox(height: 18),
           widget.submitting
               ? const Center(
@@ -958,9 +990,25 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
                   icon: Icons.send_rounded,
                   onPressed: _submit,
                 ),
+          ],
         ],
       ),
     );
+  }
+
+  (String, String) _submittedOverallParts(EventFeedback fb) {
+    final comment = fb.message.trim();
+    for (final opt in _kRequestorFeedbackTypes) {
+      if (comment == opt.label) return (opt.label, '');
+      final prefix = '${opt.label}: ';
+      if (comment.startsWith(prefix)) {
+        return (opt.label, comment.substring(prefix.length).trim());
+      }
+    }
+    if (fb.type != 'Service rating' && fb.type.trim().isNotEmpty) {
+      return (fb.type.trim(), comment);
+    }
+    return ('Other', comment);
   }
 
   String _ratingLabel(int r) => switch (r) {
@@ -972,6 +1020,92 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       };
 
   Color _ratingColor(int r) => r >= 4 ? kGreen : r == 3 ? kYellow : kRed;
+}
+
+class _LockedOverallFeedback extends StatelessWidget {
+  const _LockedOverallFeedback({
+    required this.typeLabel,
+    required this.rating,
+    required this.ratingLabel,
+    required this.ratingColor,
+    required this.message,
+  });
+
+  final String typeLabel;
+  final int rating;
+  final String? ratingLabel;
+  final Color ratingColor;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: kSurfaceAlt,
+        borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+        border: Border.all(color: kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.lock_rounded, size: 16, color: kTextSecondary),
+              const SizedBox(width: 6),
+              Text(
+                'Locked',
+                style: memberDashboardMetaStyle.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: kTextSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            typeLabel,
+            style: memberDashboardBodyStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ...List.generate(
+                5,
+                (i) => Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(
+                    i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: i < rating ? kYellow : kTextSecondary,
+                    size: 28,
+                  ),
+                ),
+              ),
+              if (ratingLabel != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  ratingLabel!,
+                  style: memberDashboardMetaStyle.copyWith(
+                    color: ratingColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message.isEmpty ? 'No written comment.' : message,
+            style: memberDashboardBodyStyle.copyWith(
+              color: message.isEmpty ? kTextSecondary : kTextPrimary,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _FeedbackTypePicker extends StatelessWidget {
@@ -1128,7 +1262,7 @@ class _EventPickerList extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: fullyDone ? null : () => onEventChanged(key),
+              onTap: () => onEventChanged(key),
               borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
               child: Opacity(
                 opacity: fullyDone ? 0.55 : 1,

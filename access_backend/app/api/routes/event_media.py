@@ -20,7 +20,10 @@ from app.crud import system_settings as settings_crud
 from app.services.facebook_publish_guard import ensure_facebook_publishing_enabled
 from app.services.facebook_service import inspect_page_token, list_page_albums, resolve_page_album_id
 from app.services.event_facebook_publish import bulk_publish_event_media
-from app.services.supabase_storage import normalize_supabase_storage_url
+from app.services.supabase_storage import (
+    normalize_supabase_storage_url,
+    resolve_supabase_storage_urls,
+)
 
 router = APIRouter(prefix="/admin/event-media", tags=["Event Media"])
 
@@ -40,13 +43,18 @@ class BulkFacebookPublishBody(BaseModel):
     message: str | None = Field(None, max_length=5000)
 
 
-def _event_media_json(m) -> dict:
+def _event_media_json(m, file_url: str | None = None) -> dict:
     req = m.request
+    resolved = (
+        file_url
+        if file_url is not None
+        else normalize_supabase_storage_url(m.file_url or "")
+    )
     return {
         "id": m.id,
         "file_name": m.file_name,
         "file_type": m.file_type,
-        "file_url": normalize_supabase_storage_url(m.file_url or ""),
+        "file_url": resolved,
         "request_id": m.request_id,
         "media_category": m.media_category,
         "approval_status": m.approval_status,
@@ -82,7 +90,8 @@ def list_event_media(
         request_id=request_id,
         search=search,
     )
-    return [_event_media_json(m) for m in rows]
+    urls = resolve_supabase_storage_urls([m.file_url or "" for m in rows])
+    return [_event_media_json(m, file_url=urls[i]) for i, m in enumerate(rows)]
 
 
 @router.patch("/{media_id}/approval")

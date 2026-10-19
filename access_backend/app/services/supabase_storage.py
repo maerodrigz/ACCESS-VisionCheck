@@ -15,6 +15,8 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _SIGNED_URL_TTL_SEC = 60 * 60 * 24 * 365  # 1 year for client-facing signed URLs (private buckets)
+# One probe per bucket per process. True = public URL works. False = sign instead.
+_bucket_is_public: dict[str, bool] = {}
 # Compact DB value — signed Supabase URLs exceed media_files.file_url VARCHAR(500).
 SUPABASE_STORAGE_REF_PREFIX = "supabase-ref:"
 
@@ -29,24 +31,71 @@ def is_supabase_storage_ref(url: str | None) -> bool:
     return bool(url and url.strip().startswith(SUPABASE_STORAGE_REF_PREFIX))
 
 
+def _parse_storage_ref(ref: str) -> tuple[str, str] | None:
+    rest = ref.strip()[len(SUPABASE_STORAGE_REF_PREFIX) :]
+    slash = rest.find("/")
+    if slash <= 0:
+        return None
+    bucket = rest[:slash]
+    object_path = rest[slash + 1 :]
+    if not bucket or not object_path:
+        return None
+    return bucket, object_path
+
+
+def _resolve_ref_with_client(ref: str, client: httpx.Client) -> str:
+    """Turn a stored ref into a fetchable HTTPS URL using an existing client."""
+    parsed = _parse_storage_ref(ref)
+    if parsed is None or not is_supabase_storage_configured():
+        return ref.strip()
+    bucket, object_path = parsed
+    try:
+        return _public_or_signed_url(client, bucket, object_path)
+    except Exception:
+        logger.exception("Supabase ref resolve failed for %s", object_path)
+        return ref.strip()
+
+
 def _resolve_supabase_storage_ref(ref: str) -> str:
     """Turn a stored ref into a fetchable HTTPS URL (public or freshly signed)."""
     if not is_supabase_storage_ref(ref):
         return ref.strip()
-    rest = ref.strip()[len(SUPABASE_STORAGE_REF_PREFIX) :]
-    slash = rest.find("/")
-    if slash <= 0:
-        return ref.strip()
-    bucket = rest[:slash]
-    object_path = rest[slash + 1 :]
-    if not bucket or not object_path or not is_supabase_storage_configured():
-        return ref.strip()
     try:
         with httpx.Client(timeout=30.0) as client:
-            return _public_or_signed_url(client, bucket, object_path)
+            return _resolve_ref_with_client(ref, client)
     except Exception:
-        logger.exception("Supabase ref resolve failed for %s", object_path)
+        logger.exception("Supabase ref resolve failed")
         return ref.strip()
+
+
+def _fix_legacy_object_path(url: str) -> str:
+    if "supabase.co/object/" in url and "/storage/v1/object/" not in url:
+        return url.replace(
+            ".supabase.co/object/",
+            ".supabase.co/storage/v1/object/",
+            1,
+        )
+    return url
+
+
+def _normalize_with_client(url: str | None, client: httpx.Client) -> str:
+    if not url or not str(url).strip():
+        return url or ""
+    normalized = str(url).strip()
+    if is_supabase_storage_ref(normalized):
+        return _resolve_ref_with_client(normalized, client)
+    return _fix_legacy_object_path(normalized)
+
+
+def resolve_supabase_storage_urls(urls: list[str | None]) -> list[str]:
+    """Resolve many stored URLs on one connection. Same result as calling normalize per URL."""
+    if not urls:
+        return []
+    needs_client = any(is_supabase_storage_ref(url) for url in urls if url and str(url).strip())
+    if not needs_client or not is_supabase_storage_configured():
+        return [normalize_supabase_storage_url(url) for url in urls]
+    with httpx.Client(timeout=30.0) as client:
+        return [_normalize_with_client(url, client) for url in urls]
 
 
 def is_supabase_storage_configured() -> bool:
@@ -145,24 +194,17 @@ def normalize_supabase_storage_url(url: str | None) -> str:
     normalized = url.strip()
     if is_supabase_storage_ref(normalized):
         return _resolve_supabase_storage_ref(normalized)
-    normalized = url.strip()
-    if "supabase.co/object/" in normalized and "/storage/v1/object/" not in normalized:
-        normalized = normalized.replace(
-            ".supabase.co/object/",
-            ".supabase.co/storage/v1/object/",
-            1,
-        )
-    return normalized
+    return _fix_legacy_object_path(normalized)
 
 
-def _public_or_signed_url(client: httpx.Client, bucket: str, object_path: str) -> str:
-    public = (
-        f"{_base_url()}/storage/v1/object/public/{bucket}/{quote(object_path, safe='/')}"
-    )
-    probe = client.head(public, headers=_headers())
-    if probe.status_code == 200:
-        return public
+def _remember_bucket_access(bucket: str, status_code: int) -> None:
+    if status_code == 200:
+        _bucket_is_public[bucket] = True
+    elif status_code in (400, 401, 403):
+        _bucket_is_public[bucket] = False
 
+
+def _sign_object_url(client: httpx.Client, bucket: str, object_path: str, public: str) -> str:
     sign_url = (
         f"{_base_url()}/storage/v1/object/sign/{bucket}/{quote(object_path, safe='/')}"
     )
@@ -179,8 +221,27 @@ def _public_or_signed_url(client: httpx.Client, bucket: str, object_path: str) -
     if signed.startswith("/"):
         return f"{_base_url()}{_ensure_storage_v1_path(signed)}"
     if signed.startswith("http"):
-        return normalize_supabase_storage_url(signed)
+        return _fix_legacy_object_path(signed)
     return public
+
+
+def _public_or_signed_url(client: httpx.Client, bucket: str, object_path: str) -> str:
+    public = (
+        f"{_base_url()}/storage/v1/object/public/{bucket}/{quote(object_path, safe='/')}"
+    )
+    known = _bucket_is_public.get(bucket)
+    if known is True:
+        return public
+    if known is not False:
+        try:
+            probe = client.head(public, headers=_headers())
+        except Exception:
+            logger.warning("Supabase public URL probe failed for %s", object_path)
+        else:
+            _remember_bucket_access(bucket, probe.status_code)
+            if probe.status_code == 200:
+                return public
+    return _sign_object_url(client, bucket, object_path, public)
 
 
 def object_path_from_supabase_url(url: str) -> tuple[str, str] | None:

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ImageOff, Video } from 'lucide-react'
 import { isVideoMedia, isVideoMediaPath } from '../../api/media'
 
@@ -41,6 +41,36 @@ export function MediaThumbnailPlaceholder({
   )
 }
 
+function useThumbnailVisible(enabled: boolean) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(!enabled)
+
+  useEffect(() => {
+    if (!enabled) {
+      setVisible(true)
+      return
+    }
+    const node = ref.current
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      setVisible(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '240px' },
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [enabled])
+
+  return { ref, visible }
+}
+
 export function MediaPreviewContent({
   url,
   isVideo,
@@ -51,6 +81,7 @@ export function MediaPreviewContent({
 }: Props) {
   const video = inferVideo(isVideo, url, fileName, fileType)
   const isThumbnail = mode === 'thumbnail'
+  const { ref, visible } = useThumbnailVisible(isThumbnail)
   const [mediaFailed, setMediaFailed] = useState(false)
   useEffect(() => setMediaFailed(false), [url])
 
@@ -58,29 +89,27 @@ export function MediaPreviewContent({
     return <MediaThumbnailPlaceholder isVideo={video} className={className} compact={isThumbnail} />
   }
 
-  if (video) {
-    return (
-      <video
-        src={url}
-        controls={!isThumbnail}
-        muted={isThumbnail}
-        playsInline
-        preload={isThumbnail ? 'metadata' : 'auto'}
-        onError={() => setMediaFailed(true)}
-        className={[
-          isThumbnail
-            ? 'pointer-events-none h-full w-full object-cover'
-            : 'max-h-96 w-full max-w-full bg-black object-contain',
-          className,
-        ].join(' ')}
-      />
-    )
-  }
-
-  return (
+  const media = video ? (
+    <video
+      src={isThumbnail && !visible ? undefined : url}
+      controls={!isThumbnail}
+      muted={isThumbnail}
+      playsInline
+      preload={isThumbnail ? 'metadata' : 'auto'}
+      onError={() => setMediaFailed(true)}
+      className={[
+        isThumbnail
+          ? 'pointer-events-none h-full w-full object-cover'
+          : 'max-h-96 w-full max-w-full bg-black object-contain',
+        className,
+      ].join(' ')}
+    />
+  ) : (
     <img
-      src={url}
+      src={isThumbnail && !visible ? undefined : url}
       alt=""
+      loading={isThumbnail ? 'lazy' : 'eager'}
+      decoding="async"
       onError={() => setMediaFailed(true)}
       className={[
         isThumbnail
@@ -89,5 +118,13 @@ export function MediaPreviewContent({
         className,
       ].join(' ')}
     />
+  )
+
+  if (!isThumbnail) return media
+
+  return (
+    <div ref={ref} className={['h-full w-full', className].join(' ')}>
+      {visible ? media : null}
+    </div>
   )
 }

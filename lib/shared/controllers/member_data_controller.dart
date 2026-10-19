@@ -388,7 +388,7 @@ class MemberDataController extends ChangeNotifier {
   Future<void> ensureGalleryTab() {
     if (!authController.isLoggedIn) return Future.value();
     if (eventGalleryLoaded && !eventGalleryPreviewOnly) {
-      return Future.value();
+      return refreshEventGallery(fullCatalog: true);
     }
     final inFlight = _galleryTabFuture;
     if (inFlight != null) return inFlight;
@@ -849,7 +849,7 @@ class MemberDataController extends ChangeNotifier {
     final feedbacks = await memberApiService.getFeedback();
     requestorEventFeedbackRequestIds = {
       for (final f in feedbacks)
-        if (f['request_id'] is num) (f['request_id'] as num).toInt(),
+        if (_jsonInt(f['request_id']) != null) _jsonInt(f['request_id'])!,
     };
     appState.feedbacks
       ..clear()
@@ -1816,8 +1816,7 @@ class MemberDataController extends ChangeNotifier {
   }
 
   EventFeedback _feedbackFromApi(Map<String, dynamic> f) {
-    final rawRequestId = f['request_id'];
-    final requestId = rawRequestId is num ? rawRequestId.toInt() : null;
+    final requestId = _jsonInt(f['request_id']);
     final comment = f['comment'] as String? ?? '';
     final adminResponse = (f['admin_response'] as String?)?.trim();
     final reviewStatus = (f['review_status'] as String?)?.trim() ?? 'pending';

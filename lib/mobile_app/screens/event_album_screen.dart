@@ -7,8 +7,6 @@ import 'package:access_mobile/mobile_app/screens/member_gallery_media_viewer.dar
 import 'package:access_mobile/mobile_app/widgets/gallery_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
-import 'package:access_mobile/shared/services/facebook_links.dart';
-import 'package:access_mobile/shared/services/facebook_open_url.dart';
 
 enum _AlbumMediaFilter { all, photos, videos }
 
@@ -73,9 +71,6 @@ class _EventAlbumScreenState extends State<EventAlbumScreen> {
     final padding = mobilePagePaddingOf(context);
     // Request notes / coverage instructions live on Calendar and My Assignments, not gallery browse.
     final description = widget.requestorMode ? _eventDescription : null;
-    final facebookLink = widget.requestorMode
-        ? resolveEventGalleryFacebookLink(_albumMedia)
-        : null;
 
     return Scaffold(
       backgroundColor: kBg,
@@ -88,7 +83,6 @@ class _EventAlbumScreenState extends State<EventAlbumScreen> {
               album: widget.album,
               description: description,
               requestorMode: widget.requestorMode,
-              facebookLink: facebookLink,
               onBack: () => Navigator.of(context).maybePop(),
             ),
             _EventDetailFilterTabs(
@@ -185,14 +179,12 @@ class _EventDetailHeader extends StatelessWidget {
     required this.description,
     required this.onBack,
     this.requestorMode = false,
-    this.facebookLink,
   });
 
   final EventGalleryAlbum album;
   final String? description;
   final VoidCallback onBack;
   final bool requestorMode;
-  final EventGalleryFacebookLink? facebookLink;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +192,6 @@ class _EventDetailHeader extends StatelessWidget {
       return _RequestorEventDetailHeader(
         album: album,
         description: description,
-        facebookLink: facebookLink,
         onBack: onBack,
       );
     }
@@ -217,13 +208,11 @@ class _RequestorEventDetailHeader extends StatelessWidget {
     required this.album,
     required this.description,
     required this.onBack,
-    this.facebookLink,
   });
 
   final EventGalleryAlbum album;
   final String? description;
   final VoidCallback onBack;
-  final EventGalleryFacebookLink? facebookLink;
 
   static const _heroHeight = 132.0;
 
@@ -422,59 +411,10 @@ class _RequestorEventDetailHeader extends StatelessWidget {
                         ),
                     ],
                   ),
-                  if (facebookLink != null) ...[
-                    SizedBox(height: compact ? 12 : 14),
-                    _RequestorFacebookLinkButton(link: facebookLink!),
-                  ],
                 ],
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RequestorFacebookLinkButton extends StatelessWidget {
-  const _RequestorFacebookLinkButton({required this.link});
-
-  final EventGalleryFacebookLink link;
-
-  static const _facebookBlue = Color(0xFF1877F2);
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () async {
-          final opened = await openExternalUrl(link.url);
-          if (!context.mounted) return;
-          if (!opened) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Could not open Facebook. Check your browser or Facebook app.'),
-              ),
-            );
-          }
-        },
-        icon: const Icon(Icons.facebook_rounded, size: 18, color: _facebookBlue),
-        label: Text(
-          link.buttonLabel,
-          style: memberDashboardMetaStyle.copyWith(
-            color: _facebookBlue,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: _facebookBlue,
-          side: BorderSide(color: _facebookBlue.withValues(alpha: 0.35)),
-          backgroundColor: _facebookBlue.withValues(alpha: 0.06),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
         ),
       ),
     );

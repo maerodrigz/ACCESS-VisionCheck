@@ -21,7 +21,7 @@ def list_member_gallery(
     db: Session = Depends(get_db),
     _: User = Depends(require_approved),
 ):
-    """Approved event/documentation media for the member gallery (no evaluation uploads)."""
+    """Event gallery for members and requestors (no practice evaluation uploads)."""
     rows = media_crud.list_approved_event_gallery(
         db,
         file_type=file_type,

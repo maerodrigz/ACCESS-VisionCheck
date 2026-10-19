@@ -18,6 +18,8 @@ function AlbumCoverImage({ url, alt }: { url?: string; alt: string }) {
     <img
       src={url}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       className="h-full w-full object-cover"
       onError={() => setFailed(true)}
     />

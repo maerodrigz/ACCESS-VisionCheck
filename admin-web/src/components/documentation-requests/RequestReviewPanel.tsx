@@ -1,16 +1,23 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar } from 'lucide-react'
+import { Archive, ArchiveRestore, Calendar, MoreVertical } from 'lucide-react'
 import { eventCalendarUrl } from '../../lib/adminCrossLinks'
 import { AdminDrawer } from '../AdminDrawer'
 import { DrawerBackButton } from '../AdminBackButton'
 import { AdminConfirmDialog } from '../AdminConfirmDialog'
-import { fetchRequestAssignments, setRequestStatus } from '../../api/admin'
+import {
+  archiveServiceRequest,
+  fetchRequestAssignments,
+  fetchServiceRequest,
+  setRequestStatus,
+  unarchiveServiceRequest,
+} from '../../api/admin'
+import { useToast } from '../../context/ToastContext'
 import type { DocumentationRequestItem } from '../../lib/documentationRequests'
-import { requestRefLabel } from '../../lib/documentationRequests'
+import { formatRequestTimeRange, requestRefLabel } from '../../lib/documentationRequests'
 import { AssignDocumentationTeamPanel } from './AssignDocumentationTeamPanel'
 import { RequestMemberRatingsSection } from './RequestMemberRatingsSection'
-import { MemberAvatarStack, PriorityBadge, StatusBadge } from './RequestBadges'
+import { PriorityBadge, StatusBadge } from './RequestBadges'
 
 const CONFIRMED_ASSIGNMENT_STATUSES = new Set(['accepted', 'in_progress', 'assigned', 'completed'])
 
@@ -27,32 +34,13 @@ function hasConfirmedCoverage(assignments: { status: string }[]): boolean {
   return assignments.some((a) => CONFIRMED_ASSIGNMENT_STATUSES.has(a.status.toLowerCase()))
 }
 
-function ReviewBentoTile({
-  label,
-  children,
-  className = '',
-  dense,
-}: {
-  label: string
-  children: ReactNode
-  className?: string
-  dense?: boolean
-}) {
+function InfoField({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div
-      className={[
-        'flex min-h-[88px] flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-[0_1px_2px_rgba(15,39,68,0.04)]',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+    <div className="min-w-0">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
         {label}
-      </div>
-      <div className={dense ? 'mt-1.5 min-w-0 flex-1 text-sm' : 'mt-2 min-w-0 flex-1 text-sm'}>
-        {children}
-      </div>
+      </dt>
+      <dd className="mt-0.5 text-sm font-semibold leading-snug text-[var(--color-text-primary)]">{children}</dd>
     </div>
   )
 }
@@ -64,6 +52,7 @@ interface Props {
 }
 
 export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Props) {
+  const { showToast } = useToast()
   const [item, setItem] = useState(initialItem)
   const [submitting, setSubmitting] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
@@ -71,16 +60,63 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
   const [showApproveConfirm, setShowApproveConfirm] = useState(false)
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
   const [showResubmitConfirm, setShowResubmitConfirm] = useState(false)
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
+  const [actionsOpen, setActionsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const actionsRef = useRef<HTMLDivElement>(null)
   const [assignments, setAssignments] = useState<{ status: string }[]>([])
+  const [timeLabel, setTimeLabel] = useState(() =>
+    formatRequestTimeRange(initialItem.startTime, initialItem.endTime),
+  )
 
   useEffect(() => {
     setItem(initialItem)
+    setTimeLabel(formatRequestTimeRange(initialItem.startTime, initialItem.endTime))
   }, [initialItem])
 
   useEffect(() => {
+    if (!actionsOpen) return
+    function onPointerDown(e: MouseEvent) {
+      if (!actionsRef.current?.contains(e.target as Node)) setActionsOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setActionsOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [actionsOpen])
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchServiceRequest(initialItem.id)
+      .then((row) => {
+        if (cancelled) return
+        const start = row.start_time != null ? String(row.start_time) : initialItem.startTime
+        const end = row.end_time != null ? String(row.end_time) : initialItem.endTime
+        setTimeLabel(formatRequestTimeRange(start, end))
+        if (row.description != null || row.details != null) {
+          const details = String(row.description ?? row.details ?? '')
+          setItem((prev) => (details && !prev.details ? { ...prev, details } : prev))
+        }
+      })
+      .catch(() => {
+        /* keep times from the list payload */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [initialItem.id, initialItem.startTime, initialItem.endTime])
+
+  useEffect(() => {
     const approved =
-      initialItem.displayStatus === 'approved' || initialItem.displayStatus === 'completed'
+      initialItem.displayStatus === 'approved' ||
+      initialItem.displayStatus === 'completed' ||
+      initialItem.displayStatus === 'archived'
     if (!approved) {
       setAssignments([])
       return
@@ -159,6 +195,40 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
     }
   }
 
+  async function archiveCompletedRequest() {
+    setSubmitting(true)
+    setError(null)
+    try {
+      await archiveServiceRequest(item.id)
+      setShowArchiveConfirm(false)
+      setActionsOpen(false)
+      showToast('Request archived', 'success')
+      await onUpdated()
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not archive request')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function restoreArchivedRequest() {
+    setSubmitting(true)
+    setError(null)
+    try {
+      await unarchiveServiceRequest(item.id)
+      setShowRestoreConfirm(false)
+      setActionsOpen(false)
+      showToast('Request restored to Completed', 'success')
+      await onUpdated()
+      setItem((prev) => ({ ...prev, displayStatus: 'completed', archivedAt: undefined }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not restore request')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function resubmit() {
     setSubmitting(true)
     setError(null)
@@ -183,212 +253,260 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
     item.rawStatus.toLowerCase() !== 'completed' &&
     coverageConfirmed
   const showTeamPanel =
-    item.displayStatus === 'approved' || item.displayStatus === 'completed'
+    item.displayStatus === 'approved' ||
+    item.displayStatus === 'completed' ||
+    item.displayStatus === 'archived'
   const showCompletionHint =
     item.displayStatus === 'approved' && item.rawStatus.toLowerCase() !== 'completed'
   const showMemberRatings =
-    item.assignedMembers.length > 0 &&
-    (item.displayStatus === 'completed' || eventDateReached)
+    item.displayStatus === 'completed' ||
+    item.displayStatus === 'archived' ||
+    (item.assignedMembers.length > 0 && eventDateReached)
+  const isDetailsTitle =
+    item.displayStatus === 'approved' ||
+    item.displayStatus === 'completed' ||
+    item.displayStatus === 'archived'
+  const headerTitle = isDetailsTitle ? 'Request Details' : 'Review request'
+  const canArchiveRequest = item.displayStatus === 'completed'
+  const canRestoreRequest = item.displayStatus === 'archived'
+  const showRequestActions = canArchiveRequest || canRestoreRequest
+  const hasFooterActions =
+    canApprove || canReject || showReject || canMarkCompleted || item.displayStatus === 'rejected'
 
   return (
     <>
       <AdminDrawer
         open
         onClose={onClose}
-        title="Review request"
-        maxWidth="2xl"
-        bodyClassName="space-y-4 px-5 pb-5"
+        title={headerTitle}
+        maxWidth="3xl"
+        bodyClassName="space-y-3 px-5 py-4"
         header={
-          <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-5 py-4">
+          <div className="flex shrink-0 items-start gap-2 border-b border-[var(--color-border)] px-5 py-3">
             <DrawerBackButton onClick={onClose} label="Back" />
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-extrabold text-[var(--color-text-primary)]">Review request</h2>
-              <p className="text-xs font-semibold text-[var(--color-text-secondary)]">
-                {requestRefLabel(item.id)} · Submitted {item.createdAtLabel}
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-extrabold leading-tight text-[var(--color-text-primary)]">
+                  {headerTitle}
+                </h2>
+                <StatusBadge status={item.displayStatus} />
+                <PriorityBadge priority={item.priority} />
+              </div>
+              <p className="mt-1 truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                {item.eventTitle}
               </p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{item.eventTitle}</p>
+              <p className="text-[11px] font-semibold text-[var(--color-text-secondary)]">
+                {requestRefLabel(item.id)}
+              </p>
             </div>
+            {showRequestActions ? (
+              <div ref={actionsRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  aria-label="Request actions"
+                  aria-expanded={actionsOpen}
+                  aria-haspopup="menu"
+                  disabled={submitting}
+                  onClick={() => setActionsOpen((open) => !open)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] disabled:opacity-60"
+                >
+                  <MoreVertical size={18} aria-hidden />
+                </button>
+                {actionsOpen ? (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-20 mt-1 min-w-[11rem] overflow-hidden rounded-xl border border-[var(--color-border)] bg-white py-1 shadow-lg"
+                  >
+                    {canArchiveRequest ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+                        onClick={() => {
+                          setActionsOpen(false)
+                          setShowArchiveConfirm(true)
+                        }}
+                      >
+                        <Archive size={16} aria-hidden />
+                        Archive request
+                      </button>
+                    ) : null}
+                    {canRestoreRequest ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+                        onClick={() => {
+                          setActionsOpen(false)
+                          setShowRestoreConfirm(true)
+                        }}
+                      >
+                        <ArchiveRestore size={16} aria-hidden />
+                        Restore to Completed
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         }
         footer={
-          <div className="flex flex-wrap gap-2 p-4">
-            {canApprove && (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => setShowApproveConfirm(true)}
-                className="rounded-xl bg-[var(--color-success)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-              >
-                Approve
-              </button>
-            )}
-            {canReject && !showReject && (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => setShowReject(true)}
-                className="rounded-xl bg-[var(--color-danger)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-              >
-                Reject
-              </button>
-            )}
-            {showReject && (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={reject}
-                className="rounded-xl bg-[var(--color-danger)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-              >
-                Confirm reject
-              </button>
-            )}
-            {canMarkCompleted && (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => setShowCompleteConfirm(true)}
-                className="rounded-xl bg-[var(--color-accent-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-              >
-                Mark completed
-              </button>
-            )}
-            {item.displayStatus === 'rejected' && (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => setShowResubmitConfirm(true)}
-                className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold"
-              >
-                Resubmit to Pending
-              </button>
-            )}
-          </div>
+          hasFooterActions ? (
+            <div className="flex flex-wrap gap-2 px-5 py-3">
+              {canApprove && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => setShowApproveConfirm(true)}
+                  className="rounded-xl bg-[var(--color-success)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  Approve
+                </button>
+              )}
+              {canReject && !showReject && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => setShowReject(true)}
+                  className="rounded-xl bg-[var(--color-danger)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  Reject
+                </button>
+              )}
+              {showReject && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={reject}
+                  className="rounded-xl bg-[var(--color-danger)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  Confirm reject
+                </button>
+              )}
+              {canMarkCompleted && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => setShowCompleteConfirm(true)}
+                  className="rounded-xl bg-[var(--color-accent-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  Mark completed
+                </button>
+              )}
+              {item.displayStatus === 'rejected' && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => setShowResubmitConfirm(true)}
+                  className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold"
+                >
+                  Resubmit to Pending
+                </button>
+              )}
+            </div>
+          ) : undefined
         }
       >
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge status={item.displayStatus} />
-            <PriorityBadge priority={item.priority} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:auto-rows-fr">
-            <ReviewBentoTile label="Event" className="sm:col-span-2 min-h-[72px]">
-              <p className="text-base font-extrabold leading-snug text-[var(--color-text-primary)]">
-                {item.eventTitle}
-              </p>
-              <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">
-                {requestRefLabel(item.id)}
-              </p>
-            </ReviewBentoTile>
-
-            <ReviewBentoTile label="Requestor">
-              <p className="font-semibold text-[var(--color-text-primary)]">{item.requestor}</p>
-            </ReviewBentoTile>
-
-            <ReviewBentoTile label="Submitted">
-              <p className="font-semibold text-[var(--color-text-primary)]">{item.createdAtLabel}</p>
-            </ReviewBentoTile>
-
-            <ReviewBentoTile label="Event date">
-              <p className="font-semibold text-[var(--color-text-primary)]">{item.eventDateLabel}</p>
-              <p className="mt-1.5 text-xs leading-snug text-[var(--color-text-secondary)]">
-                Requestor reference date (start or primary day). Mark completed when coverage is actually done.
-              </p>
-              {item.eventDate ? (
-                <Link
-                  to={eventCalendarUrl({ requestId: item.id })}
-                  onClick={onClose}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-accent-blue)] hover:bg-[var(--color-surface-hover)]"
-                >
-                  <Calendar size={12} />
-                  View on calendar
-                </Link>
-              ) : null}
-            </ReviewBentoTile>
-
-            <ReviewBentoTile label="Venue">
-              <p className="font-semibold text-[var(--color-text-primary)]">
-                {item.venue?.trim() ? item.venue : 'Not specified'}
-              </p>
-            </ReviewBentoTile>
-
-            <ReviewBentoTile label="Request details" className="sm:col-span-2">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                {item.details?.trim() ? item.details : 'No additional details provided.'}
-              </p>
-            </ReviewBentoTile>
-
-            {item.rejectionReason ? (
-              <ReviewBentoTile
-                label="Rejection reason"
-                className="sm:col-span-2 border-red-500/30 bg-red-500/10"
+        <section className="rounded-xl border border-[var(--color-border)] bg-white p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Event Information</h3>
+            {item.eventDate ? (
+              <Link
+                to={eventCalendarUrl({ requestId: item.id })}
+                onClick={onClose}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-accent-blue)] hover:bg-[var(--color-surface-hover)]"
               >
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-danger-text)]">
-                  {item.rejectionReason}
-                </p>
-              </ReviewBentoTile>
+                <Calendar size={12} />
+                View on Calendar
+              </Link>
             ) : null}
-
-            <ReviewBentoTile label="Assigned members" className="sm:col-span-2 min-h-[72px]" dense>
-              <MemberAvatarStack members={item.assignedMembers} />
-            </ReviewBentoTile>
           </div>
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+            <InfoField label="Event title">{item.eventTitle}</InfoField>
+            <InfoField label="Requestor">{item.requestor}</InfoField>
+            <InfoField label="Submitted">{item.createdAtLabel}</InfoField>
+            <InfoField label="Event date">{item.eventDateLabel}</InfoField>
+            <InfoField label="Venue">{item.venue?.trim() ? item.venue : 'Not specified'}</InfoField>
+            <InfoField label="Time">{timeLabel}</InfoField>
+            <div className="min-w-0 sm:col-span-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                Description
+              </dt>
+              <dd className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-[var(--color-text-primary)]">
+                {item.details?.trim() ? item.details : 'No additional details provided.'}
+              </dd>
+            </div>
+            {item.rejectionReason ? (
+              <div className="min-w-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 sm:col-span-2">
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                  Rejection reason
+                </dt>
+                <dd className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-red-800">
+                  {item.rejectionReason}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
 
-          <RequestMemberRatingsSection
-            requestId={item.id}
-            assignedMembers={item.assignedMembers}
-            visible={showMemberRatings}
+        {canApprove && (
+          <div className="rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+            Approve the request first, then assign the documentation team with ranked recommendations.
+            Members must accept before coverage is confirmed.
+          </div>
+        )}
+
+        {showTeamPanel ? (
+          <AssignDocumentationTeamPanel
+            item={item}
+            onAssigned={async () => {
+              await onUpdated()
+              try {
+                const rows = await fetchRequestAssignments(item.id)
+                setAssignments(rows.map((r) => ({ status: String(r.status ?? '') })))
+              } catch {
+                /* keep prior assignment state */
+              }
+            }}
           />
+        ) : null}
 
-          {canApprove && (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-              Approve the request first, then assign the documentation team with ranked recommendations.
-              Members must accept before coverage is confirmed.
-            </div>
-          )}
+        <RequestMemberRatingsSection
+          requestId={item.id}
+          assignedMembers={item.assignedMembers}
+          visible={showMemberRatings}
+          completed={item.displayStatus === 'completed' || item.displayStatus === 'archived'}
+        />
 
-          {showTeamPanel ? (
-            <AssignDocumentationTeamPanel
-              item={item}
-              onAssigned={async () => {
-                await onUpdated()
-                try {
-                  const rows = await fetchRequestAssignments(item.id)
-                  setAssignments(rows.map((r) => ({ status: String(r.status ?? '') })))
-                } catch {
-                  /* keep prior assignment state */
-                }
-              }}
+        {showCompletionHint && !canMarkCompleted ? (
+          <div className="rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+            Mark completed unlocks after at least one assigned member accepts coverage.
+          </div>
+        ) : null}
+
+        {showCompletionHint && canMarkCompleted && !eventDateReached ? (
+          <div className="rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+            Scheduled event date is {item.eventDateLabel}. You may mark completed when documentation is
+            finished, including multi-day or extended campus events that run past that date.
+          </div>
+        ) : null}
+
+        {showReject && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-[var(--color-text-secondary)]">
+              Rejection reason (min 8 characters)
+            </label>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm"
             />
-          ) : null}
+          </div>
+        )}
 
-          {showCompletionHint && !canMarkCompleted ? (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-              Mark completed unlocks after at least one assigned member accepts coverage.
-            </div>
-          ) : null}
-
-          {showCompletionHint && canMarkCompleted && !eventDateReached ? (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-              Scheduled event date is {item.eventDateLabel}. You may mark completed when documentation is finished,
-              including multi-day or extended campus events that run past that date.
-            </div>
-          ) : null}
-
-          {showReject && (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-[var(--color-text-secondary)]">
-                Rejection reason (min 8 characters)
-              </label>
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-sm"
-              />
-            </div>
-          )}
-
-          {error && <div className="text-sm text-red-600">{error}</div>}
+        {error && <div className="text-sm text-red-600">{error}</div>}
       </AdminDrawer>
 
       <AdminConfirmDialog
@@ -421,6 +539,26 @@ export function RequestReviewPanel({ item: initialItem, onClose, onUpdated }: Pr
         loading={submitting}
         onConfirm={resubmit}
         onCancel={() => setShowResubmitConfirm(false)}
+      />
+
+      <AdminConfirmDialog
+        open={showArchiveConfirm}
+        title="Archive completed request?"
+        message={`"${item.eventTitle}" (${requestRefLabel(item.id)}) will move to Archived. Assignments, feedback, and gallery files stay in the system for records and analytics.`}
+        confirmLabel="Archive request"
+        loading={submitting}
+        onConfirm={archiveCompletedRequest}
+        onCancel={() => setShowArchiveConfirm(false)}
+      />
+
+      <AdminConfirmDialog
+        open={showRestoreConfirm}
+        title="Restore archived request?"
+        message={`"${item.eventTitle}" (${requestRefLabel(item.id)}) will return to the Completed list.`}
+        confirmLabel="Restore"
+        loading={submitting}
+        onConfirm={restoreArchivedRequest}
+        onCancel={() => setShowRestoreConfirm(false)}
       />
     </>
   )

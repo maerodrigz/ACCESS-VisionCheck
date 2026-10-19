@@ -237,7 +237,7 @@ export function NotificationCenterPage() {
       <MemberAnnouncementDialog
         open={showAnnouncement}
         onClose={() => setShowAnnouncement(false)}
-        onSent={() => showToast('Broadcast sent')}
+        onSent={() => showToast('Announcement sent to members', 'success')}
       />
     </div>
   )

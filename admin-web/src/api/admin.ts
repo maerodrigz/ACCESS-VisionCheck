@@ -280,6 +280,10 @@ export function rejectOrganizationRegistration(userId: number, rejectionReason: 
   })
 }
 
+export function fetchServiceRequest(requestId: number) {
+  return apiRequest<Record<string, unknown>>(`/service-requests/${requestId}`)
+}
+
 export function setRequestStatus(
   requestId: number,
   status: string,
@@ -291,6 +295,18 @@ export function setRequestStatus(
       status,
       ...(rejectionReason ? { rejection_reason: rejectionReason } : {}),
     }),
+  })
+}
+
+export function archiveServiceRequest(requestId: number) {
+  return apiRequest<{ message: string }>(`/admin/service-requests/${requestId}/archive`, {
+    method: 'POST',
+  })
+}
+
+export function unarchiveServiceRequest(requestId: number) {
+  return apiRequest<{ message: string }>(`/admin/service-requests/${requestId}/unarchive`, {
+    method: 'POST',
   })
 }
 

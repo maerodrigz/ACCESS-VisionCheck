@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchMemberRatings } from '../../api/admin'
+import { fetchFeedback, fetchMemberRatings } from '../../api/admin'
 import type { AssignedMember } from '../../lib/documentationRequests'
 import {
   formatTaskRole,
@@ -12,31 +12,56 @@ interface Props {
   requestId: number
   assignedMembers: AssignedMember[]
   visible: boolean
+  completed?: boolean
 }
 
-export function RequestMemberRatingsSection({ requestId, assignedMembers, visible }: Props) {
+interface OverallFeedback {
+  rating: number
+  comment: string
+}
+
+export function RequestMemberRatingsSection({
+  requestId,
+  assignedMembers,
+  visible,
+}: Props) {
   const [rows, setRows] = useState<MemberRequesterRatingRow[]>([])
+  const [overall, setOverall] = useState<OverallFeedback | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!visible || assignedMembers.length === 0) {
+    if (!visible) {
       setRows([])
+      setOverall(null)
       setError(null)
       return
     }
     let cancelled = false
     setLoading(true)
     setError(null)
-    void fetchMemberRatings({ requestId })
-      .then((data) => {
+    void Promise.all([
+      assignedMembers.length > 0 ? fetchMemberRatings({ requestId }) : Promise.resolve([]),
+      fetchFeedback(),
+    ])
+      .then(([ratingRows, feedbackRows]) => {
         if (cancelled) return
-        setRows(data.map(parseMemberRatingRow))
+        setRows(ratingRows.map(parseMemberRatingRow))
+        const match = feedbackRows.find((row) => Number(row.request_id ?? 0) === requestId)
+        if (match) {
+          setOverall({
+            rating: Math.min(5, Math.max(0, Math.round(Number(match.rating ?? 0)))),
+            comment: String(match.comment ?? match.feedback ?? match.message ?? '').trim(),
+          })
+        } else {
+          setOverall(null)
+        }
       })
       .catch((e) => {
         if (cancelled) return
         setRows([])
-        setError(e instanceof Error ? e.message : 'Could not load member ratings')
+        setOverall(null)
+        setError(e instanceof Error ? e.message : 'Could not load requestor feedback')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -54,71 +79,76 @@ export function RequestMemberRatingsSection({ requestId, assignedMembers, visibl
     }))
   }, [assignedMembers, rows])
 
-  if (!visible || assignedMembers.length === 0) return null
+  if (!visible) return null
 
   const ratedCount = merged.filter((m) => m.rating != null).length
+  const hasAnyFeedback = overall != null || ratedCount > 0
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <div className="text-xs font-bold text-[var(--color-text-secondary)]">Member ratings</div>
-          <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-            Per-photographer and per-videographer feedback from the requestor for this event.
-          </p>
-        </div>
-        {!loading && (
-          <span className="rounded-full bg-[var(--color-surface-elevated)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
-            {ratedCount}/{assignedMembers.length} rated
+    <section className="rounded-xl border border-[var(--color-border)] bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Requestor Feedback</h3>
+        {!loading && hasAnyFeedback && assignedMembers.length > 0 ? (
+          <span className="text-[11px] font-semibold text-[var(--color-text-secondary)]">
+            {ratedCount}/{assignedMembers.length} members rated
           </span>
-        )}
+        ) : null}
       </div>
 
       {loading ? (
-        <p className="mt-3 text-xs text-[var(--color-text-muted)]">Loading ratings…</p>
+        <p className="mt-2 text-xs text-[var(--color-text-secondary)]">Loading feedback…</p>
       ) : error ? (
-        <p className="mt-3 text-xs text-red-500">{error}</p>
+        <p className="mt-2 text-xs text-red-600">{error}</p>
+      ) : !hasAnyFeedback ? (
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">No feedback submitted yet</p>
       ) : (
-        <div className="mt-3 space-y-2">
-          {merged.map(({ member, rating }) => (
-            <div
-              key={member.id}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2.5"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">{member.name}</div>
-                  <div className="text-[11px] text-[var(--color-text-secondary)]">
-                    {formatTaskRole(rating?.taskRole ?? member.role)}
-                  </div>
-                </div>
-                {rating ? (
-                  <div className="text-right">
-                    <StarRow rating={rating.rating} />
-                    <div className="mt-0.5 text-[10px] font-semibold text-[var(--color-text-secondary)]">
-                      {rating.rating}/5
-                    </div>
-                  </div>
-                ) : (
-                  <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-muted)]">
-                    Not rated yet
-                  </span>
-                )}
+        <div className="mt-3 space-y-3">
+          {overall ? (
+            <div className="rounded-lg border border-[var(--color-border)] px-3 py-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                Overall event rating
+              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <StarRow rating={overall.rating} />
+                <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
+                  {overall.rating}/5
+                </span>
               </div>
-              {rating?.comment?.trim() ? (
-                <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                  {rating.comment.trim()}
+              {overall.comment ? (
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-primary)]">
+                  {overall.comment}
                 </p>
               ) : null}
             </div>
+          ) : null}
+
+          {merged.map(({ member, rating }) => (
+            <div key={member.id} className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-[var(--color-text-primary)]">{member.name}</div>
+                <div className="text-[11px] text-[var(--color-text-secondary)]">
+                  {formatTaskRole(rating?.taskRole ?? member.role)}
+                </div>
+                {rating?.comment?.trim() ? (
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                    {rating.comment.trim()}
+                  </p>
+                ) : null}
+              </div>
+              {rating ? (
+                <div className="text-right">
+                  <StarRow rating={rating.rating} />
+                  <div className="mt-0.5 text-[10px] font-semibold text-[var(--color-text-secondary)]">
+                    {rating.rating}/5
+                  </div>
+                </div>
+              ) : (
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Not rated yet</span>
+              )}
+            </div>
           ))}
-          {ratedCount === 0 && (
-            <p className="text-[11px] text-[var(--color-text-muted)]">
-              The requestor has not submitted member ratings for this event yet.
-            </p>
-          )}
         </div>
       )}
-    </div>
+    </section>
   )
 }

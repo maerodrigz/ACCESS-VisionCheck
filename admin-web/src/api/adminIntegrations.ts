@@ -19,9 +19,9 @@ export function fetchSystemMonitor() {
   return apiRequest<SystemMonitorPayload>('/admin/system-monitor')
 }
 
-export type AnnouncementAudience = 'member' | 'requestor' | 'both'
+export type AnnouncementAudience = 'member'
 
-/** Post an in-app announcement to approved mobile app users. */
+/** Post an in-app announcement to approved members. */
 export function sendMemberAnnouncement(body: {
   title: string
   message: string

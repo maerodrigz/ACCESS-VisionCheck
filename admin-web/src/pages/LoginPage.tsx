@@ -84,16 +84,18 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-shell">
-        <div className="login-shell__photo" aria-hidden>
-          <div
-            className="login-shell__photo-bg"
-            style={{ '--login-hero-image': `url(${loginCameraBg})` } as React.CSSProperties}
-          />
-        </div>
-        <div className="login-shell__scrim" aria-hidden />
-        <LoginSplitCurve />
-        <div className="login-shell__brand">
-          <LoginBrandPanel />
+        <div className="login-shell__hero">
+          <div className="login-shell__photo" aria-hidden>
+            <div
+              className="login-shell__photo-bg"
+              style={{ '--login-hero-image': `url(${loginCameraBg})` } as React.CSSProperties}
+            />
+          </div>
+          <div className="login-shell__scrim" aria-hidden />
+          <LoginSplitCurve />
+          <div className="login-shell__brand">
+            <LoginBrandPanel />
+          </div>
         </div>
         <main className="login-shell__auth">
           <LoginFormPanel {...formProps} />

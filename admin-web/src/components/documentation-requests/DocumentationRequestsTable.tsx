@@ -90,7 +90,7 @@ export function DocumentationRequestsTable({ items, onReview }: Props) {
                     }}
                     className={[
                       'rounded-lg px-2.5 py-1 text-[11px] font-semibold',
-                      item.displayStatus === 'completed'
+                      item.displayStatus === 'completed' || item.displayStatus === 'archived'
                         ? 'border border-[var(--color-border)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]'
                         : 'bg-[var(--color-accent-blue)] text-white hover:opacity-95',
                     ].join(' ')}

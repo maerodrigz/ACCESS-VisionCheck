@@ -94,7 +94,13 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
   const onHome = location.pathname === '/'
 
   return (
-    <header className="flex h-full items-center gap-3 px-4 md:px-6">
+    <header
+      className={
+        mobile
+          ? 'flex h-[var(--topbar-height)] shrink-0 items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4'
+          : 'flex h-full items-center gap-3 px-4 md:px-6'
+      }
+    >
       {mobile ? (
         <button
           type="button"

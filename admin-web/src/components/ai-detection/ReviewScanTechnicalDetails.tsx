@@ -4,15 +4,18 @@ import {
   PROBE_DETECTOR_DISPLAY_NAME,
   type CameraFileDisplayRow,
   cameraFileDisplayRows,
+  detectorAiRiskBand,
   probeRawPFakePercent,
+  supplementalExifFieldRows,
+  visualAiRiskColor,
 } from '../../lib/reviewScanPresentation'
 
 function SectionHeading({ children, withTopRule }: { children: ReactNode; withTopRule?: boolean }) {
   return (
     <div
       className={[
-        'col-span-2 text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]',
-        withTopRule ? 'mt-3 border-t border-[var(--color-border)] pt-3' : '',
+        'col-span-2 text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]',
+        withTopRule ? 'mt-2 border-t border-[var(--color-border)] pt-2' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -26,11 +29,16 @@ function DetailCells({ label, value, divider }: { label: string; value: ReactNod
   const rule = divider ? 'border-t border-[var(--color-border-subtle)]' : ''
   return (
     <>
-      <dt className={`py-1 text-xs text-[var(--color-text-secondary)] ${rule}`}>{label}</dt>
-      <dd
-        className={`m-0 min-w-0 py-1 text-xs font-semibold leading-snug text-[var(--color-text-primary)] break-words [overflow-wrap:anywhere] [text-align:end] ${rule}`}
+      <dt
+        className={`py-1 pr-2 text-xs leading-snug text-[var(--color-text-secondary)] ${rule}`}
       >
-        {value}
+        {label}
+      </dt>
+      <dd
+        className={`m-0 min-w-0 py-1 text-xs font-semibold leading-snug text-[var(--color-text-primary)] ${rule}`}
+        title={typeof value === 'string' ? value : undefined}
+      >
+        <span className="block text-right break-normal">{value}</span>
       </dd>
     </>
   )
@@ -40,22 +48,56 @@ function DetailCells({ label, value, divider }: { label: string; value: ReactNod
 export function ReviewScanTechnicalDetails({ row }: { row: AiDetectionRow }) {
   const meta = row.exif_metadata
   const pFake = probeRawPFakePercent(row)
+  const band = detectorAiRiskBand(row)
+  const riskLevel = meta?.visual_risk_level
+    ? String(meta.visual_risk_level)
+    : band.charAt(0) + band.slice(1).toLowerCase()
   const cameraRows = cameraFileDisplayRows(meta)
+  const extraExif = supplementalExifFieldRows(meta)
+  const policyOutcome = meta?.provenance_policy_outcome
+    ? String(meta.provenance_policy_outcome).replace(/_/g, ' ')
+    : null
 
   return (
-    <dl className="grid w-full min-w-0 grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-4 [&>dd]:max-w-full [&>dd]:justify-self-stretch">
-      <SectionHeading>Detection Information</SectionHeading>
-      <DetailCells label="Detector Name" value={PROBE_DETECTOR_DISPLAY_NAME} />
-      <DetailCells label="AI Probability" value={pFake ?? 'N/A'} divider />
+    <dl className="grid w-full min-w-0 grid-cols-[minmax(7.25rem,38%)_minmax(0,1fr)] items-start gap-x-3">
+      <SectionHeading>Detector (PROBE-DINOv2)</SectionHeading>
+      <DetailCells label="Detector" value={PROBE_DETECTOR_DISPLAY_NAME} />
+      <DetailCells label="P(fake)" value={pFake ?? 'N/A'} divider />
+      <DetailCells
+        label="Risk level"
+        value={
+          <span className="inline-flex items-center justify-end gap-1.5">
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: visualAiRiskColor(band) }}
+              aria-hidden
+            />
+            {riskLevel}
+          </span>
+        }
+        divider
+      />
+      {policyOutcome ? (
+        <DetailCells label="Policy outcome" value={policyOutcome} divider />
+      ) : null}
 
-      <SectionHeading withTopRule>Camera &amp; File Information</SectionHeading>
+      <SectionHeading withTopRule>Camera &amp; file metadata</SectionHeading>
       {cameraRows.length > 0 ? (
         cameraRows.map((r: CameraFileDisplayRow, index) => (
           <DetailCells key={r.label} label={r.label} value={r.value} divider={index > 0} />
         ))
       ) : (
-        <p className="col-span-2 mt-1 text-xs text-[var(--color-text-secondary)]">Not available</p>
+        <p className="col-span-2 text-xs text-[var(--color-text-secondary)]">Not available</p>
       )}
+
+      {extraExif.length > 0 ? (
+        <>
+          <SectionHeading withTopRule>Additional EXIF fields</SectionHeading>
+          {extraExif.map((r, index) => (
+            <DetailCells key={`${r.label}-${index}`} label={r.label} value={r.value} divider={index > 0} />
+          ))}
+        </>
+      ) : null}
     </dl>
   )
 }

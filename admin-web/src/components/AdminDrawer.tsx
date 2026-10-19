@@ -7,6 +7,7 @@ const MAX_WIDTH_CLASS = {
   lg: 'max-w-lg',
   xl: 'max-w-xl',
   '2xl': 'max-w-2xl',
+  '3xl': 'max-w-3xl',
 } as const
 
 type MaxWidth = keyof typeof MAX_WIDTH_CLASS
@@ -119,7 +120,7 @@ export function AdminDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel ?? title}
-        className={`relative flex max-h-[min(90vh,calc(100dvh-2rem))] w-full ${MAX_WIDTH_CLASS[maxWidth]} flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl ring-1 ring-black/5`}
+        className={`relative flex h-auto max-h-[min(90vh,calc(100dvh-2rem))] w-full ${MAX_WIDTH_CLASS[maxWidth]} flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl ring-1 ring-black/5`}
       >
         {header ?? (
           <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-border)] px-5 py-4">
@@ -138,7 +139,7 @@ export function AdminDrawer({
           </div>
         )}
 
-        <div className={`flex-1 overflow-y-auto overscroll-contain ${bodyClassName}`.trim()}>
+        <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${bodyClassName}`.trim()}>
           {children}
         </div>
         {footer ? (

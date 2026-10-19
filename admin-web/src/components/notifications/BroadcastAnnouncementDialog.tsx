@@ -1,9 +1,6 @@
 import { useState } from 'react'
 import { Loader2, Megaphone, X } from 'lucide-react'
-import {
-  sendMemberAnnouncement,
-  type AnnouncementAudience,
-} from '../../api/adminIntegrations'
+import { sendMemberAnnouncement } from '../../api/adminIntegrations'
 import { AdminErrorBanner } from '../AdminAlert'
 
 interface Props {
@@ -15,7 +12,6 @@ interface Props {
 export function MemberAnnouncementDialog({ open, onClose, onSent }: Props) {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
-  const [audience, setAudience] = useState<AnnouncementAudience>('both')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,7 +25,7 @@ export function MemberAnnouncementDialog({ open, onClose, onSent }: Props) {
       await sendMemberAnnouncement({
         title: title.trim(),
         message: message.trim(),
-        audience,
+        audience: 'member',
       })
       setTitle('')
       setMessage('')
@@ -66,7 +62,7 @@ export function MemberAnnouncementDialog({ open, onClose, onSent }: Props) {
                 New announcement
               </h2>
               <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
-                Delivers in-app alerts to approved members and/or requestors. Also appears on home feeds when
+                Delivers in-app alerts to approved members only. Also appears on member home feeds when
                 &quot;New Announcement&quot; is enabled in System Configuration.
               </p>
             </div>
@@ -84,22 +80,6 @@ export function MemberAnnouncementDialog({ open, onClose, onSent }: Props) {
 
         <div className="space-y-3 px-5 py-4">
           {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
-
-          <div>
-            <label htmlFor="announcement-audience" className="text-xs font-bold text-[var(--color-text-primary)]">
-              Audience
-            </label>
-            <select
-              id="announcement-audience"
-              value={audience}
-              onChange={(e) => setAudience(e.target.value as AnnouncementAudience)}
-              className="admin-input mt-1 w-full rounded-xl px-3 py-2 text-sm"
-            >
-              <option value="both">Members and requestors</option>
-              <option value="member">Members only</option>
-              <option value="requestor">Requestors only</option>
-            </select>
-          </div>
 
           <div>
             <label htmlFor="announcement-title" className="text-xs font-bold text-[var(--color-text-primary)]">

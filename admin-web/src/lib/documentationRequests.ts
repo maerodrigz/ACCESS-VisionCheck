@@ -1,6 +1,6 @@
-export type RequestFilterTab = 'all' | 'pending' | 'approved' | 'rejected' | 'completed'
+export type RequestFilterTab = 'all' | 'pending' | 'approved' | 'rejected' | 'completed' | 'archived'
 
-export type RequestDisplayStatus = 'pending' | 'approved' | 'rejected' | 'completed'
+export type RequestDisplayStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'archived'
 
 export type RequestPriority = 'urgent' | 'high' | 'normal' | 'low'
 
@@ -29,6 +29,9 @@ export interface DocumentationRequestItem {
   rejectionReason?: string
   eventDateLabel: string
   createdAtLabel: string
+  startTime?: string
+  endTime?: string
+  archivedAt?: Date
 }
 
 function parseDate(raw: unknown): Date | undefined {
@@ -43,6 +46,29 @@ function formatDate(d?: Date): string {
 }
 
 /** Requestor submission timestamp for admin review (local timezone). */
+function formatClock(raw?: string | null): string {
+  const value = (raw ?? '').trim()
+  if (!value) return ''
+  const part = value.includes('T') ? (value.split('T')[1] ?? value) : value
+  const d = new Date(`1970-01-01T${part}`)
+  if (!Number.isNaN(d.getTime())) {
+    const h = d.getHours() % 12 || 12
+    const m = d.getMinutes().toString().padStart(2, '0')
+    const ap = d.getHours() >= 12 ? 'PM' : 'AM'
+    return `${h}:${m} ${ap}`
+  }
+  return value
+}
+
+/** Event coverage window from request start/end times. */
+export function formatRequestTimeRange(start?: string | null, end?: string | null): string {
+  const from = formatClock(start)
+  const to = formatClock(end)
+  if (from && to && from !== to) return `${from} – ${to}`
+  if (from) return from
+  return 'Not specified'
+}
+
 export function formatRequestSubmittedAt(d?: Date): string {
   if (!d) return '—'
   return d.toLocaleString(undefined, {
@@ -56,9 +82,11 @@ export function formatRequestSubmittedAt(d?: Date): string {
 
 function deriveDisplayStatus(
   rawStatus: string,
+  archivedAt?: Date,
   _eventDate?: Date,
   _tasks: Record<string, unknown>[] = [],
 ): RequestDisplayStatus {
+  if (archivedAt) return 'archived'
   const s = rawStatus.toLowerCase()
   if (s === 'rejected') return 'rejected'
   if (s === 'pending') return 'pending'
@@ -68,7 +96,7 @@ function deriveDisplayStatus(
 }
 
 function derivePriority(eventDate: Date | undefined, status: RequestDisplayStatus): RequestPriority {
-  if (status === 'completed' || status === 'rejected') return 'low'
+  if (status === 'completed' || status === 'archived' || status === 'rejected') return 'low'
   if (!eventDate) return 'normal'
   const days = Math.floor((eventDate.getTime() - Date.now()) / 86400000)
   if (days < 0) return 'high'
@@ -91,6 +119,7 @@ export function parseDocumentationRequest(
   const eventDate = parseDate(request.event_date)
   const createdAt = parseDate(request.created_at)
   const rawStatus = String(request.status ?? 'Pending')
+  const archivedAt = parseDate(request.archived_at)
 
   const assignedMembers: AssignedMember[] = tasksForRequest.map((t) => {
     const name = String(t.member_name ?? 'Member')
@@ -102,7 +131,7 @@ export function parseDocumentationRequest(
     }
   })
 
-  const displayStatus = deriveDisplayStatus(rawStatus, eventDate, tasksForRequest)
+  const displayStatus = deriveDisplayStatus(rawStatus, archivedAt, eventDate, tasksForRequest)
   const priority = derivePriority(eventDate, displayStatus)
 
   return {
@@ -121,10 +150,15 @@ export function parseDocumentationRequest(
     rejectionReason: request.rejection_reason != null ? String(request.rejection_reason) : undefined,
     eventDateLabel: formatDate(eventDate),
     createdAtLabel: formatDate(createdAt) || 'Recently',
+    startTime: request.start_time != null ? String(request.start_time) : undefined,
+    endTime: request.end_time != null ? String(request.end_time) : undefined,
+    archivedAt,
   }
 }
 
 export function matchesFilter(item: DocumentationRequestItem, tab: RequestFilterTab): boolean {
+  if (tab === 'archived') return item.displayStatus === 'archived'
+  if (item.displayStatus === 'archived') return false
   if (tab === 'all') return true
   return item.displayStatus === tab
 }
@@ -183,6 +217,7 @@ export function countByStatus(items: DocumentationRequestItem[]): Record<Request
     approved: items.filter((i) => i.displayStatus === 'approved').length,
     rejected: items.filter((i) => i.displayStatus === 'rejected').length,
     completed: items.filter((i) => i.displayStatus === 'completed').length,
+    archived: items.filter((i) => i.displayStatus === 'archived').length,
   }
 }
 

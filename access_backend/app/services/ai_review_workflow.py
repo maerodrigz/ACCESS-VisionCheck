@@ -132,6 +132,11 @@ def apply_ai_review(
         )
         db.add(history)
 
+        if review_status in CONFIRMED_AI_STATUSES and row.media_id and reviewed_by:
+            from app.crud import archive as archive_crud
+
+            archive_crud.create_if_not_exists(db, row.media_id, reviewed_by)
+
         if member_id:
             from app.services import notification_events as notify_events
 

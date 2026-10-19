@@ -93,9 +93,9 @@ export function AdminLayout() {
         </div>
 
         {/* Mobile shell */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:hidden">
           <TopBar onMenuClick={() => setSidebarOpen(true)} mobile />
-          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
+          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain p-4">
             <Suspense fallback={<PageLoader />}>
               <Outlet />
             </Suspense>

@@ -13,47 +13,39 @@ import { adminIntegrityPreviewUrl, isVideoMediaPath } from '../../api/media'
 import { MediaPreviewContent } from '../media-library/MediaPreviewContent'
 import { formatScannedDate } from '../../lib/aiDetection'
 import {
-  cameraMetadataStatus,
+  adminDecisionDisplay,
+  detectorAiRiskBand,
+  detectorAiRiskSummaryLabel,
   integrityAssessmentSummary,
-  integrityManualReviewExplain,
+  integrityManualReviewParagraph,
   integrityNeedsAdminAction,
   integrityProvenanceBullets,
   INTEGRITY_AI_DISCLAIMER,
-  visualAiRiskBand,
+  sourceVerificationDisplay,
   visualAiRiskColor,
-  visualAiRiskSummaryLabel,
 } from '../../lib/reviewScanPresentation'
-import { ReviewStatusBadge } from './Badges'
 import { ReviewScanTechnicalDetails } from './ReviewScanTechnicalDetails'
+
+const REMARKS_REQUIRED_STATUSES: ReviewStatus[] = ['confirmed_ai_generated', 'reupload_requested']
+const MIN_ADMIN_REMARKS = 8
 
 const REVIEW_ACTIONS: {
   status: ReviewStatus
   label: string
   color: string
   exampleRemarks: string
-  confirm?: { title: string; message: string; tone?: 'default' | 'danger' | 'success' }
 }[] = [
   {
     status: 'verified_human',
     label: 'Verify as Human',
     color: 'var(--color-success)',
     exampleRemarks: 'Verified as human-made media.',
-    confirm: {
-      title: 'Verify as human?',
-      message: 'Release stored quality scores and feedback to the member.',
-      tone: 'success',
-    },
   },
   {
     status: 'confirmed_ai_generated',
     label: 'Confirm AI / Manipulated',
     color: 'var(--color-danger)',
     exampleRemarks: 'Confirmed AI-generated or manipulated content.',
-    confirm: {
-      title: 'Confirm as AI / manipulated?',
-      message: 'Quality scores and XP will not be released for this submission.',
-      tone: 'danger',
-    },
   },
   {
     status: 'reupload_requested',
@@ -73,11 +65,22 @@ function tint(color: string, pct: number) {
   return `color-mix(in srgb, ${color} ${pct}%, transparent)`
 }
 
-function AssessmentRow({ label, children }: { label: string; children: ReactNode }) {
+function StatusBlock({
+  title,
+  children,
+  hint,
+}: {
+  title: string
+  children: ReactNode
+  hint?: string
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 py-1.5">
-      <dt className="text-xs text-[var(--color-text-secondary)]">{label}</dt>
-      <dd className="min-w-0 text-right text-xs font-semibold text-[var(--color-text-primary)]">{children}</dd>
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-3 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">{title}</p>
+      <div className="mt-1">{children}</div>
+      {hint ? (
+        <p className="mt-1 text-[10px] leading-snug text-[var(--color-text-muted)]">{hint}</p>
+      ) : null}
     </div>
   )
 }
@@ -110,6 +113,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
     title: string
     message: string
     tone?: 'default' | 'danger' | 'success'
+    confirmLabel?: string
     onConfirm: () => void
   } | null>(null)
   const [showFullMedia, setShowFullMedia] = useState(false)
@@ -141,34 +145,67 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
   }
 
   function applyQuickAction(action: (typeof REVIEW_ACTIONS)[number]) {
-    const applyLocal = () => {
-      setStatus(action.status)
-      setSelectedActionLabel(action.label)
-      setRemarksExample(action.exampleRemarks)
-      setError(null)
-      requestAnimationFrame(() => {
-        remarksRef.current?.focus()
-        remarksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      })
-    }
-    if (action.confirm) {
-      setConfirm({
-        title: action.confirm.title,
-        message: `${action.confirm.message} You can add optional feedback for the member, then click Save Review. This panel stays open until then.`,
-        tone: action.confirm.tone,
-        onConfirm: () => {
-          setConfirm(null)
-          applyLocal()
-        },
-      })
-      return
-    }
-    applyLocal()
+    setStatus(action.status)
+    setSelectedActionLabel(action.label)
+    setRemarksExample(action.exampleRemarks)
+    setError(null)
+    requestAnimationFrame(() => {
+      remarksRef.current?.focus()
+      remarksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
   }
 
-  async function handleSubmit(e: FormEvent) {
+  function saveConfirmCopy(nextStatus: ReviewStatus): {
+    title: string
+    message: string
+    tone?: 'default' | 'danger' | 'success'
+    confirmLabel: string
+  } {
+    if (nextStatus === 'verified_human') {
+      return {
+        title: 'Finalize: verify as human?',
+        message: 'Release stored quality scores and feedback to the member. This updates review history and notifications.',
+        tone: 'success',
+        confirmLabel: 'Save decision',
+      }
+    }
+    if (nextStatus === 'confirmed_ai_generated') {
+      return {
+        title: 'Finalize: confirm AI / manipulated?',
+        message:
+          'Scores and XP will not be released. The file will be archived out of the active gallery. Integrity records are kept.',
+        tone: 'danger',
+        confirmLabel: 'Save decision',
+      }
+    }
+    return {
+      title: 'Finalize: request re-upload?',
+      message: 'The member will be notified to submit a new file. Scores stay withheld until review completes.',
+      tone: 'default',
+      confirmLabel: 'Save decision',
+    }
+  }
+
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    await save(status, remarks)
+    if (!FINAL_REVIEW_STATUSES.includes(status)) {
+      setError('Choose Verify as Human, Confirm AI / Manipulated, or Request Re-upload first.')
+      return
+    }
+    const trimmed = remarks.trim()
+    if (REMARKS_REQUIRED_STATUSES.includes(status) && trimmed.length < MIN_ADMIN_REMARKS) {
+      setError(`Admin reason required (at least ${MIN_ADMIN_REMARKS} characters) for this decision.`)
+      remarksRef.current?.focus()
+      return
+    }
+    const copy = saveConfirmCopy(status)
+    setConfirm({
+      ...copy,
+      onConfirm: () => {
+        setConfirm(null)
+        void save(status, trimmed)
+      },
+    })
   }
 
   function requestArchive() {
@@ -207,12 +244,14 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
     isVideoMediaPath(row.media_url) ||
     row.file_type?.toLowerCase().includes('video') === true
   const needsAdminAction = integrityNeedsAdminAction(row)
-  const manualExplain = integrityManualReviewExplain(row)
+  const manualParagraph = integrityManualReviewParagraph(row)
   const provenanceBullets = integrityProvenanceBullets(row)
-  const visualBand = visualAiRiskBand(row)
-  const visualRiskColor = visualAiRiskColor(visualBand)
-  const cameraMeta = cameraMetadataStatus(row.exif_metadata)
+  const detectorBand = detectorAiRiskBand(row)
+  const detectorRiskColor = visualAiRiskColor(detectorBand)
+  const source = sourceVerificationDisplay(row)
+  const adminDecision = adminDecisionDisplay(row.review_status)
   const assessmentSummary = integrityAssessmentSummary(row)
+  const remarksRequired = REMARKS_REQUIRED_STATUSES.includes(status)
 
   return (
     <>
@@ -266,76 +305,71 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                 )}
               </section>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pr-0.5 lg:max-h-full">
-                <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-                  <h3 className="mb-1 text-sm font-bold text-[var(--color-text-primary)]">Integrity Assessment</h3>
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pr-0.5 lg:max-h-full">
+                <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Integrity Assessment</h3>
+                    <span className="text-[10px] text-[var(--color-text-muted)]">
+                      Scanned {formatScannedDate(row.scanned_at)}
+                    </span>
+                  </div>
                   {!needsAdminAction ? (
-                    <p className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/90 px-3 py-2 text-[11px] leading-snug text-emerald-950 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100">
-                      <span className="font-bold">No admin action required.</span> This scan was auto-cleared. Provenance
-                      notes and technical details are for audit only.
+                    <p className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/90 px-2.5 py-1.5 text-[11px] leading-snug text-emerald-950">
+                      <span className="font-bold">No admin action required.</span> Auto-cleared under current policy.
                     </p>
                   ) : (
-                    <p className="mb-2 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-[11px] leading-snug text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-                      <span className="font-bold">Manual review required.</span> Choose an admin decision below when you
-                      have finished checking this upload.
+                    <p className="mb-2 rounded-lg border border-amber-200/80 bg-amber-50/90 px-2.5 py-1.5 text-[11px] leading-snug text-amber-950">
+                      <span className="font-bold">Manual review required.</span> Choose a decision below when ready.
                     </p>
                   )}
-                  <dl className="divide-y divide-[var(--color-border)]">
-                    <AssessmentRow label="Visual AI Risk">
-                      <span className="inline-flex items-center justify-end gap-1.5">
+
+                  <div className="space-y-2">
+                    <StatusBlock title="AI-Generation Risk" hint="PROBE-DINOv2 detector only (not filename rules).">
+                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-primary)]">
                         <span
                           className="h-2 w-2 shrink-0 rounded-full"
-                          style={{ backgroundColor: visualRiskColor }}
+                          style={{ backgroundColor: detectorRiskColor }}
                           aria-hidden
                         />
-                        <span>{visualAiRiskSummaryLabel(row)}</span>
-                      </span>
-                    </AssessmentRow>
-                    <AssessmentRow label="Review Status">
-                      <ReviewStatusBadge status={row.review_status} />
-                    </AssessmentRow>
-                    {needsAdminAction && manualExplain ? (
-                      <div className="border-t border-[var(--color-border)] py-2.5">
-                        <p className="text-xs font-semibold text-[var(--color-text-secondary)]">Why manual review?</p>
-                        <p className="mt-1.5 text-xs font-semibold leading-snug text-[var(--color-text-primary)]">
-                          {manualExplain.headline}
-                        </p>
-                        {manualExplain.bullets.length > 0 ? (
-                          <ul className="mt-2 list-disc space-y-1.5 pl-4 text-[11px] leading-snug text-[var(--color-text-secondary)]">
-                            {manualExplain.bullets.map((line) => (
-                              <li key={line}>{line}</li>
-                            ))}
-                          </ul>
-                        ) : null}
-                        <p className="mt-2 text-[11px] leading-snug text-[var(--color-text-muted)]">
-                          {manualExplain.nextStep}
-                        </p>
-                      </div>
-                    ) : null}
-                    {!needsAdminAction && provenanceBullets.length > 0 ? (
-                      <div className="border-t border-[var(--color-border)] py-2.5">
-                        <p className="text-xs font-semibold text-[var(--color-text-secondary)]">Provenance notes</p>
-                        <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11px] leading-snug text-[var(--color-text-secondary)]">
-                          {provenanceBullets.map((line) => (
-                            <li key={line}>{line}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                    <AssessmentRow label="Camera Metadata">{cameraMeta}</AssessmentRow>
-                    <AssessmentRow label="Scan Date">{formatScannedDate(row.scanned_at)}</AssessmentRow>
-                  </dl>
+                        {detectorAiRiskSummaryLabel(row)}
+                      </p>
+                    </StatusBlock>
 
-                  <div className="mt-2 rounded-lg bg-[var(--color-surface-muted)] px-3 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                      Assessment Summary
-                    </p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-primary)]">
-                      {assessmentSummary}
-                    </p>
+                    <StatusBlock title="Source Verification" hint={source.detail}>
+                      <p
+                        className="text-xs font-semibold"
+                        style={{ color: source.color }}
+                      >
+                        {source.status}
+                      </p>
+                    </StatusBlock>
+
+                    <StatusBlock title="Admin Decision">
+                      <p className="text-xs font-semibold" style={{ color: adminDecision.color }}>
+                        {adminDecision.label}
+                      </p>
+                    </StatusBlock>
                   </div>
 
-                  <p className="mt-2 text-[11px] leading-snug text-[var(--color-text-muted)]">
+                  {needsAdminAction && manualParagraph ? (
+                    <div className="mt-2 rounded-lg border border-[var(--color-border)] px-2.5 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                        Why manual review?
+                      </p>
+                      <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-primary)]">
+                        {manualParagraph}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {!needsAdminAction && provenanceBullets.length > 0 ? (
+                    <p className="mt-2 text-[11px] leading-snug text-[var(--color-text-secondary)]">
+                      {provenanceBullets[0]}
+                    </p>
+                  ) : null}
+
+                  <p className="mt-2 text-[11px] leading-snug text-[var(--color-text-primary)]">{assessmentSummary}</p>
+                  <p className="mt-1 text-[10px] leading-snug text-[var(--color-text-muted)]">
                     {INTEGRITY_AI_DISCLAIMER}
                   </p>
                 </section>
@@ -410,7 +444,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
 
             <div className="flex flex-col gap-1.5 md:flex-row md:items-end md:gap-2">
               <label className="block min-w-0 flex-1 text-[10px] font-bold text-[var(--color-text-secondary)]">
-                Admin Feedback (optional)
+                {remarksRequired ? 'Admin reason (required)' : 'Admin feedback (optional)'}
                 <textarea
                   ref={remarksRef}
                   value={remarks}
@@ -421,8 +455,12 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                   rows={1}
                   placeholder={
                     remarksExample
-                      ? `Optional note for the member. Example: ${remarksExample}`
-                      : 'Optional note for the member about this review.'
+                      ? remarksRequired
+                        ? `Required for the member. Example: ${remarksExample}`
+                        : `Optional note. Example: ${remarksExample}`
+                      : remarksRequired
+                        ? 'Explain this decision for the member (min 8 characters).'
+                        : 'Optional note for the member about this review.'
                   }
                   className="mt-0.5 max-h-16 w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2.5 py-1.5 text-xs font-normal outline-none focus:border-[var(--color-accent-cyan)]"
                 />
@@ -463,7 +501,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
         message={confirm?.message ?? ''}
         tone={confirm?.tone}
         loading={saving}
-        confirmLabel="Confirm"
+        confirmLabel={confirm?.confirmLabel ?? 'Confirm'}
         onConfirm={() => confirm?.onConfirm()}
         onCancel={() => !saving && setConfirm(null)}
       />

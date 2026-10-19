@@ -22,6 +22,8 @@ import {
 
   filterAndSortRequests,
 
+  matchesFilter,
+
   parseDocumentationRequest,
 
   type DocumentationRequestItem,
@@ -47,6 +49,8 @@ const FILTER_TABS: { id: RequestFilterTab; label: string }[] = [
   { id: 'rejected', label: 'Rejected' },
 
   { id: 'completed', label: 'Completed' },
+
+  { id: 'archived', label: 'Archived' },
 
 ]
 
@@ -253,9 +257,7 @@ export function DocumentationRequestsPage() {
 
   function tabCount(tab: RequestFilterTab): number {
 
-    if (tab === 'all') return all.length
-
-    return all.filter((i) => i.displayStatus === tab).length
+    return all.filter((i) => matchesFilter(i, tab)).length
 
   }
 

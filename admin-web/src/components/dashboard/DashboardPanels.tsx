@@ -420,9 +420,9 @@ export function WelcomeHeader({
   }, [])
 
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-[var(--color-text-primary)] md:text-[26px]">
+    <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-extrabold tracking-tight break-words text-[var(--color-text-primary)] md:text-[26px]">
           {greeting}, {firstName}!
         </h1>
         <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">

@@ -1,6 +1,8 @@
 """Tests for AI review status after member upload."""
 
-from app.services.ai_review_workflow import initial_review_status
+from unittest.mock import MagicMock, patch
+
+from app.services.ai_review_workflow import apply_ai_review, initial_review_status
 from app.services.media_pipeline import _ai_from_payload
 
 
@@ -36,3 +38,30 @@ def test_borderline_synthetic_signal_needs_review():
     )
     assert label == "human"
     assert initial_review_status(label, prob) == "needs_further_review"
+
+
+def test_confirm_ai_archives_media_for_gallery():
+    row = MagicMock()
+    row.id = 10
+    row.media_id = 55
+    row.review_status = "pending_review"
+    row.detection_result = "ai_generated"
+    row.ai_probability = 0.9
+    row.admin_remarks = None
+    row.media = MagicMock(uploaded_by=3)
+
+    db = MagicMock()
+
+    with patch("app.crud.archive.create_if_not_exists") as archive:
+        with patch("app.services.notification_events.notify_user"):
+            with patch("app.crud.user.get_by_id", return_value=None):
+                with patch("app.services.ai_review_workflow.ranking_crud.add_points"):
+                    apply_ai_review(
+                        db,
+                        row,
+                        review_status="confirmed_ai_generated",
+                        admin_remarks="Confirmed AI.",
+                        reviewed_by=1,
+                    )
+
+    archive.assert_called_once_with(db, 55, 1)

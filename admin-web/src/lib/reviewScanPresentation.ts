@@ -1,5 +1,5 @@
 import type { AiDetectionRow, ExifMetadata, ExifMetadataField, ReviewStatus } from '../api/media'
-import { aiReviewRiskTier } from './aiDetection'
+import { reviewStatusLabel } from './aiDetection'
 
 export type VisualRiskBand = 'LOW' | 'SUSPICIOUS' | 'HIGH'
 
@@ -7,16 +7,24 @@ export type CameraMetadataStatus = 'Present' | 'Partial' | 'Missing' | 'Unknown'
 
 const MANUAL_REVIEW_STATUSES: ReviewStatus[] = ['pending_review', 'needs_further_review']
 
-/** Display band from backend `visual_risk_level`, else inbox tier fallback (see note in modal docs). */
-export function visualAiRiskBand(row: AiDetectionRow): VisualRiskBand {
+/** PROBE visual risk band — detector only (not filename / provenance queue rules). */
+export function detectorAiRiskBand(row: AiDetectionRow): VisualRiskBand {
   const level = String(row.exif_metadata?.visual_risk_level ?? '').toLowerCase()
   if (level === 'high') return 'HIGH'
   if (level === 'suspicious') return 'SUSPICIOUS'
   if (level === 'low') return 'LOW'
-  const tier = aiReviewRiskTier(row)
-  if (tier === 'high') return 'HIGH'
-  if (tier === 'suspicious') return 'SUSPICIOUS'
+  const p = row.exif_metadata?.visual_ai_probability
+  if (p != null && !Number.isNaN(p)) {
+    if (p >= 0.45) return 'HIGH'
+    if (p >= 0.3) return 'SUSPICIOUS'
+    return 'LOW'
+  }
   return 'LOW'
+}
+
+/** @deprecated Prefer detectorAiRiskBand for assessment UI. */
+export function visualAiRiskBand(row: AiDetectionRow): VisualRiskBand {
+  return detectorAiRiskBand(row)
 }
 
 export function visualAiRiskColor(band: VisualRiskBand): string {
@@ -34,11 +42,91 @@ export function probeRawPFakePercent(row: AiDetectionRow): string | null {
   return null
 }
 
-export function visualAiRiskSummaryLabel(row: AiDetectionRow): string {
-  const band = visualAiRiskBand(row)
+export function detectorAiRiskSummaryLabel(row: AiDetectionRow): string {
+  const band = detectorAiRiskBand(row)
   const word = band.charAt(0) + band.slice(1).toLowerCase()
   const pct = probeRawPFakePercent(row)
-  return pct ? `${word} (${pct})` : word
+  return pct ? `${word} (${pct} P(fake))` : word
+}
+
+/** @deprecated Prefer detectorAiRiskSummaryLabel. */
+export function visualAiRiskSummaryLabel(row: AiDetectionRow): string {
+  return detectorAiRiskSummaryLabel(row)
+}
+
+export interface SourceVerificationDisplay {
+  status: 'Verified' | 'Partially verified' | 'Requires review' | 'Unknown'
+  detail: string
+  color: string
+}
+
+/** Source / provenance verification — separate from PROBE AI-generation risk. */
+export function sourceVerificationDisplay(row: AiDetectionRow): SourceVerificationDisplay {
+  const outcome = (row.exif_metadata?.provenance_policy_outcome ?? '').trim().toLowerCase()
+  const cam = cameraMetadataStatus(row.exif_metadata)
+
+  if (outcome === 'source_unverified') {
+    return {
+      status: 'Requires review',
+      detail: 'File source could not be verified from metadata.',
+      color: 'var(--color-warning)',
+    }
+  }
+  if (outcome === 'source_partially_verified' || cam === 'Partial') {
+    return {
+      status: 'Partially verified',
+      detail: 'Some device or container metadata is present, but not full in-camera proof.',
+      color: 'var(--color-warning)',
+    }
+  }
+  if (outcome === 'low_ai_risk' || cam === 'Present') {
+    return {
+      status: 'Verified',
+      detail: 'Provenance checks passed under current policy (does not prove image authenticity).',
+      color: 'var(--color-success)',
+    }
+  }
+  if (cam === 'Missing') {
+    return {
+      status: 'Requires review',
+      detail: 'Camera-identifying metadata is missing or incomplete.',
+      color: 'var(--color-warning)',
+    }
+  }
+  return {
+    status: 'Unknown',
+    detail: 'Limited provenance data for this file.',
+    color: 'var(--color-text-secondary)',
+  }
+}
+
+export interface AdminDecisionDisplay {
+  label: string
+  pending: boolean
+  color: string
+}
+
+/** Admin workflow state from backend review_status (display only). */
+export function adminDecisionDisplay(status: ReviewStatus): AdminDecisionDisplay {
+  switch (status) {
+    case 'pending_review':
+    case 'needs_further_review':
+      return { label: 'Pending', pending: true, color: 'var(--color-warning)' }
+    case 'verified_human':
+    case 'accepted_with_warning':
+      return { label: 'Verified (human)', pending: false, color: 'var(--color-success)' }
+    case 'confirmed_ai_generated':
+    case 'verified_ai_generated':
+      return { label: 'Confirmed AI / manipulated', pending: false, color: 'var(--color-danger)' }
+    case 'reupload_requested':
+      return { label: 'Re-upload requested', pending: false, color: 'var(--color-accent-blue)' }
+    case 'rejected':
+      return { label: 'Rejected', pending: false, color: 'var(--color-danger)' }
+    case 'automated_low_ai_risk':
+      return { label: 'Auto-cleared', pending: false, color: 'var(--color-success)' }
+    default:
+      return { label: reviewStatusLabel(status), pending: false, color: 'var(--color-text-secondary)' }
+  }
 }
 
 /** Collapse EXIF padding and non-breaking spaces for readable admin copy (display only). */
@@ -277,62 +365,54 @@ function humanizeProvenanceReason(raw: string): { kind: 'trigger' | 'fact'; text
   return { kind: 'fact', text: cleaned }
 }
 
-export interface IntegrityManualReviewExplain {
-  /** One plain sentence: why this is in the manual queue. */
-  headline: string
-  /** Supporting facts (metadata, risk), deduplicated. */
-  bullets: string[]
-  /** What the admin should do next. */
-  nextStep: string
-}
-
-/** Plain-language manual review explanation for administrators. */
-export function integrityManualReviewExplain(row: AiDetectionRow): IntegrityManualReviewExplain | null {
+/** One concise paragraph: why manual review is required (detector vs source separated). */
+export function integrityManualReviewParagraph(row: AiDetectionRow): string | null {
   if (!integrityNeedsAdminAction(row)) return null
 
   const outcome = (row.exif_metadata?.provenance_policy_outcome ?? '').trim().toLowerCase()
-  const band = visualAiRiskBand(row)
+  const band = detectorAiRiskBand(row)
+  const pct = probeRawPFakePercent(row)
   const parsed = rawProvenanceReasons(row).map(humanizeProvenanceReason)
-
-  let headline = ''
   const trigger = parsed.find((p) => p.kind === 'trigger')
-  if (trigger) {
-    headline = trigger.text
-  } else if (outcome === 'source_unverified') {
-    headline = 'We could not verify this as an original in-camera capture from metadata alone.'
-  } else if (outcome === 'source_partially_verified') {
-    headline = 'Metadata is only partly verified. An officer must confirm before scores and XP count.'
-  } else if (band === 'HIGH') {
-    headline = 'Automated screening reported high AI-generation risk.'
-  } else if (band === 'SUSPICIOUS') {
-    headline = 'Automated screening reported elevated AI-generation risk.'
-  } else {
-    headline = 'This upload is in the manual review queue under the current integrity policy.'
-  }
 
-  const bullets: string[] = []
-  const seen = new Set<string>()
-  for (const item of parsed) {
-    if (item.kind === 'trigger' && item.text === headline) continue
-    if (seen.has(item.text)) continue
-    seen.add(item.text)
-    bullets.push(item.text)
-  }
+  const sentences: string[] = []
 
   if (band === 'HIGH' || band === 'SUSPICIOUS') {
-    const riskLine = `Visual AI risk band: ${band === 'HIGH' ? 'High' : 'Suspicious'} (${probeRawPFakePercent(row) ?? 'see technical details'}).`
-    if (!seen.has(riskLine)) bullets.unshift(riskLine)
-  } else if (probeRawPFakePercent(row)) {
-    const lowLine = `Visual AI risk is low (${probeRawPFakePercent(row)}). Review is driven by file source rules, not by AI score alone.`
-    if (!seen.has(lowLine)) bullets.push(lowLine)
+    sentences.push(
+      `PROBE-DINOv2 reports ${band === 'HIGH' ? 'high' : 'elevated'} AI-generation risk${pct ? ` (${pct} P(fake))` : ''}.`,
+    )
+  } else if (pct) {
+    sentences.push(`AI-generation risk from the detector is low (${pct} P(fake)).`)
   }
 
-  return {
-    headline,
-    bullets,
-    nextStep:
-      'Check the preview and metadata, then choose Verify as human, Confirm AI / manipulated, or Request re-upload.',
+  if (trigger) {
+    sentences.push(trigger.text)
+  } else if (outcome === 'source_unverified') {
+    sentences.push('File source could not be verified from metadata alone.')
+  } else if (outcome === 'source_partially_verified') {
+    sentences.push('File source is only partially verified and needs an officer decision.')
+  } else if (outcome === 'elevated_ai_risk' || outcome === 'high_ai_risk') {
+    sentences.push('Integrity policy requires admin review for this risk and provenance mix.')
+  } else if (sentences.length === 0) {
+    sentences.push('This upload is in the manual review queue under the current integrity policy.')
   }
+
+  if (band === 'LOW' && pct && sentences.length === 1 && !trigger) {
+    sentences.push('Manual review is driven by source verification, not by AI-generation score.')
+  }
+
+  return sentences.join(' ')
+}
+
+/** @deprecated Use integrityManualReviewParagraph */
+export function integrityManualReviewExplain(row: AiDetectionRow): {
+  headline: string
+  bullets: string[]
+  nextStep: string
+} | null {
+  const paragraph = integrityManualReviewParagraph(row)
+  if (!paragraph) return null
+  return { headline: paragraph, bullets: [], nextStep: '' }
 }
 
 /** Bullet list for auto-cleared scans (audit notes only). */
@@ -368,57 +448,40 @@ export function integrityReviewReason(row: AiDetectionRow): string | null {
   return integrityProvenanceNotes(row)
 }
 
-/** Plain-language assessment summary for administrators (no raw EXIF strings). */
+/** Short assessment summary for administrators. */
 export function integrityAssessmentSummary(row: AiDetectionRow): string {
-  const band = visualAiRiskBand(row)
-  const cam = cameraMetadataStatus(row.exif_metadata)
-  const outcome = (row.exif_metadata?.provenance_policy_outcome ?? '').trim().toLowerCase()
-  const status = row.review_status
-  const parts: string[] = []
+  const risk = detectorAiRiskSummaryLabel(row)
+  const source = sourceVerificationDisplay(row).status
+  const decision = adminDecisionDisplay(row.review_status).label
 
-  if (band === 'HIGH') {
-    parts.push('The detector indicates high AI-generation risk.')
-  } else if (band === 'SUSPICIOUS') {
-    parts.push('The detector indicates elevated AI-generation risk.')
-  } else {
-    parts.push('The detector indicates low AI-generation risk.')
+  if (integrityNeedsAdminAction(row)) {
+    return `Detector: ${risk}. Source: ${source}. Awaiting admin decision (currently ${decision}).`
   }
-
-  if (cam === 'Present') {
-    parts.push(
-      'Camera information is present in the file metadata, but this does not establish image authenticity.',
-    )
-  } else if (cam === 'Partial') {
-    parts.push(
-      'Video or file container metadata is only partially verified (for example, creation time without full device identity).',
-    )
-  } else if (cam === 'Missing') {
-    parts.push('Camera-identifying metadata is missing or incomplete.')
-  } else {
-    parts.push('Camera metadata is limited or inconclusive.')
+  if (row.review_status === 'automated_low_ai_risk') {
+    return `Detector: ${risk}. Source: ${source}. Auto-cleared; override only if you disagree.`
   }
+  return `Detector: ${risk}. Source: ${source}. Admin decision: ${decision}.`
+}
 
-  if (MANUAL_REVIEW_STATUSES.includes(status)) {
-    if (outcome === 'source_unverified') {
-      parts.push('Source verification could not be completed. Manual review is required.')
-    } else if (outcome === 'elevated_ai_risk' || outcome === 'high_ai_risk') {
-      parts.push('Manual review is required based on current risk and provenance policy.')
-    } else {
-      parts.push('Manual review is required.')
-    }
-  } else if (status === 'automated_low_ai_risk') {
-    parts.push(
-      'Automated routing marked this scan as low AI risk with acceptable provenance. No administrator action is required unless you disagree and override below.',
-    )
-  } else if (status === 'verified_human') {
-    parts.push('An administrator verified this media as human-made.')
-  } else if (status === 'confirmed_ai_generated') {
-    parts.push('An administrator confirmed AI-generated or manipulated content.')
-  } else if (status === 'reupload_requested') {
-    parts.push('An administrator requested a new upload from the member.')
+/** Remaining EXIF fields not already shown in cameraFileDisplayRows (display only). */
+export function supplementalExifFieldRows(meta?: ExifMetadata): CameraFileDisplayRow[] {
+  if (!meta?.fields?.length) return []
+  const shown = new Set(
+    cameraFileDisplayRows(meta).map((r) => r.label.toLowerCase()),
+  )
+  const out: CameraFileDisplayRow[] = []
+  const seen = new Set<string>()
+  for (const f of meta.fields) {
+    const label = normalizeScanDisplayText(f.label || f.key)
+    const value = normalizeScanDisplayText(f.value)
+    if (!fieldHasValue(value)) continue
+    const key = `${label}:${value}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    if (shown.has(label.toLowerCase())) continue
+    out.push({ label, value })
   }
-
-  return parts.join(' ')
+  return out
 }
 
 export const PROBE_DETECTOR_DISPLAY_NAME = 'PROBE-DINOv2'

@@ -124,3 +124,24 @@ def reschedule(
     db.commit()
     db.refresh(row)
     return get(db, row.id) or row
+
+
+def archive_request(db: Session, row: DocumentationRequest) -> DocumentationRequest:
+    """Hide a completed request from active admin queues (data retained)."""
+    status = (row.status or "").strip().lower()
+    if status != "completed":
+        raise ValueError("Only completed documentation requests can be archived.")
+    if row.archived_at is None:
+        row.archived_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(row)
+    return row
+
+
+def unarchive_request(db: Session, row: DocumentationRequest) -> DocumentationRequest:
+    if row.archived_at is None:
+        return row
+    row.archived_at = None
+    db.commit()
+    db.refresh(row)
+    return row

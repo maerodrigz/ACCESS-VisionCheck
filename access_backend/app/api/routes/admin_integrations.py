@@ -33,23 +33,15 @@ class MemberAnnouncementBody(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     message: str = Field(min_length=1)
     audience: str | None = Field(
-        default="both",
-        description="member, requestor, or both (default both mobile app roles).",
+        default="member",
+        description="Always members. Other values are ignored.",
     )
 
 
 def _announcement_audience_roles(audience: str | None) -> tuple[RoleName, ...]:
-    key = (audience or "both").strip().lower()
-    if key in ("", "both", "all", "mobile"):
-        return (RoleName.MEMBER, RoleName.ORGANIZATION)
-    if key == "member":
-        return (RoleName.MEMBER,)
-    if key in ("requestor", "organization", "org"):
-        return (RoleName.ORGANIZATION,)
-    raise HTTPException(
-        status_code=400,
-        detail="audience must be member, requestor, or both",
-    )
+    """Announcements go to approved members only."""
+    _ = audience
+    return (RoleName.MEMBER,)
 
 
 @router.get("/notifications")
@@ -137,14 +129,13 @@ def broadcast_notifications(
             action_type="view_announcement",
             action_ref_id=announcement.id,
         )
-    audience_label = (body.audience or "both").strip().lower() or "both"
     audit_crud.create(
         db,
         user_id=admin.id,
         action="member_announcement",
-        description=f"Sent to {count} users ({audience_label})",
+        description=f"Sent to {count} members",
     )
-    return MessageResponse(message=f"Announcement sent to {count} users ({audience_label})")
+    return MessageResponse(message=f"Announcement sent to {count} members")
 
 
 @router.get("/system-monitor")

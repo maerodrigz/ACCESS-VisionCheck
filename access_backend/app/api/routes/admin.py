@@ -85,6 +85,7 @@ def _request_to_json(row) -> dict:
         "status": _display_status(row.status),
         "rejection_reason": row.rejection_reason,
         "created_at": row.created_at.isoformat() if row.created_at else None,
+        "archived_at": row.archived_at.isoformat() if getattr(row, "archived_at", None) else None,
     }
 
 
@@ -155,6 +156,36 @@ def list_analytics_reports(db: Session = Depends(get_db), _: User = Depends(requ
 def list_service_requests(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     rows = req_crud.list_all(db)
     return [_request_to_json(r) for r in rows]
+
+
+@router.post("/service-requests/{request_id}/archive")
+def archive_service_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Archive a completed documentation request (hidden from active admin lists, data kept)."""
+    row = req_crud.get(db, request_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+    try:
+        req_crud.archive_request(db, row)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"message": "Request archived"}
+
+
+@router.post("/service-requests/{request_id}/unarchive")
+def unarchive_service_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    row = req_crud.get(db, request_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+    req_crud.unarchive_request(db, row)
+    return {"message": "Request restored"}
 
 
 class AssignMemberBody(BaseModel):

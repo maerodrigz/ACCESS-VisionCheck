@@ -13,6 +13,7 @@ const statusColors: Record<RequestDisplayStatus, string> = {
   approved: 'var(--color-accent-blue)',
   rejected: 'var(--color-danger)',
   completed: 'var(--color-success)',
+  archived: 'var(--color-text-secondary)',
 }
 
 function tint(color: string, percent: number) {

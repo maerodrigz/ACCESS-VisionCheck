@@ -38,6 +38,9 @@ class DocumentationRequest(TimestampMixin, Base):
     gallery_upload_last_notify_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
 
     def reschedule_history_list(self) -> list[dict]:
         if not self.reschedule_history:

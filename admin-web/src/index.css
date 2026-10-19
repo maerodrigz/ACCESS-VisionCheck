@@ -21,6 +21,12 @@ body {
   color: var(--color-text-primary);
 }
 
+@media (max-width: 1023px) {
+  .admin-input {
+    font-size: 16px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

@@ -183,7 +183,21 @@ class MemberApiService {
     };
     final path = params.isEmpty ? '/gallery' : '/gallery?${Uri(queryParameters: params).query}';
     final data = await apiClient.get(path);
-    return (data as List).map((e) {
+    if (data is! List) {
+      var msg = 'Gallery could not be loaded';
+      if (data is Map) {
+        final detail = data['detail'];
+        if (detail is String) {
+          msg = detail;
+        } else if (detail is Map) {
+          msg = detail['message'] as String? ?? msg;
+        } else {
+          msg = data['message'] as String? ?? msg;
+        }
+      }
+      throw ApiException(msg);
+    }
+    return data.map((e) {
       final m = Map<String, dynamic>.from(e as Map);
       m['file_url'] = _mediaUrl(m['file_url'] as String? ?? '');
       return m;

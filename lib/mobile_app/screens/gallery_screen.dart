@@ -353,6 +353,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         _GalleryEmptyStateSliver(
                           padding: padding,
                           child: _GalleryLoadErrorState(
+                            message: galleryError,
                             onRetry: () =>
                                 memberDataController.refreshEventGallery(fullCatalog: true),
                           ),
@@ -1675,10 +1676,19 @@ class _GalleryPrimaryButton extends StatelessWidget {
   }
 }
 
+String _galleryErrorSubtitle(String? message) {
+  final trimmed = message?.trim();
+  if (trimmed != null && trimmed.isNotEmpty) {
+    return trimmed;
+  }
+  return 'Something went wrong while loading event media. Check your connection and try again.';
+}
+
 /// Shown when the Gallery API request fails.
 class _GalleryLoadErrorState extends StatelessWidget {
-  const _GalleryLoadErrorState({required this.onRetry});
+  const _GalleryLoadErrorState({this.message, required this.onRetry});
 
+  final String? message;
   final VoidCallback onRetry;
 
   @override
@@ -1691,8 +1701,7 @@ class _GalleryLoadErrorState extends StatelessWidget {
       accentColor: kRed,
       iconGradient: false,
       title: 'Unable to Load Gallery',
-      subtitle:
-          'Something went wrong while loading event media. Please try again.',
+      subtitle: _galleryErrorSubtitle(message),
       action: _GalleryPrimaryButton(
         label: 'Retry',
         icon: Icons.refresh_rounded,

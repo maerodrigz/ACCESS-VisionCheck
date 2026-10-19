@@ -395,7 +395,7 @@ class MemberDataController extends ChangeNotifier {
     galleryTabLoading = true;
     notifyListeners();
     Future<void>? owned;
-    owned = refreshEventGallery(previewOnly: true).whenComplete(() {
+    owned = refreshEventGallery(fullCatalog: true).whenComplete(() {
       galleryTabLoading = false;
       if (identical(_galleryTabFuture, owned)) {
         _galleryTabFuture = null;
@@ -1662,6 +1662,13 @@ class MemberDataController extends ChangeNotifier {
     appState.notifyListeners();
   }
 
+  int? _jsonInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
   EventGalleryMedia _eventGalleryFromApi(Map<String, dynamic> m) {
     DateTime? uploadedAt;
     final uploadedRaw = m['uploaded_at'] as String?;
@@ -1672,12 +1679,12 @@ class MemberDataController extends ChangeNotifier {
     if (eventDateRaw != null) eventDate = DateTime.tryParse(eventDateRaw);
 
     return EventGalleryMedia(
-      id: m['id'] as int? ?? 0,
+      id: _jsonInt(m['id']) ?? 0,
       fileName: m['file_name'] as String? ?? 'Media',
       fileType: m['file_type'] as String? ?? 'photo',
       fileUrl: m['file_url'] as String? ?? '',
       uploadedAt: uploadedAt,
-      requestId: m['request_id'] as int?,
+      requestId: _jsonInt(m['request_id']),
       eventTitle: m['event_title'] as String?,
       eventDate: eventDate,
       eventDescription: m['event_description'] as String?,

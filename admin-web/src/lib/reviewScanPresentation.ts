@@ -224,28 +224,142 @@ export function integrityContextRowLabel(row: AiDetectionRow): string {
   return 'Provenance notes'
 }
 
-/** EXIF / provenance context (not a request for admin review when status is auto-cleared). */
-export function integrityProvenanceNotes(row: AiDetectionRow): string | null {
-  const meta = row.exif_metadata
-  const reasons =
-    meta?.camera_provenance_reasons
+function rawProvenanceReasons(row: AiDetectionRow): string[] {
+  return (
+    row.exif_metadata?.camera_provenance_reasons
       ?.map((r) => normalizeScanDisplayText(r))
       .filter((r) => r.length > 0) ?? []
-  if (reasons.length > 0) return reasons.join(' ')
-  return null
+  )
 }
 
-/** Why this item is in the manual review queue (display only). */
-export function integrityManualReviewReason(row: AiDetectionRow): string | null {
+/** Turn backend provenance strings into short admin-readable lines. */
+function humanizeProvenanceReason(raw: string): { kind: 'trigger' | 'fact'; text: string } {
+  const lower = raw.toLowerCase()
+  if (lower.includes('filename suggests') && (lower.includes('gallery') || lower.includes('download'))) {
+    return {
+      kind: 'trigger',
+      text: 'The file name looks like a gallery save or download, not a direct from-camera name.',
+    }
+  }
+  if (lower.includes('filename suggests') && lower.includes('re-export')) {
+    return {
+      kind: 'trigger',
+      text: 'The file name looks like a re-export or saved copy, not an original camera filename.',
+    }
+  }
+  if (lower.includes('admin review required')) {
+    return { kind: 'trigger', text: 'Integrity policy requires an officer to confirm this upload.' }
+  }
+  const makeModel = raw.match(/camera make\/model present\s*\(([^)]+)\)/i)
+  if (makeModel) {
+    return { kind: 'fact', text: `Device recorded in metadata: ${makeModel[1].trim()}.` }
+  }
+  if (lower.includes('partial camera tag')) {
+    const tag = raw.replace(/^partial camera tag:\s*/i, '').trim()
+    return { kind: 'fact', text: tag ? `Partial device tag: ${tag}.` : 'Partial device tag in metadata.' }
+  }
+  if (lower.includes('capture timestamp present')) {
+    return { kind: 'fact', text: 'Capture date and time are stored in the file metadata.' }
+  }
+  if (lower.includes('lens metadata')) {
+    return { kind: 'fact', text: 'Lens information is present in metadata.' }
+  }
+  if (lower.includes('software tag present') || lower.includes('device/camera software')) {
+    return { kind: 'fact', text: 'Camera or device software is listed in metadata.' }
+  }
+  if (lower.includes('no exif') || lower.includes('without camera exif')) {
+    return { kind: 'fact', text: 'No usable camera EXIF was found in this file.' }
+  }
+  if (lower.includes('container') && lower.includes('device')) {
+    return { kind: 'fact', text: raw.replace(/; admin review required\.?$/i, '').trim() }
+  }
+  const cleaned = raw.replace(/; admin review required\.?$/i, '').trim()
+  return { kind: 'fact', text: cleaned }
+}
+
+export interface IntegrityManualReviewExplain {
+  /** One plain sentence: why this is in the manual queue. */
+  headline: string
+  /** Supporting facts (metadata, risk), deduplicated. */
+  bullets: string[]
+  /** What the admin should do next. */
+  nextStep: string
+}
+
+/** Plain-language manual review explanation for administrators. */
+export function integrityManualReviewExplain(row: AiDetectionRow): IntegrityManualReviewExplain | null {
   if (!integrityNeedsAdminAction(row)) return null
-  const notes = integrityProvenanceNotes(row)
-  if (notes) return notes
-  const outcome = row.exif_metadata?.provenance_policy_outcome?.trim()
-  if (outcome) return outcome.replace(/_/g, ' ')
+
+  const outcome = (row.exif_metadata?.provenance_policy_outcome ?? '').trim().toLowerCase()
   const band = visualAiRiskBand(row)
-  if (band === 'HIGH') return 'Elevated AI-generation risk'
-  if (band === 'SUSPICIOUS') return 'Suspicious AI-generation indicators'
-  return 'Manual review required'
+  const parsed = rawProvenanceReasons(row).map(humanizeProvenanceReason)
+
+  let headline = ''
+  const trigger = parsed.find((p) => p.kind === 'trigger')
+  if (trigger) {
+    headline = trigger.text
+  } else if (outcome === 'source_unverified') {
+    headline = 'We could not verify this as an original in-camera capture from metadata alone.'
+  } else if (outcome === 'source_partially_verified') {
+    headline = 'Metadata is only partly verified. An officer must confirm before scores and XP count.'
+  } else if (band === 'HIGH') {
+    headline = 'Automated screening reported high AI-generation risk.'
+  } else if (band === 'SUSPICIOUS') {
+    headline = 'Automated screening reported elevated AI-generation risk.'
+  } else {
+    headline = 'This upload is in the manual review queue under the current integrity policy.'
+  }
+
+  const bullets: string[] = []
+  const seen = new Set<string>()
+  for (const item of parsed) {
+    if (item.kind === 'trigger' && item.text === headline) continue
+    if (seen.has(item.text)) continue
+    seen.add(item.text)
+    bullets.push(item.text)
+  }
+
+  if (band === 'HIGH' || band === 'SUSPICIOUS') {
+    const riskLine = `Visual AI risk band: ${band === 'HIGH' ? 'High' : 'Suspicious'} (${probeRawPFakePercent(row) ?? 'see technical details'}).`
+    if (!seen.has(riskLine)) bullets.unshift(riskLine)
+  } else if (probeRawPFakePercent(row)) {
+    const lowLine = `Visual AI risk is low (${probeRawPFakePercent(row)}). Review is driven by file source rules, not by AI score alone.`
+    if (!seen.has(lowLine)) bullets.push(lowLine)
+  }
+
+  return {
+    headline,
+    bullets,
+    nextStep:
+      'Check the preview and metadata, then choose Verify as human, Confirm AI / manipulated, or Request re-upload.',
+  }
+}
+
+/** Bullet list for auto-cleared scans (audit notes only). */
+export function integrityProvenanceBullets(row: AiDetectionRow): string[] {
+  if (integrityNeedsAdminAction(row)) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of rawProvenanceReasons(row)) {
+    const { text } = humanizeProvenanceReason(raw)
+    if (seen.has(text)) continue
+    seen.add(text)
+    out.push(text)
+  }
+  return out
+}
+
+/** @deprecated Use integrityProvenanceBullets */
+export function integrityProvenanceNotes(row: AiDetectionRow): string | null {
+  const bullets = integrityProvenanceBullets(row)
+  return bullets.length > 0 ? bullets.join(' ') : null
+}
+
+/** @deprecated Use integrityManualReviewExplain */
+export function integrityManualReviewReason(row: AiDetectionRow): string | null {
+  const explain = integrityManualReviewExplain(row)
+  if (!explain) return null
+  return [explain.headline, ...explain.bullets].join(' ')
 }
 
 /** @deprecated Use integrityProvenanceNotes or integrityManualReviewReason */

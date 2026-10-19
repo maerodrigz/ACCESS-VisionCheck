@@ -15,9 +15,9 @@ import { formatScannedDate } from '../../lib/aiDetection'
 import {
   cameraMetadataStatus,
   integrityAssessmentSummary,
+  integrityManualReviewExplain,
   integrityNeedsAdminAction,
-  integrityManualReviewReason,
-  integrityProvenanceNotes,
+  integrityProvenanceBullets,
   INTEGRITY_AI_DISCLAIMER,
   visualAiRiskBand,
   visualAiRiskColor,
@@ -207,8 +207,8 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
     isVideoMediaPath(row.media_url) ||
     row.file_type?.toLowerCase().includes('video') === true
   const needsAdminAction = integrityNeedsAdminAction(row)
-  const provenanceNotes = integrityProvenanceNotes(row)
-  const manualReviewReason = integrityManualReviewReason(row)
+  const manualExplain = integrityManualReviewExplain(row)
+  const provenanceBullets = integrityProvenanceBullets(row)
   const visualBand = visualAiRiskBand(row)
   const visualRiskColor = visualAiRiskColor(visualBand)
   const cameraMeta = cameraMetadataStatus(row.exif_metadata)
@@ -294,20 +294,33 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                     <AssessmentRow label="Review Status">
                       <ReviewStatusBadge status={row.review_status} />
                     </AssessmentRow>
-                    {needsAdminAction ? (
-                      manualReviewReason ? (
-                        <AssessmentRow label="Review reason">
-                          <span className="max-w-[14rem] text-left text-[11px] font-medium leading-snug sm:text-right">
-                            {manualReviewReason}
-                          </span>
-                        </AssessmentRow>
-                      ) : null
-                    ) : provenanceNotes ? (
-                      <AssessmentRow label="Provenance notes">
-                        <span className="max-w-[14rem] text-left text-[11px] font-medium leading-snug sm:text-right">
-                          {provenanceNotes}
-                        </span>
-                      </AssessmentRow>
+                    {needsAdminAction && manualExplain ? (
+                      <div className="border-t border-[var(--color-border)] py-2.5">
+                        <p className="text-xs font-semibold text-[var(--color-text-secondary)]">Why manual review?</p>
+                        <p className="mt-1.5 text-xs font-semibold leading-snug text-[var(--color-text-primary)]">
+                          {manualExplain.headline}
+                        </p>
+                        {manualExplain.bullets.length > 0 ? (
+                          <ul className="mt-2 list-disc space-y-1.5 pl-4 text-[11px] leading-snug text-[var(--color-text-secondary)]">
+                            {manualExplain.bullets.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        <p className="mt-2 text-[11px] leading-snug text-[var(--color-text-muted)]">
+                          {manualExplain.nextStep}
+                        </p>
+                      </div>
+                    ) : null}
+                    {!needsAdminAction && provenanceBullets.length > 0 ? (
+                      <div className="border-t border-[var(--color-border)] py-2.5">
+                        <p className="text-xs font-semibold text-[var(--color-text-secondary)]">Provenance notes</p>
+                        <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11px] leading-snug text-[var(--color-text-secondary)]">
+                          {provenanceBullets.map((line) => (
+                            <li key={line}>{line}</li>
+                          ))}
+                        </ul>
+                      </div>
                     ) : null}
                     <AssessmentRow label="Camera Metadata">{cameraMeta}</AssessmentRow>
                     <AssessmentRow label="Scan Date">{formatScannedDate(row.scanned_at)}</AssessmentRow>

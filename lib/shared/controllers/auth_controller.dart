@@ -114,10 +114,10 @@ class AuthController extends ChangeNotifier {
     final user = await authService.login(email, password);
     _user = user;
     await _persist();
-    if (user.role == AccessRole.member || user.role == AccessRole.organization) {
-      await _syncMemberSession();
-    }
     notifyListeners();
+    if (user.role == AccessRole.member || user.role == AccessRole.organization) {
+      unawaited(_syncMemberSession());
+    }
     return user;
   }
 

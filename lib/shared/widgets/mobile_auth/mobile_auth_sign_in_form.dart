@@ -12,11 +12,13 @@ class MobileAuthSignInForm extends StatefulWidget {
     required this.obscurePassword,
     required this.rememberMe,
     required this.loading,
+    this.loginError,
     required this.onToggleObscure,
     required this.onRememberMeChanged,
     required this.onSubmit,
     required this.onForgotPassword,
     this.onCreateAccount,
+    this.onFixConnection,
   });
 
   final TextEditingController emailController;
@@ -24,11 +26,13 @@ class MobileAuthSignInForm extends StatefulWidget {
   final bool obscurePassword;
   final bool rememberMe;
   final bool loading;
+  final String? loginError;
   final VoidCallback onToggleObscure;
   final ValueChanged<bool> onRememberMeChanged;
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
   final VoidCallback? onCreateAccount;
+  final VoidCallback? onFixConnection;
 
   @override
   State<MobileAuthSignInForm> createState() => _MobileAuthSignInFormState();
@@ -69,6 +73,33 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
           compact: true,
         ),
         const SizedBox(height: 12),
+        if (widget.loginError != null && widget.loginError!.isNotEmpty) ...[
+          Text(
+            widget.loginError!,
+            style: const TextStyle(color: kRed, fontSize: 12, height: 1.35),
+          ),
+          if (widget.onFixConnection != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: widget.onFixConnection,
+                style: TextButton.styleFrom(
+                  foregroundColor: kAccent,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.dns_outlined, size: 16),
+                label: const Text(
+                  'Fix connection',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+        ],
         TextField(
           key: const ValueKey('mobile_sign_in_email'),
           controller: widget.emailController,

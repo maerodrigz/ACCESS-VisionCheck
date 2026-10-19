@@ -276,10 +276,9 @@ class ApiClient {
       final base = ApiConfig.effectiveBaseUrl;
       final suggested = ApiConfig.suggestedPhoneBackendUrl;
       return ApiException(
-        'Cannot reach server at $base.\n'
-        '• PC running backend? cd access_backend && python manage.py runserver\n'
-        '• Phone and PC on same Wi-Fi? Tap Fix backend URL and use:\n  $suggested\n'
-        '• Update config/api.json on the PC if your IPv4 changed, then rebuild the app.',
+        'Cannot reach server at $base. '
+        'Use the same Wi-Fi as your PC, run the backend on the PC, then tap Fix connection on sign-in '
+        '(try $suggested).',
       );
     }
     return ApiException(

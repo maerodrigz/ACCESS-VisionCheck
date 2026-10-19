@@ -13,6 +13,7 @@ import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_sign_in_form.dart';
 import 'package:access_mobile/shared/widgets/forgot_password_dialog.dart';
+import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 bool _isBackendConnectivityMessage(String message) {
@@ -67,12 +68,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   void _setLoginError(String? message) {
-    if (kIsWeb) {
-      setState(() => _error = message);
-      return;
-    }
-    // Mobile sign-in: no snackbars (they read as a yellow strip above the keyboard).
-    setState(() => _error = null);
+    setState(() => _error = message);
   }
 
   /// Clears stale offline banners and restores JWT when the PC backend comes back.
@@ -141,7 +137,11 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       await authController.login(email, pass);
       await _persistRememberMe();
       if (!mounted) return;
-      setState(() => _loading = false);
+      FocusManager.instance.primaryFocus?.unfocus();
+      setState(() {
+        _loading = false;
+        _error = null;
+      });
       widget.onAuthenticated?.call();
     } on ApiException catch (e) {
       final message = switch (e.code) {
@@ -219,13 +219,25 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
         obscurePassword: _obscure,
         rememberMe: _rememberMe,
         loading: _loading,
+        loginError: _error,
         onToggleObscure: () => setState(() => _obscure = !_obscure),
         onRememberMeChanged: (v) => setState(() => _rememberMe = v),
         onSubmit: _submit,
         onForgotPassword: _forgotPassword,
         onCreateAccount: _openRegistration,
+        onFixConnection: kIsWeb ? null : _fixMobileBackendConnection,
       ),
     );
+  }
+
+  Future<void> _fixMobileBackendConnection() async {
+    final changed = await showBackendUrlDialog(context);
+    if (!mounted) return;
+    if (changed) {
+      setState(() => _error = null);
+      apiClient.resetConnection();
+      await apiClient.warmUpConnection();
+    }
   }
 
   Widget _wideLayout() {

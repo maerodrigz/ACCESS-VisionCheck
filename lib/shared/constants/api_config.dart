@@ -129,6 +129,7 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
+    '192.168.8.97',
     '192.168.8.94',
     '192.168.8.96',
     '192.168.8.98',
@@ -381,7 +382,7 @@ class ApiConfig {
     return out;
   }
 
-  /// Sign-in only: never sweep every LAN IP (avoids hitting another PC's backend).
+  /// Sign-in: prefer saved/device URL, then configured host, then same-subnet LAN fallbacks.
   static List<String> loginBaseUrls() {
     final out = <String>[];
 
@@ -397,6 +398,8 @@ class ApiConfig {
         apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty;
     final emulatorDefault = androidEmulatorDefault;
 
+    add(runtimeBaseUrl.value);
+    add(_lastWorkingBaseUrl);
     add(apiBaseUrlOverride);
     if (explicitCompileTimeHost) {
       add(baseUrl);
@@ -404,8 +407,6 @@ class ApiConfig {
     add(_webSameOriginBaseUrl);
 
     if (!explicitCompileTimeHost) {
-      add(runtimeBaseUrl.value);
-      add(_lastWorkingBaseUrl);
       if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
         add(baseUrl);
       } else if (emulatorDefault) {
@@ -415,6 +416,8 @@ class ApiConfig {
       }
     }
 
+    _addLoginSubnetLanFallbacks(out, add);
+
     if (kIsWeb && _webSameOriginBaseUrl == null) {
       add('http://$apiWebHostOverride:$defaultPort');
     }
@@ -423,6 +426,31 @@ class ApiConfig {
       add(baseUrl);
     }
     return out;
+  }
+
+  /// When the PC DHCP last octet changes (e.g. .94 → .97), try other known hosts on the same /24.
+  static void _addLoginSubnetLanFallbacks(
+    List<String> current,
+    void Function(String? url) add,
+  ) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+
+    String? anchorHost;
+    for (final url in current) {
+      try {
+        anchorHost = Uri.parse(url).host;
+        if (anchorHost.isNotEmpty) break;
+      } catch (_) {}
+    }
+    anchorHost ??= host;
+    final parts = anchorHost.split('.');
+    if (parts.length != 4) return;
+    final prefix = '${parts[0]}.${parts[1]}.${parts[2]}.';
+    for (final h in knownLanHosts) {
+      if (h.startsWith(prefix)) {
+        add('http://$h:$port');
+      }
+    }
   }
 
   /// Live, listenable runtime override (in-memory + SharedPreferences).

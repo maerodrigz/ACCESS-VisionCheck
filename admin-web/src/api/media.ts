@@ -158,6 +158,7 @@ export function adminIntegrityPreviewUrl(input: {
 
 export function mediaUrl(path?: string | null): string {
   if (!path) return ''
+  if (path.trim().startsWith('supabase-ref:')) return ''
 
   path = normalizeSupabaseStorageUrl(path)
 

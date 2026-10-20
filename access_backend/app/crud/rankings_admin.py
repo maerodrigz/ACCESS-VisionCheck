@@ -14,6 +14,7 @@ from app.models.media_evaluation import MediaEvaluation
 from app.models.media_file import MediaFile
 from app.models.role import Role
 from app.models.user import User
+from app.services.supabase_storage import apply_display_profile_images
 from app.services.skill_scoring import (
     build_skill_payload,
     competency_level_from_skill_score,
@@ -304,6 +305,7 @@ def list_rankings(db: Session) -> list[dict]:
     for idx, row in enumerate(result, start=1):
         row["rank"] = idx
         row["rank_position"] = idx
+    apply_display_profile_images(result)
     return result
 
 

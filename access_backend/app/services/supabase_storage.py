@@ -87,6 +87,27 @@ def _normalize_with_client(url: str | None, client: httpx.Client) -> str:
     return _fix_legacy_object_path(normalized)
 
 
+def display_profile_image(url: str | None) -> str | None:
+    """Return a URL an app can load. Stored values stay as compact supabase-ref."""
+    if url is None:
+        return None
+    text = str(url).strip()
+    if not text:
+        return None
+    resolved = normalize_supabase_storage_url(text)
+    return resolved or text
+
+
+def apply_display_profile_images(rows: list[dict], key: str = "profile_image") -> None:
+    if not rows:
+        return
+    raw = [row.get(key) if isinstance(row.get(key), str) else None for row in rows]
+    resolved = resolve_supabase_storage_urls(raw)
+    for row, url in zip(rows, resolved):
+        if url:
+            row[key] = url
+
+
 def resolve_supabase_storage_urls(urls: list[str | None]) -> list[str]:
     """Resolve many stored URLs on one connection. Same result as calling normalize per URL."""
     if not urls:

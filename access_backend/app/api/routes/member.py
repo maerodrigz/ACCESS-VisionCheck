@@ -26,6 +26,7 @@ from app.schemas.member_api import (
 from app.core.security import verify_password
 from app.services.media_upload_config import evaluation_rules
 from app.services.security_policy import assert_password_meets_policy
+from app.services.supabase_storage import display_profile_image
 
 router = APIRouter(prefix="/member", tags=["Member"])
 
@@ -42,7 +43,7 @@ def _profile_out(db: Session, user: User) -> ProfileOut:
         student_id=user.student_id,
         contact_number=user.contact_number,
         adviser_name=user.adviser_name,
-        profile_image=user.profile_image,
+        profile_image=display_profile_image(user.profile_image),
         skill_level=skill,
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,

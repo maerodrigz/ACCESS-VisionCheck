@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.crud import member_profile as profile_crud
+from app.services.supabase_storage import apply_display_profile_images, display_profile_image
 from app.models.audit_log import AuditLog
 from app.models.login_history import LoginHistory
 from app.models.media_evaluation import MediaEvaluation
@@ -115,6 +116,7 @@ def list_admin_members(db: Session) -> list[dict]:
                 "created_at": u.created_at,
             }
         )
+    apply_display_profile_images(rows)
     return rows
 
 
@@ -158,7 +160,7 @@ def get_admin_member(db: Session, user_id: int) -> dict | None:
         "media_eval_score": _avg_media_score(db, u.id),
         "last_active": _last_active(db, u.id, u.created_at),
         "primary_task_role": _primary_task_role(db, u.id),
-        "profile_image": u.profile_image,
+        "profile_image": display_profile_image(u.profile_image),
         "good_evaluations": ranking.total_points if ranking else 0,
         "avg_score": _avg_media_score(db, u.id),
         "created_at": u.created_at,

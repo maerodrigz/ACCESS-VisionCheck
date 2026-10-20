@@ -178,6 +178,7 @@ class ApiConfig {
   /// Absolute URL for `/uploads/...` paths returned by the API.
   static String mediaUrl(String? path) {
     if (path == null || path.isEmpty) return '';
+    if (path.startsWith('supabase-ref:')) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) {
       // Legacy Supabase signed URLs missing /storage/v1 (404 on device).
       if (path.contains('supabase.co/object/') && !path.contains('/storage/v1/object/')) {

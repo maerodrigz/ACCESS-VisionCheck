@@ -259,15 +259,27 @@ function countOverviewSectionMetrics(data: AnalyticsSnapshot, range: DateRange):
     documentationRequests++
   }
 
-  const seenEvents = new Set<string>()
+  const seenCompleted = new Set<string>()
   let completedEvents = 0
   for (const e of data.events) {
     if (String(e.status ?? '').toLowerCase() !== 'completed') continue
     const d = parseDate(e.event_date ?? e.start_date)
     if (!d || !inRange(d, range)) continue
     const key = eventRecordKey(e)
-    if (seenEvents.has(key)) continue
-    seenEvents.add(key)
+    if (seenCompleted.has(key)) continue
+    seenCompleted.add(key)
+    completedEvents++
+  }
+  for (const r of data.requests) {
+    const status = String(r.status ?? '').toLowerCase()
+    if (status !== 'completed') continue
+    const d = parseDate(
+      r.completed_at ?? r.updated_at ?? r.created_at ?? r.submitted_at ?? r.event_date,
+    )
+    if (!d || !inRange(d, range)) continue
+    const key = `req:${requestRecordKey(r)}`
+    if (seenCompleted.has(key)) continue
+    seenCompleted.add(key)
     completedEvents++
   }
 

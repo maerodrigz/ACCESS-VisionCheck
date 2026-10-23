@@ -405,10 +405,14 @@ export function buildTeamProfiles(input: {
     const assigned = Number(u.assigned_tasks ?? 0)
     const completed = Number(u.completed_tasks ?? 0)
     const mediaScore = Number(u.media_eval_score ?? u.avg_score ?? 0)
-    const skillRaw = (u.skill_level as string | null) ?? null
     const coverageRole = coverageRoleFromTaskRole(u.primary_task_role as string | undefined)
 
     const ranking = rankingByUser.get(id)
+    const skillRaw =
+      (u.skill_level as string | null) ??
+      (ranking
+        ? String(ranking.computed_skill_level ?? ranking.skill_level ?? '') || null
+        : null)
     const aiRating = Number(
       ranking?.ai_authenticity_score ?? ranking?.admin_evaluation_score ?? mediaScore,
     )

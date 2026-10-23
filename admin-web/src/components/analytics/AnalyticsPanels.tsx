@@ -99,7 +99,11 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 }
 
 export function ParticipationTable({ data }: { data: AnalyticsSnapshot }) {
-  const rows = data.rankings.slice(0, 50).map((r) => ({
+  const sorted = [...data.rankings].sort(
+    (a, b) =>
+      Number(b.points ?? b.good_evaluations ?? 0) - Number(a.points ?? a.good_evaluations ?? 0),
+  )
+  const rows = sorted.slice(0, 50).map((r) => ({
     name: String(r.member_name ?? r.fullname ?? r.name ?? 'Member'),
     tasks: Number(r.completed_tasks ?? r.tasks_completed ?? 0),
     uploads: Number(r.uploads ?? r.total_uploads ?? r.media_uploads ?? r.upload_count ?? 0),

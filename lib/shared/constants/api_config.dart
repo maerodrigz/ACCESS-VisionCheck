@@ -396,7 +396,7 @@ class ApiConfig {
     }
 
     if (kIsWeb && _webSameOriginBaseUrl == null) {
-      add('http://$apiWebHostOverride:$defaultPort');
+      add('http://$apiWebHostOverride:$port');
     }
 
     return out;
@@ -438,7 +438,7 @@ class ApiConfig {
     _addLoginSubnetLanFallbacks(out, add);
 
     if (kIsWeb && _webSameOriginBaseUrl == null) {
-      add('http://$apiWebHostOverride:$defaultPort');
+      add('http://$apiWebHostOverride:$port');
     }
 
     if (out.isEmpty) {

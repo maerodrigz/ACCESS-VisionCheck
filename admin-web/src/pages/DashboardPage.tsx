@@ -88,7 +88,7 @@ export function DashboardPage() {
             {
               icon: ImageIcon,
               label: 'Media Awaiting Review',
-              sublabel: 'for AI evaluation',
+              sublabel: 'integrity needs action',
               value: o.mediaPendingEvaluation,
               color: 'var(--color-accent-cyan)',
               bgColor: 'color-mix(in srgb, var(--color-accent-cyan) 8%, var(--color-surface))',

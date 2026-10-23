@@ -202,7 +202,12 @@ export function AnalyticsPage() {
             />
           )}
           {tab === 'participation' && <ParticipationTable data={data} />}
-          {tab === 'rankings' && <RankingsSummaryPanel data={data} />}
+          {tab === 'rankings' && (
+            <div className="space-y-4">
+              <RankingsSummaryPanel data={data} />
+              <ParticipationTable data={data} />
+            </div>
+          )}
           {tab === 'feedback' && <FeedbackAnalyticsPanel data={data} />}
           {tab === 'media' && <MediaAnalyticsPanel data={data} />}
           {tab === 'events' && <EventsAnalyticsPanel data={data} />}

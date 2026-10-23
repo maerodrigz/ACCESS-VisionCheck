@@ -707,7 +707,12 @@ export function AiReviewQueuePanel({ snapshot }: { snapshot: AiReviewQueueSnapsh
       </div>
       <div className="flex flex-col gap-2 overflow-hidden px-4 pb-2.5 pt-0.5 sm:flex-row sm:gap-0 sm:px-5">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center sm:max-w-[52%] sm:pr-3">
-          {!snapshot.available ? (
+          {snapshot.loading ? (
+            <div className="flex flex-col items-center py-6" aria-busy="true" aria-label="Loading AI review queue">
+              <div className="h-24 w-24 animate-pulse rounded-full bg-[var(--color-surface-muted)]" />
+              <p className="mt-3 text-xs text-[var(--color-text-secondary)]">Loading review queue…</p>
+            </div>
+          ) : !snapshot.available ? (
             <p className="py-4 text-center text-xs text-[var(--color-text-secondary)]">
               Could not load AI review data.
             </p>

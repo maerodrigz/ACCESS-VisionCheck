@@ -267,8 +267,10 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   Widget _narrowLayout() {
     const cardSideInset = 12.0;
     final topInset = MediaQuery.paddingOf(context).top;
+    final viewHeight = MediaQuery.sizeOf(context).height;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final hideBrandHero = keyboardOpen;
+    // Web embeds / short viewports: hero + card exceed height without scroll.
+    final hideBrandHero = keyboardOpen || viewHeight < 560;
 
     final formPanel = LoginFormPanel(
       key: const ValueKey('mobile-login-card'),
@@ -297,26 +299,34 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
           bottom: false,
           child: Padding(
             padding: EdgeInsets.only(top: topInset + 4, bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (!hideBrandHero)
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeInOut,
-                    alignment: Alignment.topCenter,
-                    child: const LoginBrandPanel(compact: true),
-                  ),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(cardSideInset, 6, cardSideInset, 0),
-                      child: formPanel,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (!hideBrandHero)
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeInOut,
+                            alignment: Alignment.topCenter,
+                            child: const LoginBrandPanel(compact: true),
+                          ),
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(cardSideInset, 6, cardSideInset, 0),
+                            child: formPanel,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),

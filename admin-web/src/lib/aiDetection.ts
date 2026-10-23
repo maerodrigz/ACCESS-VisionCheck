@@ -248,6 +248,13 @@ export function aiReviewRiskLabel(tier: AiReviewRiskTier): string {
   return 'Low Risk'
 }
 
+/** Count of member practice uploads needing admin integrity review (matches Media Integrity “Needs Action”). */
+export function countIntegrityNeedsActionRows(rows: AiDetectionRow[]): number {
+  return rows.filter(
+    (r) => !isProbeSmokeTestRow(r) && matchesIntegrityInbox(r, 'needs_action'),
+  ).length
+}
+
 export function matchesIntegrityInbox(row: AiDetectionRow, filter: IntegrityInboxFilter): boolean {
   if (filter === 'all') return true
   if (filter === 'needs_action') {

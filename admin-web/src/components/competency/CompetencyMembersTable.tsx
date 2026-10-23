@@ -70,9 +70,13 @@ export function CompetencyMembersTable({ members, onViewProfile }: Props) {
                 </td>
                 <td className="px-4 py-3">
                   <div className="font-semibold text-[var(--color-text-primary)]">
-                    {Math.round(m.performanceScore)}%
+                    {member.rankingPoints > 0
+                      ? `${member.rankingPoints} XP`
+                      : `${Math.round(m.performanceScore)}%`}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">Overall score</div>
+                  <div className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
+                    {member.rankingPoints > 0 ? 'Rankings points' : 'Overall score'}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button

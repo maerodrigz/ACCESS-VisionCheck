@@ -80,14 +80,17 @@ export async function fetchAnalyticsSnapshot(
     /* optional */
   }
 
-  const [stats, rankings, rankingsSummary, events, feedback, requests] = await Promise.all([
-    fetchDashboardStats(),
-    fetchRankings(),
-    fetchRankingsSummary(),
-    fetchEvents(),
-    fetchFeedback(),
-    fetchServiceRequests(),
-  ])
+  const [stats, rankings, rankingsSummary, events, feedback, requests, media, evaluations] =
+    await Promise.all([
+      fetchDashboardStats(),
+      fetchRankings(),
+      fetchRankingsSummary(),
+      fetchEvents(),
+      fetchFeedback(),
+      fetchServiceRequests(),
+      fetchMedia(),
+      fetchEvaluations(),
+    ])
 
   const partial: AnalyticsSnapshot = {
     stats: stats as DashboardStats & Record<string, unknown>,
@@ -95,15 +98,13 @@ export async function fetchAnalyticsSnapshot(
     rankingsSummary,
     events,
     feedback,
-    media: [],
+    media,
     requests,
-    evaluations: [],
+    evaluations,
     evaluationSummary,
     aiSummary,
   }
   options?.onPartial?.(partial)
-
-  const [media, evaluations] = await Promise.all([fetchMedia(), fetchEvaluations()])
 
   return {
     stats: stats as DashboardStats & Record<string, unknown>,

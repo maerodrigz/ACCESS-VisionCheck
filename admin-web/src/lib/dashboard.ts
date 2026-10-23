@@ -11,6 +11,7 @@ import {
 import type { AiDetectionRow } from '../api/media'
 import {
   aiReviewRiskTier,
+  countIntegrityNeedsActionRows,
   isProbeSmokeTestRow,
   matchesIntegrityInbox,
   parseAiDetectionRow,
@@ -20,6 +21,7 @@ import {
 import { fetchNotifications } from '../api/notifications'
 import type { DashboardStats } from '../types/auth'
 import { formatTimeAgo, parseNotification, type AdminNotification } from './notifications'
+import { effectiveSkillLevelFromRecord } from './competency'
 import { isGoodQualityScore, scoreToPercent } from './mediaEvaluationScores'
 
 export interface HomeOverviewStats {
@@ -134,6 +136,8 @@ export interface AiReviewQueueSnapshot {
   totalForReview: number
   recentItems: AiReviewQueueRecentItem[]
   available: boolean
+  /** True while the secondary dashboard fetch (AI detection list) is still in flight. */
+  loading?: boolean
 }
 
 export interface HomeDashboardSnapshot {
@@ -220,6 +224,16 @@ function buildAiReviewQueue(rows: AiDetectionRow[]): AiReviewQueueSnapshot {
   }
 }
 
+const LOADING_AI_REVIEW_QUEUE: AiReviewQueueSnapshot = {
+  highRisk: 0,
+  suspicious: 0,
+  lowRisk: 0,
+  totalForReview: 0,
+  recentItems: [],
+  available: false,
+  loading: true,
+}
+
 const EMPTY_AI_REVIEW_QUEUE: AiReviewQueueSnapshot = {
   highRisk: 0,
   suspicious: 0,
@@ -227,6 +241,7 @@ const EMPTY_AI_REVIEW_QUEUE: AiReviewQueueSnapshot = {
   totalForReview: 0,
   recentItems: [],
   available: false,
+  loading: false,
 }
 
 function mapPendingRequest(r: Record<string, unknown>): PendingRequestItem {
@@ -588,16 +603,16 @@ function buildEvalTrend(evaluations: Record<string, unknown>[], today: Date): Ev
 
 function buildActiveDocumenters(
   rankings: Record<string, unknown>[],
-  stats: DashboardStats,
+  _stats: DashboardStats,
 ): ActiveDocumenterSnapshot {
   let advanced = 0
   let developing = 0
   let amateur = 0
 
   for (const r of rankings) {
-    const level = String(r.skill_level ?? r.competency_level ?? '').toLowerCase()
-    if (level.includes('advanced') || level.includes('expert')) advanced++
-    else if (level.includes('developing') || level.includes('intermediate')) developing++
+    const tier = effectiveSkillLevelFromRecord(r)
+    if (tier === 'advanced') advanced++
+    else if (tier === 'intermediate') developing++
     else amateur++
   }
 
@@ -605,18 +620,7 @@ function buildActiveDocumenters(
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
 
   if (total === 0) {
-    const active = stats.active_members ?? 0
-    return {
-      totalActive: active,
-      breakdown:
-        active === 0
-          ? []
-          : [
-              { label: 'Advanced', count: 0, percent: 0 },
-              { label: 'Developing', count: 0, percent: 0 },
-              { label: 'Amateur', count: active, percent: 100 },
-            ],
-    }
+    return { totalActive: 0, breakdown: [] }
   }
 
   return {
@@ -736,6 +740,7 @@ function buildHomeDashboardSnapshot(input: {
   media: Record<string, unknown>[]
   rankings: Record<string, unknown>[]
   aiDetectionRaw: Record<string, unknown>[] | null
+  aiDetectionLoadFailed?: boolean
   today: Date
 }): HomeDashboardSnapshot {
   const {
@@ -748,8 +753,16 @@ function buildHomeDashboardSnapshot(input: {
     media,
     rankings,
     aiDetectionRaw,
+    aiDetectionLoadFailed = false,
     today,
   } = input
+
+  const parsedAiRows =
+    aiDetectionRaw == null
+      ? []
+      : aiDetectionRaw.map((m) => parseAiDetectionRow(m))
+  const integrityNeedsAction =
+    aiDetectionRaw == null ? null : countIntegrityNeedsActionRows(parsedAiRows)
 
   const requestorByRequestId = buildRequestorByRequestId(requests)
 
@@ -807,15 +820,18 @@ function buildHomeDashboardSnapshot(input: {
 
   const unread = notifications.filter((n) => n.unread).length
 
-  const aiReviewQueue =
+  const aiReviewQueue: AiReviewQueueSnapshot =
     aiDetectionRaw == null
-      ? EMPTY_AI_REVIEW_QUEUE
-      : buildAiReviewQueue(aiDetectionRaw.map((m) => parseAiDetectionRow(m)))
+      ? aiDetectionLoadFailed
+        ? EMPTY_AI_REVIEW_QUEUE
+        : LOADING_AI_REVIEW_QUEUE
+      : buildAiReviewQueue(parsedAiRows)
 
   const overview: HomeOverviewStats = {
     pendingRequests: stats.pending_requests ?? pendingRequests.length,
     todayEvents: todayEvents.length,
-    mediaPendingEvaluation: pendingMedia,
+    // Home tile links to Media Integrity; align with Needs Action inbox, not unevaluated uploads.
+    mediaPendingEvaluation: integrityNeedsAction ?? pendingMedia,
     activeMembers: stats.active_members ?? 0,
     unreadNotifications: unread,
   }
@@ -855,13 +871,20 @@ export async function fetchHomeDashboard(
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-  const [stats, requests, events, notificationsRaw, tasks] = await Promise.all([
-    fetchDashboardStats(),
-    fetchServiceRequests(),
-    fetchEvents(),
-    fetchNotifications(),
-    fetchTasks(),
-  ])
+  let aiDetectionLoadFailed = false
+  const [stats, requests, events, notificationsRaw, tasks, rankings, aiDetectionRaw] =
+    await Promise.all([
+      fetchDashboardStats(),
+      fetchServiceRequests(),
+      fetchEvents(),
+      fetchNotifications(),
+      fetchTasks(),
+      fetchRankings(),
+      fetchAiDetectionList().catch(() => {
+        aiDetectionLoadFailed = true
+        return null
+      }),
+    ])
 
   const partial = buildHomeDashboardSnapshot({
     stats,
@@ -871,18 +894,14 @@ export async function fetchHomeDashboard(
     notificationsRaw,
     evaluations: [],
     media: [],
-    rankings: [],
-    aiDetectionRaw: null,
+    rankings,
+    aiDetectionRaw,
+    aiDetectionLoadFailed,
     today,
   })
   options?.onPartial?.(partial)
 
-  const [evaluations, media, rankings, aiDetectionRaw] = await Promise.all([
-    fetchEvaluations(),
-    fetchMedia(),
-    fetchRankings(),
-    fetchAiDetectionList().catch(() => null),
-  ])
+  const [evaluations, media] = await Promise.all([fetchEvaluations(), fetchMedia()])
 
   return buildHomeDashboardSnapshot({
     stats,
@@ -894,6 +913,7 @@ export async function fetchHomeDashboard(
     media,
     rankings,
     aiDetectionRaw,
+    aiDetectionLoadFailed,
     today,
   })
 }

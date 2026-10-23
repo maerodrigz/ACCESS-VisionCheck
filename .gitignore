@@ -56,6 +56,8 @@ admin-web/.env
 !**/.env.example
 access_backend/.env.waverep_test
 access_backend/.env.smoke.local
+access_backend/.env.uat.local
+access_backend/.env.uat.accounts.local
 config/firebase.json
 access_backend/secrets/*.json
 access_backend/secrets/*.key

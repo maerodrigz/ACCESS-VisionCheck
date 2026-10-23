@@ -156,7 +156,7 @@ void main() {
   });
 
   group('AiDetectionBanner widget', () {
-    testWidgets('admin human hides review recommended primary copy', (tester) async {
+    testWidgets('admin human shows low tier and detail, not pending review copy', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -167,14 +167,15 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Human-Captured'), findsOneWidget);
-      expect(find.text('Confirmed by Admin'), findsOneWidget);
+      expect(find.text('AI Authenticity Assessment'), findsOneWidget);
+      expect(find.text('Low AI Risk'), findsOneWidget);
+      expect(find.textContaining('human-captured'), findsOneWidget);
       expect(find.text('Review recommended'), findsNothing);
       expect(find.textContaining('Officers may review'), findsNothing);
       expect(find.textContaining('43%'), findsOneWidget);
     });
 
-    testWidgets('pending suspicious still shows review recommended', (tester) async {
+    testWidgets('pending suspicious shows needs review tier and elevated detail', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -185,8 +186,10 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Elevated AI authenticity risk'), findsOneWidget);
-      expect(find.text('Review recommended'), findsOneWidget);
+      expect(find.text('AI Authenticity Assessment'), findsOneWidget);
+      expect(find.text('Needs Review'), findsOneWidget);
+      expect(find.textContaining('Elevated AI authenticity risk'), findsOneWidget);
+      expect(find.textContaining('Officers may review'), findsOneWidget);
     });
   });
 }

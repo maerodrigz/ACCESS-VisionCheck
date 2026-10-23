@@ -103,7 +103,7 @@ void main() {
         ),
       );
       expect(find.textContaining('pending save', findRichText: true), findsNothing);
-      expect(find.text('Low Risk'), findsOneWidget);
+      expect(find.text('Low AI Risk'), findsOneWidget);
       expect(find.textContaining('Authenticity check pending save'), findsNothing);
     });
   });

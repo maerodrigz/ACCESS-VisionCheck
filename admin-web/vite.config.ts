@@ -1,4 +1,5 @@
-import { defineConfig, loadEnv } from 'vite'
+import type { ClientRequest } from 'node:http'
+import { defineConfig, loadEnv, type ProxyOptions } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -13,13 +14,13 @@ function devProxyTarget(mode: string): string {
   return target
 }
 
-function apiProxy(target: string) {
+function apiProxy(target: string): ProxyOptions {
   return {
     target,
     changeOrigin: true,
     /** waverep .env ALLOWED_HOSTS lists 127.0.0.1 without port; avoid 400 on :3003. */
-    configure: (proxy: { on: (event: string, fn: (...args: unknown[]) => void) => void }) => {
-      proxy.on('proxyReq', (proxyReq: { setHeader: (k: string, v: string) => void }) => {
+    configure: (proxy) => {
+      proxy.on('proxyReq', (proxyReq: ClientRequest) => {
         proxyReq.setHeader('host', '127.0.0.1')
       })
     },

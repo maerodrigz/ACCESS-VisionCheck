@@ -168,15 +168,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         showRequestorCampusEventDetail(context, event);
       }
     } else {
-      if (_myAssignmentsOnly || isPrimaryScope) {
-        showMemberEventDetail(
-          context,
-          event,
-          onViewGallery: widget.onViewGallery,
-        );
-      } else {
-        showRequestorCampusEventDetail(context, event);
-      }
+      // Members: campus "All Events" uses read-only member detail (no requestor planning copy).
+      showMemberEventDetail(
+        context,
+        event,
+        onViewGallery: widget.onViewGallery,
+      );
     }
   }
 

@@ -234,12 +234,13 @@ def test_preview_metadata_skips_byte_read() -> None:
     assert run_pl.call_args[0][2] == b""
 
 
-def test_default_detector_still_univfd() -> None:
+def test_default_image_detector_is_probe() -> None:
+    """Image authenticity routes to PROBE-DINOv2; video WaveRep is separate when enabled."""
     from app.config import settings
     from app.services.dedicated_ai_detector import active_ai_detector_backend
 
-    assert settings.ai_detector_backend == "univfd"
-    assert active_ai_detector_backend() == "univfd"
+    assert settings.ai_detector_backend == "probe"
+    assert active_ai_detector_backend() == "probe"
 
 
 def test_integrity_xp_pending_via_preview_payload() -> None:

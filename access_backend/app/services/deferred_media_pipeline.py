@@ -15,7 +15,11 @@ from app.database import SessionLocal
 from app.models.media_constants import MEDIA_CATEGORY_EVALUATION
 from app.services.media_file_bytes import read_media_file_bytes
 from app.services.upload_bytes_cache import take_evaluation_upload
-from app.services.media_pipeline import _payload_from_preview_metadata, run_pipeline
+from app.services.media_pipeline import (
+    _payload_from_preview_metadata,
+    is_evaluation_category_video,
+    run_pipeline,
+)
 
 if TYPE_CHECKING:
     from app.models.media_file import MediaFile
@@ -87,8 +91,11 @@ def run_deferred_media_pipeline_job(
                 logger.info("deferred pipeline: media_id=%s already evaluated, skipping", media_id)
                 return
 
-            preview = _payload_from_preview_metadata(evaluation_metadata)
-            if preview is None:
+            must_load_bytes = is_evaluation_category_video(media)
+            if not must_load_bytes:
+                preview = _payload_from_preview_metadata(evaluation_metadata)
+                must_load_bytes = preview is None
+            if must_load_bytes:
                 file_bytes = take_evaluation_upload(media_id)
                 if not file_bytes:
                     file_bytes = read_media_file_bytes(media.file_url, timeout=120.0)

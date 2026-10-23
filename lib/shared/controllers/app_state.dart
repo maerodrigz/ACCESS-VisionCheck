@@ -574,7 +574,10 @@ class AppState extends ChangeNotifier {
 
   // Populated from PostgreSQL after login via MemberDataController.refreshAll().
   final List<Evaluation> evaluations = [];
+  /// Campus / All Events scope (public fields from API).
   final List<CalendarEvent> events = [];
+  /// My Assignments or My Requests scope (private fields from API).
+  final List<CalendarEvent> myCalendarEvents = [];
   final List<Challenge> challenges = [];
   /// Member AI evaluation uploads (EfficientNet-B0). Not event gallery media.
   final List<GalleryItem> gallery = [];
@@ -680,7 +683,7 @@ class AppState extends ChangeNotifier {
   int evaluationMaxUploadMb = 350;
 
   /// Max length for practice evaluation videos (seconds).
-  int evaluationMaxVideoSeconds = 30;
+  int evaluationMaxVideoSeconds = 20;
 
   /// IANA timezone for daily practice cap (from GET /member/participation).
   String evaluationDailyTimezone = 'Asia/Manila';
@@ -804,7 +807,7 @@ class AppState extends ChangeNotifier {
     evaluationsTodayCount = 0;
     dailyEvaluationLimit = 5;
     evaluationMaxUploadMb = 350;
-    evaluationMaxVideoSeconds = 30;
+    evaluationMaxVideoSeconds = 20;
     evaluationDailyTimezone = 'Asia/Manila';
     notifyListeners();
   }

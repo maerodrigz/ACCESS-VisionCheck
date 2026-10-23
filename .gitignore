@@ -54,6 +54,8 @@ admin-web/.env
 .env
 **/.env
 !**/.env.example
+access_backend/.env.waverep_test
+access_backend/.env.smoke.local
 config/firebase.json
 access_backend/secrets/*.json
 access_backend/secrets/*.key
@@ -75,3 +77,14 @@ access_backend/experiments/probe/vendor_lib/
 
 # UnivFD backbone exceeds GitHub 100 MB file limit (use local ml/univfd/ or docs)
 access_backend/ml/univfd/ViT-L-14.pt
+
+# WaveRep G4 checkpoint (~330 MB; copy locally per ml/waverep/README.md)
+access_backend/ml/waverep/demo/weights/
+
+# Local Python venv (nonstandard name), QA uploads, editor backups, demo binaries
+access_backend/venv312/
+access_backend/uploads_waverep_test/
+*.bak
+*.bak_*
+access_backend/probe_test_image.jpg
+demo/videos/

@@ -434,6 +434,29 @@ def upgrade_media_files_file_url_text() -> None:
         conn.execute(text("ALTER TABLE media_files ALTER COLUMN file_url TYPE TEXT"))
 
 
+def upgrade_media_files_evaluation_file_hash() -> None:
+    """SHA-256 duplicate detection for member practice evaluation uploads."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS file_hash VARCHAR(64)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_media_files_file_hash "
+                "ON media_files (file_hash) WHERE file_hash IS NOT NULL"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_media_files_member_eval_file_hash "
+                "ON media_files (uploaded_by, file_hash) "
+                "WHERE media_category = 'member_evaluation' AND file_hash IS NOT NULL"
+            )
+        )
+
+
 def upgrade_documentation_requests_schema() -> None:
     """Extended requestor form fields (time, coverage requirements, reschedule history)."""
     with engine.begin() as conn:
@@ -512,6 +535,7 @@ def main() -> None:
     upgrade_media_curation_schema()
     upgrade_media_storage_removed_schema()
     upgrade_media_files_file_url_text()
+    upgrade_media_files_evaluation_file_hash()
 
     db = SessionLocal()
     try:

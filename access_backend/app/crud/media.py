@@ -26,6 +26,53 @@ from app.models.media_constants import (
 )
 from app.models.archive import Archive
 from app.models.media_file import MediaFile
+from app.services.media_file_hash import MEMBER_EVAL_FILE_HASH_INDEX
+
+
+class EvaluationDuplicateUploadError(Exception):
+    """Same member re-uploaded identical evaluation bytes (SHA-256 match)."""
+
+
+def member_evaluation_hash_exists(db: Session, *, user_id: int, file_hash: str) -> bool:
+    """True if this member already submitted these exact bytes for evaluation (includes archived)."""
+    if not file_hash:
+        return False
+    count = db.scalar(
+        select(func.count())
+        .select_from(MediaFile)
+        .where(
+            MediaFile.uploaded_by == user_id,
+            MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
+            MediaFile.file_hash == file_hash,
+        )
+    )
+    return int(count or 0) > 0
+
+
+def assert_member_evaluation_not_duplicate(
+    db: Session, *, user_id: int, file_hash: str
+) -> None:
+    if member_evaluation_hash_exists(db, user_id=user_id, file_hash=file_hash):
+        raise EvaluationDuplicateUploadError()
+
+
+def _is_member_eval_file_hash_conflict(exc: IntegrityError) -> bool:
+    orig = getattr(exc, "orig", None)
+    if orig is not None:
+        pgcode = getattr(orig, "pgcode", None)
+        if pgcode == "23505":
+            diag = getattr(orig, "diag", None)
+            name = getattr(diag, "constraint_name", None) if diag else None
+            if name == MEMBER_EVAL_FILE_HASH_INDEX:
+                return True
+    text = str(exc).lower()
+    return MEMBER_EVAL_FILE_HASH_INDEX.lower() in text
+
+
+def discard_stored_upload_blob(stored_url: str | None) -> None:
+    """Remove bytes after a failed DB insert (e.g. concurrent duplicate race)."""
+    if stored_url and stored_url.strip():
+        _delete_media_file_from_disk(stored_url)
 
 
 def count_member_evaluations_today(db: Session, user_id: int) -> int:
@@ -295,7 +342,13 @@ def delete_media(db: Session, media: MediaFile) -> None:
 def create(db: Session, data: dict) -> MediaFile:
     row = MediaFile(**data)
     db.add(row)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        if _is_member_eval_file_hash_conflict(exc):
+            raise EvaluationDuplicateUploadError() from exc
+        raise
     db.refresh(row)
     return get(db, row.id)  # type: ignore[arg-type]
 

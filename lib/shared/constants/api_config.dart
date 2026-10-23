@@ -129,6 +129,8 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
+    '10.216.233.169',
+    '10.210.8.169',
     '192.168.8.97',
     '192.168.8.94',
     '192.168.8.96',
@@ -163,6 +165,9 @@ class ApiConfig {
   /// Host that last answered an API call (failover) or user/runtime override.
   /// Use for [mediaUrl] so uploaded logos match web admin on physical phones.
   static String get effectiveBaseUrl {
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
+    }
     final runtime = runtimeBaseUrl.value;
     if (runtime != null && runtime.trim().isNotEmpty) {
       return runtime.trim().replaceAll(RegExp(r'/+$'), '');
@@ -221,6 +226,8 @@ class ApiConfig {
   /// Drop saved 10.0.2.2 override — that host is emulator-only and breaks physical phones.
   static Future<void> clearStaleEmulatorBackendOverride() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    // Compile-time base (e.g. emulator --dart-define=API_BASE_URL=10.0.2.2:3002) wins.
+    if (apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty) return;
     final saved = runtimeBaseUrl.value?.trim().toLowerCase() ?? '';
     if (saved.contains('10.0.2.2')) {
       await runtimeBaseUrl.clear();
@@ -238,6 +245,11 @@ class ApiConfig {
       return;
     }
     if (apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty) {
+      return;
+    }
+    // Bundled LAN IP breaks the Android emulator; use 10.0.2.2 default instead.
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        _androidIsPhysicalDevice == false) {
       return;
     }
     try {
@@ -331,6 +343,13 @@ class ApiConfig {
   /// Physical phone: saved/runtime URL first, then LAN fallbacks.
   /// Emulator (no override): [10.0.2.2] first so login is not delayed by stale LAN IPs.
   static List<String> candidateBaseUrls() {
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return [apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
+    }
+    if (apiPublicHostOverride.isNotEmpty) {
+      return [baseUrl];
+    }
+
     final out = <String>[];
 
     void add(String? v) {
@@ -385,6 +404,13 @@ class ApiConfig {
 
   /// Sign-in: prefer saved/device URL, then configured host, then same-subnet LAN fallbacks.
   static List<String> loginBaseUrls() {
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return [apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
+    }
+    if (apiPublicHostOverride.isNotEmpty) {
+      return [baseUrl];
+    }
+
     final out = <String>[];
 
     void add(String? v) {
@@ -395,26 +421,18 @@ class ApiConfig {
       if (!out.contains(normalized)) out.add(normalized);
     }
 
-    final explicitCompileTimeHost =
-        apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty;
     final emulatorDefault = androidEmulatorDefault;
 
     add(runtimeBaseUrl.value);
     add(_lastWorkingBaseUrl);
-    add(apiBaseUrlOverride);
-    if (explicitCompileTimeHost) {
-      add(baseUrl);
-    }
     add(_webSameOriginBaseUrl);
 
-    if (!explicitCompileTimeHost) {
-      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-        add(baseUrl);
-      } else if (emulatorDefault) {
-        add('http://$androidEmulatorHost:$port');
-      } else {
-        add(baseUrl);
-      }
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      add(baseUrl);
+    } else if (emulatorDefault) {
+      add('http://$androidEmulatorHost:$port');
+    } else {
+      add(baseUrl);
     }
 
     _addLoginSubnetLanFallbacks(out, add);

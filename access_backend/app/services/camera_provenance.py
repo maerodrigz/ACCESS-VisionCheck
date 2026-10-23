@@ -215,8 +215,17 @@ def photo_likely_download_or_resave(
         if isinstance(row, dict) and row.get("key") == "Software":
             software = _clean_text(row.get("value")).lower()
             break
-    if software and any(h in software for h in _RESAVE_SOFTWARE_HINTS):
-        return True
+    if software:
+        generic_gallery_hints = ("gallery", "share", "save")
+        suspicious_software = any(
+            hint in software
+            for hint in _RESAVE_SOFTWARE_HINTS
+            if hint not in generic_gallery_hints
+        )
+        if suspicious_software:
+            return True
+        if any(hint in software for hint in generic_gallery_hints) and not photo_has_make_and_model(provenance):
+            return True
 
     if provenance.strength == "partial" and not credible:
         return True

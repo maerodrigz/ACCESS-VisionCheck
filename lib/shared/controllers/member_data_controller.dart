@@ -349,9 +349,6 @@ class MemberDataController extends ChangeNotifier {
 
   Future<void> ensureCalendarTab() {
     if (!authController.isLoggedIn) return Future.value();
-    if (appState.events.isNotEmpty && calendarTabError == null) {
-      return Future.value();
-    }
     if (calendarTabSynced && calendarTabError == null) {
       return Future.value();
     }
@@ -740,7 +737,7 @@ class MemberDataController extends ChangeNotifier {
       evaluationsToday: participation['evaluations_today'] as int? ?? 0,
       dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 30,
+      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 20,
       evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
     );
   }
@@ -782,10 +779,17 @@ class MemberDataController extends ChangeNotifier {
   }
 
   Future<void> _syncEventsSection() async {
-    final events = await memberApiService.getEvents();
+    final primaryScope = _isOrganizationUser ? 'my-requests' : 'assignments';
+    final results = await Future.wait([
+      memberApiService.getEvents(scope: 'campus'),
+      memberApiService.getEvents(scope: primaryScope),
+    ]);
     appState.events
       ..clear()
-      ..addAll(events.map(_calendarEventFromApi));
+      ..addAll(results[0].map(_calendarEventFromApi));
+    appState.myCalendarEvents
+      ..clear()
+      ..addAll(results[1].map(_calendarEventFromApi));
   }
 
   Future<void> _syncAnnouncementsSection() async {
@@ -1228,7 +1232,7 @@ class MemberDataController extends ChangeNotifier {
         evaluationsToday: participation['evaluations_today'] as int? ?? 0,
         dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 30,
+      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 20,
       evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
       );
 

@@ -178,6 +178,22 @@ def apply_probe_provenance_policy(
         else:
             outcome = "high_ai_risk"
 
+    # Explicit AI-related metadata indicators must not be cleared
+    # solely because camera EXIF appears credible or PROBE risk is low.
+    flags = (exif_meta or {}).get("flags") or []
+    security_flag_codes = {
+        str(flag.get("code"))
+        for flag in flags
+        if isinstance(flag, dict) and flag.get("code")
+    }
+    if security_flag_codes & {"ai_software_exif", "ai_hint_filename"}:
+        requires_review = True
+        outcome = "source_unverified" if visual_risk == "low" else outcome
+        out["detail"] = (
+            f"{str(out.get('detail') or '').strip()} "
+            "AI-related metadata indicator requires administrative verification."
+        ).strip()
+
     out["provenance_policy_outcome"] = outcome
     out["requires_review"] = requires_review
     out["final_review_required"] = requires_review

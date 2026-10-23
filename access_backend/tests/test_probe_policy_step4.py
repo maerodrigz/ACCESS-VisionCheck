@@ -12,7 +12,18 @@ from app.services.ai_authenticity_detector import (
     detect_ai_generated,
     probe_risk_level_from_probability,
 )
+from app.services.camera_provenance import CameraProvenanceResult
 from app.services.integrity_evaluation_policy import apply_integrity_evaluation_policy
+
+_STRONG_PROV = CameraProvenanceResult(
+    "strong",
+    reasons=["test fixture"],
+    safe_fields=[
+        {"key": "Make", "label": "Make", "value": "TestMake"},
+        {"key": "Model", "label": "Model", "value": "TestModel"},
+    ],
+)
+_PROV_PATCH = "app.services.camera_provenance.classify_photo_camera_provenance"
 
 
 def _jpeg_bytes(width: int = 64, height: int = 64) -> bytes:
@@ -63,8 +74,9 @@ def test_probe_detect_bypasses_fusion(
 ) -> None:
     with patch(PROBE_BACKEND, return_value="probe"):
         with patch(PROBE_PROB, return_value=mock_p):
-            with patch(FUSE) as fuse_mock:
-                result = detect_ai_generated(_jpeg_bytes(), file_name="photo.jpg")
+            with patch(_PROV_PATCH, return_value=_STRONG_PROV):
+                with patch(FUSE) as fuse_mock:
+                    result = detect_ai_generated(_jpeg_bytes(), file_name="photo.jpg")
 
     fuse_mock.assert_not_called()
     assert result["detector_backend"] == "probe"
@@ -95,18 +107,19 @@ def test_probe_low_not_neural_authentic_suppression() -> None:
     """High supporting heuristic scores must not reduce raw PROBE probability."""
     with patch(PROBE_BACKEND, return_value="probe"):
         with patch(PROBE_PROB, return_value=0.12):
-            with patch(
-                "app.services.ai_authenticity_detector._collect_forensic_support",
-                return_value=({"filename": 0.9, "metadata": 0.85, "frequency": 0.7}, ["hint"]),
-            ):
-                result = detect_ai_generated(_jpeg_bytes(), file_name="midjourney_v6.png")
+            with patch(_PROV_PATCH, return_value=_STRONG_PROV):
+                with patch(
+                    "app.services.ai_authenticity_detector._collect_forensic_support",
+                    return_value=({"filename": 0.9, "metadata": 0.85, "frequency": 0.7}, ["hint"]),
+                ):
+                    result = detect_ai_generated(_jpeg_bytes(), file_name="midjourney_v6.png")
 
     assert result["probability"] == 0.12
     assert result["risk_level"] == "low"
     assert "support_filename" in result["signals"]
 
 
-def test_probe_integrity_flow() -> None:
+def test_probe_integrity_flow_strong_provenance_low_releases_xp() -> None:
     base = {
         "criteria": [],
         "overall_score": 4.0,
@@ -115,12 +128,13 @@ def test_probe_integrity_flow() -> None:
     }
 
     with patch(PROBE_BACKEND, return_value="probe"):
-        with patch(PROBE_PROB, return_value=0.15):
-            low = detect_ai_generated(_jpeg_bytes())
-        with patch(PROBE_PROB, return_value=0.35):
-            susp = detect_ai_generated(_jpeg_bytes())
-        with patch(PROBE_PROB, return_value=0.70):
-            high = detect_ai_generated(_jpeg_bytes())
+        with patch(_PROV_PATCH, return_value=_STRONG_PROV):
+            with patch(PROBE_PROB, return_value=0.15):
+                low = detect_ai_generated(_jpeg_bytes(), file_name="photo.jpg")
+            with patch(PROBE_PROB, return_value=0.35):
+                susp = detect_ai_generated(_jpeg_bytes(), file_name="photo.jpg")
+            with patch(PROBE_PROB, return_value=0.70):
+                high = detect_ai_generated(_jpeg_bytes(), file_name="photo.jpg")
 
     low_out = apply_integrity_evaluation_policy({**base, "ai_detection": low})
     susp_out = apply_integrity_evaluation_policy({**base, "ai_detection": susp})
@@ -132,6 +146,25 @@ def test_probe_integrity_flow() -> None:
     assert susp_out["xp_pending"] is True
     assert high_out["xp_eligible"] is False
     assert high_out["xp_pending"] is True
+
+
+def test_probe_integrity_flow_unverified_provenance_holds_xp() -> None:
+    """Low visual PROBE with absent provenance must stay xp_pending (production policy)."""
+    base = {
+        "criteria": [],
+        "overall_score": 4.0,
+        "legacy": {"overall_score": 0.8},
+        "ai_feedback": "Quality feedback.",
+    }
+    absent = CameraProvenanceResult("absent", reasons=[], safe_fields=[])
+    with patch(PROBE_BACKEND, return_value="probe"):
+        with patch(_PROV_PATCH, return_value=absent):
+            with patch(PROBE_PROB, return_value=0.15):
+                low = detect_ai_generated(_jpeg_bytes(), file_name="photo.jpg")
+    out = apply_integrity_evaluation_policy({**base, "ai_detection": low})
+    assert low.get("requires_review") is True
+    assert out["xp_eligible"] is False
+    assert out["xp_pending"] is True
 
 
 def test_univfd_still_fuses_when_backend_univfd() -> None:

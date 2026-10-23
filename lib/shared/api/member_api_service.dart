@@ -108,8 +108,9 @@ class MemberApiService {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<List<Map<String, dynamic>>> getEvents() async {
-    final data = await apiClient.get('/events');
+  /// Option C scopes: `assignments` | `campus` (members), `my-requests` | `campus` (requestors).
+  Future<List<Map<String, dynamic>>> getEvents({required String scope}) async {
+    final data = await apiClient.get('/events', queryParameters: {'scope': scope});
     return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 

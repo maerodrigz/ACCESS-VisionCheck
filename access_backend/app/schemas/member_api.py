@@ -44,7 +44,63 @@ class AssignTeamBody(BaseModel):
     replaces_assignment_id: int | None = None
 
 
+class EventCampusOut(BaseModel):
+    """Public campus calendar row (Option C — All Events)."""
+
+    id: int
+    title: str
+    start_date: date
+    end_date: date | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    venue: str | None = None
+    location: str | None = None
+    status: str = "upcoming"
+
+
+class EventMemberAssignmentOut(BaseModel):
+    """Member assignment calendar row (Option C — My Assignments)."""
+
+    id: int
+    request_id: int
+    title: str
+    description: str | None = None
+    start_date: date
+    end_date: date | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    venue: str | None = None
+    location: str | None = None
+    status: str = "upcoming"
+    request_status: str | None = None
+    assigned_member_name: str | None = None
+    documentation_team: list[str] = Field(default_factory=list)
+    assignment_id: int
+    assignment_status: str
+    task_role: str
+
+
+class EventRequestorOut(BaseModel):
+    """Requestor-owned documentation event (Option C — My Requests)."""
+
+    id: int
+    request_id: int
+    title: str
+    description: str | None = None
+    start_date: date
+    end_date: date | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    venue: str | None = None
+    location: str | None = None
+    status: str = "upcoming"
+    request_status: str | None = None
+    documentation_team: list[str] = Field(default_factory=list)
+
+
 class EventOut(BaseModel):
+    """Deprecated aggregate shape; kept for internal mapping only."""
+
     id: int
     request_id: int | None = None
     title: str
@@ -252,7 +308,7 @@ class ParticipationOut(BaseModel):
     evaluations_today: int = 0
     daily_evaluation_limit: int = 5
     evaluation_max_upload_mb: int = 350
-    evaluation_max_video_seconds: int = 30
+    evaluation_max_video_seconds: int = 20
     evaluation_daily_timezone: str = "Asia/Manila"
     average_score: float
     total_points: int

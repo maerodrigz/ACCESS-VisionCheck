@@ -116,6 +116,40 @@ def release_member_evaluation_scores(
             data["gemini_feedback"] = feedback
         data["gemini_generated_at"] = datetime.now(timezone.utc).isoformat()
 
+    # Remove outdated review-only messages after administrator approval.
+    # Preserve legitimate technical feedback and any generated Gemini explanation.
+    from app.services.integrity_evaluation_policy import (
+        _PARTIAL_PROVENANCE_MEMBER_MESSAGE,
+        _SOURCE_UNVERIFIED_MEMBER_MESSAGE,
+        _SUSPICIOUS_MEMBER_MESSAGE,
+        _AI_GENERATED_MEMBER_MESSAGE,
+    )
+
+    stale_messages = (
+        _PARTIAL_PROVENANCE_MEMBER_MESSAGE,
+        _SOURCE_UNVERIFIED_MEMBER_MESSAGE,
+        _SUSPICIOUS_MEMBER_MESSAGE,
+        _AI_GENERATED_MEMBER_MESSAGE,
+        MEMBER_UNDER_REVIEW_MESSAGE,
+    )
+
+    data.pop("member_integrity_message", None)
+    data.pop("review_gate_message", None)
+
+    if isinstance(data.get("ai_feedback"), str):
+        cleaned = data["ai_feedback"].strip()
+        for warning in stale_messages:
+            if cleaned.startswith(warning):
+                cleaned = cleaned[len(warning):].strip()
+        data["ai_feedback"] = cleaned
+
+    if isinstance(ev.feedback, str):
+        cleaned = ev.feedback.strip()
+        for warning in stale_messages:
+            if cleaned.startswith(warning):
+                cleaned = cleaned[len(warning):].strip()
+        ev.feedback = cleaned
+
     ev.criteria_json = json.dumps(data)
     if isinstance(data.get("gemini_feedback"), dict):
         explanation = data["gemini_feedback"].get("explanation")

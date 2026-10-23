@@ -47,6 +47,18 @@ def _is_practice_eval_video_file_name(file_name: str) -> bool:
     return ext in _PRACTICE_VIDEO_EXTENSIONS
 
 
+def is_evaluation_category_video(media: MediaFile) -> bool:
+    """Practice evaluation upload (not event documentation) that is a video container."""
+    if getattr(media, "media_category", None) != MEDIA_CATEGORY_EVALUATION:
+        return False
+    return _is_practice_eval_video_file_name(_pipeline_eval_file_name(media))
+
+
+def _ignore_client_preview_authenticity_for_video(media: MediaFile) -> bool:
+    """Evaluation videos must not reuse client-supplied ai_detection on save."""
+    return is_evaluation_category_video(media)
+
+
 def _video_ai_scan_incomplete(ai_info: dict | None) -> bool:
     """True when a video upload has no completed PROBE/UnivFD authenticity result."""
     if not isinstance(ai_info, dict) or not ai_info:
@@ -120,6 +132,12 @@ def run_pipeline(
         return None
     payload: dict = {}
     preview = _payload_from_preview_metadata(evaluation_metadata)
+    if preview is not None and _ignore_client_preview_authenticity_for_video(media):
+        logger.info(
+            "practice eval video: ignoring full preview metadata; server authenticity required media_id=%s",
+            media.id,
+        )
+        preview = None
     quality_preview = _quality_preview_from_metadata(evaluation_metadata) if preview is None else None
 
     if preview is not None:
@@ -376,7 +394,8 @@ def _should_notify_admin_ai_flag(
     if not settings_crud.is_notification_enabled(db, "notify_system_alerts"):
         return False
 
-    if isinstance(ai_info, dict) and str(ai_info.get("detector_backend", "")).strip().lower() == "probe":
+    backend = str(ai_info.get("detector_backend", "")).strip().lower() if isinstance(ai_info, dict) else ""
+    if backend in ("probe", "waverep_g4"):
         return bool(ai_info.get("requires_review"))
 
     label = (ai_label or "").lower()
@@ -396,18 +415,21 @@ def _ai_from_payload(ai_info: dict) -> tuple[float, str, str]:
     if prob_raw is None and ai_info.get("raw_detector_probability") is not None:
         prob_raw = ai_info.get("raw_detector_probability")
     synthetic_prob = float(prob_raw) if prob_raw is not None else None
-    is_probe = str(ai_info.get("detector_backend", "")).strip().lower() == "probe"
+    backend = str(ai_info.get("detector_backend", "")).strip().lower()
+    is_probe = backend == "probe"
+    is_waverep = backend == "waverep_g4"
+    uses_raw_prob = is_probe or is_waverep
 
     if verdict == "suspicious":
         prob = synthetic_prob if synthetic_prob is not None else confidence
-        if not is_probe:
+        if not uses_raw_prob:
             prob = min(0.74, prob)
         return round(prob, 3), "suspicious", detail or (
             "Suspicious indicators detected. Officers will review this submission carefully."
         )
     if verdict in ("ai_generated", "ai"):
         prob = synthetic_prob if synthetic_prob is not None else confidence
-        if not is_probe:
+        if not uses_raw_prob:
             prob = max(0.75, prob)
         return round(prob, 3), "ai_generated", detail or (
             "Possible AI-generated content flagged for officer review."
@@ -417,11 +439,12 @@ def _ai_from_payload(ai_info: dict) -> tuple[float, str, str]:
     else:
         # Authentic verdict stores human confidence (1 - synthetic probability).
         prob = max(0.0, min(0.98, 1.0 - confidence))
-    low_risk_default = (
-        "Low AI authenticity risk (PROBE). This is not proof of human origin."
-        if is_probe
-        else "Automated scan indicates authentic human-uploaded media."
-    )
+    if is_waverep:
+        low_risk_default = "Low AI authenticity risk (WaveRep G4). This is not proof of human origin."
+    elif is_probe:
+        low_risk_default = "Low AI authenticity risk (PROBE). This is not proof of human origin."
+    else:
+        low_risk_default = "Automated scan indicates authentic human-uploaded media."
     return round(prob, 3), "human", detail or low_risk_default
 
 

@@ -26,6 +26,8 @@ class MediaFile(Base):
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
     file_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     file_url: Mapped[str] = mapped_column(Text, nullable=False)
+    # SHA-256 hex of upload bytes; member_evaluation only. Legacy rows may be NULL.
+    file_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     uploaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )

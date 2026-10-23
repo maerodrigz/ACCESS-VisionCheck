@@ -12,6 +12,16 @@ sys.path.insert(0, str(ROOT))
 
 import httpx
 
+_env_file = os.environ.get("ACCESS_ENV_FILE", ".env.waverep_test")
+_env_path = ROOT / _env_file
+if _env_path.is_file():
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(_env_path, override=True)
+    except ImportError:
+        pass
+
 from app.config import settings
 from app.services.email_delivery import is_email_configured
 from app.services.supabase_storage import is_supabase_storage_configured

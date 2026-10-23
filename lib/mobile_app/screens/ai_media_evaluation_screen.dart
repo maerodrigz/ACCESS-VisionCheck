@@ -82,7 +82,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
 
   String get _maxVideoLengthLabel {
     final sec = appState.evaluationMaxVideoSeconds;
-    if (sec <= 0) return '30 seconds';
+    if (sec <= 0) return '20 seconds';
     if (sec == 1) return '1 second';
     return '$sec seconds';
   }

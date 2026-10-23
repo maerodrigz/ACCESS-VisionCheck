@@ -7,8 +7,13 @@ from dotenv import load_dotenv
 from pydantic import AliasChoices, Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.env_bootstrap import active_env_file_path, bootstrap_environment
+
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 ENV_FILE = BACKEND_ROOT / ".env"
+
+# Before Settings() — includes uvicorn reload workers (ACCESS_ENV_FILE from parent).
+bootstrap_environment()
 
 
 class Settings(BaseSettings):
@@ -71,7 +76,7 @@ class Settings(BaseSettings):
     max_upload_mb: int = 100
     # Practice evaluation uploads (short clips; can exceed 100 MB at higher quality).
     evaluation_max_upload_mb: int = Field(default=350, alias="EVALUATION_MAX_UPLOAD_MB")
-    evaluation_max_video_seconds: int = Field(default=30, alias="EVALUATION_MAX_VIDEO_SECONDS")
+    evaluation_max_video_seconds: int = Field(default=20, alias="EVALUATION_MAX_VIDEO_SECONDS")
     evaluation_video_sample_frames: int = Field(default=4, alias="EVALUATION_VIDEO_SAMPLE_FRAMES")
 
     # Firebase Storage — photos/videos (optional; mobile can also send cloud_file_url)
@@ -106,6 +111,17 @@ class Settings(BaseSettings):
     probe_checkpoint_path: str = Field(default="", alias="PROBE_CHECKPOINT_PATH")
     probe_low_risk_threshold: float = Field(default=0.30, alias="PROBE_LOW_RISK_THRESHOLD")
     probe_high_risk_threshold: float = Field(default=0.45, alias="PROBE_HIGH_RISK_THRESHOLD")
+
+    # WaveRep G4 — practice-video AI authenticity (off until module + checkpoint are installed).
+    waverep_enabled: bool = Field(default=False, alias="WAVEREP_ENABLED")
+    waverep_module_dir: str = Field(default="ml/waverep", alias="WAVEREP_MODULE_DIR")
+    waverep_checkpoint_path: str = Field(
+        default="ml/waverep/demo/weights/weights_dinov2_G4.ckpt",
+        alias="WAVEREP_CHECKPOINT_PATH",
+    )
+    waverep_device: str = Field(default="cpu", alias="WAVEREP_DEVICE")
+    waverep_samples: int = Field(default=20, alias="WAVEREP_SAMPLES")
+    waverep_min_successful_frames: int = Field(default=1, alias="WAVEREP_MIN_SUCCESSFUL_FRAMES")
 
     max_media_evaluation_workers: int = Field(default=1, alias="MAX_MEDIA_EVALUATION_WORKERS")
 
@@ -198,7 +214,11 @@ settings = Settings()
 
 
 def reload_dotenv_file() -> None:
-    """Reload access_backend/.env into os.environ (dev: pick up edits without full restart)."""
+    """Reload the active env file into os.environ (dev: pick up edits without full restart)."""
+    selected = active_env_file_path()
+    if selected is not None:
+        load_dotenv(selected, override=True)
+        return
     if ENV_FILE.is_file():
         load_dotenv(ENV_FILE, override=True)
 

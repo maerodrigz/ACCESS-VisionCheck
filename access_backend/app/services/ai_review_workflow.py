@@ -162,8 +162,6 @@ def apply_ai_review(
                 awarded = _award_pending_evaluation_xp(db, row.media_id, member_id)
                 if awarded > 0:
                     message = f"{message} +{awarded} XP applied to your total."
-            if review_status in CONFIRMED_AI_STATUSES:
-                message = f"{message} −25 XP applied to your total."
             priority = "high" if review_status in ("rejected", "confirmed_ai_generated", "verified_ai_generated") else "normal"
             notify_events.notify_user(
                 db,
@@ -175,9 +173,6 @@ def apply_ai_review(
                 action_type="view_result",
                 action_ref_id=row.media_id,
             )
-
-        if member_id and review_status in CONFIRMED_AI_STATUSES:
-            ranking_crud.add_points(db, member_id, -25)
 
         if member_id:
             from app.crud import user as user_crud
@@ -231,6 +226,12 @@ def _is_probe_ai_detection(ai_detection: dict | None) -> bool:
     return str(ai_detection.get("detector_backend", "")).strip().lower() == "probe"
 
 
+def _is_waverep_ai_detection(ai_detection: dict | None) -> bool:
+    if not ai_detection:
+        return False
+    return str(ai_detection.get("detector_backend", "")).strip().lower() == "waverep_g4"
+
+
 def initial_review_status(
     detection_result: str,
     ai_probability: float,
@@ -239,6 +240,15 @@ def initial_review_status(
 ) -> str:
     """Set fair initial status after automated scan — never auto-reject."""
     from app.services.ai_authenticity_detector import SUSPICIOUS_THRESHOLD
+
+    if _is_waverep_ai_detection(ai_detection):
+        if ai_detection.get("waverep_analysis_unavailable") or ai_detection.get("requires_review") is True:
+            risk = str(ai_detection.get("risk_level", "")).lower()
+            label = (detection_result or "").lower()
+            if risk == "high" or label in ("ai_generated", "ai") or "generated" in label:
+                return "pending_review"
+            return "needs_further_review"
+        return PROBE_LOW_RISK_REVIEW_STATUS
 
     if _is_probe_ai_detection(ai_detection):
         if ai_detection.get("requires_review") is True:

@@ -22,12 +22,18 @@ class MemberCalendarEventCard extends StatelessWidget {
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
+  bool _isPrimaryScopeEvent(CalendarEvent event) {
+    return appState.myCalendarEvents.any(
+      (e) =>
+          (event.id != null && e.id == event.id) ||
+          (event.requestId != null && e.requestId == event.requestId),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final muted = event.isPast;
-    final isMine = forRequestor
-        ? requestorOwnsCalendarEvent(event)
-        : memberIsAssignedToEvent(event);
+    final isMine = _isPrimaryScopeEvent(event);
     final accent = isMine ? kMemberPrimary : kMemberCyan;
 
     return Material(
@@ -158,9 +164,11 @@ class MemberCalendarUpcomingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMine = forRequestor
-        ? requestorOwnsCalendarEvent(event)
-        : memberIsAssignedToEvent(event);
+    final isMine = appState.myCalendarEvents.any(
+      (e) =>
+          (event.id != null && e.id == event.id) ||
+          (event.requestId != null && e.requestId == event.requestId),
+    );
     final accent = isMine ? kAccent : kCyan;
 
     final content = Padding(

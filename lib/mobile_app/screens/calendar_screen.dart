@@ -50,7 +50,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   String _searchQuery = '';
   bool _searchExpanded = false;
   bool _showAllUpcoming = false;
-  bool _myAssignmentsOnly = false;
+  bool _myAssignmentsOnly = true;
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
 
@@ -73,7 +73,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (!mounted) return;
       Future.microtask(() {
         if (!mounted) return;
-        if (appState.events.isEmpty) {
+        if (appState.events.isEmpty && appState.myCalendarEvents.isEmpty) {
           unawaited(memberDataController.ensureCalendarTab());
         }
       });
@@ -125,12 +125,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   List<CalendarEvent> get _visibleEvents {
-    var list = appState.events;
-    if (_myAssignmentsOnly) {
-      list = widget.forRequestor
-          ? list.where(requestorOwnsCalendarEvent).toList()
-          : list.where(memberHasActiveTaskForEvent).toList();
-    }
+    final list = _myAssignmentsOnly ? appState.myCalendarEvents : appState.events;
     return list.where(_matchesSearch).toList();
   }
 
@@ -149,18 +144,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   bool _dayHasMyAssignment(DateTime day) {
-    final dayEvents = appState.events.where((e) => _sameDay(e.startDate, day));
-    return widget.forRequestor
-        ? dayEvents.any(requestorOwnsCalendarEvent)
-        : dayEvents.any(memberHasActiveTaskForEvent);
+    return appState.myCalendarEvents.any((e) => _sameDay(e.startDate, day));
   }
 
   bool _dayHasGeneralEvent(DateTime day) {
     if (_myAssignmentsOnly) return false;
-    final dayEvents = appState.events.where((e) => _sameDay(e.startDate, day));
-    return widget.forRequestor
-        ? dayEvents.any((e) => !requestorOwnsCalendarEvent(e))
-        : dayEvents.any((e) => !memberHasActiveTaskForEvent(e));
+    return appState.events.any((e) => _sameDay(e.startDate, day));
   }
 
   bool _canPlanRequestOnDay(DateTime day) {
@@ -169,14 +158,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _openEventDetail(BuildContext context, CalendarEvent event) {
+    final isPrimaryScope = appState.myCalendarEvents.any(
+      (e) => e.id == event.id || (e.requestId != null && e.requestId == event.requestId),
+    );
     if (widget.forRequestor) {
-      showRequestorCampusEventDetail(context, event);
+      if (_myAssignmentsOnly || isPrimaryScope) {
+        showMemberEventDetail(context, event);
+      } else {
+        showRequestorCampusEventDetail(context, event);
+      }
     } else {
-      showMemberEventDetail(
-        context,
-        event,
-        onViewGallery: widget.onViewGallery,
-      );
+      if (_myAssignmentsOnly || isPrimaryScope) {
+        showMemberEventDetail(
+          context,
+          event,
+          onViewGallery: widget.onViewGallery,
+        );
+      } else {
+        showRequestorCampusEventDetail(context, event);
+      }
     }
   }
 
@@ -255,12 +255,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
               listenable: Listenable.merge([appState, memberDataController]),
               builder: (_, __) {
                 final syncing = memberDataController.calendarTabLoading &&
-                    appState.events.isEmpty;
+                    appState.events.isEmpty &&
+                    appState.myCalendarEvents.isEmpty;
                 final loadError = memberDataController.calendarTabError;
                 if (syncing) {
                   return const MobileLoadingView(message: 'Loading calendar…');
                 }
-                if (loadError != null && appState.events.isEmpty) {
+                if (loadError != null &&
+                    appState.events.isEmpty &&
+                    appState.myCalendarEvents.isEmpty) {
                   return RefreshIndicator(
                     color: primaryAction,
                     onRefresh: memberDataController.refreshCalendarTab,

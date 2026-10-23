@@ -5,6 +5,7 @@ ACCESS VisionCheck — project management CLI (Django-style).
 Usage:
   python manage.py runserver
   python manage.py runserver --port 3001
+  python manage.py runserver --env-file .env.waverep_test --host 127.0.0.1 --port 3002
   python manage.py create_tables
   python manage.py check
 """
@@ -16,9 +17,7 @@ import sys
 
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv(Path(__file__).resolve().parent / ".env")
+BACKEND_DIR = Path(__file__).resolve().parent
 
 
 def cmd_runserver(args: argparse.Namespace) -> None:
@@ -128,6 +127,12 @@ def main() -> None:
         description="ACCESS VisionCheck backend management",
         prog="manage.py",
     )
+    parser.add_argument(
+        "--env-file",
+        type=Path,
+        default=None,
+        help="Optional env file (e.g. .env.waverep_test). Loaded before app settings and DB engine.",
+    )
     sub = parser.add_subparsers(dest="command", help="Available commands")
 
     # python manage.py runserver
@@ -195,7 +200,15 @@ def main() -> None:
 
     if not args.command:
         # Default to runserver when no command given (like many Django workflows)
-        args = parser.parse_args(["runserver"])
+        args = parser.parse_args(["runserver"] + sys.argv[1:])
+
+    from app.env_bootstrap import bootstrap_environment
+
+    try:
+        bootstrap_environment(args.env_file)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
 
     args.func(args)
 

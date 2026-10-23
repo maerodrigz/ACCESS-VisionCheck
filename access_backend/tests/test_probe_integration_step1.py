@@ -12,9 +12,10 @@ from app.services import dedicated_ai_detector as det
 from app.services import probe_dino_detector as probe_det
 
 
-def test_default_backend_is_univfd() -> None:
-    assert settings.ai_detector_backend == "univfd"
-    assert det.active_ai_detector_backend() == "univfd"
+def test_default_backend_is_probe() -> None:
+    """Isolated stack and app default use PROBE (see app/config.py)."""
+    assert settings.ai_detector_backend == "probe"
+    assert det.active_ai_detector_backend() == "probe"
 
 
 def test_probe_backend_routes_to_probe_service() -> None:

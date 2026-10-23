@@ -186,26 +186,27 @@ def create_service_request(
     from app.services import notification_events as notify_events
     from app.services.schedule_conflict import validate_request_schedule
 
-    try:
-        validate_request_schedule(
-            db,
-            event_date=body.event_date,
-            start_time=body.start_time,
-            end_time=body.end_time,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
     existing = req_crud.find_recent_duplicate(
         db,
         current_user.id,
         body.title,
         body.event_date,
+        start_time=body.start_time,
+        end_time=body.end_time,
     )
     created = False
     if existing:
         row = existing
     else:
+        try:
+            validate_request_schedule(
+                db,
+                event_date=body.event_date,
+                start_time=body.start_time,
+                end_time=body.end_time,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         row = req_crud.create(
             db,
             current_user.id,
@@ -278,6 +279,13 @@ def update_service_request_status(
                 detail="At least one assigned member must accept coverage before marking completed.",
             )
     req_crud.update_status(db, row, body.status, body.rejection_reason)
+    row = req_crud.get(db, request_id)
+    assert row is not None
+    from app.crud import event_calendar as event_cal_crud
+
+    event_cal_crud.sync_calendar_from_request(db, row)
+    db.commit()
+
     from app.services import notification_events as notify_events
 
     notify_events.notify_documentation_request_status(
@@ -334,6 +342,10 @@ def reschedule_service_request(
         start_time=body.start_time,
         end_time=body.end_time,
     )
+    from app.crud import event_calendar as event_cal_crud
+
+    event_cal_crud.sync_calendar_from_request(db, row)
+    db.commit()
 
     requestor_name = current_user.fullname or current_user.email
     try:

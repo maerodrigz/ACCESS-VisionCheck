@@ -27,14 +27,14 @@ def test_module_imports() -> None:
 
 
 def test_available_false_when_fc_weights_missing() -> None:
-    with patch.object(det, "active_ai_detector_backend", return_value="univfd"):
+    with patch.object(det, "_active_detector_backend", return_value="univfd"):
         with patch.object(det, "_FC_WEIGHTS_PATH") as mock_fc:
             mock_fc.is_file.return_value = False
             assert det.dedicated_detector_available() is False
 
 
 def test_available_false_when_clip_backbone_missing() -> None:
-    with patch.object(det, "active_ai_detector_backend", return_value="univfd"):
+    with patch.object(det, "_active_detector_backend", return_value="univfd"):
         with patch.object(det, "_FC_WEIGHTS_PATH") as mock_fc:
             with patch.object(det, "_CLIP_BACKBONE_PATH") as mock_clip:
                 mock_fc.is_file.return_value = True
@@ -71,7 +71,7 @@ def test_dedicated_ai_probability_with_mocked_model() -> None:
     import torch
 
     mock_model = MagicMock(return_value=torch.tensor([[1.5]]))
-    with patch.object(det, "active_ai_detector_backend", return_value="univfd"):
+    with patch.object(det, "_active_detector_backend", return_value="univfd"):
         with patch.object(det, "_univfd_detector_available", return_value=True):
             with patch.object(det, "_get_model", return_value=mock_model):
                 prob = det.dedicated_ai_probability(_jpeg_bytes())
@@ -90,8 +90,9 @@ def test_detect_ai_generated_response_structure_without_neural() -> None:
 
 
 def test_detect_ai_generated_uses_neural_signal_when_mocked() -> None:
-    with patch("app.services.ai_authenticity_detector.dedicated_ai_probability", return_value=0.72):
-        result = detect_ai_generated(_jpeg_bytes(), file_name="sample.jpg")
+    with patch("app.services.ai_authenticity_detector.active_ai_detector_backend", return_value="univfd"):
+        with patch("app.services.ai_authenticity_detector.dedicated_ai_probability", return_value=0.72):
+            result = detect_ai_generated(_jpeg_bytes(), file_name="sample.jpg")
     assert "neural" in result["signals"]
     assert result["signals"]["neural"] > 0
 

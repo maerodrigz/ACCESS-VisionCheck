@@ -10,8 +10,9 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_approved
+from app.models.enums import RoleName
 from app.crud import media as media_crud
-from app.crud import media as media_crud
+from app.crud.media import EvaluationDuplicateUploadError
 from app.crud import system_settings as settings_crud
 from app.database import get_db
 from app.models.media_file import MediaFile
@@ -25,6 +26,7 @@ from app.models.user import User
 from app.schemas.member_api import MediaEvaluateOut, MediaOut
 from app.services.deferred_media_pipeline import media_processing_status, schedule_deferred_media_evaluation
 from app.services.upload_bytes_cache import stash_evaluation_upload
+from app.services.member_score_release import member_may_view_scores
 from app.services.media_evaluator import evaluate_bytes
 from app.services.media_upload_config import (
     assert_evaluation_video_duration,
@@ -33,9 +35,17 @@ from app.services.media_upload_config import (
     is_video_extension,
     rules_for_category,
 )
+from app.services.media_file_hash import (
+    EVALUATION_DUPLICATE_UPLOAD_MESSAGE,
+    sha256_hex,
+)
 from app.services.supabase_storage import normalize_supabase_storage_url
 
 router = APIRouter(prefix="/media", tags=["Media"])
+
+
+def _raise_evaluation_duplicate() -> None:
+    raise HTTPException(status_code=409, detail=EVALUATION_DUPLICATE_UPLOAD_MESSAGE)
 
 
 def _ensure_upload_dir() -> Path:
@@ -76,6 +86,18 @@ def _validate_upload_file(db: Session, ext: str, content: bytes, media_category:
 def _media_out(m, base_url: str | None = None) -> MediaOut:
     ev = m.evaluations[-1] if m.evaluations else None
     ai = m.ai_detection_results[-1] if m.ai_detection_results else None
+    import json
+
+    criteria = {}
+    if ev and ev.criteria_json:
+        try:
+            criteria = json.loads(ev.criteria_json)
+        except (ValueError, TypeError):
+            criteria = {}
+
+    review_status = ai.review_status if ai else None
+    show_scores = member_may_view_scores(criteria, review_status)
+
     storage_removed = getattr(m, "storage_removed_at", None) is not None
     url = "" if storage_removed else normalize_supabase_storage_url(m.file_url or "")
     if base_url and url.startswith("/"):
@@ -88,10 +110,10 @@ def _media_out(m, base_url: str | None = None) -> MediaOut:
         file_type=m.file_type,
         file_url=url,
         uploaded_at=m.uploaded_at,
-        overall_score=ev.overall_score if ev else None,
+        overall_score=ev.overall_score if ev and show_scores else 0.0 if ev else None,
         ai_detected=ai.detection_result == "ai_generated" if ai else False,
         ai_probability=ai.ai_probability if ai else None,
-        feedback=ev.feedback if ev else None,
+        feedback=ev.feedback if ev and show_scores else None,
         processing_status=media_processing_status(m),
         storage_removed=storage_removed,
     )
@@ -135,6 +157,12 @@ def list_media(
         request_id=request_id,
         media_category=media_category,
     )
+    if current_user.role.role_name != RoleName.ADMIN:
+        items = [
+            m for m in items
+            if m.media_category != MEDIA_CATEGORY_EVALUATION
+            or m.uploaded_by == current_user.id
+        ]
     return [_media_out(m) for m in items]
 
 
@@ -146,6 +174,12 @@ def get_media(
 ):
     m = media_crud.get(db, media_id)
     if not m:
+        raise HTTPException(status_code=404, detail="Media not found")
+    if (
+        m.media_category == MEDIA_CATEGORY_EVALUATION
+        and m.uploaded_by != current_user.id
+        and current_user.role.role_name != RoleName.ADMIN
+    ):
         raise HTTPException(status_code=404, detail="Media not found")
     return _media_out(m)
 
@@ -225,6 +259,7 @@ async def upload_media(
     file_type = "video" if is_video else "photo"
 
     approval_status = APPROVAL_NOT_APPLICABLE
+    evaluation_file_hash: str | None = None
 
     if media_category == MEDIA_CATEGORY_EVALUATION:
         if not settings_crud.is_ai_media_evaluation_enabled(db):
@@ -232,6 +267,13 @@ async def upload_media(
                 status_code=503,
                 detail="AI media evaluation is disabled by the system administrator.",
             )
+        evaluation_file_hash = sha256_hex(content)
+        try:
+            media_crud.assert_member_evaluation_not_duplicate(
+                db, user_id=current_user.id, file_hash=evaluation_file_hash
+            )
+        except EvaluationDuplicateUploadError:
+            _raise_evaluation_duplicate()
         eval_rules = evaluation_rules(db)
         daily_limit = int(eval_rules["max_files_per_day"])
         if _member_evaluations_today(db, current_user.id) >= daily_limit:
@@ -282,19 +324,23 @@ async def upload_media(
         dest.write_bytes(content)
         stored_url = f"/uploads/{rel_path}"
 
-    row = media_crud.create(
-        db,
-        {
-            "uploaded_by": current_user.id,
-            "request_id": request_id,
-            "file_name": display_name,
-            "file_type": file_type,
-            "file_url": stored_url,
-            "media_category": media_category,
-            "approval_status": approval_status,
-            "facebook_publish_status": FB_NOT_PUBLISHED,
-        },
-    )
+    create_payload: dict = {
+        "uploaded_by": current_user.id,
+        "request_id": request_id,
+        "file_name": display_name,
+        "file_type": file_type,
+        "file_url": stored_url,
+        "media_category": media_category,
+        "approval_status": approval_status,
+        "facebook_publish_status": FB_NOT_PUBLISHED,
+    }
+    if evaluation_file_hash is not None:
+        create_payload["file_hash"] = evaluation_file_hash
+    try:
+        row = media_crud.create(db, create_payload)
+    except EvaluationDuplicateUploadError:
+        media_crud.discard_stored_upload_blob(stored_url)
+        _raise_evaluation_duplicate()
     row = media_crud.get(db, row.id)
     if is_event and request_id is not None:
         from app.services import notification_events as notify_events

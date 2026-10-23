@@ -114,9 +114,20 @@ def test_background_pipeline_runs_full_evaluate_when_metadata_deferred() -> None
         }
     )
 
-    user = MagicMock(fullname="Member")
+    user = MagicMock(fullname="Member", id=2)
+    auth_payload = {
+        "verdict": "authentic",
+        "probability": 0.1,
+        "confidence": 0.9,
+        "detail": "d",
+        "requires_review": False,
+        "detector_backend": "probe",
+    }
     with patch("app.services.media_pipeline.eval_crud.get_for_media", return_value=None):
-        with patch("app.services.media_pipeline.evaluate_bytes", return_value={"legacy": {"overall_score": 0.8}, "ai_detection": {"verdict": "authentic", "probability": 0.1, "confidence": 0.9, "detail": "d"}, "criteria": [{"name": "Sharpness", "score": 4}], "overall_score": 4.0, "xp_eligible": True}) as ev:
+        with patch(
+            "app.services.media_pipeline.evaluate_authenticity_bytes",
+            return_value=auth_payload,
+        ) as ev_auth:
             with patch("app.services.media_pipeline.merge_client_gemini", side_effect=lambda p, _m: p):
                 with patch("app.services.media_pipeline.scores_from_payload", return_value={"overall_score": 0.8, "sharpness_score": 0.8, "brightness_score": 0.8, "contrast_score": 0.8, "blur_score": 0.8, "noise_score": 0.8}):
                     with patch("app.services.media_pipeline.eval_crud.create_evaluation", return_value=MagicMock()):
@@ -125,12 +136,21 @@ def test_background_pipeline_runs_full_evaluate_when_metadata_deferred() -> None
                                 with patch("app.services.media_pipeline.user_crud.recalculate_skill_level"):
                                     with patch("app.services.media_pipeline.ranking_crud.add_points"):
                                         with patch(
-                                            "app.services.ai_review_workflow.initial_review_status",
-                                            return_value="verified_human",
+                                            "app.crud.member_profile.evaluations_stats",
+                                            return_value=(1, 0.8),
                                         ):
-                                            run_pipeline(db, media, b"bytes", evaluation_metadata=deferred_meta)
+                                            with patch(
+                                                "app.services.member_milestones.on_evaluation_completed"
+                                            ):
+                                                with patch(
+                                                    "app.services.ai_review_workflow.initial_review_status",
+                                                    return_value="verified_human",
+                                                ):
+                                                    run_pipeline(
+                                                        db, media, b"bytes", evaluation_metadata=deferred_meta
+                                                    )
 
-    ev.assert_called_once()
+    ev_auth.assert_called_once()
 
 
 def test_gemini_quality_fields_present_on_preview() -> None:

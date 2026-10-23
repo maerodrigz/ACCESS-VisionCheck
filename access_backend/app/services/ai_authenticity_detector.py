@@ -337,6 +337,22 @@ def detect_ai_generated_from_frames(
     video_ext: str = ".mp4",
 ) -> dict[str, Any]:
     """Scan multiple video frames and keep the strongest synthetic-media signal."""
+    from app.services.waverep_g4_detector import (
+        detect_ai_generated_video,
+        is_waverep_video_detection_enabled,
+    )
+
+    if is_waverep_video_detection_enabled():
+        if video_content:
+            return detect_ai_generated_video(
+                video_content,
+                video_ext=video_ext,
+                file_name=file_name,
+            )
+        from app.services.waverep_g4_detector import waverep_analysis_unavailable_payload
+
+        return waverep_analysis_unavailable_payload("missing video bytes for WaveRep")
+
     from app.services.camera_provenance import classify_video_container_provenance
     from app.services.probe_provenance_policy import apply_probe_provenance_policy
 

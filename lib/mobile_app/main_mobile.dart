@@ -37,6 +37,10 @@ void main() async {
   await ApiConfig.runtimeBaseUrl.load();
   await ApiConfig.clearStaleEmulatorBackendOverride();
   await ApiConfig.loadBundledMobileBackendDefault();
+  if (ApiConfig.apiBaseUrlOverride.isNotEmpty ||
+      ApiConfig.apiPublicHostOverride.isNotEmpty) {
+    apiClient.resetConnection();
+  }
   await apiClient.warmUpConnection();
   await authController.waitForInitialization();
   // Branding loads on the splash screen so the branded UI appears immediately.

@@ -18,6 +18,10 @@ from app.services.integrity_evaluation_policy import (
 )
 from app.services.opencv_quality import analyze_image_bytes as opencv_analyze
 from app.services.opencv_quality import opencv_available
+from app.services.supplementary_quality_insights import (
+    build_photo_supplementary_insights,
+    build_video_supplementary_insights,
+)
 
 
 SCORING_ENGINE = "efficientnet-b0+ffmpeg"
@@ -109,6 +113,7 @@ def evaluate_photo(content: bytes, *, file_name: str = "", include_authenticity:
         return None
     criteria = _photo_criteria(metrics)
     warnings = _quality_warnings(metrics)
+    supplementary = build_photo_supplementary_insights(content)
     return _build_payload(
         criteria,
         media_type="photo",
@@ -116,6 +121,7 @@ def evaluate_photo(content: bytes, *, file_name: str = "", include_authenticity:
         content=content,
         file_name=file_name,
         include_authenticity=include_authenticity,
+        supplementary_insights=supplementary,
     )
 
 
@@ -143,6 +149,11 @@ def evaluate_video(
         _motion_stability(frame_metrics),
     ]
     warnings = _quality_warnings(averaged)
+    supplementary = build_video_supplementary_insights(
+        frame_bytes,
+        video_content=content,
+        video_ext=ext,
+    )
     sample_frame = frame_bytes[len(frame_bytes) // 2]
     ai_payload = (
         detect_ai_generated_from_frames(
@@ -162,6 +173,7 @@ def evaluate_video(
         file_name=file_name,
         ai_detection=ai_payload,
         include_authenticity=include_authenticity,
+        supplementary_insights=supplementary,
     )
     payload["analysis"] = {
         "engine": SCORING_ENGINE,
@@ -412,6 +424,7 @@ def _build_payload(
     file_name: str = "",
     ai_detection: dict[str, Any] | None = None,
     include_authenticity: bool = True,
+    supplementary_insights: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     overall = round(sum(c["score"] for c in criteria) / len(criteria), 2)
     quality_level = (
@@ -470,6 +483,8 @@ def _build_payload(
         "quality_warnings": quality_warnings,
         "legacy": legacy,
     }
+    if supplementary_insights:
+        payload["additional_quality_insights"] = supplementary_insights
     if include_authenticity:
         return apply_integrity_evaluation_policy(payload)
     return _apply_preview_integrity_policy(payload)

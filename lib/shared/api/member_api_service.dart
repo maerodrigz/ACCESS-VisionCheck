@@ -225,13 +225,15 @@ class MemberApiService {
   /// Full evaluation row (includes criteria_json) after deferred pipeline completes.
   Future<Map<String, dynamic>?> getEvaluationRowForMedia(int mediaId) async {
     if (mediaId <= 0) return null;
-    final rows = await getEvaluations();
-    for (final row in rows) {
-      if ((row['media_id'] as num?)?.toInt() == mediaId) {
-        return row;
-      }
-    }
-    return null;
+    final data = await apiClient.get(
+      '/evaluations',
+      queryParameters: {'mine': 'true', 'media_id': '$mediaId'},
+      timeout: const Duration(seconds: 45),
+    );
+    if (data is! List || data.isEmpty) return null;
+    final first = data.first;
+    if (first is! Map) return null;
+    return Map<String, dynamic>.from(first);
   }
 
   Future<List<Map<String, dynamic>>> getMedia({

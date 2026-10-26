@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
-import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
+import 'package:access_mobile/mobile_app/widgets/additional_quality_insights_panel.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_integrity_panels.dart';
 import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/shared/models/member_review_status.dart';
+import 'package:access_mobile/shared/utils/member_integrity_display.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_result_action_bar.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
@@ -161,8 +163,17 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
                 feedbackIsLocalFallback: _geminiFeedback == null &&
                     (widget.result.geminiFeedbackIsLocal || widget.fetchLiveGemini),
               ),
+              if (widget.result.hasAdditionalQualityInsights) ...[
+                const SizedBox(height: 10),
+                AdditionalQualityInsightsPanel(
+                  insights: widget.result.additionalQualityInsights!,
+                ),
+              ],
               const SizedBox(height: 10),
-            ] else ...[
+            ] else if (!memberShouldHideIntegrityOnlyReviewCard(
+              result: widget.result,
+              adminReviewStatus: widget.adminReviewStatus,
+            )) ...[
               IntegrityOnlyMessageCard(
                 result: widget.result,
                 layout: IntegrityOnlyCardLayout.resultCompact,
@@ -179,11 +190,13 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
               ),
               const SizedBox(height: 8),
             ],
-            AiDetectionBanner(
+            EvaluationIntegrityPanels(
               aiDetection: widget.result.aiDetection,
+              evaluationResult: widget.result,
               compact: true,
-              minimal: showQuality && !heldForReview && !widget.result.aiDetection.requiresReview,
-              practiceFinalCopy: true,
+              minimalAiDetail: showQuality &&
+                  !heldForReview &&
+                  !widget.result.aiDetection.requiresReview,
               adminReviewStatus: widget.adminReviewStatus,
             ),
             const SizedBox(height: 12),

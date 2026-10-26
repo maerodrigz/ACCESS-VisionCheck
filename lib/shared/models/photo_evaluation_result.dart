@@ -56,6 +56,14 @@ class AiDetectionResult {
     this.cameraProvenanceStrength,
     this.provenancePolicyOutcome,
     this.visualRiskLevel,
+    this.detectorBackend,
+    this.waverepFramesAnalyzed,
+    this.waverepRequestedFrames,
+    this.waverepProcessingStatus,
+    this.waverepAnalysisUnavailable,
+    this.exifMetadata,
+    this.provenanceContainerFields = const [],
+    this.isVideoProvenanceFlag,
   });
 
   final String verdict;
@@ -70,6 +78,17 @@ class AiDetectionResult {
   final String? cameraProvenanceStrength;
   final String? provenancePolicyOutcome;
   final String? visualRiskLevel;
+  final String? detectorBackend;
+  final int? waverepFramesAnalyzed;
+  final int? waverepRequestedFrames;
+  final String? waverepProcessingStatus;
+  final bool? waverepAnalysisUnavailable;
+  /// Stored `exif_metadata` from ai_detection when the backend includes it.
+  final Map<String, dynamic>? exifMetadata;
+  /// Container / EXIF field rows (`key`, `label`, `value`) from evaluation JSON.
+  final List<Map<String, String>> provenanceContainerFields;
+  /// Top-level `is_video_provenance` when present on ai_detection.
+  final bool? isVideoProvenanceFlag;
 
   bool get isDeferredAuthenticity =>
       analysisStatus == 'deferred' || isFinal == false || verdict == 'deferred';
@@ -110,7 +129,64 @@ class AiDetectionResult {
 
   bool get isCameraProvenanceStrong =>
       (cameraProvenanceStrength ?? '').toLowerCase() == 'strong';
+
+  bool get isCameraProvenancePartial =>
+      (cameraProvenanceStrength ?? '').toLowerCase() == 'partial' ||
+      (provenancePolicyOutcome ?? '').toLowerCase() == 'source_partially_verified';
+
+  bool get isCameraProvenanceAbsent {
+    final strength = (cameraProvenanceStrength ?? '').toLowerCase();
+    if (strength == 'absent') return true;
+    final outcome = (provenancePolicyOutcome ?? '').toLowerCase();
+    return outcome == 'source_unverified' && !isCameraProvenancePartial;
+  }
+
+  bool get isWaverepBackend =>
+      (detectorBackend ?? '').trim().toLowerCase() == 'waverep_g4';
+
+  bool get isAiAnalysisUnavailable =>
+      waverepAnalysisUnavailable == true ||
+      (waverepProcessingStatus ?? '').toLowerCase() == 'unavailable';
+
   bool get isBlocked => isAiGenerated;
+
+  static Map<String, dynamic>? _parseExifMetadata(dynamic raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  static List<Map<String, String>> _parseProvenanceFieldRows(Map<String, dynamic> ai) {
+    final rows = <Map<String, String>>[];
+    void ingest(dynamic source) {
+      if (source is! List) return;
+      for (final item in source) {
+        if (item is! Map) continue;
+        final m = Map<String, dynamic>.from(item);
+        final key = (m['key'] ?? m['label'] ?? '').toString().trim();
+        final label = (m['label'] ?? key).toString().trim();
+        final value = (m['value'] ?? '').toString().trim();
+        if (key.isEmpty && label.isEmpty) continue;
+        if (value.isEmpty) continue;
+        rows.add({'key': key.isEmpty ? label : key, 'label': label, 'value': value});
+      }
+    }
+
+    ingest(ai['camera_provenance_fields']);
+    final exif = _parseExifMetadata(ai['exif_metadata']);
+    if (exif != null) {
+      ingest(exif['fields']);
+    }
+    return rows;
+  }
+
+  static int? _waverepRequestedFromSupplementary(Map<String, dynamic> ai) {
+    final sup = ai['waverep_supplementary'];
+    if (sup is! Map) return null;
+    final m = Map<String, dynamic>.from(sup);
+    final raw = m['waverep_requested_frames'] ?? m['waverep_processed_frames'];
+    return (raw as num?)?.toInt();
+  }
 
   Map<String, dynamic> toJson() => {
         if (!isDeferredAuthenticity) 'verdict': verdict,
@@ -150,6 +226,15 @@ class AiDetectionResult {
       cameraProvenanceStrength: ai['camera_provenance_strength'] as String?,
       provenancePolicyOutcome: ai['provenance_policy_outcome'] as String?,
       visualRiskLevel: ai['visual_risk_level'] as String?,
+      detectorBackend: ai['detector_backend'] as String?,
+      waverepFramesAnalyzed: (ai['waverep_frames_analyzed'] as num?)?.toInt(),
+      waverepRequestedFrames: (ai['waverep_requested_frames'] as num?)?.toInt() ??
+          _waverepRequestedFromSupplementary(Map<String, dynamic>.from(ai)),
+      waverepProcessingStatus: ai['waverep_processing_status'] as String?,
+      waverepAnalysisUnavailable: ai['waverep_analysis_unavailable'] as bool?,
+      exifMetadata: _parseExifMetadata(ai['exif_metadata']),
+      provenanceContainerFields: _parseProvenanceFieldRows(ai),
+      isVideoProvenanceFlag: ai['is_video_provenance'] as bool?,
     );
   }
 }
@@ -280,6 +365,86 @@ String energeticFeedbackText(String text) {
   return '$opener!${rest.startsWith('.') ? rest.substring(1) : rest}';
 }
 
+/// Feedback-only color balance or composition hint (not part of the 1–5 rubric).
+class SupplementaryQualityInsight {
+  const SupplementaryQualityInsight({
+    required this.status,
+    required this.headline,
+    required this.feedback,
+  });
+
+  final String status;
+  final String headline;
+  final String feedback;
+
+  bool get isUnavailable => status == 'unavailable';
+
+  factory SupplementaryQualityInsight.fromJson(Map<String, dynamic>? j) {
+    if (j == null) {
+      return const SupplementaryQualityInsight(
+        status: 'unavailable',
+        headline: 'Unavailable',
+        feedback: '',
+      );
+    }
+    return SupplementaryQualityInsight(
+      status: j['status'] as String? ?? 'inconclusive',
+      headline: j['headline'] as String? ?? 'Inconclusive',
+      feedback: j['feedback'] as String? ?? '',
+    );
+  }
+}
+
+class AdditionalQualityInsights {
+  const AdditionalQualityInsights({
+    this.colorBalance,
+    this.compositionFraming,
+    this.motionStability,
+    this.mediaType,
+    this.framesAnalyzed,
+  });
+
+  final SupplementaryQualityInsight? colorBalance;
+  final SupplementaryQualityInsight? compositionFraming;
+  final SupplementaryQualityInsight? motionStability;
+  final String? mediaType;
+  final int? framesAnalyzed;
+
+  bool get hasDisplayableData {
+    final color = colorBalance;
+    final comp = compositionFraming;
+    final motion = motionStability;
+    final colorOk = color != null && !color.isUnavailable && color.feedback.trim().isNotEmpty;
+    final compOk = comp != null && !comp.isUnavailable && comp.feedback.trim().isNotEmpty;
+    final motionOk =
+        motion != null && !motion.isUnavailable && motion.feedback.trim().isNotEmpty;
+    return colorOk || compOk || motionOk;
+  }
+
+  factory AdditionalQualityInsights.fromJson(Map<String, dynamic>? j) {
+    if (j == null) return const AdditionalQualityInsights();
+    return AdditionalQualityInsights(
+      colorBalance: j['color_balance'] is Map
+          ? SupplementaryQualityInsight.fromJson(
+              Map<String, dynamic>.from(j['color_balance'] as Map),
+            )
+          : null,
+      compositionFraming: j['composition_framing'] is Map
+          ? SupplementaryQualityInsight.fromJson(
+              Map<String, dynamic>.from(j['composition_framing'] as Map),
+            )
+          : null,
+      motionStability: j['motion_stability'] is Map
+          ? SupplementaryQualityInsight.fromJson(
+              Map<String, dynamic>.from(j['motion_stability'] as Map),
+            )
+          : null,
+      mediaType: j['media_type'] as String?,
+      framesAnalyzed: (j['frames_analyzed'] as num?)?.toInt(),
+    );
+  }
+}
+
 class PhotoEvaluationResult {
   const PhotoEvaluationResult({
     required this.criteria,
@@ -305,6 +470,7 @@ class PhotoEvaluationResult {
     this.xpPointsPreview,
     this.memberScoresReleased,
     this.reviewGateMessage,
+    this.additionalQualityInsights,
   });
 
   final List<CriterionScore> criteria;
@@ -330,8 +496,12 @@ class PhotoEvaluationResult {
   final int? xpPointsPreview;
   final bool? memberScoresReleased;
   final String? reviewGateMessage;
+  final AdditionalQualityInsights? additionalQualityInsights;
 
   int get overallPercent => ((overallScore / 5) * 100).round().clamp(0, 100);
+
+  bool get hasAdditionalQualityInsights =>
+      additionalQualityInsights?.hasDisplayableData ?? false;
   bool get isVideo => mediaType == 'video';
 
   bool get memberScoresReleasedEffective {
@@ -531,6 +701,11 @@ class PhotoEvaluationResult {
       xpPointsPreview: (j['xp_points_preview'] as num?)?.round(),
       memberScoresReleased: j['member_scores_released'] as bool?,
       reviewGateMessage: j['review_gate_message'] as String?,
+      additionalQualityInsights: j['additional_quality_insights'] is Map
+          ? AdditionalQualityInsights.fromJson(
+              Map<String, dynamic>.from(j['additional_quality_insights'] as Map),
+            )
+          : null,
     );
   }
 
@@ -572,6 +747,7 @@ class PhotoEvaluationResult {
         xpPointsPreview: xpPointsPreview ?? this.xpPointsPreview,
         memberScoresReleased: memberScoresReleased ?? this.memberScoresReleased,
         reviewGateMessage: reviewGateMessage ?? this.reviewGateMessage,
+        additionalQualityInsights: additionalQualityInsights,
       );
 
   PhotoEvaluationResult copyWithGemini(MediaEvaluationFeedback gf, {bool geminiFeedbackIsLocal = false}) {
@@ -608,6 +784,7 @@ class PhotoEvaluationResult {
         memberIntegrityMessage: memberIntegrityMessage,
         xpPending: xpPending,
         xpPointsPreview: xpPointsPreview,
+        additionalQualityInsights: additionalQualityInsights,
       );
   }
 }

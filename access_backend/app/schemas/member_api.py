@@ -308,7 +308,7 @@ class ParticipationOut(BaseModel):
     evaluations_today: int = 0
     daily_evaluation_limit: int = 5
     evaluation_max_upload_mb: int = 350
-    evaluation_max_video_seconds: int = 20
+    evaluation_max_video_seconds: int = 30
     evaluation_daily_timezone: str = "Asia/Manila"
     average_score: float
     total_points: int

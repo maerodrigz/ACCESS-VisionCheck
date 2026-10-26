@@ -379,7 +379,7 @@ export function integrityManualReviewParagraph(row: AiDetectionRow): string | nu
 
   if (band === 'HIGH' || band === 'SUSPICIOUS') {
     sentences.push(
-      `PROBE-DINOv2 reports ${band === 'HIGH' ? 'high' : 'elevated'} AI-generation risk${pct ? ` (${pct} P(fake))` : ''}.`,
+      `${detectorDisplayName(row)} reports ${band === 'HIGH' ? 'high' : 'elevated'} AI-generation risk${pct ? ` (${pct} P(fake))` : ''}.`,
     )
   } else if (pct) {
     sentences.push(`AI-generation risk from the detector is low (${pct} P(fake)).`)
@@ -454,13 +454,14 @@ export function integrityAssessmentSummary(row: AiDetectionRow): string {
   const source = sourceVerificationDisplay(row).status
   const decision = adminDecisionDisplay(row.review_status).label
 
+  const detector = detectorDisplayName(row)
   if (integrityNeedsAdminAction(row)) {
-    return `Detector: ${risk}. Source: ${source}. Awaiting admin decision (currently ${decision}).`
+    return `${detector}: ${risk}. Source: ${source}. Awaiting admin decision (currently ${decision}).`
   }
   if (row.review_status === 'automated_low_ai_risk') {
-    return `Detector: ${risk}. Source: ${source}. Auto-cleared; override only if you disagree.`
+    return `${detector}: ${risk}. Source: ${source}. Auto-cleared; override only if you disagree.`
   }
-  return `Detector: ${risk}. Source: ${source}. Admin decision: ${decision}.`
+  return `${detector}: ${risk}. Source: ${source}. Admin decision: ${decision}.`
 }
 
 /** Remaining EXIF fields not already shown in cameraFileDisplayRows (display only). */
@@ -485,5 +486,21 @@ export function supplementalExifFieldRows(meta?: ExifMetadata): CameraFileDispla
 }
 
 export const PROBE_DETECTOR_DISPLAY_NAME = 'PROBE-DINOv2'
+
+export const WAVEREP_DETECTOR_DISPLAY_NAME = 'WaveRep G4'
+
+/** Display name from stored exif_metadata.detector_backend (never guess WaveRep for legacy rows). */
+export function detectorDisplayName(row: AiDetectionRow): string {
+  const raw = (row.exif_metadata?.detector_backend ?? '').trim().toLowerCase()
+  if (raw === 'waverep_g4' || raw.startsWith('waverep')) return WAVEREP_DETECTOR_DISPLAY_NAME
+  if (raw === 'probe' || raw.includes('probe')) return PROBE_DETECTOR_DISPLAY_NAME
+  if (raw) return raw.replace(/_/g, ' ')
+  return PROBE_DETECTOR_DISPLAY_NAME
+}
+
+export function detectorRiskHint(row: AiDetectionRow): string {
+  const name = detectorDisplayName(row)
+  return `${name} automated screening (not filename rules).`
+}
 
 export const INTEGRITY_AI_DISCLAIMER = 'AI detection provides a risk estimate, not definitive proof.'

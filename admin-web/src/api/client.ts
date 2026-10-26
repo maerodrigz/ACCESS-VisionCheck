@@ -140,12 +140,20 @@ export async function apiUpload<T>(
   return data as T
 }
 
+function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
+    return fetch(url, { method: 'GET', signal: AbortSignal.timeout(timeoutMs) })
+  }
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { method: 'GET', signal: controller.signal }).finally(() => {
+    window.clearTimeout(timer)
+  })
+}
+
 export async function checkBackendHealth(timeoutMs = 5000): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/health`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(timeoutMs),
-    })
+    const res = await fetchWithTimeout(`${API_BASE}/health`, timeoutMs)
     return res.ok
   } catch {
     return false

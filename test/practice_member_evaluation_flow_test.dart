@@ -1,4 +1,4 @@
-import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_integrity_panels.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_result_action_bar.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
@@ -98,7 +98,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: AiDetectionBanner(aiDetection: ai, practiceFinalCopy: true),
+            body: EvaluationIntegrityPanels(aiDetection: ai),
           ),
         ),
       );

@@ -591,6 +591,19 @@ def _confidence_level(score: float) -> str:
     return "low"
 
 
+def _additional_quality_insights_from_criteria_json(criteria_json: str | None) -> dict | None:
+    if not criteria_json:
+        return None
+    try:
+        data = json.loads(criteria_json)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    block = data.get("additional_quality_insights")
+    return block if isinstance(block, dict) else None
+
+
 def _parse_stored_exif(raw: str | None) -> dict | None:
     if not raw:
         return None
@@ -606,7 +619,7 @@ def _resolve_exif_metadata(ai) -> dict | None:
     return _parse_stored_exif(getattr(ai, "exif_metadata", None))
 
 
-def _ai_detection_json(ai) -> dict:
+def _ai_detection_json(ai, *, additional_quality_insights: dict | None = None) -> dict:
     media = ai.media
     uploader = media.uploader if media else None
     name = media.file_name if media else ""
@@ -621,7 +634,7 @@ def _ai_detection_json(ai) -> dict:
             review_status = "verified_human" if not is_ai else "verified_ai_generated"
         else:
             review_status = "pending_review"
-    return {
+    out = {
         "id": ai.id,
         "media_id": ai.media_id,
         "media_name": name,
@@ -649,6 +662,9 @@ def _ai_detection_json(ai) -> dict:
         "updated_at": first_timestamp_iso(ai, "updated_at", "reviewed_at", "created_at"),
         "scanned_at": first_timestamp_iso(ai, "created_at"),
     }
+    if additional_quality_insights:
+        out["additional_quality_insights"] = additional_quality_insights
+    return out
 
 
 @router.get("/ai-detection/summary")
@@ -670,7 +686,14 @@ def list_ai_detection(
         if bucket not in ("all", "needs_action", "resolved"):
             bucket = "all"
         rows = eval_crud.list_ai_for_integrity_inbox(db, inbox=bucket)
-        return [_ai_detection_json(ai) for ai in rows]
+        payload: list[dict] = []
+        for ai in rows:
+            insights = None
+            ev = eval_crud.get_for_media(db, ai.media_id)
+            if ev is not None:
+                insights = _additional_quality_insights_from_criteria_json(ev.criteria_json)
+            payload.append(_ai_detection_json(ai, additional_quality_insights=insights))
+        return payload
     except Exception as exc:
         raise _load_error("AI detection results", exc) from exc
 
@@ -693,7 +716,11 @@ def update_ai_detection_review(
         reviewed_by=admin.id,
     )
     db.refresh(updated)
-    return _ai_detection_json(updated)
+    insights = None
+    ev = eval_crud.get_for_media(db, updated.media_id)
+    if ev is not None:
+        insights = _additional_quality_insights_from_criteria_json(ev.criteria_json)
+    return _ai_detection_json(updated, additional_quality_insights=insights)
 
 
 @router.get("/ai-detection/{ai_id}/history")

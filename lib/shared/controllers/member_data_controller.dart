@@ -737,7 +737,7 @@ class MemberDataController extends ChangeNotifier {
       evaluationsToday: participation['evaluations_today'] as int? ?? 0,
       dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 20,
+      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 30,
       evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
     );
   }
@@ -1232,7 +1232,7 @@ class MemberDataController extends ChangeNotifier {
         evaluationsToday: participation['evaluations_today'] as int? ?? 0,
         dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
       evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 20,
+      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 30,
       evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
       );
 

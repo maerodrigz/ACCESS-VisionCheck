@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import json
 import cv2
 import torch
@@ -10,7 +10,62 @@ from scipy.special import expit
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR / "demo"))
 
-from utils import create_transform, create_model
+from inference_utils import create_model, create_transform
+
+# Stay below reported tail indices; phone MP4 often fails seek/read near EOF.
+_TAIL_SEEK_MARGIN = 4
+# Per sample slot: initial seek + nearby alternates (bounded, no infinite loop).
+_READ_RETRY_OFFSETS = (0, -1, -2, 1, -3, 2)
+
+
+def _last_seekable_frame_index(total: int) -> int:
+    """Upper inclusive frame index safe for OpenCV CAP_PROP_POS_FRAMES."""
+    if total <= 1:
+        return 0
+    margin = min(_TAIL_SEEK_MARGIN, max(0, total - 1))
+    return max(0, total - 1 - margin)
+
+
+def _build_sample_indices(total: int, samples: int) -> list[int]:
+    """Evenly spaced unique frame indices, avoiding unreliable tail positions."""
+    count = max(1, min(int(samples), int(total)))
+    last_index = _last_seekable_frame_index(total)
+    if last_index <= 0:
+        return [0]
+
+    spaced = np.linspace(0, last_index, count, dtype=int)
+    indices: list[int] = []
+    seen: set[int] = set()
+    for raw in spaced:
+        idx = int(raw)
+        if idx not in seen:
+            seen.add(idx)
+            indices.append(idx)
+    return indices
+
+
+def _candidate_read_indices(requested_index: int, max_index: int) -> list[int]:
+    out: list[int] = []
+    seen: set[int] = set()
+    for offset in _READ_RETRY_OFFSETS:
+        idx = requested_index + offset
+        if idx < 0 or idx > max_index:
+            continue
+        if idx in seen:
+            continue
+        seen.add(idx)
+        out.append(idx)
+        if len(out) >= len(_READ_RETRY_OFFSETS):
+            break
+    return out
+
+
+def _read_frame_at(cap: cv2.VideoCapture, index: int) -> tuple[bool, object | None]:
+    cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+    success, frame = cap.read()
+    if not success or frame is None:
+        return False, None
+    return True, frame
 
 
 class WaveRepDetector:
@@ -55,31 +110,43 @@ class WaveRepDetector:
             cap.release()
             raise RuntimeError("Invalid video frame count")
 
-        # Avoid the final reported frame because some files
-        # cannot seek reliably to that frame.
-        last_index = max(0, total - 2)
-
-        indices = np.linspace(
-            0,
-            last_index,
-            min(self.samples, total),
-            dtype=int
-        )
+        max_index = _last_seekable_frame_index(total)
+        indices = _build_sample_indices(total, self.samples)
 
         frame_results = []
         failed_indices = []
+        frame_recoveries = []
+        used_indices: set[int] = set()
 
         try:
             with torch.inference_mode():
-                for index in indices:
-                    index = int(index)
+                for requested_index in indices:
+                    success = False
+                    frame = None
+                    used_index = None
 
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, index)
-                    success, frame = cap.read()
+                    for candidate in _candidate_read_indices(requested_index, max_index):
+                        if candidate in used_indices:
+                            continue
+                        ok, frame = _read_frame_at(cap, candidate)
+                        if not ok:
+                            continue
+                        success = True
+                        used_index = candidate
+                        if candidate != requested_index:
+                            frame_recoveries.append(
+                                {
+                                    "requested_index": int(requested_index),
+                                    "used_index": int(candidate),
+                                }
+                            )
+                        break
 
-                    if not success:
-                        failed_indices.append(index)
+                    if not success or frame is None or used_index is None:
+                        failed_indices.append(int(requested_index))
                         continue
+
+                    used_indices.add(int(used_index))
 
                     frame = Image.fromarray(
                         cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -90,10 +157,13 @@ class WaveRepDetector:
 
                     logit = self.model(tensor)[0, -1].item()
 
-                    frame_results.append({
-                        "index": index,
-                        "logit": float(logit)
-                    })
+                    item = {
+                        "index": int(used_index),
+                        "logit": float(logit),
+                    }
+                    if used_index != requested_index:
+                        item["requested_index"] = int(requested_index)
+                    frame_results.append(item)
 
         finally:
             cap.release()
@@ -120,6 +190,7 @@ class WaveRepDetector:
             "requested_frames": len(indices),
             "processed_frames": len(frame_results),
             "failed_frames": failed_indices,
+            "frame_recoveries": frame_recoveries,
             "status": (
                 "complete"
                 if len(frame_results) == len(indices)
@@ -130,7 +201,7 @@ class WaveRepDetector:
             "ai_percentage": round(ai_score * 100, 4),
             "prediction": prediction,
             "threshold": 0.5,
-            "frame_results": frame_results
+            "frame_results": frame_results,
         }
 
 

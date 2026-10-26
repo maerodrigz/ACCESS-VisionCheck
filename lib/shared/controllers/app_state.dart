@@ -683,7 +683,7 @@ class AppState extends ChangeNotifier {
   int evaluationMaxUploadMb = 350;
 
   /// Max length for practice evaluation videos (seconds).
-  int evaluationMaxVideoSeconds = 20;
+  int evaluationMaxVideoSeconds = 30;
 
   /// IANA timezone for daily practice cap (from GET /member/participation).
   String evaluationDailyTimezone = 'Asia/Manila';
@@ -807,7 +807,7 @@ class AppState extends ChangeNotifier {
     evaluationsTodayCount = 0;
     dailyEvaluationLimit = 5;
     evaluationMaxUploadMb = 350;
-    evaluationMaxVideoSeconds = 20;
+    evaluationMaxVideoSeconds = 30;
     evaluationDailyTimezone = 'Asia/Manila';
     notifyListeners();
   }

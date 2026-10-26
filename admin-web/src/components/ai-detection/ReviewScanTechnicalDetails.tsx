@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import type { AiDetectionRow } from '../../api/media'
 import {
-  PROBE_DETECTOR_DISPLAY_NAME,
   type CameraFileDisplayRow,
   cameraFileDisplayRows,
   detectorAiRiskBand,
+  detectorDisplayName,
   probeRawPFakePercent,
   supplementalExifFieldRows,
   visualAiRiskColor,
@@ -60,8 +60,8 @@ export function ReviewScanTechnicalDetails({ row }: { row: AiDetectionRow }) {
 
   return (
     <dl className="grid w-full min-w-0 grid-cols-[minmax(7.25rem,38%)_minmax(0,1fr)] items-start gap-x-3">
-      <SectionHeading>Detector (PROBE-DINOv2)</SectionHeading>
-      <DetailCells label="Detector" value={PROBE_DETECTOR_DISPLAY_NAME} />
+      <SectionHeading>Automated detector</SectionHeading>
+      <DetailCells label="Detector" value={detectorDisplayName(row)} />
       <DetailCells label="P(fake)" value={pFake ?? 'N/A'} divider />
       <DetailCells
         label="Risk level"
@@ -89,6 +89,13 @@ export function ReviewScanTechnicalDetails({ row }: { row: AiDetectionRow }) {
       ) : (
         <p className="col-span-2 text-xs text-[var(--color-text-secondary)]">Not available</p>
       )}
+      {meta?.is_video &&
+      (meta.camera_provenance_strength ?? '').toLowerCase() === 'partial' ? (
+        <p className="col-span-2 mt-1 text-[10px] leading-snug text-[var(--color-text-muted)]">
+          Recording or container metadata may be present without full device identity. This supports
+          provenance review and is separate from automated AI-generation risk.
+        </p>
+      ) : null}
 
       {extraExif.length > 0 ? (
         <>

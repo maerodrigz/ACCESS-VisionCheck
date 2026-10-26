@@ -101,6 +101,47 @@ def _coherent_phone_filename(file_name: str) -> bool:
     return False
 
 
+def _purely_numeric_media_stem(file_name: str) -> bool:
+    stem = Path(file_name or "").stem.strip()
+    return bool(stem and re.fullmatch(r"\d{6,15}", stem))
+
+
+def video_has_android_container_support(provenance: CameraProvenanceResult) -> bool:
+    """Supporting Android phone container signals (not proof of in-camera origin)."""
+    if not provenance.is_video:
+        return False
+    has_creation = False
+    has_android_signal = False
+    for row in provenance.safe_fields:
+        key = (row.get("key") or row.get("label") or "").strip().lower()
+        val = _clean_text(row.get("value"))
+        if not val:
+            continue
+        if key in ("creation_time", "com.apple.quicktime.creationdate"):
+            has_creation = True
+        if key in (
+            "com.android.version",
+            "com.android.manufacturer",
+            "com.android.model",
+        ):
+            has_android_signal = True
+        if "android" in key and key.endswith("version"):
+            has_android_signal = True
+    return has_creation and has_android_signal
+
+
+def video_filename_suggests_reexport(
+    file_name: str,
+    provenance: CameraProvenanceResult | None = None,
+) -> bool:
+    """Video-only filename heuristics; numeric OEM gallery names are not auto re-exports."""
+    if _purely_numeric_media_stem(file_name):
+        if provenance is not None and video_has_android_container_support(provenance):
+            return False
+        return True
+    return looks_like_reexported_media_filename(file_name)
+
+
 def looks_like_reexported_media_filename(file_name: str) -> bool:
     """Gallery saves, downloads, and screen captures (not canonical camera names)."""
     if _coherent_phone_filename(file_name):

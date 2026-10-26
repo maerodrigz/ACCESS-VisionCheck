@@ -79,6 +79,8 @@ export interface ExifMetadata {
   visual_risk_level?: string
   provenance_policy_outcome?: string
   visual_ai_probability?: number
+  /** Persisted automated detector id (e.g. probe, waverep_g4). */
+  detector_backend?: string
 }
 
 /** API host origin without `/api` suffix (empty when using same-origin `/api` proxy). */

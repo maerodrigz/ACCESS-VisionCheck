@@ -32,6 +32,17 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
+      // Bind IPv4 so http://127.0.0.1:5173 and localhost both reach the dev server and /api proxy.
+      host: '127.0.0.1',
+      port: 5173,
+      strictPort: false,
+      proxy: {
+        '/api': apiProxy(proxyTarget),
+        '/uploads': apiProxy(proxyTarget),
+      },
+    },
+    preview: {
+      host: '127.0.0.1',
       port: 5173,
       proxy: {
         '/api': apiProxy(proxyTarget),

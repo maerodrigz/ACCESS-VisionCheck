@@ -129,9 +129,9 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
+    '192.168.8.97',
     '10.216.233.169',
     '10.210.8.169',
-    '192.168.8.97',
     '192.168.8.94',
     '192.168.8.96',
     '192.168.8.98',
@@ -238,6 +238,36 @@ class ApiConfig {
     }
   }
 
+  /// Same /24 IPv4 prefix (e.g. home Wi-Fi DHCP last-octet changes).
+  static bool isSameIpv4Subnet24(String hostA, String hostB) {
+    final a = hostA.split('.');
+    final b = hostB.split('.');
+    if (a.length != 4 || b.length != 4) return false;
+    return '${a[0]}.${a[1]}.${a[2]}' == '${b[0]}.${b[1]}.${b[2]}';
+  }
+
+  /// Drop saved URLs on the same LAN /24 as [bundledBase] when the host octet changed.
+  static Future<void> migrateStaleDeviceUrlsForBundledDevBase(String bundledBase) async {
+    try {
+      final bundledHost = Uri.parse(bundledBase).host;
+      final existing = runtimeBaseUrl.value?.trim();
+      if (existing != null && existing.isNotEmpty) {
+        final existingHost =
+            Uri.parse(existing.startsWith('http') ? existing : 'http://$existing').host;
+        if (isSameIpv4Subnet24(existingHost, bundledHost) && existingHost != bundledHost) {
+          await runtimeBaseUrl.save(bundledBase);
+        }
+      }
+      final last = _lastWorkingBaseUrl;
+      if (last != null && last.trim().isNotEmpty) {
+        final lastHost = Uri.parse(last).host;
+        if (isSameIpv4Subnet24(lastHost, bundledHost) && lastHost != bundledHost) {
+          await forgetLastWorkingBaseUrl(last);
+        }
+      }
+    } catch (_) {}
+  }
+
   static Future<void> loadBundledMobileBackendDefault() async {
     if (kIsWeb) return;
     if (defaultTargetPlatform != TargetPlatform.android &&
@@ -257,6 +287,7 @@ class ApiConfig {
       final map = jsonDecode(raw) as Map<String, dynamic>;
       final base = (map['API_BASE_URL'] as String?)?.trim();
       if (base == null || base.isEmpty) return;
+      await migrateStaleDeviceUrlsForBundledDevBase(base);
       final existing = runtimeBaseUrl.value?.trim();
       if (existing == null || existing.isEmpty) {
         await runtimeBaseUrl.save(base);

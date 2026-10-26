@@ -10,6 +10,7 @@ from app.services.camera_provenance import (
     photo_has_credible_in_camera_identity,
     photo_has_make_and_model,
     photo_likely_download_or_resave,
+    video_filename_suggests_reexport,
     video_provenance_has_device_identity,
 )
 from app.services.ai_authenticity_detector import probe_risk_level_from_probability
@@ -66,7 +67,7 @@ def _normalize_video_provenance(
         reasons.append("Video container lacks verified device make/model.")
         strength = "partial"
 
-    if looks_like_reexported_media_filename(file_name) and strength == "strong":
+    if video_filename_suggests_reexport(file_name, provenance) and strength == "strong":
         reasons.append("Filename suggests a gallery save or re-export; admin review required.")
         strength = "partial"
 
@@ -121,7 +122,7 @@ def apply_probe_provenance_policy(
     elif strength == "partial":
         if visual_risk == "low":
             video_needs_manual_review = provenance.is_video and (
-                looks_like_reexported_media_filename(file_name)
+                video_filename_suggests_reexport(file_name, provenance)
                 or not video_provenance_has_device_identity(provenance.safe_fields)
             )
             photo_needs_manual_review = photo_likely_download_or_resave(

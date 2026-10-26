@@ -127,7 +127,16 @@ class ApiClient {
       return;
     }
     final saved = ApiConfig.runtimeBaseUrl.value?.trim();
-    if (saved != null && saved.isNotEmpty && saved != baseUrl) return;
+    if (saved != null && saved.isNotEmpty && saved != baseUrl) {
+      try {
+        final savedHost = Uri.parse(saved).host;
+        final newHost = Uri.parse(baseUrl).host;
+        if (ApiConfig.isSameIpv4Subnet24(savedHost, newHost)) {
+          await ApiConfig.runtimeBaseUrl.save(baseUrl);
+        }
+      } catch (_) {}
+      return;
+    }
     if (baseUrl.contains('10.0.2.2') && saved == null) {
       return;
     }
@@ -162,8 +171,12 @@ class ApiClient {
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters}) =>
-      _request('GET', path, query: queryParameters);
+  Future<dynamic> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Duration? timeout,
+  }) =>
+      _request('GET', path, query: queryParameters, requestTimeout: timeout);
   Future<dynamic> post(String path, Map<String, dynamic> body) =>
       _request('POST', path, body: body);
 
@@ -174,6 +187,27 @@ class ApiClient {
       _request('PATCH', path, body: body);
   Future<dynamic> delete(String path) => _request('DELETE', path);
 
+  /// Practice uploads: do not re-send the file across every LAN fallback IP.
+  List<String> _multipartBaseUrls() {
+    final out = <String>[];
+    void add(String? raw) {
+      if (raw == null) return;
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return;
+      final normalized = trimmed.replaceAll(RegExp(r'/+$'), '');
+      if (!out.contains(normalized)) out.add(normalized);
+    }
+
+    add(_pinnedBaseUrl);
+    add(ApiConfig.runtimeBaseUrl.value);
+    add(ApiConfig.effectiveBaseUrl);
+    add(ApiConfig.baseUrl);
+    if (out.isEmpty) {
+      add('http://${ApiConfig.host}:${ApiConfig.port}');
+    }
+    return out;
+  }
+
   Future<dynamic> postMultipart(
     String path, {
     required List<int> fileBytes,
@@ -183,8 +217,10 @@ class ApiClient {
   }) async {
     final effectiveTimeout = timeout ?? ApiClient.timeout;
     Object? lastError;
-    for (final baseUrl in _basesToTry()) {
+    Uri? lastUri;
+    for (final baseUrl in _multipartBaseUrls()) {
       final uri = _uriForBase(baseUrl, path);
+      lastUri = uri;
       _log('POST (multipart) $uri  fields=${fields.keys.toList()} file=$fileName (${fileBytes.length} B)');
       final request = http.MultipartRequest('POST', uri);
       if (_token != null) {
@@ -222,7 +258,7 @@ class ApiClient {
       }
     }
     // All candidates failed.
-    final uri = _uriForBase(ApiConfig.baseUrl, path);
+    final uri = lastUri ?? _uriForBase(ApiConfig.baseUrl, path);
     throw _connectionError(lastError ?? Exception('Connection failed'), method: 'POST', uri: uri);
   }
 
@@ -293,6 +329,7 @@ class ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
     List<String>? hosts,
+    Duration? requestTimeout,
   }) async {
     final hostList = hosts ?? _basesToTry();
     if (hosts == null && _pinnedBaseUrl == null) {
@@ -309,7 +346,7 @@ class ApiClient {
           case 'GET':
             response = await _client
                 .get(uri, headers: _headers)
-                .timeout(_timeoutForBase(baseUrl, path: path));
+                .timeout(requestTimeout ?? _timeoutForBase(baseUrl, path: path));
             break;
           case 'POST':
             response = await _client

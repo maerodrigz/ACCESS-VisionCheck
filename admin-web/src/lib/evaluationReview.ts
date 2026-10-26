@@ -1,6 +1,24 @@
 import { scoreToPercent } from './mediaEvaluationScores'
 import { parseDate } from './teamMembers'
 
+function parseCriteriaJsonBlob(raw: unknown): Record<string, unknown> | null {
+  if (raw == null) return null
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as unknown
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 export type EvaluationSourceFilter = 'all' | 'practice' | 'event' | 'flagged'
 
 export interface EvaluationReviewItem {
@@ -26,6 +44,7 @@ export interface EvaluationReviewItem {
   contrastScore: number | null
   blurScore: number | null
   noiseScore: number | null
+  mediaType: string | null
 }
 
 export interface EvaluationSummary {
@@ -75,6 +94,13 @@ export function parseEvaluation(raw: Record<string, unknown>): EvaluationReviewI
     contrastScore: num(raw.contrast_score) != null ? scoreToPercent(num(raw.contrast_score)!) : null,
     blurScore: num(raw.blur_score) != null ? scoreToPercent(num(raw.blur_score)!) : null,
     noiseScore: num(raw.noise_score) != null ? scoreToPercent(num(raw.noise_score)!) : null,
+    mediaType: (() => {
+      const direct = raw.media_type != null ? String(raw.media_type) : null
+      if (direct) return direct
+      const criteria = parseCriteriaJsonBlob(raw.criteria_json)
+      const mt = criteria?.media_type
+      return mt != null ? String(mt) : null
+    })(),
   }
 }
 

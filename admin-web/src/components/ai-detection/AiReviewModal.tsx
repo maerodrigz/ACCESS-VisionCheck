@@ -16,6 +16,7 @@ import {
   adminDecisionDisplay,
   detectorAiRiskBand,
   detectorAiRiskSummaryLabel,
+  detectorRiskHint,
   integrityAssessmentSummary,
   integrityManualReviewParagraph,
   integrityNeedsAdminAction,
@@ -85,9 +86,20 @@ function StatusBlock({
   )
 }
 
-function Collapsible({ title, children }: { title: string; children: ReactNode }) {
+function Collapsible({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
   return (
-    <details className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <details
+      open={defaultOpen || undefined}
+      className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-bold text-[var(--color-text-primary)] [&::-webkit-details-marker]:hidden">
         {title}
         <ChevronDown size={14} className="text-[var(--color-text-muted)] transition group-open:rotate-180" />
@@ -305,98 +317,96 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                 )}
               </section>
 
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pr-0.5 lg:max-h-full">
-                <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
-                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Integrity Assessment</h3>
-                    <span className="text-[10px] text-[var(--color-text-muted)]">
-                      Scanned {formatScannedDate(row.scanned_at)}
-                    </span>
-                  </div>
-                  {!needsAdminAction ? (
-                    <p className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/90 px-2.5 py-1.5 text-[11px] leading-snug text-emerald-950">
-                      <span className="font-bold">No admin action required.</span> Auto-cleared under current policy.
-                    </p>
-                  ) : (
-                    <p className="mb-2 rounded-lg border border-amber-200/80 bg-amber-50/90 px-2.5 py-1.5 text-[11px] leading-snug text-amber-950">
-                      <span className="font-bold">Manual review required.</span> Choose a decision below when ready.
-                    </p>
-                  )}
-
-                  <div className="space-y-2">
-                    <StatusBlock title="AI-Generation Risk" hint="PROBE-DINOv2 detector only (not filename rules).">
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-primary)]">
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full"
-                          style={{ backgroundColor: detectorRiskColor }}
-                          aria-hidden
-                        />
-                        {detectorAiRiskSummaryLabel(row)}
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:min-h-0">
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 pr-0.5">
+                  <Collapsible title="Integrity Assessment" defaultOpen>
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-[var(--color-text-muted)]">
+                        Scanned {formatScannedDate(row.scanned_at)}
                       </p>
-                    </StatusBlock>
+                      {!needsAdminAction ? (
+                        <p className="rounded-lg border border-emerald-200/80 bg-emerald-50/90 px-2.5 py-1.5 text-[11px] leading-snug text-emerald-950">
+                          <span className="font-bold">No admin action required.</span> Auto-cleared under current policy.
+                        </p>
+                      ) : (
+                        <p className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-2.5 py-1.5 text-[11px] leading-snug text-amber-950">
+                          <span className="font-bold">Manual review required.</span> Choose a decision below when ready.
+                        </p>
+                      )}
 
-                    <StatusBlock title="Source Verification" hint={source.detail}>
-                      <p
-                        className="text-xs font-semibold"
-                        style={{ color: source.color }}
-                      >
-                        {source.status}
-                      </p>
-                    </StatusBlock>
+                      <div className="space-y-2">
+                        <StatusBlock title="AI-Generation Risk" hint={detectorRiskHint(row)}>
+                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-primary)]">
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{ backgroundColor: detectorRiskColor }}
+                              aria-hidden
+                            />
+                            {detectorAiRiskSummaryLabel(row)}
+                          </p>
+                        </StatusBlock>
 
-                    <StatusBlock title="Admin Decision">
-                      <p className="text-xs font-semibold" style={{ color: adminDecision.color }}>
-                        {adminDecision.label}
-                      </p>
-                    </StatusBlock>
-                  </div>
+                        <StatusBlock title="Source Verification" hint={source.detail}>
+                          <p className="text-xs font-semibold" style={{ color: source.color }}>
+                            {source.status}
+                          </p>
+                        </StatusBlock>
 
-                  {needsAdminAction && manualParagraph ? (
-                    <div className="mt-2 rounded-lg border border-[var(--color-border)] px-2.5 py-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                        Why manual review?
-                      </p>
-                      <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-primary)]">
-                        {manualParagraph}
+                        <StatusBlock title="Admin Decision">
+                          <p className="text-xs font-semibold" style={{ color: adminDecision.color }}>
+                            {adminDecision.label}
+                          </p>
+                        </StatusBlock>
+                      </div>
+
+                      {needsAdminAction && manualParagraph ? (
+                        <div className="rounded-lg border border-[var(--color-border)] px-2.5 py-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                            Why manual review?
+                          </p>
+                          <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-primary)]">
+                            {manualParagraph}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {!needsAdminAction && provenanceBullets.length > 0 ? (
+                        <p className="text-[11px] leading-snug text-[var(--color-text-secondary)]">
+                          {provenanceBullets[0]}
+                        </p>
+                      ) : null}
+
+                      <p className="text-[11px] leading-snug text-[var(--color-text-primary)]">{assessmentSummary}</p>
+                      <p className="text-[10px] leading-snug text-[var(--color-text-muted)]">
+                        {INTEGRITY_AI_DISCLAIMER}
                       </p>
                     </div>
-                  ) : null}
-
-                  {!needsAdminAction && provenanceBullets.length > 0 ? (
-                    <p className="mt-2 text-[11px] leading-snug text-[var(--color-text-secondary)]">
-                      {provenanceBullets[0]}
-                    </p>
-                  ) : null}
-
-                  <p className="mt-2 text-[11px] leading-snug text-[var(--color-text-primary)]">{assessmentSummary}</p>
-                  <p className="mt-1 text-[10px] leading-snug text-[var(--color-text-muted)]">
-                    {INTEGRITY_AI_DISCLAIMER}
-                  </p>
-                </section>
-
-                <Collapsible title="Technical Details">
-                  <ReviewScanTechnicalDetails row={row} />
-                </Collapsible>
-
-                {history.length > 0 ? (
-                  <Collapsible title={`Review History (${history.length})`}>
-                    <ul className="space-y-1.5">
-                      {history.map((h) => (
-                        <li key={h.id} className="rounded-lg bg-[var(--color-surface-muted)] px-3 py-2 text-xs">
-                          <div className="font-semibold capitalize text-[var(--color-text-primary)]">
-                            {h.new_status.replace(/_/g, ' ')}
-                          </div>
-                          {h.admin_remarks && (
-                            <div className="text-[var(--color-text-secondary)]">{h.admin_remarks}</div>
-                          )}
-                          <div className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
-                            {h.reviewed_by_name ?? 'Admin'} · {h.reviewed_at ?? ''}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
                   </Collapsible>
-                ) : null}
+
+                  <Collapsible title="Technical Details">
+                    <ReviewScanTechnicalDetails row={row} />
+                  </Collapsible>
+
+                  {history.length > 0 ? (
+                    <Collapsible title={`Review History (${history.length})`}>
+                      <ul className="space-y-1.5">
+                        {history.map((h) => (
+                          <li key={h.id} className="rounded-lg bg-[var(--color-surface-muted)] px-3 py-2 text-xs">
+                            <div className="font-semibold capitalize text-[var(--color-text-primary)]">
+                              {h.new_status.replace(/_/g, ' ')}
+                            </div>
+                            {h.admin_remarks && (
+                              <div className="text-[var(--color-text-secondary)]">{h.admin_remarks}</div>
+                            )}
+                            <div className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
+                              {h.reviewed_by_name ?? 'Admin'} · {h.reviewed_at ?? ''}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </Collapsible>
+                  ) : null}
+                </div>
               </div>
           </div>
 

@@ -1268,7 +1268,7 @@ class _PracticeEvalOverflowMenu extends StatelessWidget {
 String _integrityTierFor(Evaluation ev) {
   final ai = ev.parsedEvaluation?.aiDetection;
   if (ai != null) {
-    return memberIntegrityTierLabel(
+    return memberEvaluationListIntegrityLabel(
       automated: ai,
       adminReviewStatus: ev.reviewStatus,
     );

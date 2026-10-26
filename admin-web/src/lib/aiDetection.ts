@@ -71,7 +71,7 @@ export function reviewStatusLabel(s: ReviewStatus): string {
 export function aiResultLabelText(label: AiResultLabel): string {
   const map: Record<AiResultLabel, string> = {
     human: 'Human',
-    ai_generated: 'AI Generated',
+    ai_generated: 'High AI risk (automated)',
     suspicious: 'Suspicious',
     pending: 'Pending',
   }
@@ -133,6 +133,7 @@ function parseExifMetadata(raw: unknown): ExifMetadata | undefined {
       m.provenance_policy_outcome != null ? String(m.provenance_policy_outcome) : undefined,
     visual_ai_probability:
       m.visual_ai_probability != null ? Number(m.visual_ai_probability) : undefined,
+    detector_backend: m.detector_backend != null ? String(m.detector_backend) : undefined,
   }
 }
 
@@ -169,7 +170,7 @@ function confidenceText(label: AiResultLabel, score: number): string {
   const pct = Math.round(score * 100)
   switch (label) {
     case 'ai_generated':
-      return `${pct}% AI-generated confidence`
+      return `${pct}% automated AI-risk score`
     case 'suspicious':
       return `${pct}% Suspicious confidence`
     case 'pending':

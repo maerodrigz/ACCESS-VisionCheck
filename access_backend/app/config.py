@@ -76,8 +76,11 @@ class Settings(BaseSettings):
     max_upload_mb: int = 100
     # Practice evaluation uploads (short clips; can exceed 100 MB at higher quality).
     evaluation_max_upload_mb: int = Field(default=350, alias="EVALUATION_MAX_UPLOAD_MB")
-    evaluation_max_video_seconds: int = Field(default=20, alias="EVALUATION_MAX_VIDEO_SECONDS")
+    evaluation_max_video_seconds: int = Field(default=30, alias="EVALUATION_MAX_VIDEO_SECONDS")
     evaluation_video_sample_frames: int = Field(default=4, alias="EVALUATION_VIDEO_SAMPLE_FRAMES")
+    motion_insight_burst_count: int = Field(default=5, alias="MOTION_INSIGHT_BURST_COUNT")
+    motion_insight_frames_per_burst: int = Field(default=6, alias="MOTION_INSIGHT_FRAMES_PER_BURST")
+    motion_insight_max_width: int = Field(default=480, alias="MOTION_INSIGHT_MAX_WIDTH")
 
     # Firebase Storage — photos/videos (optional; mobile can also send cloud_file_url)
     firebase_storage_bucket: str = Field(default="", alias="FIREBASE_STORAGE_BUCKET")

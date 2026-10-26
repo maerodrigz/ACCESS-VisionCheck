@@ -29,6 +29,8 @@ VITE_API_BASE_URL=/api
 
 By default Vite proxies `/api` → `http://127.0.0.1:3001` (see `vite.config.ts`).
 
+Keep `VITE_DEV_PROXY_TARGET` aligned with the running API port (default **3001**). If the banner says **Backend offline** while the API is up, restart `npm run dev` after backend start and confirm `GET http://127.0.0.1:3001/api/health` returns 200.
+
 For LAN testing without the proxy:
 
 ```env

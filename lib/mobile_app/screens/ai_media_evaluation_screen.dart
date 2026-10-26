@@ -344,11 +344,19 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
       }
 
       final mediaId = outcome.upload?.id ?? 0;
-      var evalRow = await memberApiService.getEvaluationRowForMedia(mediaId);
-      evalRow ??= await memberApiService.getEvaluationRowForMedia(mediaId);
+      final cachedEval = await memberDataController.findEvaluationForMedia(mediaId);
+      Map<String, dynamic>? evalRow;
+      PhotoEvaluationResult? scored = cachedEval?.parsedEvaluation;
+      if (scored == null || scored.aiDetection.isDeferredAuthenticity) {
+        evalRow = await memberApiService.getEvaluationRowForMedia(mediaId);
+        scored = evalRow != null ? photoEvaluationResultFromApiRow(evalRow) : null;
+      } else {
+        evalRow = {
+          'review_status': cachedEval?.reviewStatus,
+          'admin_remarks': cachedEval?.adminRemarks,
+        };
+      }
       if (!mounted) return;
-
-      final scored = evalRow != null ? photoEvaluationResultFromApiRow(evalRow) : null;
       if (scored == null) {
         setState(() {
           _phase = _EvalPhase.idle;
@@ -357,7 +365,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         return;
       }
 
-      final criteriaRaw = evalRow!['criteria_json'] as String?;
+      final criteriaRaw = evalRow?['criteria_json'] as String?;
       final warnings = qualityWarningsFromCriteriaJson(criteriaRaw);
 
       PhotoEvaluationResult finalResult;
@@ -420,8 +428,8 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         result: finalResult,
         geminiFeedback: feedback,
         qualityWarnings: warnings,
-        adminReviewStatus: evalRow['review_status'] as String?,
-        adminRemarks: evalRow['admin_remarks'] as String?,
+        adminReviewStatus: evalRow?['review_status'] as String? ?? cachedEval?.reviewStatus,
+        adminRemarks: evalRow?['admin_remarks'] as String? ?? cachedEval?.adminRemarks,
         fetchLiveGemini: fetchLiveGemini,
         onEvaluateAgain: () {
           Navigator.of(context).pop();

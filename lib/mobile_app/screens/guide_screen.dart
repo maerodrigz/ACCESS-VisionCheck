@@ -112,7 +112,7 @@ class GuideScreen extends StatelessWidget {
           bullets: [
             'Low risk → Standard Quality path',
             'Medium risk → Advisory flag added to report',
-            'High AI probability → Flagged "For Review" by admin',
+            'High automated AI risk → Held for admin review (not confirmed AI generation)',
           ],
         ),
 

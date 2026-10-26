@@ -6,7 +6,8 @@ import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
 import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
-import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
+import 'package:access_mobile/mobile_app/widgets/additional_quality_insights_panel.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_integrity_panels.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
@@ -18,6 +19,7 @@ import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart' hide AiDetectionResult;
 import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
+import 'package:access_mobile/shared/utils/member_integrity_display.dart';
 
 String _reportAdminRemarks(Evaluation evaluation) {
   final r = evaluation.adminRemarks?.trim() ?? '';
@@ -118,15 +120,7 @@ class EvaluationReportScreen extends StatelessWidget {
               integrityReviewReason: reviewPending && integrityReason.isNotEmpty ? integrityReason : null,
             ),
             const SizedBox(height: 14),
-            if (reviewPending && parsed != null) ...[
-              AiDetectionBanner(
-                aiDetection: parsed.aiDetection,
-                adminReviewStatus: evaluation.reviewStatus,
-                compact: true,
-                minimal: false,
-              ),
-              const SizedBox(height: 14),
-            ] else if (reviewPending && integrityReason.isNotEmpty) ...[
+            if (reviewPending && parsed == null && integrityReason.isNotEmpty) ...[
               IntegrityOnlyMessageCard(
                 result: parsed ??
                     PhotoEvaluationResult(
@@ -176,8 +170,17 @@ class EvaluationReportScreen extends StatelessWidget {
                   showOverallHeader: false,
                   feedbackIsLocalFallback: parsed.geminiFeedbackIsLocal,
                 ),
+                if (parsed.hasAdditionalQualityInsights) ...[
+                  const SizedBox(height: 10),
+                  AdditionalQualityInsightsPanel(
+                    insights: parsed.additionalQualityInsights!,
+                  ),
+                ],
                 const SizedBox(height: 16),
-              ] else ...[
+              ] else if (!memberShouldHideIntegrityOnlyReviewCard(
+                result: parsed,
+                adminReviewStatus: evaluation.reviewStatus,
+              )) ...[
                 IntegrityOnlyMessageCard(
                   result: parsed,
                   reviewStatus: evaluation.reviewStatus,
@@ -185,13 +188,12 @@ class EvaluationReportScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
               ],
-              if (!reviewPending)
-                AiDetectionBanner(
-                  aiDetection: parsed.aiDetection,
-                  adminReviewStatus: evaluation.reviewStatus,
-                  compact: true,
-                  minimal: false,
-                ),
+              EvaluationIntegrityPanels(
+                aiDetection: parsed.aiDetection,
+                evaluationResult: parsed,
+                adminReviewStatus: evaluation.reviewStatus,
+                compact: true,
+              ),
             ] else ...[
               Container(
                 padding: const EdgeInsets.all(16),

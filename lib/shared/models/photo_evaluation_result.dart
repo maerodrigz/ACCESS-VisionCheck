@@ -64,6 +64,8 @@ class AiDetectionResult {
     this.exifMetadata,
     this.provenanceContainerFields = const [],
     this.isVideoProvenanceFlag,
+    this.primaryReviewDriver,
+    this.adminReviewTriggers = const [],
   });
 
   final String verdict;
@@ -89,6 +91,8 @@ class AiDetectionResult {
   final List<Map<String, String>> provenanceContainerFields;
   /// Top-level `is_video_provenance` when present on ai_detection.
   final bool? isVideoProvenanceFlag;
+  final String? primaryReviewDriver;
+  final List<String> adminReviewTriggers;
 
   bool get isDeferredAuthenticity =>
       analysisStatus == 'deferred' || isFinal == false || verdict == 'deferred';
@@ -147,6 +151,14 @@ class AiDetectionResult {
   bool get isAiAnalysisUnavailable =>
       waverepAnalysisUnavailable == true ||
       (waverepProcessingStatus ?? '').toLowerCase() == 'unavailable';
+
+  bool get isProvenancePartialAndroidHold {
+    final driver = (primaryReviewDriver ?? '').toLowerCase();
+    if (driver == 'provenance_partial_android') return true;
+    return adminReviewTriggers
+        .map((t) => t.toLowerCase())
+        .contains('provenance_partial_android');
+  }
 
   bool get isBlocked => isAiGenerated;
 
@@ -235,7 +247,20 @@ class AiDetectionResult {
       exifMetadata: _parseExifMetadata(ai['exif_metadata']),
       provenanceContainerFields: _parseProvenanceFieldRows(ai),
       isVideoProvenanceFlag: ai['is_video_provenance'] as bool?,
+      primaryReviewDriver: ai['primary_review_driver'] as String?,
+      adminReviewTriggers: _parseReviewTriggers(ai),
     );
+  }
+
+  static List<String> _parseReviewTriggers(Map<String, dynamic> ai) {
+    final raw = ai['admin_review_triggers'];
+    if (raw is! List) {
+      final exif = _parseExifMetadata(ai['exif_metadata']);
+      final nested = exif?['admin_review_triggers'];
+      if (nested is! List) return const [];
+      return nested.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    }
+    return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
   }
 }
 
@@ -528,6 +553,16 @@ class PhotoEvaluationResult {
 
   int get xpPointsPreviewEffective =>
       xpPointsPreview ?? ((overallScore <= 1.0 ? overallScore : overallScore / 5.0) * 100).round();
+
+  /// Awarded XP when scores are released and XP is eligible (not a pending preview cap).
+  int? get memberXpAwardedPoints {
+    if (xpPendingEffective) return null;
+    if (!memberScoresReleasedEffective) return null;
+    if (xpEligibleEffective == false) return 0;
+    final mult = xpMultiplier ?? 1.0;
+    if (mult <= 0) return 0;
+    return (xpPointsPreviewEffective * mult).round();
+  }
 
   String _sourceUnverifiedDetailOrFallback() {
     final detail = aiDetection.detail.trim();

@@ -90,3 +90,11 @@ access_backend/uploads_waverep_test/
 *.bak_*
 access_backend/probe_test_image.jpg
 demo/videos/
+
+# Local DB backups, QA run artifacts, and device captures (never commit)
+access_backend/backups/
+**/*.dump
+access_backend/evaluation_results/
+access_backend/validation_data/
+access_backend/.venv_waverep_benchmark/
+access_backend/.env.waverep_nopush_test

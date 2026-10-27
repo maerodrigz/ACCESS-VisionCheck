@@ -81,6 +81,8 @@ export interface ExifMetadata {
   visual_ai_probability?: number
   /** Persisted automated detector id (e.g. probe, waverep_g4). */
   detector_backend?: string
+  admin_review_triggers?: string[]
+  primary_review_driver?: string
 }
 
 /** API host origin without `/api` suffix (empty when using same-origin `/api` proxy). */
@@ -145,17 +147,21 @@ export function adminIntegrityPreviewUrl(input: {
   fileName?: string | null
   fileType?: string | null
 }): string {
-  const direct = mediaUrl(input.mediaUrl)
-  if (direct.startsWith('https://') || direct.startsWith('http://')) {
-    const path = mediaPathOnly(direct).toLowerCase()
-    if (!path.startsWith('/uploads/')) {
-      return direct
+  const raw = (input.mediaUrl ?? '').trim()
+  const uploadsRel = uploadsRelativePath(raw)
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    if (!uploadsRel) {
+      return normalizeSupabaseStorageUrl(raw)
     }
   }
-  if (input.mediaId) {
+  // Disk-backed and local QA uploads: always authenticated stream (never public /uploads mount).
+  if (uploadsRel && input.mediaId) {
     return adminMediaStreamUrl(input.mediaId)
   }
-  return direct
+  if (input.mediaId && (raw.startsWith('/uploads/') || raw.startsWith('uploads/'))) {
+    return adminMediaStreamUrl(input.mediaId)
+  }
+  return mediaUrl(input.mediaUrl)
 }
 
 export function mediaUrl(path?: string | null): string {

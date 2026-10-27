@@ -9,16 +9,7 @@ from typing import Any
 
 import numpy as np
 
-try:
-    import torch
-    import torch.nn as nn
-    from PIL import Image
-    from torchvision.models import EfficientNet_B0_Weights, efficientnet_b0
-    from torchvision.transforms import functional as TF
-except ImportError:  # pragma: no cover
-    torch = None  # type: ignore
-    nn = None  # type: ignore
-    Image = None  # type: ignore
+from app.services.torch_runtime import get_torch, torch_available
 
 MODEL_ID = "efficientnet-b0"
 MODEL_VERSION = "1.0"
@@ -37,27 +28,14 @@ _model_lock = threading.Lock()
 _model: Any = None
 
 
-class EfficientNetB0IQA(nn.Module):  # type: ignore[misc]
-    """ImageNet EfficientNet-B0 backbone + regression head for 7 IQA signals."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        base = efficientnet_b0(weights=EfficientNet_B0_Weights.IMAGENET1K_V1)
-        self.features = base.features
-        self.avgpool = base.avgpool
-        self.dropout = nn.Dropout(p=0.15)
-        self.head = nn.Linear(1280, len(CRITERION_KEYS))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.features(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.dropout(x)
-        return torch.sigmoid(self.head(x))
-
-
 def efficientnet_available() -> bool:
-    return torch is not None and nn is not None and Image is not None
+    if not torch_available():
+        return False
+    try:
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        return False
+    return True
 
 
 def weights_path() -> Path:
@@ -73,7 +51,13 @@ def analyze_image_bytes(content: bytes) -> dict[str, Any] | None:
     if model is None:
         return None
 
+    torch = get_torch()
+    if torch is None:
+        return None
+
     try:
+        from PIL import Image
+
         image = Image.open(BytesIO(content)).convert("RGB")
     except Exception:
         return None
@@ -92,7 +76,9 @@ def analyze_image_bytes(content: bytes) -> dict[str, Any] | None:
     return metrics
 
 
-def _preprocess(image: Image.Image) -> torch.Tensor:
+def _preprocess(image: Any) -> Any:
+    from torchvision.transforms import functional as TF
+
     resized = TF.resize(image, [224, 224], antialias=True)
     tensor = TF.to_tensor(resized)
     tensor = TF.normalize(
@@ -103,7 +89,35 @@ def _preprocess(image: Image.Image) -> torch.Tensor:
     return tensor.unsqueeze(0)
 
 
-def _get_model() -> EfficientNetB0IQA | None:
+def _build_iqa_model() -> Any | None:
+    torch = get_torch()
+    if torch is None:
+        return None
+    import torch.nn as nn
+    from torchvision.models import EfficientNet_B0_Weights, efficientnet_b0
+
+    class EfficientNetB0IQA(nn.Module):
+        """ImageNet EfficientNet-B0 backbone + regression head for 7 IQA signals."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            base = efficientnet_b0(weights=EfficientNet_B0_Weights.IMAGENET1K_V1)
+            self.features = base.features
+            self.avgpool = base.avgpool
+            self.dropout = nn.Dropout(p=0.15)
+            self.head = nn.Linear(1280, len(CRITERION_KEYS))
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            x = self.features(x)
+            x = self.avgpool(x)
+            x = torch.flatten(x, 1)
+            x = self.dropout(x)
+            return torch.sigmoid(self.head(x))
+
+    return EfficientNetB0IQA()
+
+
+def _get_model() -> Any | None:
     global _model
     if _model is not None:
         return _model
@@ -113,8 +127,13 @@ def _get_model() -> EfficientNetB0IQA | None:
             return _model
         if not _WEIGHTS_PATH.exists():
             return None
+        torch = get_torch()
+        if torch is None:
+            return None
         try:
-            model = EfficientNetB0IQA()
+            model = _build_iqa_model()
+            if model is None:
+                return None
             try:
                 state = torch.load(_WEIGHTS_PATH, map_location="cpu", weights_only=True)
             except TypeError:

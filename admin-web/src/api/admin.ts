@@ -348,6 +348,10 @@ export function assignDocumentationTeam(
 
 export type IntegrityInboxQuery = 'all' | 'needs_action' | 'resolved'
 
+export function fetchAiDetectionForMedia(mediaId: number) {
+  return apiRequest<Record<string, unknown>>(`/admin/media/${mediaId}/ai-detection`)
+}
+
 export function fetchAiDetectionList(inbox: IntegrityInboxQuery = 'all') {
   const q =
     inbox === 'all' ? '' : `?inbox=${encodeURIComponent(inbox)}`

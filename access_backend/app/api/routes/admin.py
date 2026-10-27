@@ -698,6 +698,38 @@ def list_ai_detection(
         raise _load_error("AI detection results", exc) from exc
 
 
+@router.get("/media/{media_id}/ai-detection")
+def ai_detection_for_media(
+    media_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Integrity row for a practice media id (opens review when not in current inbox page)."""
+    ai = eval_crud.get_ai_for_media(db, media_id)
+    if ai is None:
+        raise HTTPException(status_code=404, detail="AI detection record not found for this media")
+    insights = None
+    ev = eval_crud.get_for_media(db, media_id)
+    if ev is not None:
+        insights = _additional_quality_insights_from_criteria_json(ev.criteria_json)
+    return _ai_detection_json(ai, additional_quality_insights=insights)
+
+
+@router.get("/media/{media_id}/submission-chain")
+def admin_submission_chain_timeline(
+    media_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    from app.crud import submission_chain as chain_crud
+    from app.services.submission_chain_timeline import admin_chain_timeline
+
+    chain = chain_crud.get_chain_for_media(db, media_id)
+    if chain is None:
+        raise HTTPException(status_code=404, detail="Submission chain not found")
+    return admin_chain_timeline(db, chain=chain)
+
+
 @router.patch("/ai-detection/{ai_id}")
 def update_ai_detection_review(
     ai_id: int,
@@ -708,13 +740,26 @@ def update_ai_detection_review(
     row = eval_crud.get_ai_by_id(db, ai_id)
     if not row:
         raise HTTPException(status_code=404, detail="AI detection record not found")
-    updated = eval_crud.update_ai_review(
-        db,
-        row,
+    from app.crud.submission_chain import ReplacementUploadError
+    from app.services.admin_review_validation import validate_admin_review_update
+
+    validate_admin_review_update(
         review_status=body.review_status,
         admin_remarks=body.admin_remarks,
-        reviewed_by=admin.id,
     )
+    try:
+        updated = eval_crud.update_ai_review(
+            db,
+            row,
+            review_status=body.review_status,
+            admin_remarks=body.admin_remarks,
+            reviewed_by=admin.id,
+        )
+    except ReplacementUploadError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
     db.refresh(updated)
     insights = None
     ev = eval_crud.get_for_media(db, updated.media_id)

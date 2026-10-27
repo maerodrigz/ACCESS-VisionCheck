@@ -334,6 +334,7 @@ class MemberApiService {
     int? requestId,
     String? displayName,
     String? evaluationMetadata,
+    int? replacesMediaId,
   }) async {
     return MediaUploadService.uploadMedia(
       client: apiClient,
@@ -342,8 +343,14 @@ class MemberApiService {
       requestId: requestId,
       displayName: displayName,
       evaluationMetadata: evaluationMetadata,
+      replacesMediaId: replacesMediaId,
       userId: authController.user?.id,
     );
+  }
+
+  Future<Map<String, dynamic>> getSubmissionChainHistory(int rootMediaId) async {
+    final data = await apiClient.get('/evaluations/chains/$rootMediaId');
+    return Map<String, dynamic>.from(data as Map);
   }
 
   Future<List<Map<String, dynamic>>> getEvaluations() async {

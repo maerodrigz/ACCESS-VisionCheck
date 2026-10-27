@@ -12,12 +12,7 @@ from typing import Any, Callable
 
 import numpy as np
 
-try:
-    import torch
-    from PIL import Image
-except ImportError:  # pragma: no cover
-    torch = None  # type: ignore
-    Image = None  # type: ignore
+from app.services.torch_runtime import get_torch, torch_available
 
 logger = logging.getLogger("ACCESS.probe_dino_detector")
 
@@ -77,7 +72,7 @@ def _get_probe_inference() -> tuple[Callable[..., Any], Callable[..., Any]]:
     return _probe_imports
 
 
-def resize_long_edge(image: Image.Image, max_edge: int = DEFAULT_MAX_LONG_EDGE) -> Image.Image:
+def resize_long_edge(image: Any, max_edge: int = DEFAULT_MAX_LONG_EDGE) -> Any:
     """Validated Step 8C.2 resize (no upscale)."""
     _ensure_probe_sys_path()
     from probe_inference import _resize_long_edge  # noqa: WPS433
@@ -85,14 +80,19 @@ def resize_long_edge(image: Image.Image, max_edge: int = DEFAULT_MAX_LONG_EDGE) 
     return _resize_long_edge(image, max_edge)
 
 
-def probe_detector_available() -> bool:
-    if torch is None or Image is None:
-        return False
+def probe_checkpoint_on_disk() -> bool:
     path = checkpoint_path()
     try:
         return path.is_file() and path.stat().st_size > 0
     except OSError:
         return False
+
+
+def probe_detector_available() -> bool:
+    """Checkpoint present and PyTorch can load (inference possible)."""
+    if not torch_available():
+        return False
+    return probe_checkpoint_on_disk()
 
 
 def _file_sha256(path: Path) -> str:
@@ -131,6 +131,9 @@ def _get_model() -> Any | None:
         try:
             load_probe_dino_checkpoint, _ = _get_probe_inference()
             HF_CACHE.mkdir(parents=True, exist_ok=True)
+            torch = get_torch()
+            if torch is None:
+                return None
             model = load_probe_dino_checkpoint(ckpt, hf_cache=HF_CACHE)
             model.to(torch.device("cpu"))
             _model = model
@@ -152,10 +155,13 @@ def probe_ai_probability(content: bytes) -> float | None:
     if model is None:
         return None
 
-    if Image is None or torch is None:
+    torch = get_torch()
+    if torch is None:
         return None
 
     try:
+        from PIL import Image
+
         image = Image.open(BytesIO(content)).convert("RGB")
         if image.size[0] < 8 or image.size[1] < 8:
             return None

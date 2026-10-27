@@ -205,8 +205,7 @@ class _EvaluationPageHeader extends StatelessWidget {
 }
 
 void _openEvaluation(BuildContext context, {required bool isVideo}) {
-  final atLimit = appState.evaluationsTodayCount >= appState.dailyEvaluationLimit;
-  if (atLimit) {
+  if (appState.evaluationsTodayAtLimitConfirmed) {
     showMobileToast(
       context,
       'Daily limit reached. ${appState.dailyEvaluationLimit} evaluations per day.',
@@ -250,12 +249,15 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: appState,
+      listenable: Listenable.merge([appState, memberDataController]),
       builder: (_, __) {
         final done = appState.evaluationsTodayCount;
         final limit = appState.dailyEvaluationLimit;
         final remaining = appState.evaluationsRemainingToday;
         final resetLabel = evaluationDailyLimitResetLabel(appState.evaluationDailyTimezone);
+        final quotaConfirmed = appState.evaluationsTodayQuotaConfirmed;
+        final quotaSyncing = memberDataController.participationQuotaSyncing;
+        final quotaSyncError = memberDataController.participationQuotaSyncError;
 
         return FadeTransition(
           opacity: _fadeAnim,
@@ -356,6 +358,16 @@ class _EvalAiHeroCardState extends State<_EvalAiHeroCard> with SingleTickerProvi
                         limit: limit,
                         remaining: remaining,
                         dailyResetLabel: resetLabel,
+                        quotaConfirmed: quotaConfirmed,
+                        quotaSyncing: quotaSyncing,
+                        quotaSyncError: quotaSyncError,
+                        onRetrySync: () {
+                          unawaited(
+                            memberDataController.refreshParticipationQuota(
+                              reason: 'evaluations_hero_retry',
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -375,20 +387,42 @@ class _EvalHeroDailyFooter extends StatelessWidget {
     required this.limit,
     required this.remaining,
     required this.dailyResetLabel,
+    required this.quotaConfirmed,
+    required this.quotaSyncing,
+    this.quotaSyncError,
+    this.onRetrySync,
   });
 
   final int done;
   final int limit;
   final int remaining;
   final String dailyResetLabel;
+  final bool quotaConfirmed;
+  final bool quotaSyncing;
+  final String? quotaSyncError;
+  final VoidCallback? onRetrySync;
 
   @override
   Widget build(BuildContext context) {
-    final progress = limit > 0 ? (done / limit).clamp(0.0, 1.0) : 0.0;
-    final atLimit = remaining <= 0;
-    final low = !atLimit && remaining <= 1;
+    final atLimit = quotaConfirmed && remaining <= 0;
+    final low = quotaConfirmed && !atLimit && remaining <= 1;
+    final progress = quotaConfirmed && limit > 0
+        ? (done / limit).clamp(0.0, 1.0)
+        : 0.0;
+    final countLabel = quotaSyncing
+        ? '…'
+        : (quotaConfirmed ? '$done/$limit' : '—/$limit');
+    final subLabel = quotaSyncing
+        ? 'Syncing quota…'
+        : (quotaSyncError != null
+            ? 'Tap to sync quota'
+            : (atLimit ? 'Limit reached' : (quotaConfirmed ? '$remaining left' : 'Sync quota')));
 
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: quotaSyncError != null && !quotaSyncing ? onRetrySync : null,
+        child: Container(
       padding: const EdgeInsets.fromLTRB(18, 11, 18, 13),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.14),
@@ -460,22 +494,36 @@ class _EvalHeroDailyFooter extends StatelessWidget {
             ),
             child: Column(
               children: [
-                Text(
-                  '$done/$limit',
-                  style: dashText(const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                  )),
-                ),
+                if (quotaSyncing)
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white.withValues(alpha: 0.92),
+                    ),
+                  )
+                else
+                  Text(
+                    countLabel,
+                    style: dashText(const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                    )),
+                  ),
                 const SizedBox(height: 2),
                 Text(
-                  atLimit ? 'Limit reached' : '$remaining left',
+                  subLabel,
                   style: dashText(TextStyle(
                     color: atLimit
                         ? const Color(0xFFFCA5A5)
-                        : (low ? const Color(0xFFFDE68A) : Colors.white.withValues(alpha: 0.88)),
+                        : (quotaSyncError != null
+                            ? const Color(0xFFFDE68A)
+                            : (low
+                                ? const Color(0xFFFDE68A)
+                                : Colors.white.withValues(alpha: 0.88))),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                     height: 1.1,
@@ -485,6 +533,8 @@ class _EvalHeroDailyFooter extends StatelessWidget {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

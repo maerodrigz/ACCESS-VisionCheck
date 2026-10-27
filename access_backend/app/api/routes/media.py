@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import Date, cast, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_approved
@@ -40,8 +41,20 @@ from app.services.media_file_hash import (
     sha256_hex,
 )
 from app.services.supabase_storage import normalize_supabase_storage_url
+from app.config import settings
 
 router = APIRouter(prefix="/media", tags=["Media"])
+
+
+def _replacement_error_http(exc) -> HTTPException:
+    from app.crud.submission_chain import ReplacementUploadError
+
+    if isinstance(exc, ReplacementUploadError):
+        return HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        )
+    raise exc
 
 
 def _raise_evaluation_duplicate() -> None:
@@ -231,17 +244,34 @@ async def upload_media(
     file_name: str | None = Form(None),
     evaluation_metadata: str | None = Form(None),
     cloud_file_url: str | None = Form(None),
+    replaces_media_id: int | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_approved),
 ):
+    if replaces_media_id is not None:
+        if not settings.replacement_upload_enabled:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "replacement_upload_disabled",
+                    "message": "Linked replacement upload is not enabled.",
+                },
+            )
+        if request_id is not None:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "invalid_replacement_target",
+                    "message": "Replacement upload cannot be used for event documentation.",
+                },
+            )
+
     ext = Path(file.filename or "").suffix.lower()
     content = await file.read()
 
     from app.services.supabase_storage import is_supabase_storage_configured, supabase_max_upload_bytes
 
     if is_supabase_storage_configured() and len(content) > supabase_max_upload_bytes():
-        from app.config import settings
-
         limit = int(settings.supabase_max_upload_mb or 50)
         raise HTTPException(
             status_code=400,
@@ -274,9 +304,20 @@ async def upload_media(
             )
         except EvaluationDuplicateUploadError:
             _raise_evaluation_duplicate()
+        if replaces_media_id is not None:
+            from app.crud.submission_chain import peek_replacement_target
+
+            try:
+                peek_replacement_target(
+                    db, member_id=current_user.id, replaces_media_id=replaces_media_id
+                )
+            except Exception as exc:
+                raise _replacement_error_http(exc) from exc
+
         eval_rules = evaluation_rules(db)
         daily_limit = int(eval_rules["max_files_per_day"])
-        if _member_evaluations_today(db, current_user.id) >= daily_limit:
+        skip_daily_for_replacement = replaces_media_id is not None and settings.replacement_upload_enabled
+        if not skip_daily_for_replacement and _member_evaluations_today(db, current_user.id) >= daily_limit:
             raise HTTPException(
                 status_code=429,
                 detail=f"Daily evaluation limit reached ({daily_limit} uploads per day).",
@@ -341,6 +382,63 @@ async def upload_media(
     except EvaluationDuplicateUploadError:
         media_crud.discard_stored_upload_blob(stored_url)
         _raise_evaluation_duplicate()
+
+    if media_category == MEDIA_CATEGORY_EVALUATION and replaces_media_id is None:
+        from app.crud.submission_chain import ensure_submission_chain_for_evaluation
+
+        ensure_submission_chain_for_evaluation(db, row)
+
+    if replaces_media_id is not None and settings.replacement_upload_enabled:
+        from app.crud.submission_chain import (
+            ReplacementUploadError,
+            attach_replacement_media,
+            validate_replacement_target,
+        )
+
+        try:
+            _, chain = validate_replacement_target(
+                db,
+                member_id=current_user.id,
+                replaces_media_id=replaces_media_id,
+            )
+            attach_replacement_media(
+                db,
+                chain=chain,
+                replacement=row,
+                replaces_media_id=replaces_media_id,
+            )
+            db.commit()
+        except ReplacementUploadError as exc:
+            db.rollback()
+            media_crud.discard_stored_upload_blob(stored_url)
+            try:
+                media_crud.delete_media(db, row)
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "Failed to delete orphan replacement media_id=%s", row.id
+                )
+            raise HTTPException(
+                status_code=exc.status_code,
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
+        except IntegrityError as exc:
+            db.rollback()
+            media_crud.discard_stored_upload_blob(stored_url)
+            try:
+                media_crud.delete_media(db, row)
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "Failed to delete orphan replacement media_id=%s after integrity conflict",
+                    row.id,
+                )
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "replacement_already_active",
+                    "message": "A replacement upload is already in progress for this chain.",
+                },
+            ) from exc
+
     row = media_crud.get(db, row.id)
     if is_event and request_id is not None:
         from app.services import notification_events as notify_events
@@ -348,8 +446,6 @@ async def upload_media(
         try:
             notify_events.notify_requestor_event_gallery_upload(db, request_id=request_id)
         except Exception:
-            import logging
-
             logging.getLogger(__name__).exception(
                 "Requestor gallery notify failed for request %s", request_id
             )

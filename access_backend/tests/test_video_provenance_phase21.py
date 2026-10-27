@@ -88,6 +88,9 @@ def test_waverep_low_complete_partial_still_requires_review() -> None:
     assert merged["final_review_required"] is True
     assert merged["provenance_policy_outcome"] == "source_partially_verified"
     assert merged["camera_provenance_strength"] == "partial"
+    assert merged["primary_review_driver"] == "provenance_partial_android"
+    assert "provenance_partial_android" in merged.get("admin_review_triggers", [])
+    assert "do not mean the video is AI-generated" in merged["detail"]
 
 
 def test_malformed_empty_provenance_numeric_filename() -> None:

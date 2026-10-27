@@ -7,6 +7,38 @@ export type CameraMetadataStatus = 'Present' | 'Partial' | 'Missing' | 'Unknown'
 
 const MANUAL_REVIEW_STATUSES: ReviewStatus[] = ['pending_review', 'needs_further_review']
 
+const REVIEW_TRIGGER_LABELS: Record<string, string> = {
+  visual_high: 'Visual detector: high AI-generation risk.',
+  visual_suspicious: 'Visual detector: elevated (suspicious) AI-generation risk.',
+  detector_unavailable: 'Video AI detector did not finish; manual review is required.',
+  security_ai_metadata: 'AI-related metadata indicator in the file.',
+  filename_reexport: 'Filename suggests a gallery save, download, or re-export.',
+  provenance_absent: 'No reliable original camera or container provenance.',
+  provenance_partial_android:
+    'Partial Android recording metadata without camera make/model. This alone is not treated as AI-generated.',
+  provenance_partial_other: 'Capture provenance is only partially verified.',
+  provenance_download_resave: 'Photo appears to be a download or re-save without in-camera proof.',
+  combined: 'Multiple integrity signals require an officer decision.',
+}
+
+export function integrityReviewTriggerLines(row: AiDetectionRow): string[] {
+  const raw = row.exif_metadata?.admin_review_triggers
+  if (!Array.isArray(raw) || raw.length === 0) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const code of raw) {
+    const key = String(code).trim().toLowerCase()
+    if (!key || key === 'combined' || seen.has(key)) continue
+    seen.add(key)
+    out.push(REVIEW_TRIGGER_LABELS[key] ?? key.replace(/_/g, ' '))
+  }
+  const driver = (row.exif_metadata?.primary_review_driver ?? '').trim().toLowerCase()
+  if (driver && driver !== 'none' && REVIEW_TRIGGER_LABELS[driver] && !seen.has(driver)) {
+    out.unshift(REVIEW_TRIGGER_LABELS[driver])
+  }
+  return out
+}
+
 /** PROBE visual risk band — detector only (not filename / provenance queue rules). */
 export function detectorAiRiskBand(row: AiDetectionRow): VisualRiskBand {
   const level = String(row.exif_metadata?.visual_risk_level ?? '').toLowerCase()
@@ -385,12 +417,23 @@ export function integrityManualReviewParagraph(row: AiDetectionRow): string | nu
     sentences.push(`AI-generation risk from the detector is low (${pct} P(fake)).`)
   }
 
-  if (trigger) {
+  const driver = (row.exif_metadata?.primary_review_driver ?? '').trim().toLowerCase()
+  if (driver === 'provenance_partial_android' && band === 'LOW') {
+    sentences.push(
+      'Visual AI-generation risk is low. Review is required because Android container metadata lacks camera make/model, not because the file was classified as AI-generated.',
+    )
+  } else if (trigger) {
     sentences.push(trigger.text)
   } else if (outcome === 'source_unverified') {
     sentences.push('File source could not be verified from metadata alone.')
   } else if (outcome === 'source_partially_verified') {
-    sentences.push('File source is only partially verified and needs an officer decision.')
+    if (band === 'LOW') {
+      sentences.push(
+        'File source is only partially verified. Manual review is driven by provenance policy, not by elevated AI-generation score.',
+      )
+    } else {
+      sentences.push('File source is only partially verified and needs an officer decision.')
+    }
   } else if (outcome === 'elevated_ai_risk' || outcome === 'high_ai_risk') {
     sentences.push('Integrity policy requires admin review for this risk and provenance mix.')
   } else if (sentences.length === 0) {

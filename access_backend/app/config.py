@@ -125,8 +125,21 @@ class Settings(BaseSettings):
     waverep_device: str = Field(default="cpu", alias="WAVEREP_DEVICE")
     waverep_samples: int = Field(default=20, alias="WAVEREP_SAMPLES")
     waverep_min_successful_frames: int = Field(default=1, alias="WAVEREP_MIN_SUCCESSFUL_FRAMES")
+    # Off by default: when true, new practice videos with low WaveRep/PROBE risk and partial
+    # Android container metadata (no make/model) may auto-clear without admin review.
+    partial_android_video_auto_clear_enabled: bool = Field(
+        default=False,
+        alias="PARTIAL_ANDROID_VIDEO_AUTO_CLEAR",
+    )
 
     max_media_evaluation_workers: int = Field(default=1, alias="MAX_MEDIA_EVALUATION_WORKERS")
+
+    deferred_reconcile_on_startup: bool = Field(default=True, alias="DEFERRED_RECONCILE_ON_STARTUP")
+    deferred_reconcile_max_jobs: int = Field(default=100, alias="DEFERRED_RECONCILE_MAX_JOBS")
+    health_show_database_name: bool = Field(default=False, alias="HEALTH_SHOW_DATABASE_NAME")
+
+    # Linked replacement upload (Phase 1+: schema only until enabled in later phases).
+    replacement_upload_enabled: bool = Field(default=False, alias="REPLACEMENT_UPLOAD_ENABLED")
 
     # IANA timezone for practice evaluation daily upload cap (midnight boundary).
     evaluation_daily_timezone: str = Field(default="Asia/Manila", alias="EVALUATION_DAILY_TIMEZONE")

@@ -22,6 +22,37 @@ class AuthController extends ChangeNotifier {
   Future<void> waitForInitialization() =>
       _initialization ??= _restoreSession();
 
+  /// Drop persisted JWT when it belongs to isolated QA or after QA→original URL migration.
+  Future<void> clearIncompatiblePersistedSession({
+    required bool backendMigratedFromQa,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_sessionKey);
+    if (raw == null) return;
+    if (backendMigratedFromQa || _isIsolatedQaSessionRaw(raw)) {
+      await prefs.remove(_sessionKey);
+      if (backendMigratedFromQa) {
+        _sessionEndMessage =
+            'Backend switched to the original server. Please sign in again.';
+      }
+    }
+  }
+
+  static bool _isIsolatedQaSessionRaw(String raw) {
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final email = (map['email'] as String? ?? '').trim().toLowerCase();
+      if (email.isEmpty) return false;
+      if (email.contains('qa-member-qa') || email.contains('waverep.')) {
+        return true;
+      }
+      if (email.endsWith('@example.com') || email.endsWith('@waverep.example.com')) {
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   AuthUser? _user;
   AuthUser? get user => _user;
   bool get isLoggedIn => _user != null;

@@ -179,14 +179,10 @@ def _detect_ai_generated_probe(
     }
     if apply_provenance_policy:
         prov = provenance if provenance is not None else classify_photo_camera_provenance(content, file_name)
+        from app.services.probe_provenance_policy import merge_provenance_policy_exif_fields
+
         payload = apply_probe_provenance_policy(payload, prov, file_name=file_name)
-        if isinstance(payload.get("exif_metadata"), dict):
-            meta = dict(payload["exif_metadata"])
-            meta["camera_provenance_strength"] = payload.get("camera_provenance_strength")
-            meta["camera_provenance_reasons"] = payload.get("camera_provenance_reasons")
-            meta["visual_risk_level"] = payload.get("visual_risk_level")
-            meta["provenance_policy_outcome"] = payload.get("provenance_policy_outcome")
-            payload["exif_metadata"] = meta
+        payload = merge_provenance_policy_exif_fields(payload)
     return payload
 
 

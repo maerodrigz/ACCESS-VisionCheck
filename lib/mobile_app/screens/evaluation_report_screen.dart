@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
+import 'package:access_mobile/mobile_app/screens/replacement_upload_screen.dart';
+import 'package:access_mobile/mobile_app/widgets/submission_chain_history_panel.dart';
+import 'package:access_mobile/shared/controllers/member_data_controller.dart';
+import 'package:access_mobile/shared/models/submission_chain_history.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
 import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
 import 'package:access_mobile/mobile_app/widgets/additional_quality_insights_panel.dart';
-import 'package:access_mobile/mobile_app/widgets/evaluation_integrity_panels.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_report_integrity_compact.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
@@ -18,9 +21,9 @@ import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart' hide AiDetectionResult;
 import 'package:access_mobile/shared/models/member_review_status.dart';
+import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
-import 'package:access_mobile/shared/utils/member_integrity_display.dart';
-
+import 'package:access_mobile/shared/themes/theme.dart';
 String _reportAdminRemarks(Evaluation evaluation) {
   final r = evaluation.adminRemarks?.trim() ?? '';
   if (r.isNotEmpty) return r;
@@ -32,7 +35,7 @@ String _reportAdminRemarks(Evaluation evaluation) {
 }
 
 /// Full saved evaluation report — opened from Recent Evaluations.
-class EvaluationReportScreen extends StatelessWidget {
+class EvaluationReportScreen extends StatefulWidget {
   const EvaluationReportScreen({
     super.key,
     required this.evaluation,
@@ -42,29 +45,60 @@ class EvaluationReportScreen extends StatelessWidget {
   final Evaluation evaluation;
   final List<PhotoEvaluationResult> comparisonEvaluations;
 
+  @override
+  State<EvaluationReportScreen> createState() => _EvaluationReportScreenState();
+}
+
+class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
+  SubmissionChainHistory? _chain;
+  bool _loadingChain = false;
+
+  Evaluation get evaluation => widget.evaluation;
+
   PhotoEvaluationResult? get _result => evaluationToPhotoResult(evaluation);
 
-  bool get _adminRequestedReupload {
-    final s = (evaluation.reviewStatus ?? '').toLowerCase();
-    return s.contains('reupload');
-  }
+  bool get _adminRequestedReupload => MemberReviewStatus.isReuploadRequested(evaluation.reviewStatus);
 
   bool get _isVideo => EvaluationMediaThumbnail.isVideoMedia(
         mediaType: evaluation.mediaType,
         url: evaluation.imageUrl,
       );
 
-  void _openReuploadFlow(BuildContext context) {
-    openAiMediaEvaluation(
-      context,
-      mode: _isVideo ? AiMediaEvaluationMode.video : AiMediaEvaluationMode.photo,
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshChain());
+  }
+
+  Future<void> _refreshChain() async {
+    final rootId = evaluation.chainHistoryRootMediaId;
+    if (rootId == null) return;
+    setState(() => _loadingChain = true);
+    final chain = await memberDataController.fetchSubmissionChainHistory(rootId);
+    if (mounted) {
+      setState(() {
+        _chain = chain;
+        _loadingChain = false;
+      });
+    }
+  }
+
+  Future<void> _openReuploadFlow(BuildContext context) async {
+    final refreshed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => ReplacementUploadScreen(evaluation: evaluation),
+      ),
     );
+    if (refreshed == true) {
+      await memberDataController.refreshAfterEvaluationSave();
+      if (mounted) await _refreshChain();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final parsed = _result;
-    final adminRemarks = _reportAdminRemarks(evaluation);
+    final adminRemarks = _reportAdminRemarks(widget.evaluation);
     final reviewPending = (parsed != null &&
             !MemberReviewStatus.isFinalAdminDecision(evaluation.reviewStatus) &&
             (parsed.aiDetection.requiresReview ||
@@ -176,23 +210,20 @@ class EvaluationReportScreen extends StatelessWidget {
                     insights: parsed.additionalQualityInsights!,
                   ),
                 ],
-                const SizedBox(height: 16),
-              ] else if (!memberShouldHideIntegrityOnlyReviewCard(
-                result: parsed,
-                adminReviewStatus: evaluation.reviewStatus,
-              )) ...[
+                const SizedBox(height: 12),
+              ] else if (parsed.aiDetection.isAiGenerated &&
+                  !parsed.showQualityFeedbackEffective) ...[
                 IntegrityOnlyMessageCard(
                   result: parsed,
+                  layout: IntegrityOnlyCardLayout.resultCompact,
                   reviewStatus: evaluation.reviewStatus,
                   adminRemarks: evaluation.adminRemarks,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
               ],
-              EvaluationIntegrityPanels(
-                aiDetection: parsed.aiDetection,
-                evaluationResult: parsed,
+              EvaluationReportIntegrityCompact(
+                result: parsed,
                 adminReviewStatus: evaluation.reviewStatus,
-                compact: true,
               ),
             ] else ...[
               Container(
@@ -204,13 +235,40 @@ class EvaluationReportScreen extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             if (_adminRequestedReupload) ...[
+              if (_loadingChain)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: kAccent),
+                    ),
+                  ),
+                )
+              else if (_chain != null) ...[
+                SubmissionChainHistoryPanel(history: _chain!),
+                const SizedBox(height: 10),
+              ],
+              if (evaluation.hasActiveReplacementInChain)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    'Your replacement is in AI or admin review. Original remarks and history stay visible below.',
+                    style: TextStyle(color: kTextSecondary, fontSize: 12, height: 1.35),
+                  ),
+                ),
               _EvalReportActionButton(
-                label: _isVideo ? 'Re-upload video' : 'Re-upload photo',
+                label: evaluation.canSubmitLinkedReplacement
+                    ? (_isVideo ? 'Re-upload Media (video)' : 'Re-upload Media')
+                    : 'Replacement in review',
                 icon: Icons.upload_rounded,
                 outlined: false,
-                onPressed: () => _openReuploadFlow(context),
+                onPressed: evaluation.canSubmitLinkedReplacement
+                    ? () => unawaited(_openReuploadFlow(context))
+                    : null,
               ),
               const SizedBox(height: 10),
             ],
@@ -224,7 +282,8 @@ class EvaluationReportScreen extends StatelessWidget {
                   result: parsed,
                   geminiFeedback: evaluation.geminiFeedback,
                   title: evaluation.title,
-                  comparisonEvaluations: comparisonEvaluations,
+                  comparisonEvaluations: widget.comparisonEvaluations,
+                  adminReviewStatus: evaluation.reviewStatus,
                 ),
               ),
           ],
@@ -452,7 +511,7 @@ class _EvalReportActionButton extends StatelessWidget {
 
   final String label;
   final IconData icon;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool outlined;
 
   @override

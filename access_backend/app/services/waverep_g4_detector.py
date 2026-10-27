@@ -395,12 +395,13 @@ def detect_ai_generated_video(
     video_provenance = classify_video_container_provenance(
         video_content, video_ext, file_name=file_name
     )
+    from app.services.probe_provenance_policy import merge_provenance_policy_exif_fields
+
     payload = apply_probe_provenance_policy(payload, video_provenance, file_name=file_name)
     payload["exif_metadata"] = _video_provenance_exif_panel(video_provenance, file_name)
+    payload = merge_provenance_policy_exif_fields(payload)
     if isinstance(payload.get("exif_metadata"), dict):
         meta = dict(payload["exif_metadata"])
-        meta["visual_ai_probability"] = payload.get("probability")
-        meta["visual_risk_level"] = payload.get("risk_level")
         meta["detector_backend"] = "waverep_g4"
         supp = payload.get("waverep_supplementary")
         if isinstance(supp, dict):

@@ -31,6 +31,34 @@ _PARTIAL_PROVENANCE_MEMBER_MESSAGE = (
     "An officer must confirm the file before scores, coaching, and XP are released."
 )
 
+_PARTIAL_ANDROID_VIDEO_MEMBER_MESSAGE = (
+    "Automated screening shows low AI-generation risk for this video. "
+    "Some Android recording metadata is present, but camera make and model are not in the file. "
+    "This is not treated as AI-generated content. An officer must still confirm the file "
+    "before scores, coaching, and XP are released."
+)
+
+
+def _integrity_message_for_provenance_hold(ai: dict[str, Any]) -> str:
+    driver = str(ai.get("primary_review_driver") or "").lower()
+    triggers = ai.get("admin_review_triggers")
+    trigger_set = {str(t).lower() for t in triggers} if isinstance(triggers, list) else set()
+    visual_triggers = {"visual_high", "visual_suspicious", "detector_unavailable", "security_ai_metadata"}
+    android_only = (
+        driver == "provenance_partial_android"
+        or (
+            "provenance_partial_android" in trigger_set
+            and not (trigger_set & visual_triggers)
+        )
+    )
+    prov_outcome = str(ai.get("provenance_policy_outcome") or "").lower()
+    visual_risk = str(ai.get("visual_risk_level") or ai.get("risk_level") or "").lower()
+    if android_only and visual_risk == "low" and prov_outcome == "source_partially_verified":
+        return _PARTIAL_ANDROID_VIDEO_MEMBER_MESSAGE
+    if prov_outcome == "source_partially_verified":
+        return _PARTIAL_PROVENANCE_MEMBER_MESSAGE
+    return _SOURCE_UNVERIFIED_MEMBER_MESSAGE
+
 
 def integrity_tier_from_detection(ai_detection: dict[str, Any]) -> str:
     verdict = str(ai_detection.get("verdict", INTEGRITY_TIER_AUTHENTIC)).lower()
@@ -60,11 +88,7 @@ def apply_integrity_evaluation_policy(payload: dict[str, Any]) -> dict[str, Any]
 
     prov_outcome = str(ai.get("provenance_policy_outcome") or "").lower()
     if prov_outcome in ("source_unverified", "source_partially_verified") and ai.get("requires_review"):
-        integrity_msg = (
-            _PARTIAL_PROVENANCE_MEMBER_MESSAGE
-            if prov_outcome == "source_partially_verified"
-            else _SOURCE_UNVERIFIED_MEMBER_MESSAGE
-        )
+        integrity_msg = _integrity_message_for_provenance_hold(ai)
         out["show_quality_feedback"] = False
         out["quality_provisional"] = True
         out["xp_eligible"] = False
@@ -78,12 +102,7 @@ def apply_integrity_evaluation_policy(payload: dict[str, Any]) -> dict[str, Any]
 
     if tier == INTEGRITY_TIER_AUTHENTIC:
         if ai.get("requires_review") is True:
-            prov_outcome = str(ai.get("provenance_policy_outcome") or "").lower()
-            integrity_msg = (
-                _PARTIAL_PROVENANCE_MEMBER_MESSAGE
-                if prov_outcome == "source_partially_verified"
-                else _SOURCE_UNVERIFIED_MEMBER_MESSAGE
-            )
+            integrity_msg = _integrity_message_for_provenance_hold(ai)
             out["show_quality_feedback"] = False
             out["quality_provisional"] = True
             out["xp_eligible"] = False

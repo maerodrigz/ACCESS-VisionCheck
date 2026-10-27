@@ -49,5 +49,8 @@ export default defineConfig(({ mode }) => {
         '/uploads': apiProxy(proxyTarget),
       },
     },
+    test: {
+      environment: 'node',
+    },
   }
 })

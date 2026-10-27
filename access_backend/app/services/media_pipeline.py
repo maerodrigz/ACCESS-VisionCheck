@@ -244,6 +244,8 @@ def run_pipeline(
             "visual_ai_probability",
             "visual_risk_level",
             "provenance_policy_outcome",
+            "admin_review_triggers",
+            "primary_review_driver",
         ):
             if key in ai_info and key not in exif_payload:
                 exif_payload[key] = ai_info[key]
@@ -285,7 +287,14 @@ def run_pipeline(
             else:
                 xp_points = int(round(float(scores["overall_score"]) * 100))
             if xp_points > 0:
-                ranking_crud.add_points(db, media.uploaded_by, xp_points)
+                from app.services.chain_xp_award import apply_chain_xp_award
+
+                apply_chain_xp_award(
+                    db,
+                    media_id=media.id,
+                    member_id=media.uploaded_by,
+                    points=xp_points,
+                )
             if payload and payload.get("member_scores_released", True):
                 user_crud.recalculate_skill_level(db, user)
             elif not payload:

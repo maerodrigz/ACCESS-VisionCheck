@@ -37,6 +37,8 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     MediaComment,
     MediaEvaluation,
     MediaFile,
+    SubmissionChain,
+    SubmissionChainEvent,
     MemberMilestone,
     MemberRanking,
     Notification,
@@ -536,6 +538,9 @@ def main() -> None:
     upgrade_media_storage_removed_schema()
     upgrade_media_files_file_url_text()
     upgrade_media_files_evaluation_file_hash()
+    from app.migrations.submission_chains_phase1 import upgrade_submission_chains_phase1
+
+    upgrade_submission_chains_phase1(engine)
 
     db = SessionLocal()
     try:

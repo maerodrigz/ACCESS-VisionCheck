@@ -221,6 +221,14 @@ class EvaluationOut(BaseModel):
     recommendation: str | None = None
     criteria_json: str | None = None
     storage_removed: bool = False
+    submission_chain_id: int | None = None
+    chain_root_media_id: int | None = None
+    replaces_media_id: int | None = None
+    chain_role: str | None = None
+    replacement_lifecycle: str | None = None
+    xp_reconciliation_status: str | None = None
+    active_replacement_media_id: int | None = None
+    awaiting_replacement_media_id: int | None = None
 
 
 class FeedbackCreate(BaseModel):

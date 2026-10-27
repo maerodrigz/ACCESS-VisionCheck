@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_approved
 from app.crud import evaluation as eval_crud
+from app.crud import submission_chain as chain_crud
 from app.database import get_db
+from app.models.submission_chain import SubmissionChain
 from app.models.user import User
 from app.schemas.member_api import EvaluationOut
 from app.services.member_score_release import evaluation_row_for_member
+from app.services.submission_chain_read import chain_metadata_for_media
 from app.services.supabase_storage import normalize_supabase_storage_url
 
 router = APIRouter(prefix="/evaluations", tags=["Evaluations"])
@@ -45,6 +49,7 @@ def _evaluation_out_for_row(db: Session, ev) -> EvaluationOut:
         if storage_removed
         else normalize_supabase_storage_url(ev.media.file_url or "")
     )
+    chain_meta = chain_metadata_for_media(db, ev.media)
     return EvaluationOut(
         id=ev.id,
         media_id=ev.media_id,
@@ -66,7 +71,27 @@ def _evaluation_out_for_row(db: Session, ev) -> EvaluationOut:
         recommendation=recommendation,
         criteria_json=criteria_json,
         storage_removed=storage_removed,
+        **chain_meta,
     )
+
+
+@router.get("/chains/{root_media_id}")
+def get_submission_chain_history(
+    root_media_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    from app.services.submission_chain_timeline import member_chain_history
+
+    chain = db.scalar(select(SubmissionChain).where(SubmissionChain.root_media_id == root_media_id))
+    if chain is None:
+        chain = chain_crud.get_chain_for_media(db, root_media_id)
+    if chain is None or chain.member_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Submission chain not found")
+    try:
+        return member_chain_history(db, chain=chain, member_id=current_user.id)
+    except PermissionError:
+        raise HTTPException(status_code=404, detail="Submission chain not found") from None
 
 
 @router.get("", response_model=list[EvaluationOut])

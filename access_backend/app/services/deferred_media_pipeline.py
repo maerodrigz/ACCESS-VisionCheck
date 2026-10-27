@@ -129,13 +129,46 @@ def run_deferred_media_pipeline_job(
             db.close()
 
 
+def _reconcile_candidate_has_readable_bytes(db: Session, media_id: int) -> bool:
+    """Skip orphan rows that cannot be processed (missing disk, disabled remote storage)."""
+    from app.services.media_file_bytes import local_media_path, read_media_file_bytes
+    from app.services.upload_bytes_cache import take_evaluation_upload
+
+    media = media_crud.get(db, media_id)
+    if media is None or not (media.file_url or "").strip():
+        return False
+    if take_evaluation_upload(media_id) is not None:
+        return True
+    url = (media.file_url or "").strip()
+    if url.startswith("supabase-ref:"):
+        from app.services.supabase_storage import is_supabase_storage_configured
+
+        if not is_supabase_storage_configured():
+            return False
+    local = local_media_path(url)
+    if local is not None:
+        return True
+    if url.startswith("http://") or url.startswith("https://"):
+        sample = read_media_file_bytes(url, timeout=8.0)
+        return bool(sample)
+    if url.startswith("/uploads/") or url.startswith("uploads/"):
+        return False
+    return False
+
+
 def reconcile_pending_media_evaluations() -> int:
     """Startup: requeue evaluation uploads that have MediaFile but no MediaEvaluation."""
+    from app.config import settings
     from sqlalchemy import select
 
     from app.models.media_evaluation import MediaEvaluation
     from app.models.media_file import MediaFile
 
+    if not settings.deferred_reconcile_on_startup:
+        logger.info("deferred pipeline: startup reconcile disabled (DEFERRED_RECONCILE_ON_STARTUP=false)")
+        return 0
+
+    max_jobs = max(0, int(settings.deferred_reconcile_max_jobs))
     db = SessionLocal()
     try:
         rows = db.scalars(
@@ -145,17 +178,28 @@ def reconcile_pending_media_evaluations() -> int:
                 MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
                 MediaEvaluation.id.is_(None),
             )
+            .order_by(MediaFile.id.desc())
+            .limit(max_jobs if max_jobs > 0 else 100)
         ).all()
         media_ids = list(rows)
+        schedulable: list[int] = []
+        for media_id in media_ids:
+            if _reconcile_candidate_has_readable_bytes(db, media_id):
+                schedulable.append(media_id)
     finally:
         db.close()
 
-    for media_id in media_ids:
+    for media_id in schedulable:
         schedule_deferred_media_evaluation(media_id, evaluation_metadata=None)
 
-    if media_ids:
-        logger.info("deferred pipeline: reconciled %s pending media evaluation(s)", len(media_ids))
-    return len(media_ids)
+    if schedulable:
+        logger.info(
+            "deferred pipeline: reconciled %s pending media evaluation(s) (candidates=%s, cap=%s)",
+            len(schedulable),
+            len(media_ids),
+            max_jobs,
+        )
+    return len(schedulable)
 
 
 def shutdown_media_evaluation_executor() -> None:

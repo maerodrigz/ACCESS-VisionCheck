@@ -102,7 +102,7 @@ void main() {
           automated: ai,
           adminReviewStatus: 'needs_further_review',
         ),
-        'Under review',
+        'Pending Verification',
       );
       expect(memberAutomatedAiRiskTierLabel(ai), 'Low AI Risk');
     });
@@ -247,13 +247,15 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Media under review'), findsOneWidget);
+      expect(find.text('Pending Verification'), findsOneWidget);
+      expect(find.text('Admin Verification Status'), findsOneWidget);
       expect(find.text('Low AI Risk'), findsOneWidget);
-      expect(find.text('Camera Verification Pending'), findsOneWidget);
+      expect(find.text('Partial metadata · verification pending'), findsOneWidget);
+      expect(find.text('Camera Metadata / Provenance'), findsOneWidget);
       expect(find.text('AI Score: 0.6%'), findsOneWidget);
       expect(find.textContaining('20/20'), findsNothing);
       expect(find.textContaining('WaveRep'), findsNothing);
-      expect(find.textContaining('camera information is incomplete'), findsOneWidget);
+      expect(find.textContaining('assessed separately below'), findsOneWidget);
       expect(find.text('Consistent with Camera-Captured Media'), findsNothing);
     });
 
@@ -288,12 +290,8 @@ void main() {
         ),
       );
       expect(find.text('Low AI Risk'), findsOneWidget);
-      expect(find.textContaining('camera information is incomplete'), findsOneWidget);
-      expect(
-        find.textContaining('recording device could not be fully identified'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('does not necessarily mean the video is AI-generated'), findsOneWidget);
+      expect(find.textContaining('manufacturer and model are not available'), findsOneWidget);
+      expect(find.textContaining('Incomplete metadata does not mean the video is AI-generated'), findsOneWidget);
       expect(find.text('Available evidence'), findsOneWidget);
       expect(find.textContaining('Recording timestamp:'), findsOneWidget);
       expect(find.textContaining('Android version: 11'), findsOneWidget);
@@ -419,7 +417,7 @@ void main() {
         adminReviewStatus: 'needs_further_review',
       );
       expect(pending.tierLabel, 'Low AI Risk');
-      expect(pending.detail, contains('camera information is incomplete'));
+      expect(pending.detail, contains('assessed separately'));
       expect(pending.tierLabel, isNot('Consistent with Camera-Captured Media'));
 
       final suspicious = memberAiAuthenticityPanelModel(automated: suspiciousProbe());
@@ -570,8 +568,8 @@ void main() {
           ),
         ),
       );
-      expect(find.textContaining('Original camera device information in this file is incomplete'), findsOneWidget);
-      expect(find.textContaining('recording device could not be fully identified'), findsNothing);
+      expect(find.textContaining('manufacturer and model information is incomplete or missing'), findsOneWidget);
+      expect(find.textContaining('Incomplete metadata does not mean the photo is AI-generated'), findsOneWidget);
       expect(find.textContaining('Camera manufacturer: INFINIX MOBILITY LIMITED'), findsOneWidget);
       expect(find.textContaining('Camera model: Infinix X695'), findsOneWidget);
       expect(find.text('Camera identity unavailable'), findsNothing);
@@ -603,19 +601,39 @@ void main() {
       expect(find.text('Camera identity unavailable'), findsOneWidget);
     });
 
-    testWidgets('verified human shows administrator provenance completion panel', (tester) async {
+    testWidgets('verified human shows admin status and retains provenance tier', (tester) async {
+      const ai = AiDetectionResult(
+        verdict: 'authentic',
+        confidence: 0.99,
+        probability: 0.0056,
+        riskLevel: 'low',
+        visualRiskLevel: 'low',
+        requiresReviewFlag: true,
+        provenancePolicyOutcome: 'source_partially_verified',
+        cameraProvenanceStrength: 'partial',
+        isFinal: true,
+        detail: '',
+        exifMetadata: {
+          'is_video': true,
+          'fields': [
+            {'key': 'creation_time', 'value': '2026-06-29T10:14:54.000000Z'},
+            {'key': 'com.android.version', 'value': '11'},
+          ],
+        },
+      );
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: EvaluationIntegrityPanels(
-              aiDetection: suspiciousProbe(),
+              aiDetection: ai,
               adminReviewStatus: 'verified_human',
             ),
           ),
         ),
       );
-      expect(find.text('Administrator verification completed'), findsOneWidget);
-      expect(find.text('Camera Verification Pending'), findsNothing);
+      expect(find.text('Verified as human'), findsOneWidget);
+      expect(find.text('Partial camera metadata'), findsOneWidget);
+      expect(find.text('Pending Verification'), findsNothing);
     });
 
     test('fromJsonMap parses video exif metadata for evidence', () {
@@ -677,8 +695,39 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Media under review'), findsOneWidget);
+      expect(find.text('Pending Verification'), findsOneWidget);
       expect(find.text('Integrity review required'), findsNothing);
+    });
+  });
+
+  group('partial Android low-risk pending review', () {
+    test('workflow label and banner avoid AI-generated accusation', () {
+      const ai = AiDetectionResult(
+        verdict: 'authentic',
+        confidence: 0.99,
+        probability: 0.006,
+        riskLevel: 'low',
+        visualRiskLevel: 'low',
+        requiresReviewFlag: true,
+        provenancePolicyOutcome: 'source_partially_verified',
+        primaryReviewDriver: 'provenance_partial_android',
+        adminReviewTriggers: ['provenance_partial_android'],
+        isFinal: true,
+        detail: 'Low risk',
+      );
+      expect(
+        memberSubmissionWorkflowStatusLabel(
+          automated: ai,
+          adminReviewStatus: 'needs_further_review',
+        ),
+        'Pending Verification',
+      );
+      final banner = memberIntegrityBannerModel(
+        automated: ai,
+        adminReviewStatus: 'needs_further_review',
+      );
+      expect(banner.heading, 'Pending Verification');
+      expect(banner.detail, contains('not treated as AI-generated'));
     });
   });
 

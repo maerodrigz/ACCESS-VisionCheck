@@ -48,6 +48,23 @@ class MediaFile(Base):
     album_name_override: Mapped[str | None] = mapped_column(String(255))
     # Member removed blob from storage; evaluation + scores kept for averages and XP.
     storage_removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Linked replacement workflow (Phase 1: schema + read-only metadata).
+    submission_chain_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "submission_chains.id",
+            ondelete="SET NULL",
+            name="fk_media_files_submission_chain_id",
+            use_alter=True,
+        ),
+        nullable=True,
+        index=True,
+    )
+    replaces_media_id: Mapped[int | None] = mapped_column(
+        ForeignKey("media_files.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    replacement_lifecycle: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
 
     uploader = relationship("User", back_populates="uploaded_media")
     request = relationship("DocumentationRequest", back_populates="media_files")
@@ -60,3 +77,19 @@ class MediaFile(Base):
     comments = relationship("MediaComment", back_populates="media", cascade="all, delete-orphan")
     archives = relationship("Archive", back_populates="media", cascade="all, delete-orphan")
     facebook_posts = relationship("FacebookPost", back_populates="media", cascade="all, delete-orphan")
+    submission_chain_as_root = relationship(
+        "SubmissionChain",
+        back_populates="root_media",
+        foreign_keys="SubmissionChain.root_media_id",
+        uselist=False,
+    )
+    submission_chain = relationship(
+        "SubmissionChain",
+        foreign_keys=[submission_chain_id],
+        primaryjoin="MediaFile.submission_chain_id == SubmissionChain.id",
+    )
+    replaces_media = relationship(
+        "MediaFile",
+        remote_side=[id],
+        foreign_keys=[replaces_media_id],
+    )

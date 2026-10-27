@@ -43,6 +43,12 @@ class ApiConfig {
   /// Default port for FastAPI (`API_PORT` in `access_backend/.env`).
   static const int defaultPort = 3001;
 
+  /// USB + `adb reverse tcp:3001 tcp:3001` — original backend on the dev PC.
+  static const String originalUsbDevBaseUrl = 'http://127.0.0.1:3001';
+
+  /// Isolated QA stack (access_waverep_test) — must not override original app.
+  static const int isolatedQaApiPort = 3003;
+
   /// Full base URL override (highest priority). Example:
   /// `--dart-define=API_BASE_URL=http://192.168.1.42:3001`
   static const String apiBaseUrlOverride =
@@ -224,6 +230,69 @@ class ApiConfig {
   /// Dev default from [config/api.json] (bundled asset). Used on Android when
   /// no runtime URL is saved so physical phones do not stay on 10.0.2.2 only.
   /// Drop saved 10.0.2.2 override — that host is emulator-only and breaks physical phones.
+  /// True when [raw] points at the isolated QA API (port 3003).
+  static bool isIsolatedQaBackendUrl(String? raw) {
+    final trimmed = raw?.trim() ?? '';
+    if (trimmed.isEmpty) return false;
+    if (trimmed.contains(':3003')) return true;
+    try {
+      final uri = Uri.parse(
+        trimmed.startsWith('http') ? trimmed : 'http://$trimmed',
+      );
+      return uri.port == isolatedQaApiPort;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static bool isLocalOriginalUsbBackendUrl(String? raw) {
+    final trimmed = raw?.trim() ?? '';
+    if (trimmed.isEmpty) return false;
+    try {
+      final uri = Uri.parse(
+        trimmed.startsWith('http') ? trimmed : 'http://$trimmed',
+      );
+      return (uri.host == '127.0.0.1' || uri.host == 'localhost') &&
+          uri.port == defaultPort;
+    } catch (_) {
+      return trimmed.contains('127.0.0.1:3001');
+    }
+  }
+
+  static String _originalDevBackendTarget() {
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
+    }
+    return originalUsbDevBaseUrl;
+  }
+
+  /// Rewrites saved QA `:3003` overrides to the original USB backend (`:3001`).
+  static Future<bool> migrateIsolatedQaBackendToOriginalUsb() async {
+    if (kIsWeb) return false;
+    if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.iOS) {
+      return false;
+    }
+    final target = _originalDevBackendTarget();
+    var migrated = false;
+
+    final runtime = runtimeBaseUrl.value?.trim();
+    if (isIsolatedQaBackendUrl(runtime)) {
+      await runtimeBaseUrl.save(target);
+      migrated = true;
+    }
+
+    if (_lastWorkingBaseUrl != null &&
+        isIsolatedQaBackendUrl(_lastWorkingBaseUrl)) {
+      final stale = _lastWorkingBaseUrl!;
+      await forgetLastWorkingBaseUrl(stale);
+      await saveLastWorkingBaseUrl(target);
+      migrated = true;
+    }
+
+    return migrated;
+  }
+
   static Future<void> clearStaleEmulatorBackendOverride() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     // Compile-time base (e.g. emulator --dart-define=API_BASE_URL=10.0.2.2:3002) wins.
@@ -293,8 +362,18 @@ class ApiConfig {
         await runtimeBaseUrl.save(base);
         return;
       }
+      if (isLocalOriginalUsbBackendUrl(existing) ||
+          isIsolatedQaBackendUrl(existing)) {
+        return;
+      }
       // Refresh when bundled dev IP changed (e.g. Wi-Fi DHCP) or stale emulator host.
-      if (existing.contains('10.0.2.2') || existing != base) {
+      if (existing.contains('10.0.2.2')) {
+        await runtimeBaseUrl.save(base);
+        return;
+      }
+      if (existing != base &&
+          !isLocalOriginalUsbBackendUrl(existing) &&
+          !existing.contains('127.0.0.1')) {
         await runtimeBaseUrl.save(base);
         return;
       }

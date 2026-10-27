@@ -134,6 +134,11 @@ function parseExifMetadata(raw: unknown): ExifMetadata | undefined {
     visual_ai_probability:
       m.visual_ai_probability != null ? Number(m.visual_ai_probability) : undefined,
     detector_backend: m.detector_backend != null ? String(m.detector_backend) : undefined,
+    admin_review_triggers: Array.isArray(m.admin_review_triggers)
+      ? m.admin_review_triggers.map((t) => String(t)).filter(Boolean)
+      : undefined,
+    primary_review_driver:
+      m.primary_review_driver != null ? String(m.primary_review_driver) : undefined,
   }
 }
 

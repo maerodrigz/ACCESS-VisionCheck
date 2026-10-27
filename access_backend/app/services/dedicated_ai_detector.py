@@ -26,15 +26,7 @@ from typing import Any
 
 import numpy as np
 
-try:
-    import torch
-    import torch.nn as nn
-    from PIL import Image
-    from torchvision.transforms import CenterCrop, Compose, Normalize, ToTensor
-except ImportError:  # pragma: no cover
-    torch = None  # type: ignore
-    nn = None  # type: ignore
-    Image = None  # type: ignore
+from app.services.torch_runtime import get_torch, torch_available
 
 logger = logging.getLogger("ACCESS.dedicated_ai_detector")
 
@@ -77,9 +69,7 @@ def clip_backbone_path() -> Path:
     return _CLIP_BACKBONE_PATH
 
 
-def _univfd_detector_available() -> bool:
-    if torch is None or nn is None or Image is None:
-        return False
+def _univfd_weights_on_disk() -> bool:
     return (
         _FC_WEIGHTS_PATH.is_file()
         and _FC_WEIGHTS_PATH.stat().st_size > 0
@@ -88,8 +78,18 @@ def _univfd_detector_available() -> bool:
     )
 
 
+def _univfd_detector_available() -> bool:
+    if not torch_available():
+        return False
+    try:
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        return False
+    return _univfd_weights_on_disk()
+
+
 def dedicated_detector_available() -> bool:
-    """True when the configured backend's weights are present."""
+    """True when the configured backend can run inference."""
     if _active_detector_backend() == "probe":
         from app.services.probe_dino_detector import probe_detector_available
 
@@ -117,6 +117,8 @@ def _univfd_ai_probability(content: bytes) -> float | None:
         return None
 
     try:
+        from PIL import Image
+
         image = Image.open(BytesIO(content)).convert("RGB")
     except Exception:
         logger.debug("dedicated_ai_probability: could not decode image bytes", exc_info=True)
@@ -125,11 +127,15 @@ def _univfd_ai_probability(content: bytes) -> float | None:
     if image.size[0] < 8 or image.size[1] < 8:
         return None
 
+    torch = get_torch()
+    if torch is None:
+        return None
+
     try:
         tensor = _preprocess(image)
         with torch.no_grad():
             logit = model(tensor)
-        prob = _fake_probability_from_logit(logit)
+        prob = _fake_probability_from_logit(logit, torch)
     except Exception:
         logger.warning("dedicated_ai_probability: UnivFD inference failed", exc_info=True)
         return None
@@ -139,8 +145,10 @@ def _univfd_ai_probability(content: bytes) -> float | None:
     return float(max(0.0, min(1.0, prob)))
 
 
-def _preprocess(image: Image.Image) -> torch.Tensor:
+def _preprocess(image: Any) -> Any:
     """Official UnivFD validate.py transform for CLIP arch (not clip.load preprocess)."""
+    from torchvision.transforms import CenterCrop, Compose, Normalize, ToTensor
+
     transform = Compose(
         [
             CenterCrop(_INPUT_SIZE),
@@ -151,7 +159,7 @@ def _preprocess(image: Image.Image) -> torch.Tensor:
     return transform(image).unsqueeze(0)
 
 
-def _fake_probability_from_logit(raw: Any) -> float | None:
+def _fake_probability_from_logit(raw: Any, torch: Any) -> float | None:
     """UnivFD validate.py: model(in_tens).sigmoid() — fake label is 1."""
     if raw is None or not isinstance(raw, torch.Tensor):
         return None
@@ -170,6 +178,9 @@ def _get_model() -> Any | None:
         if _model is not None:
             return _model
         if not _univfd_detector_available():
+            return None
+        torch = get_torch()
+        if torch is None:
             return None
         try:
             from app.services.univfd.clip_model import CLIPModel

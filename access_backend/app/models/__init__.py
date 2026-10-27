@@ -11,6 +11,8 @@ from app.models.documentation_request import DocumentationRequest
 from app.models.request_assignment import RequestAssignment
 from app.models.event_calendar import EventCalendar
 from app.models.media_file import MediaFile
+from app.models.submission_chain import SubmissionChain
+from app.models.submission_chain_event import SubmissionChainEvent
 from app.models.media_evaluation import MediaEvaluation
 from app.models.ai_detection_result import AiDetectionResult
 from app.models.ai_review_history import AiReviewHistory
@@ -43,6 +45,8 @@ __all__ = [
     "RequestAssignment",
     "EventCalendar",
     "MediaFile",
+    "SubmissionChain",
+    "SubmissionChainEvent",
     "MediaEvaluation",
     "AiDetectionResult",
     "AiReviewHistory",

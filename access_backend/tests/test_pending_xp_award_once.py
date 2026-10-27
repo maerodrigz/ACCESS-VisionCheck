@@ -20,11 +20,21 @@ def test_award_pending_evaluation_xp_only_once(monkeypatch):
     def fake_get_for_media(_db, _media_id):
         return ev
 
-    def fake_add_points(_db, _member_id, points):
+    def fake_apply_chain_xp_award(_db, *, media_id, member_id, points):
+        data = json.loads(ev.criteria_json)
+        if data.get("xp_awarded_at_review"):
+            return 0
         add_calls.append(points)
+        data["xp_pending"] = False
+        data["xp_awarded_at_review"] = True
+        ev.criteria_json = json.dumps(data)
+        return points
 
     monkeypatch.setattr(ai_review_workflow.eval_crud, "get_for_media", fake_get_for_media)
-    monkeypatch.setattr(ai_review_workflow.ranking_crud, "add_points", fake_add_points)
+    monkeypatch.setattr(
+        "app.services.chain_xp_award.apply_chain_xp_award",
+        fake_apply_chain_xp_award,
+    )
 
     first = ai_review_workflow._award_pending_evaluation_xp(None, 99, 7)
     assert first == 42

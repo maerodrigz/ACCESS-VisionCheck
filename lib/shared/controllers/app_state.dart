@@ -76,6 +76,12 @@ class Evaluation {
   final DateTime? evaluatedAt;
   final bool isAnalysisInProgress;
   final bool storageRemoved;
+  final int? chainRootMediaId;
+  final int? awaitingReplacementMediaId;
+  final int? activeReplacementMediaId;
+  final int? replacesMediaId;
+  final String? replacementLifecycle;
+  final String? chainRole;
   Evaluation({
     required this.id,
     required this.title,
@@ -100,6 +106,12 @@ class Evaluation {
     this.evaluatedAt,
     this.isAnalysisInProgress = false,
     this.storageRemoved = false,
+    this.chainRootMediaId,
+    this.awaitingReplacementMediaId,
+    this.activeReplacementMediaId,
+    this.replacesMediaId,
+    this.replacementLifecycle,
+    this.chainRole,
   });
 
   int? get practiceMediaId {
@@ -124,6 +136,21 @@ class Evaluation {
     final status = reviewStatus?.toLowerCase();
     return status == 'pending_review' || status == 'needs_further_review';
   }
+
+  int? get chainHistoryRootMediaId => chainRootMediaId ?? practiceMediaId;
+
+  int? get replacementTargetMediaId {
+    if (!MemberReviewStatus.isReuploadRequested(reviewStatus)) return null;
+    return awaitingReplacementMediaId ?? practiceMediaId;
+  }
+
+  bool get hasActiveReplacementInChain =>
+      activeReplacementMediaId != null && activeReplacementMediaId! > 0;
+
+  bool get canSubmitLinkedReplacement =>
+      MemberReviewStatus.isReuploadRequested(reviewStatus) &&
+      !hasActiveReplacementInChain &&
+      replacementTargetMediaId != null;
 
   /// DB stores 0–1; older payloads may store 1–5 in criteria_json only.
   double get displayScore => score <= 1.0 ? score : (score / 5).clamp(0.0, 1.0);
@@ -676,6 +703,9 @@ class AppState extends ChangeNotifier {
   /// Practice evaluations used today (from GET /member/participation).
   int evaluationsTodayCount = 0;
 
+  /// True after the latest successful GET /member/participation applied [evaluationsTodayCount].
+  bool evaluationsTodayQuotaConfirmed = false;
+
   /// Daily cap for practice evaluations (from system settings via API).
   int dailyEvaluationLimit = 5;
 
@@ -690,6 +720,16 @@ class AppState extends ChangeNotifier {
 
   int get evaluationsRemainingToday =>
       (dailyEvaluationLimit - evaluationsTodayCount).clamp(0, dailyEvaluationLimit);
+
+  /// Client gate aligned with the last confirmed server quota (not stale cache).
+  bool get evaluationsTodayAtLimitConfirmed =>
+      evaluationsTodayQuotaConfirmed &&
+      evaluationsTodayCount >= dailyEvaluationLimit;
+
+  void invalidateEvaluationsTodayQuota() {
+    evaluationsTodayQuotaConfirmed = false;
+    notifyListeners();
+  }
 
   final List<EventFeedback> feedbacks = [];
 
@@ -805,6 +845,7 @@ class AppState extends ChangeNotifier {
     profileEvaluationsCount = 0;
     profileAdminRemarks = null;
     evaluationsTodayCount = 0;
+    evaluationsTodayQuotaConfirmed = false;
     dailyEvaluationLimit = 5;
     evaluationMaxUploadMb = 350;
     evaluationMaxVideoSeconds = 30;
@@ -868,7 +909,10 @@ class AppState extends ChangeNotifier {
     if (uploadsCount != null) profileUploads = uploadsCount;
     if (totalPoints != null) profilePoints = totalPoints;
     if (evaluationsCount != null) profileEvaluationsCount = evaluationsCount;
-    if (evaluationsToday != null) evaluationsTodayCount = evaluationsToday;
+    if (evaluationsToday != null) {
+      evaluationsTodayCount = evaluationsToday;
+      evaluationsTodayQuotaConfirmed = true;
+    }
     if (dailyEvaluationLimit != null) this.dailyEvaluationLimit = dailyEvaluationLimit;
     if (evaluationMaxUploadMb != null) this.evaluationMaxUploadMb = evaluationMaxUploadMb;
     if (evaluationMaxVideoSeconds != null) {

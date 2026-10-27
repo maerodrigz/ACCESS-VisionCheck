@@ -41,7 +41,31 @@ python scripts/api_connectivity_smoke.py
 
 ## Mobile
 
-Point API to `http://10.0.2.2:3003/api` (emulator) or PC LAN IP `:3003` (device). Cold restart after changing URL.
+**Android emulator** (host PC runs API on `127.0.0.1:3003`):
+
+```powershell
+flutter run -t lib/mobile_app/main_mobile.dart --dart-define-from-file=config/api.waverep3003.json
+```
+
+That file sets `API_BASE_URL=http://10.0.2.2:3003` (emulator alias for the PC). Do not edit `config/api.json` for QA; it stays on your normal dev LAN/port.
+
+**Physical phone:** same Wi-Fi as PC, then in-app **Set backend URL** → `http://<PC-LAN-IPv4>:3003` or:
+
+```powershell
+flutter run -t lib/mobile_app/main_mobile.dart --dart-define=API_PUBLIC_HOST=192.168.x.x --dart-define=API_PORT=3003
+```
+
+Cold restart after changing URL (not hot reload).
+
+## Phase 5 manual UI checklist
+
+**Admin (browser):** `admin-web\scripts\dev-isolated-3003.ps1` then open `http://127.0.0.1:5173`. Confirm `GET /api/health` shows `access_waverep_test`. Media Integrity: open Review modal, **Submission chain** tab, **Request Re-upload** (remarks ≥ 8 chars), verify/reject replacement when present.
+
+**Member (emulator):** `flutter run -t lib/mobile_app/main_mobile.dart --dart-define-from-file=config/api.waverep3003.json`. Evaluations → report with **Re-upload required** → linked replacement screen → history panel. Use a Phase 4 fresh member or admin-created test account.
+
+**After backend pytest:** `test_submission_chains_phase1` no longer downgrades schema (keeps QA UI working). If columns are missing, run `python -m app.migrations.run_submission_chains_phase1 upgrade` with `ACCESS_PYTEST_DB=access_waverep_test`.
+
+Connectivity: `.\scripts\phase5_qa_connectivity.ps1`
 
 ## Calendar workflow
 

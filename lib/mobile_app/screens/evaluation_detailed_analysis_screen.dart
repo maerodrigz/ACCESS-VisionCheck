@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:access_mobile/mobile_app/widgets/additional_quality_insights_panel.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_integrity_panels.dart';
+import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
@@ -21,6 +24,7 @@ class EvaluationDetailedAnalysisScreen extends StatefulWidget {
     this.title,
     this.comparisonEvaluations = const [],
     this.initialTab = 0,
+    this.adminReviewStatus,
   });
 
   final PhotoEvaluationResult result;
@@ -28,6 +32,7 @@ class EvaluationDetailedAnalysisScreen extends StatefulWidget {
   final String? title;
   final List<PhotoEvaluationResult> comparisonEvaluations;
   final int initialTab;
+  final String? adminReviewStatus;
 
   @override
   State<EvaluationDetailedAnalysisScreen> createState() => _EvaluationDetailedAnalysisScreenState();
@@ -40,7 +45,7 @@ class _EvaluationDetailedAnalysisScreenState extends State<EvaluationDetailedAna
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this, initialIndex: widget.initialTab.clamp(0, 2));
+    _tabs = TabController(length: 4, vsync: this, initialIndex: widget.initialTab.clamp(0, 3));
   }
 
   @override
@@ -77,6 +82,7 @@ class _EvaluationDetailedAnalysisScreenState extends State<EvaluationDetailedAna
             Tab(text: 'Summary'),
             Tab(text: 'Technical'),
             Tab(text: 'Comparison'),
+            Tab(text: 'Integrity'),
           ],
         ),
       ),
@@ -89,8 +95,46 @@ class _EvaluationDetailedAnalysisScreenState extends State<EvaluationDetailedAna
             result: widget.result,
             others: widget.comparisonEvaluations,
           ),
+          _IntegrityTab(
+            result: widget.result,
+            adminReviewStatus: widget.adminReviewStatus,
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _IntegrityTab extends StatelessWidget {
+  const _IntegrityTab({
+    required this.result,
+    this.adminReviewStatus,
+  });
+
+  final PhotoEvaluationResult result;
+  final String? adminReviewStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: mobileScrollPadding(context, top: 12, bottom: 28),
+      children: [
+        Text(
+          'Automated AI risk, camera provenance, and admin verification (full detail).',
+          style: evalBodyStyle.copyWith(fontSize: 12),
+        ),
+        const SizedBox(height: 10),
+        if (result.memberIntegrityMessageEffective.trim().isNotEmpty) ...[
+          IntegrityProvisionalBanner(message: result.memberIntegrityMessageEffective),
+          const SizedBox(height: 10),
+        ],
+        EvaluationIntegrityPanels(
+          aiDetection: result.aiDetection,
+          evaluationResult: result,
+          adminReviewStatus: adminReviewStatus,
+          compact: true,
+        ),
+      ],
     );
   }
 }
@@ -165,6 +209,12 @@ class _SummaryTab extends StatelessWidget {
             const SizedBox(height: 10),
           ],
           AiFeedbackCard(feedback: feedback),
+          if (result.hasAdditionalQualityInsights) ...[
+            const SizedBox(height: 16),
+            AdditionalQualityInsightsDetailPanel(
+              insights: result.additionalQualityInsights!,
+            ),
+          ],
           const SizedBox(height: 20),
           const _ModelFooter(),
         ],
@@ -509,6 +559,7 @@ void openEvaluationDetailedAnalysis(
   String? title,
   List<PhotoEvaluationResult> comparisonEvaluations = const [],
   int initialTab = 0,
+  String? adminReviewStatus,
 }) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
@@ -518,6 +569,7 @@ void openEvaluationDetailedAnalysis(
         title: title,
         comparisonEvaluations: comparisonEvaluations,
         initialTab: initialTab,
+        adminReviewStatus: adminReviewStatus,
       ),
     ),
   );

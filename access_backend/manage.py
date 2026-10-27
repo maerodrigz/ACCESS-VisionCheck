@@ -34,24 +34,36 @@ def cmd_runserver(args: argparse.Namespace) -> None:
     public = settings.public_api_url
     _, fb_token = facebook_credentials()
     fb_ready = bool(fb_token)
-    from app.services.dedicated_ai_detector import active_ai_detector_backend
-    from app.services.probe_dino_detector import checkpoint_path, probe_detector_available
+    from app.services.detector_startup_status import integrity_detector_status
 
-    backend = active_ai_detector_backend()
+    integrity = integrity_detector_status()
+    backend = integrity.get("detector_backend", "probe")
     print(f"Starting ACCESS VisionCheck API (bind {host}:{port})")
     print(f"  Public: {public}")
     print(f"  Facebook Graph API: {'ready' if fb_ready else 'token missing in .env'}")
     print(f"  AI detector backend: {backend}")
     print(f"  Media evaluation workers: {max(1, int(settings.max_media_evaluation_workers))}")
+    pytorch_ok = integrity.get("pytorch_available", False)
+    print(f"  PyTorch runtime: {'ready' if pytorch_ok else 'BLOCKED or missing'}")
+    if not pytorch_ok and integrity.get("pytorch_error"):
+        print(f"  PyTorch note: {integrity['pytorch_error'][:200]}")
     if backend == "probe":
         print(f"  PROBE max long edge: {int(settings.probe_max_long_edge)}")
         print(
             f"  PROBE risk thresholds: {float(settings.probe_low_risk_threshold)} / "
             f"{float(settings.probe_high_risk_threshold)}"
         )
-        ckpt = checkpoint_path()
-        ckpt_state = "ready" if probe_detector_available() else "MISSING"
-        print(f"  PROBE checkpoint: {ckpt_state} ({ckpt.name})")
+        ckpt_name = integrity.get("probe_checkpoint", "DINOv2_best_model_step_34999.pth")
+        on_disk = integrity.get("probe_checkpoint_on_disk", False)
+        inference = integrity.get("probe_checkpoint_ready", False)
+        ckpt_state = "inference ready" if inference else ("on disk only" if on_disk else "MISSING")
+        print(f"  PROBE checkpoint: {ckpt_state} ({ckpt_name})")
+    if integrity.get("waverep"):
+        wr = integrity["waverep"]
+        print(
+            f"  WaveRep G4: enabled={wr.get('enabled')} "
+            f"detector_loaded={wr.get('detector_initialized')}"
+        )
     print(f"  Docs:   {public}/docs")
     print(f"  Health: {public}/api/health")
     print(f"  Local:  http://127.0.0.1:{port}/api/health")

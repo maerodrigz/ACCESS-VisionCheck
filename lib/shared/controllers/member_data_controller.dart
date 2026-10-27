@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/member_api_service.dart';
@@ -7,12 +8,15 @@ import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/models/app_notification_mapper.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
+import 'package:access_mobile/shared/controllers/participation_quota_sync.dart';
 import 'package:access_mobile/mobile_app/widgets/member_milestone_celebration.dart';
 import 'package:access_mobile/shared/models/event_gallery.dart';
 import 'package:access_mobile/shared/models/member_milestone.dart';
 import 'package:access_mobile/shared/models/media_upload_response.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
+import 'package:access_mobile/shared/models/submission_chain_history.dart';
+import 'package:access_mobile/shared/utils/replacement_upload_errors.dart';
 import 'package:access_mobile/shared/services/deferred_media_evaluation_poll.dart';
 import 'package:access_mobile/shared/services/pending_practice_evaluation_store.dart';
 import 'package:access_mobile/shared/services/push_notification_service.dart';
@@ -80,6 +84,14 @@ class MemberDataController extends ChangeNotifier {
   String? evaluationsTabError;
   bool calendarTabSynced = false;
 
+  /// Lightweight sync for daily practice quota (GET /member/participation).
+  bool participationQuotaSyncing = false;
+  String? participationQuotaSyncError;
+
+  final ParticipationRefreshGuard _participationRefreshGuard =
+      ParticipationRefreshGuard();
+  Future<bool>? _participationRefreshFuture;
+
   Future<void>? _evaluationsTabFuture;
   Future<void>? _calendarTabFuture;
   Future<void>? _galleryTabFuture;
@@ -116,6 +128,10 @@ class MemberDataController extends ChangeNotifier {
     pendingPracticeAnalysisCount = 0;
     appState.isSyncingMemberData = false;
     appState.memberSyncError = null;
+    participationQuotaSyncing = false;
+    participationQuotaSyncError = null;
+    _participationRefreshGuard.reset();
+    _participationRefreshFuture = null;
   }
 
   static const int _eventGalleryPageSize = 100;
@@ -300,6 +316,7 @@ class MemberDataController extends ChangeNotifier {
     if (!authController.isLoggedIn) return Future.value();
     if (evaluationsTabSynced && evaluationsTabError == null) {
       unawaited(_syncEvaluationsTabLight());
+      unawaited(refreshParticipationQuota(reason: 'evaluations_tab_return'));
       return Future.value();
     }
     final inFlight = _evaluationsTabFuture;
@@ -322,21 +339,28 @@ class MemberDataController extends ChangeNotifier {
   /// Participation + evaluation list only (no full-tab loading state).
   Future<void> _syncEvaluationsTabLight() async {
     if (!authController.isLoggedIn) return;
+    await refreshParticipationQuota(reason: 'evaluations_tab_light');
     try {
       await Future.wait<void>([
-        _syncParticipationSection(),
         _syncEvaluationsSection(),
         _syncEvaluationMediaSection(),
       ]);
       appState.notifyListeners();
       notifyListeners();
-    } catch (_) {}
+    } catch (e, st) {
+      developer.log(
+        'Evaluations tab light sync failed: $e',
+        name: 'ACCESS.quota',
+        error: e,
+        stackTrace: st,
+      );
+    }
   }
 
   Future<void> _ensureEvaluationsTabImpl() async {
     final ctx = _MemberSyncContext();
+    await refreshParticipationQuota(reason: 'evaluations_tab_open');
     await _runSectionsParallel(ctx, [
-      ('Participation', _syncParticipationSection),
       ('EvaluationMedia', _syncEvaluationMediaSection),
       ('Evaluations', _syncEvaluationsSection),
     ]);
@@ -515,9 +539,9 @@ class MemberDataController extends ChangeNotifier {
     evaluationsTabError = null;
     notifyListeners();
     try {
+      await refreshParticipationQuota(reason: 'evaluations_tab_pull');
       final ctx = _MemberSyncContext();
       await _runSectionsParallel(ctx, [
-        ('Participation', _syncParticipationSection),
         ('EvaluationMedia', _syncEvaluationMediaSection),
         ('Evaluations', _syncEvaluationsSection),
       ]);
@@ -727,19 +751,78 @@ class MemberDataController extends ChangeNotifier {
   }
 
   Future<void> _syncParticipationSection() async {
-    final participation = await memberApiService.getParticipation();
-    appState.applyParticipation(
-      uploadsCount: participation['uploads_count'] as int? ?? 0,
-      assignmentsCompleted: participation['assignments_completed'] as int? ?? 0,
-      averageScore: (participation['average_score'] as num?)?.toDouble() ?? 0,
-      totalPoints: participation['total_points'] as int? ?? 0,
-      evaluationsCount: participation['evaluations_count'] as int? ?? 0,
-      evaluationsToday: participation['evaluations_today'] as int? ?? 0,
-      dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
-      evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 30,
-      evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
-    );
+    await refreshParticipationQuota(reason: 'member_sync');
+  }
+
+  /// Refreshes daily practice quota from GET /member/participation.
+  /// Returns true when the latest response was applied to [appState].
+  Future<bool> refreshParticipationQuota({String reason = 'manual'}) {
+    if (!authController.isLoggedIn) return Future.value(false);
+    final userId = authController.user?.id;
+    if (userId == null) return Future.value(false);
+
+    final inFlight = _participationRefreshFuture;
+    if (inFlight != null) return inFlight;
+
+    final token = _participationRefreshGuard.begin(userId);
+    participationQuotaSyncing = true;
+    participationQuotaSyncError = null;
+    notifyListeners();
+
+    final task = _refreshParticipationQuotaImpl(token, reason);
+    _participationRefreshFuture = task;
+    return task.whenComplete(() {
+      if (identical(_participationRefreshFuture, task)) {
+        _participationRefreshFuture = null;
+      }
+    });
+  }
+
+  Future<bool> _refreshParticipationQuotaImpl(int token, String reason) async {
+    try {
+      final participation = await memberApiService.getParticipation();
+      if (!_participationRefreshGuard.shouldApply(token, authController.user?.id)) {
+        return false;
+      }
+      final fields = participationFieldsFromApi(participation);
+      appState.applyParticipation(
+        uploadsCount: fields['uploads_count'] as int,
+        assignmentsCompleted: fields['assignments_completed'] as int,
+        averageScore: fields['average_score'] as double,
+        totalPoints: fields['total_points'] as int,
+        evaluationsCount: fields['evaluations_count'] as int,
+        evaluationsToday: fields['evaluations_today'] as int,
+        dailyEvaluationLimit: fields['daily_evaluation_limit'] as int,
+        evaluationMaxUploadMb: fields['evaluation_max_upload_mb'] as int,
+        evaluationMaxVideoSeconds: fields['evaluation_max_video_seconds'] as int,
+        evaluationDailyTimezone: fields['evaluation_daily_timezone'] as String,
+      );
+      participationQuotaSyncError = null;
+      appState.notifyListeners();
+      notifyListeners();
+      return true;
+    } catch (e, st) {
+      if (!_participationRefreshGuard.shouldApply(token, authController.user?.id)) {
+        return false;
+      }
+      appState.invalidateEvaluationsTodayQuota();
+      participationQuotaSyncError =
+          'Could not sync today\'s evaluation quota. Pull to refresh or try again.';
+      developer.log(
+        'Participation refresh failed ($reason): $e',
+        name: 'ACCESS.quota',
+        error: e,
+        stackTrace: st,
+      );
+      notifyListeners();
+      appState.notifyListeners();
+      return false;
+    } finally {
+      if (_participationRefreshGuard.isLatestToken(token)) {
+        participationQuotaSyncing = false;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> _syncTasksSection() async {
@@ -1214,39 +1297,33 @@ class MemberDataController extends ChangeNotifier {
   /// Skips events, tasks, notifications, and other heavy sections from [refreshAll].
   Future<void> refreshAfterEvaluationSave() async {
     if (!authController.isLoggedIn) return;
+    final userIdAtStart = authController.user?.id;
+
+    await refreshParticipationQuota(reason: 'post_upload');
+
     try {
+      if (userIdAtStart == null || authController.user?.id != userIdAtStart) {
+        return;
+      }
       final results = await Future.wait<dynamic>([
-        memberApiService.getParticipation(),
         memberApiService.getEvaluations(),
         memberApiService.getRankings(),
         memberApiService.getMedia(mine: true, mediaCategory: 'member_evaluation'),
       ]);
 
-      final participation = Map<String, dynamic>.from(results[0] as Map);
-      appState.applyParticipation(
-        uploadsCount: participation['uploads_count'] as int? ?? 0,
-        assignmentsCompleted: participation['assignments_completed'] as int? ?? 0,
-        averageScore: (participation['average_score'] as num?)?.toDouble() ?? 0,
-        totalPoints: participation['total_points'] as int? ?? 0,
-        evaluationsCount: participation['evaluations_count'] as int? ?? 0,
-        evaluationsToday: participation['evaluations_today'] as int? ?? 0,
-        dailyEvaluationLimit: participation['daily_evaluation_limit'] as int? ?? 5,
-      evaluationMaxUploadMb: participation['evaluation_max_upload_mb'] as int? ?? 350,
-      evaluationMaxVideoSeconds: participation['evaluation_max_video_seconds'] as int? ?? 30,
-      evaluationDailyTimezone: participation['evaluation_daily_timezone'] as String? ?? 'Asia/Manila',
-      );
+      if (authController.user?.id != userIdAtStart) return;
 
-      final evaluations = (results[1] as List).cast<Map<String, dynamic>>();
+      final evaluations = (results[0] as List).cast<Map<String, dynamic>>();
       appState.evaluations
         ..clear()
         ..addAll(evaluations.map(_evaluationFromApi));
 
-      final rankings = (results[2] as List).cast<Map<String, dynamic>>();
+      final rankings = (results[1] as List).cast<Map<String, dynamic>>();
       _applyRankingsRows(rankings);
 
       unawaited(refreshMilestones(unacknowledgedOnly: true));
 
-      final media = (results[3] as List).cast<Map<String, dynamic>>();
+      final media = (results[2] as List).cast<Map<String, dynamic>>();
       appState.gallery
         ..clear()
         ..addAll(
@@ -1257,8 +1334,15 @@ class MemberDataController extends ChangeNotifier {
 
       notifyListeners();
       appState.notifyListeners();
-    } catch (_) {
-      // Best effort; user can pull to refresh for a full sync.
+    } catch (e, st) {
+      developer.log(
+        'Post-upload refresh failed (evaluations/rankings/media): $e',
+        name: 'ACCESS.quota',
+        error: e,
+        stackTrace: st,
+      );
+      notifyListeners();
+      appState.notifyListeners();
     }
   }
 
@@ -1333,6 +1417,12 @@ class MemberDataController extends ChangeNotifier {
       parsedEvaluation: parsed,
       reviewStatus: e['review_status'] as String?,
       adminRemarks: e['admin_remarks'] as String?,
+      chainRootMediaId: _jsonInt(e['chain_root_media_id']),
+      awaitingReplacementMediaId: _jsonInt(e['awaiting_replacement_media_id']),
+      activeReplacementMediaId: _jsonInt(e['active_replacement_media_id']),
+      replacesMediaId: _jsonInt(e['replaces_media_id']),
+      replacementLifecycle: e['replacement_lifecycle'] as String?,
+      chainRole: e['chain_role'] as String?,
     );
   }
 
@@ -1442,6 +1532,9 @@ class MemberDataController extends ChangeNotifier {
         evaluationMetadata: evaluationMetadata,
       );
     } on ApiException catch (e) {
+      if (e.statusCode == 429) {
+        await refreshParticipationQuota(reason: 'daily_limit_429');
+      }
       return PracticeEvaluationSaveOutcome(
         phase: PracticeEvaluationSavePhase.uploadFailed,
         errorMessage: _practiceUploadErrorMessage(e),
@@ -1505,6 +1598,84 @@ class MemberDataController extends ChangeNotifier {
       upload: upload,
       pollOutcome: pollOutcome,
     );
+  }
+
+  /// Linked replacement for an admin re-upload request (same submission chain).
+  Future<PracticeEvaluationSaveOutcome> submitReplacementEvaluation({
+    required int replacesMediaId,
+    required List<int> bytes,
+    required String fileName,
+    String? title,
+    bool isVideo = false,
+    bool Function()? shouldContinuePolling,
+  }) async {
+    Map<String, dynamic> uploadRaw;
+    try {
+      uploadRaw = await memberApiService.uploadMedia(
+        bytes: bytes,
+        fileName: fileName,
+        displayName: title,
+        replacesMediaId: replacesMediaId,
+      );
+    } on ApiException catch (e) {
+      return PracticeEvaluationSaveOutcome(
+        phase: PracticeEvaluationSavePhase.uploadFailed,
+        errorMessage: replacementUploadErrorMessage(e),
+      );
+    } catch (_) {
+      return PracticeEvaluationSaveOutcome(
+        phase: PracticeEvaluationSavePhase.uploadFailed,
+        errorMessage: 'Replacement upload failed. Check your connection and try again.',
+      );
+    }
+
+    final upload = MediaUploadResponse.fromJson(uploadRaw);
+    await refreshAfterEvaluationSave();
+
+    if (!upload.needsDeferredProcessingPoll) {
+      return PracticeEvaluationSaveOutcome(
+        phase: PracticeEvaluationSavePhase.completedImmediately,
+        upload: upload,
+      );
+    }
+
+    await registerPendingPracticeAnalysis(upload.id, isVideo: isVideo);
+    await refreshAfterEvaluationSave();
+
+    final poll = DeferredMediaEvaluationPoll(
+      fetchMediaById: (id) => memberApiService.getMediaById(id),
+    );
+    final pollOutcome = await poll.waitForCompletion(
+      mediaId: upload.id,
+      isVideo: isVideo,
+      shouldContinue: shouldContinuePolling,
+    );
+
+    if (pollOutcome == DeferredPollOutcome.completed) {
+      await PendingPracticeEvaluationStore.remove(upload.id);
+      _syncPendingPracticeCount();
+      await refreshAfterEvaluationSave();
+      return PracticeEvaluationSaveOutcome(
+        phase: PracticeEvaluationSavePhase.completedAfterPoll,
+        upload: upload,
+        pollOutcome: pollOutcome,
+      );
+    }
+
+    return PracticeEvaluationSaveOutcome(
+      phase: PracticeEvaluationSavePhase.stillProcessingOnServer,
+      upload: upload,
+      pollOutcome: pollOutcome,
+    );
+  }
+
+  Future<SubmissionChainHistory?> fetchSubmissionChainHistory(int rootMediaId) async {
+    try {
+      final raw = await memberApiService.getSubmissionChainHistory(rootMediaId);
+      return SubmissionChainHistory.fromJson(raw);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> registerPendingPracticeAnalysis(int mediaId, {required bool isVideo}) async {

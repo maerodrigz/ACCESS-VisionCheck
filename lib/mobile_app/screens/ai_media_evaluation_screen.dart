@@ -279,7 +279,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
       showMobileToast(context, 'Please confirm this upload meets ACCESS content standards.', success: false);
       return;
     }
-    if (appState.evaluationsTodayCount >= appState.dailyEvaluationLimit) {
+    if (appState.evaluationsTodayAtLimitConfirmed) {
       showMobileToast(
         context,
         'Daily limit reached. You can submit ${appState.dailyEvaluationLimit} evaluations per day.',
@@ -450,7 +450,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final atLimit = appState.evaluationsTodayCount >= appState.dailyEvaluationLimit;
+    final atLimit = appState.evaluationsTodayAtLimitConfirmed;
 
     return Scaffold(
       backgroundColor: kBg,

@@ -14,7 +14,14 @@ from app.services.firebase_admin_app import ensure_firebase_admin_app
 logger = logging.getLogger(__name__)
 
 
+def _firebase_storage_explicitly_disabled() -> bool:
+    flag = (settings.firebase_storage_enabled or "").strip().lower()
+    return flag in ("0", "false", "no", "off")
+
+
 def is_firebase_storage_configured() -> bool:
+    if _firebase_storage_explicitly_disabled():
+        return False
     bucket = (settings.firebase_storage_bucket or "").strip()
     if not bucket:
         return False

@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Info, Loader2, RefreshCw, Search } from 'lucide-react'
-import { fetchAiDetectionList } from '../api/admin'
+import { fetchAiDetectionForMedia, fetchAiDetectionList } from '../api/admin'
 import type { AiDetectionRow } from '../api/media'
 import { AdminCard } from '../components/AdminCard'
 import { AdminErrorBanner } from '../components/AdminAlert'
@@ -323,6 +323,24 @@ export function MediaIntegrityPage() {
           row={selected}
           onClose={() => setSelected(null)}
           onSaved={(nextStatus) => handleReviewSaved(selected.id, nextStatus)}
+          onOpenRelatedMedia={(mediaId) => {
+            const found = rows.find((r) => r.media_id === mediaId)
+            if (found) {
+              setSelected(found)
+              return
+            }
+            void fetchAiDetectionForMedia(mediaId)
+              .then((raw) => {
+                const row = parseAiDetectionRow(raw)
+                if (row) {
+                  setInboxFilter('all')
+                  setSelected(row)
+                }
+              })
+              .catch(() => {
+                /* keep modal; chain panel already shows media id */
+              })
+          }}
         />
       )}
     </div>

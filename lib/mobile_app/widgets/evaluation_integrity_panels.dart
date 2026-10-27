@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
-import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/utils/member_integrity_display.dart';
 
-/// Split integrity UI: overall review status, AI risk, and camera provenance.
+/// Split integrity UI: admin verification, AI risk, and camera metadata/provenance.
 class EvaluationIntegrityPanels extends StatelessWidget {
   const EvaluationIntegrityPanels({
     super.key,
@@ -28,21 +27,17 @@ class EvaluationIntegrityPanels extends StatelessWidget {
   Widget build(BuildContext context) {
     final children = <Widget>[];
 
-    if (memberShowOverallMediaUnderReview(
+    final adminModel = memberAdminVerificationPanelModel(
       automated: aiDetection,
       adminReviewStatus: adminReviewStatus,
-    )) {
+      evaluationResult: evaluationResult,
+    );
+    if (adminModel != null) {
       children.add(
         _IntegrityPanelCard(
-          model: MemberIntegrityPanelModel(
-            sectionTitle: 'Overall Evaluation Status',
-            tierLabel: 'Media under review',
-            detail: memberOverallReviewPanelDetail(result: evaluationResult),
-            colorKind: MemberIntegrityColorKind.neutral,
-            iconKind: MemberIntegrityIconKind.pending,
-          ),
+          model: adminModel,
           compact: compact,
-          accentColor: kAccent,
+          accentColor: _adminAccentColor(adminModel),
         ),
       );
       children.add(SizedBox(height: compact ? 8 : 10));
@@ -61,16 +56,7 @@ class EvaluationIntegrityPanels extends StatelessWidget {
       ),
     );
 
-    if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
-      children.add(SizedBox(height: compact ? 8 : 10));
-      children.add(
-        _IntegrityPanelCard(
-          model: memberCameraProvenanceAdminCompletedPanelModel(),
-          compact: compact,
-          accentColor: kGreen,
-        ),
-      );
-    } else if (memberShowCameraProvenancePanel(
+    if (memberShowCameraMetadataPanel(
       automated: aiDetection,
       adminReviewStatus: adminReviewStatus,
     )) {
@@ -83,29 +69,7 @@ class EvaluationIntegrityPanels extends StatelessWidget {
         _IntegrityPanelCard(
           model: provModel,
           compact: compact,
-          accentColor: kYellow,
-        ),
-      );
-    } else if (!memberShowOverallMediaUnderReview(
-          automated: aiDetection,
-          adminReviewStatus: adminReviewStatus,
-        ) &&
-        aiDetection.isCameraProvenanceStrong &&
-        aiModel.tierLabel == 'Low AI Risk') {
-      children.add(SizedBox(height: compact ? 8 : 10));
-      children.add(
-        _IntegrityPanelCard(
-          model: const MemberIntegrityPanelModel(
-            sectionTitle: 'Camera Provenance Verification',
-            tierLabel: 'Camera metadata verified',
-            detail:
-                'Original capture metadata met automated provenance checks. '
-                'This supports authenticity screening but is not a substitute for officer review when required.',
-            colorKind: MemberIntegrityColorKind.green,
-            iconKind: MemberIntegrityIconKind.verified,
-          ),
-          compact: compact,
-          accentColor: kGreen,
+          accentColor: provModel.colorKind == MemberIntegrityColorKind.green ? kGreen : kYellow,
         ),
       );
     }
@@ -115,6 +79,14 @@ class EvaluationIntegrityPanels extends StatelessWidget {
       children: children,
     );
   }
+
+  Color _adminAccentColor(MemberIntegrityPanelModel model) => switch (model.colorKind) {
+        MemberIntegrityColorKind.green => kGreen,
+        MemberIntegrityColorKind.red => kRed,
+        MemberIntegrityColorKind.yellow => kYellow,
+        MemberIntegrityColorKind.accent => kAccent,
+        _ => kAccent,
+      };
 }
 
 class _IntegrityPanelCard extends StatelessWidget {

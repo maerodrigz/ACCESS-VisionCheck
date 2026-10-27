@@ -21,11 +21,13 @@ import {
   integrityManualReviewParagraph,
   integrityNeedsAdminAction,
   integrityProvenanceBullets,
+  integrityReviewTriggerLines,
   INTEGRITY_AI_DISCLAIMER,
   sourceVerificationDisplay,
   visualAiRiskColor,
 } from '../../lib/reviewScanPresentation'
 import { ReviewScanTechnicalDetails } from './ReviewScanTechnicalDetails'
+import { SubmissionChainPanel } from './SubmissionChainPanel'
 
 const REMARKS_REQUIRED_STATUSES: ReviewStatus[] = ['confirmed_ai_generated', 'reupload_requested']
 const MIN_ADMIN_REMARKS = 8
@@ -113,9 +115,10 @@ interface Props {
   row: AiDetectionRow
   onClose: () => void
   onSaved: (status: ReviewStatus) => void
+  onOpenRelatedMedia?: (mediaId: number) => void
 }
 
-export function AiReviewModal({ row, onClose, onSaved }: Props) {
+export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Props) {
   const [remarks, setRemarks] = useState(row.admin_remarks ?? '')
   const [status, setStatus] = useState<ReviewStatus>(row.review_status)
   const [saving, setSaving] = useState(false)
@@ -131,6 +134,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
   const [showFullMedia, setShowFullMedia] = useState(false)
   const [remarksExample, setRemarksExample] = useState<string | null>(null)
   const [selectedActionLabel, setSelectedActionLabel] = useState<string | null>(null)
+  const [chainRefresh, setChainRefresh] = useState(0)
   const remarksRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -147,6 +151,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
         review_status: nextStatus,
         admin_remarks: nextRemarks.trim(),
       })
+      setChainRefresh((n) => n + 1)
       onSaved(nextStatus)
       onClose()
     } catch (e) {
@@ -258,6 +263,7 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
   const needsAdminAction = integrityNeedsAdminAction(row)
   const manualParagraph = integrityManualReviewParagraph(row)
   const provenanceBullets = integrityProvenanceBullets(row)
+  const reviewTriggerLines = integrityReviewTriggerLines(row)
   const detectorBand = detectorAiRiskBand(row)
   const detectorRiskColor = visualAiRiskColor(detectorBand)
   const source = sourceVerificationDisplay(row)
@@ -367,6 +373,13 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                           <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-primary)]">
                             {manualParagraph}
                           </p>
+                          {reviewTriggerLines.length > 0 ? (
+                            <ul className="mt-2 list-disc space-y-0.5 pl-4 text-[10px] leading-snug text-[var(--color-text-secondary)]">
+                              {reviewTriggerLines.map((line) => (
+                                <li key={line}>{line}</li>
+                              ))}
+                            </ul>
+                          ) : null}
                         </div>
                       ) : null}
 
@@ -387,6 +400,13 @@ export function AiReviewModal({ row, onClose, onSaved }: Props) {
                     <ReviewScanTechnicalDetails row={row} />
                   </Collapsible>
 
+                  <Collapsible title="Submission chain" defaultOpen>
+                    <SubmissionChainPanel
+                      mediaId={row.media_id}
+                      refreshKey={`${row.id}-${chainRefresh}`}
+                      onOpenRelatedMedia={onOpenRelatedMedia}
+                    />
+                  </Collapsible>
                   {history.length > 0 ? (
                     <Collapsible title={`Review History (${history.length})`}>
                       <ul className="space-y-1.5">

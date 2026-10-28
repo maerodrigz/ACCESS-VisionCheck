@@ -32,6 +32,8 @@ async def _app_lifespan(_app: FastAPI):
     from app.services.deferred_media_pipeline import reconcile_pending_media_evaluations
 
     async def _warm_heavy_services() -> None:
+        # Let health/login/dashboard win first after a cold start (additive deferral).
+        await asyncio.sleep(12)
         await asyncio.to_thread(reconcile_pending_media_evaluations)
 
         def _warm_probe_detector() -> None:

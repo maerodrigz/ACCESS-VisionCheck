@@ -46,7 +46,7 @@ def _parse_storage_ref(ref: str) -> tuple[str, str] | None:
 def _resolve_ref_with_client(ref: str, client: httpx.Client) -> str:
     """Turn a stored ref into a fetchable HTTPS URL using an existing client."""
     parsed = _parse_storage_ref(ref)
-    if parsed is None or not is_supabase_storage_configured():
+    if parsed is None or not can_resolve_supabase_storage():
         return ref.strip()
     bucket, object_path = parsed
     try:
@@ -113,15 +113,14 @@ def resolve_supabase_storage_urls(urls: list[str | None]) -> list[str]:
     if not urls:
         return []
     needs_client = any(is_supabase_storage_ref(url) for url in urls if url and str(url).strip())
-    if not needs_client or not is_supabase_storage_configured():
+    if not needs_client or not can_resolve_supabase_storage():
         return [normalize_supabase_storage_url(url) for url in urls]
     with httpx.Client(timeout=30.0) as client:
         return [_normalize_with_client(url, client) for url in urls]
 
 
-def is_supabase_storage_configured() -> bool:
-    if not (settings.supabase_storage_enabled or "").strip().lower() in ("1", "true", "yes"):
-        return False
+def can_resolve_supabase_storage() -> bool:
+    """True when stored supabase-ref rows can be signed for read (independent of upload flag)."""
     if not (settings.supabase_url or "").strip():
         return False
     if not (settings.supabase_service_role_key or "").strip():
@@ -129,6 +128,12 @@ def is_supabase_storage_configured() -> bool:
     if not (settings.supabase_storage_bucket or "").strip():
         return False
     return True
+
+
+def is_supabase_storage_configured() -> bool:
+    if not (settings.supabase_storage_enabled or "").strip().lower() in ("1", "true", "yes"):
+        return False
+    return can_resolve_supabase_storage()
 
 
 def supabase_max_upload_bytes() -> int:

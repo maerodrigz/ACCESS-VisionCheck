@@ -83,11 +83,26 @@ export function formatApiError(data: unknown, status: number): string {
   return `Request failed (${status})`
 }
 
+const GET_CACHE_MS = 45_000
+const getResponseCache = new Map<string, { at: number; data: unknown }>()
+
+export function clearAdminGetCache() {
+  getResponseCache.clear()
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
   token?: string | null,
 ): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase()
+  if (method === 'GET') {
+    const cached = getResponseCache.get(path)
+    if (cached && Date.now() - cached.at < GET_CACHE_MS) {
+      return cached.data as T
+    }
+  }
+
   const auth = token ?? getStoredToken()
   const headers = new Headers(options.headers)
   if (!headers.has('Content-Type') && options.body) {
@@ -105,6 +120,12 @@ export async function apiRequest<T>(
       unauthorizedHandler?.()
     }
     throw new ApiError(msg, res.status)
+  }
+
+  if (method === 'GET') {
+    getResponseCache.set(path, { at: Date.now(), data })
+  } else {
+    getResponseCache.clear()
   }
 
   return data as T

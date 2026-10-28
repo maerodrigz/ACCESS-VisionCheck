@@ -229,6 +229,8 @@ class EvaluationOut(BaseModel):
     xp_reconciliation_status: str | None = None
     active_replacement_media_id: int | None = None
     awaiting_replacement_media_id: int | None = None
+    can_reupload: bool = False
+    replacement_verified: bool = False
 
 
 class FeedbackCreate(BaseModel):

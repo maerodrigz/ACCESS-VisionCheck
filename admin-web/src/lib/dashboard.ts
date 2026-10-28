@@ -863,6 +863,8 @@ function buildHomeDashboardSnapshot(input: {
 export type FetchHomeDashboardOptions = {
   /** Called after lightweight API wave so the home page can paint sooner. */
   onPartial?: (snap: HomeDashboardSnapshot) => void
+  /** When true, evaluations/media load in the background; return value may omit them. */
+  streamHeavy?: boolean
 }
 
 export async function fetchHomeDashboard(
@@ -871,49 +873,93 @@ export async function fetchHomeDashboard(
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
+  const emptyWave = {
+    requests: [] as Record<string, unknown>[],
+    events: [] as Record<string, unknown>[],
+    tasks: [] as Record<string, unknown>[],
+    notificationsRaw: [] as Record<string, unknown>[],
+    evaluations: [] as Record<string, unknown>[],
+    media: [] as Record<string, unknown>[],
+    rankings: [] as Record<string, unknown>[],
+  }
+
+  const stats = await fetchDashboardStats()
+  options?.onPartial?.(
+    buildHomeDashboardSnapshot({
+      stats,
+      ...emptyWave,
+      aiDetectionRaw: null,
+      aiDetectionLoadFailed: false,
+      today,
+    }),
+  )
+
   let aiDetectionLoadFailed = false
-  const [stats, requests, events, notificationsRaw, tasks, rankings, aiDetectionRaw] =
-    await Promise.all([
-      fetchDashboardStats(),
-      fetchServiceRequests(),
-      fetchEvents(),
-      fetchNotifications(),
-      fetchTasks(),
-      fetchRankings(),
-      fetchAiDetectionList().catch(() => {
-        aiDetectionLoadFailed = true
-        return null
-      }),
-    ])
-
-  const partial = buildHomeDashboardSnapshot({
-    stats,
-    requests,
-    events,
-    tasks,
-    notificationsRaw,
-    evaluations: [],
-    media: [],
-    rankings,
-    aiDetectionRaw,
-    aiDetectionLoadFailed,
-    today,
+  const aiDetectionPromise = fetchAiDetectionList('needs_action').catch(() => {
+    aiDetectionLoadFailed = true
+    return null
   })
-  options?.onPartial?.(partial)
 
-  const [evaluations, media] = await Promise.all([fetchEvaluations(), fetchMedia()])
+  const [requests, events, notificationsRaw, tasks, rankings] = await Promise.all([
+    fetchServiceRequests(),
+    fetchEvents(),
+    fetchNotifications(),
+    fetchTasks(),
+    fetchRankings(),
+  ])
 
-  return buildHomeDashboardSnapshot({
-    stats,
-    requests,
-    events,
-    tasks,
-    notificationsRaw,
-    evaluations,
-    media,
-    rankings,
-    aiDetectionRaw,
-    aiDetectionLoadFailed,
-    today,
-  })
+  options?.onPartial?.(
+    buildHomeDashboardSnapshot({
+      stats,
+      requests,
+      events,
+      tasks,
+      notificationsRaw,
+      evaluations: [],
+      media: [],
+      rankings,
+      aiDetectionRaw: null,
+      aiDetectionLoadFailed: false,
+      today,
+    }),
+  )
+
+  const heavyPromise = Promise.all([
+    fetchEvaluations(),
+    fetchMedia(),
+    aiDetectionPromise,
+  ]).then(([evaluations, media, aiDetectionRaw]) =>
+    buildHomeDashboardSnapshot({
+      stats,
+      requests,
+      events,
+      tasks,
+      notificationsRaw,
+      evaluations,
+      media,
+      rankings,
+      aiDetectionRaw,
+      aiDetectionLoadFailed,
+      today,
+    }),
+  )
+
+  if (options?.streamHeavy) {
+    void heavyPromise.then((full) => options?.onPartial?.(full))
+    return buildHomeDashboardSnapshot({
+      stats,
+      requests,
+      events,
+      tasks,
+      notificationsRaw,
+      evaluations: [],
+      media: [],
+      rankings,
+      aiDetectionRaw: null,
+      aiDetectionLoadFailed: false,
+      today,
+    })
+  }
+
+  return heavyPromise
 }

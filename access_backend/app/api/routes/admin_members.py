@@ -100,8 +100,10 @@ def permanently_delete_member(
 
     label = "Requestor account" if role_name == RoleName.ORGANIZATION else "Member account"
     msg = f"{label} permanently deleted."
-    if body.delete_uploads and media_deleted:
+    if media_deleted:
         msg = f"{label} deleted. {media_deleted} media file(s) removed."
         if media_failed:
             msg += f" {media_failed} file(s) could not be removed."
+    elif not body.delete_uploads:
+        msg = f"{label} permanently deleted. Practice evaluation uploads were removed from Media Integrity."
     return MessageResponse(message=msg)

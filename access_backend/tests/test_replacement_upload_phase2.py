@@ -144,6 +144,77 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_reupload_locked_after_admin_verifies_replacement(self) -> None:
+        user = self._member()
+        root, chain = self._root_with_reupload(user.id)
+        db = SessionLocal()
+        try:
+            rep = MediaFile(
+                uploaded_by=user.id,
+                file_name="rep_lock.jpg",
+                file_type="photo",
+                file_url="/uploads/rep_lock.jpg",
+                media_category=MEDIA_CATEGORY_EVALUATION,
+            )
+            db.add(rep)
+            db.commit()
+            db.refresh(rep)
+            _, locked = chain_crud.validate_replacement_target(
+                db, member_id=user.id, replaces_media_id=root.id
+            )
+            chain_crud.attach_replacement_media(
+                db, chain=locked, replacement=rep, replaces_media_id=root.id
+            )
+            db.commit()
+            self.assertFalse(
+                chain_crud.member_can_reupload(
+                    db,
+                    member_id=user.id,
+                    media=root,
+                    chain=locked,
+                    ai_review_status="reupload_requested",
+                )
+            )
+            ai_rep = eval_crud.create_ai_result(
+                db,
+                {
+                    "media_id": rep.id,
+                    "ai_probability": 0.1,
+                    "detection_result": "human",
+                    "review_status": "pending_review",
+                    "reviewed_by_admin": False,
+                },
+            )
+            apply_ai_review(
+                db,
+                ai_rep,
+                review_status="verified_human",
+                admin_remarks="Replacement verified.",
+            )
+            db.refresh(locked)
+            db.refresh(root)
+            root_ai = eval_crud.get_ai_for_media(db, root.id)
+            self.assertEqual(root_ai.review_status, "verified_human")
+            self.assertFalse(
+                chain_crud.member_can_reupload(
+                    db,
+                    member_id=user.id,
+                    media=root,
+                    chain=locked,
+                    ai_review_status=root_ai.review_status,
+                )
+            )
+            self.assertTrue(
+                chain_crud.member_replacement_verified(db, locked, root),
+            )
+            with self.assertRaises(ReplacementUploadError) as ctx:
+                chain_crud.peek_replacement_target(
+                    db, member_id=user.id, replaces_media_id=root.id
+                )
+            self.assertEqual(ctx.exception.status_code, 409)
+        finally:
+            db.close()
+
     def test_duplicate_active_replacement_blocked(self) -> None:
         user = self._member()
         root, _chain = self._root_with_reupload(user.id)

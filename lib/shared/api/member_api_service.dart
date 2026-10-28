@@ -3,17 +3,48 @@ import 'package:access_mobile/shared/constants/api_config.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/models/reschedule_models.dart';
 import 'package:access_mobile/shared/services/media_upload_service.dart';
+import 'package:access_mobile/shared/utils/member_media_display_url.dart';
 
 class MemberApiService {
   String mediaUrl(String? path) => ApiConfig.mediaUrl(path);
+
+  List<Map<String, dynamic>> _expectJsonList(
+    dynamic data, {
+    required String contextLabel,
+  }) {
+    if (data is List) {
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    var msg = '$contextLabel could not be loaded';
+    if (data is Map) {
+      final detail = data['detail'];
+      if (detail is String) {
+        msg = detail;
+      } else if (detail is Map) {
+        msg = detail['message'] as String? ?? msg;
+      } else {
+        msg = data['message'] as String? ?? msg;
+      }
+    }
+    throw ApiException(msg);
+  }
 
   String _mediaUrl(String path) => mediaUrl(path);
 
   String? _mediaFileUrlFromJson(Map<String, dynamic> m) {
     if (m['storage_removed'] == true) return '';
-    final raw = m['file_url'] as String?;
-    if (raw == null || raw.isEmpty) return raw;
-    return _mediaUrl(raw);
+    final mediaId = _jsonMediaId(m);
+    return memberMediaDisplayUrl(
+      fileUrl: m['file_url'] as String?,
+      mediaId: mediaId,
+    );
+  }
+
+  int? _jsonMediaId(Map<String, dynamic> m) {
+    final direct = m['media_id'] ?? m['id'];
+    if (direct is int) return direct;
+    if (direct is num) return direct.toInt();
+    return int.tryParse('$direct');
   }
 
   Future<Map<String, dynamic>> getProfile() async {
@@ -184,23 +215,12 @@ class MemberApiService {
     };
     final path = params.isEmpty ? '/gallery' : '/gallery?${Uri(queryParameters: params).query}';
     final data = await apiClient.get(path);
-    if (data is! List) {
-      var msg = 'Gallery could not be loaded';
-      if (data is Map) {
-        final detail = data['detail'];
-        if (detail is String) {
-          msg = detail;
-        } else if (detail is Map) {
-          msg = detail['message'] as String? ?? msg;
-        } else {
-          msg = data['message'] as String? ?? msg;
-        }
-      }
-      throw ApiException(msg);
-    }
-    return data.map((e) {
-      final m = Map<String, dynamic>.from(e as Map);
-      m['file_url'] = _mediaUrl(m['file_url'] as String? ?? '');
+    return _expectJsonList(data, contextLabel: 'Gallery').map((m) {
+      m['file_url'] = memberMediaDisplayUrl(
+            fileUrl: m['file_url'] as String?,
+            mediaId: _jsonMediaId(m),
+          ) ??
+          '';
       return m;
     }).toList();
   }
@@ -249,8 +269,7 @@ class MemberApiService {
     };
     final path = query.isEmpty ? '/media' : '/media?${Uri(queryParameters: query).query}';
     final data = await apiClient.get(path);
-    return (data as List).map((e) {
-      final m = Map<String, dynamic>.from(e as Map);
+    return _expectJsonList(data, contextLabel: 'Media').map((m) {
       m['file_url'] = _mediaFileUrlFromJson(m);
       return m;
     }).toList();
@@ -355,8 +374,7 @@ class MemberApiService {
 
   Future<List<Map<String, dynamic>>> getEvaluations() async {
     final data = await apiClient.get('/evaluations?mine=true');
-    return (data as List).map((e) {
-      final m = Map<String, dynamic>.from(e as Map);
+    return _expectJsonList(data, contextLabel: 'Evaluations').map((m) {
       m['file_url'] = _mediaFileUrlFromJson(m);
       return m;
     }).toList();

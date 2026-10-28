@@ -8,6 +8,7 @@ import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart'
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
+import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
 
 String _detailAdminRemarks(Evaluation ev) {
   final r = ev.adminRemarks?.trim() ?? '';
@@ -95,7 +96,12 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
               const SizedBox(height: 16),
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.network(ev.imageUrl!, height: 160, width: double.infinity, fit: BoxFit.cover),
+                child: MemberNetworkImage(
+                  url: ev.imageUrl!,
+                  height: 160,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ],
             if (ev.images.isNotEmpty) ...[

@@ -218,6 +218,7 @@ export function summaryFromRows(rows: AiDetectionRow[]): AiDetectionSummary {
 
 export type IntegrityInboxFilter =
   | 'needs_action'
+  | 'reupload_requested'
   | 'all'
   | 'human'
   | 'suspicious'
@@ -265,6 +266,9 @@ export function matchesIntegrityInbox(row: AiDetectionRow, filter: IntegrityInbo
   if (filter === 'all') return true
   if (filter === 'needs_action') {
     return row.review_status === 'pending_review' || row.review_status === 'needs_further_review'
+  }
+  if (filter === 'reupload_requested') {
+    return row.review_status === 'reupload_requested'
   }
   if (filter === 'resolved') return RESOLVED_STATUSES.includes(row.review_status)
   if (filter === 'human') return row.ai_label === 'human'

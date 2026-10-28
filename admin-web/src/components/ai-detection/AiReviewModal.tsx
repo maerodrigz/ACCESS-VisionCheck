@@ -439,6 +439,12 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
                 <h3 className="text-xs font-bold text-[var(--color-text-primary)]">
                   {needsAdminAction ? 'Admin decision' : 'Optional override'}
                 </h3>
+                {needsAdminAction ? (
+                  <p className="text-[10px] leading-snug text-[var(--color-text-muted)]">
+                    Use <span className="font-semibold text-[var(--color-text-primary)]">Request Re-upload</span>{' '}
+                    when the member should submit a new linked file (see Submission chain below).
+                  </p>
+                ) : null}
                 {selectedActionLabel ? (
                   <p className="text-[10px] leading-snug text-[var(--color-text-secondary)]">
                     <span className="font-semibold text-[var(--color-text-primary)]">{selectedActionLabel}</span>

@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/utils/member_media_display_url.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 /// Photo network image or first-frame JPEG for evaluation videos.
@@ -147,11 +149,16 @@ class _EvaluationMediaThumbnailState extends State<EvaluationMediaThumbnail> {
         fit: widget.fit,
       );
     } else if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
+      final headers = memberMediaImageHeaders(
+        widget.imageUrl!,
+        bearerToken: authController.user?.token,
+      );
       child = Image.network(
         widget.imageUrl!,
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
+        headers: headers,
         loadingBuilder: (context, image, progress) {
           if (progress == null) return image;
           return ColoredBox(

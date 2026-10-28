@@ -93,6 +93,7 @@ class MemberDataController extends ChangeNotifier {
   Future<bool>? _participationRefreshFuture;
 
   Future<void>? _evaluationsTabFuture;
+  Future<void>? _evaluationsPrefetchFuture;
   Future<void>? _calendarTabFuture;
   Future<void>? _galleryTabFuture;
   Future<void>? _rankingsTabFuture;
@@ -113,6 +114,28 @@ class MemberDataController extends ChangeNotifier {
     profileLoaded = false;
     profileLoadAttempted = false;
     profileLoadError = null;
+    evaluationsTabLoading = false;
+    evaluationsTabSynced = false;
+    evaluationsTabError = null;
+    calendarTabLoading = false;
+    calendarTabSynced = false;
+    calendarTabError = null;
+    galleryTabLoading = false;
+    eventGalleryLoading = false;
+    eventGalleryLoaded = false;
+    eventGalleryError = null;
+    eventGalleryPreviewOnly = false;
+    rankingsLoading = false;
+    rankingsError = null;
+    _evaluationsTabFuture = null;
+    _evaluationsPrefetchFuture = null;
+    _calendarTabFuture = null;
+    _galleryTabFuture = null;
+    _rankingsTabFuture = null;
+    _eventGalleryRefreshFuture = null;
+    appState.evaluations.clear();
+    appState.gallery.clear();
+    appState.eventGallery.clear();
     requestorRatings = [];
     requestorRatingCount = 0;
     requestorRatingAverage = null;
@@ -227,14 +250,59 @@ class MemberDataController extends ChangeNotifier {
     await PendingPracticeEvaluationStore.ensureLoaded();
     pendingPracticeAnalysisCount = PendingPracticeEvaluationStore.count;
     notifyListeners();
-    await PushNotificationService.ensureRegistered();
-    await PushNotificationService.syncInboxIfOpenedFromPush();
+    unawaited(PushNotificationService.ensureRegistered());
+    unawaited(PushNotificationService.syncInboxIfOpenedFromPush());
     await refreshHomeBootstrap();
     unawaited(resumePendingPracticeAnalysis());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(PushNotificationService.flushPendingNotificationOpen());
     });
+    unawaited(_prefetchMemberEvaluationsSilently());
     unawaited(refreshDeferredSections());
+  }
+
+  /// Warms eval list + practice media after home (no tab spinner).
+  Future<void> _prefetchMemberEvaluationsSilently() {
+    if (!authController.isLoggedIn || evaluationsTabSynced) {
+      return Future.value();
+    }
+    final inFlight = _evaluationsPrefetchFuture;
+    if (inFlight != null) return inFlight;
+    final task = _prefetchMemberEvaluationsSilentlyImpl();
+    _evaluationsPrefetchFuture = task;
+    return task.whenComplete(() {
+      if (identical(_evaluationsPrefetchFuture, task)) {
+        _evaluationsPrefetchFuture = null;
+      }
+    });
+  }
+
+  Future<void> _prefetchMemberEvaluationsSilentlyImpl() async {
+    try {
+      await Future.wait<void>([
+        _syncEvaluationsSection(),
+        _syncEvaluationMediaSection(),
+      ]);
+      if (appState.evaluations.isNotEmpty ||
+          appState.gallery.isNotEmpty ||
+          appState.profileEvaluationsCount == 0) {
+        evaluationsTabSynced = true;
+        evaluationsTabError = null;
+      }
+      appState.notifyListeners();
+      notifyListeners();
+    } catch (e, st) {
+      evaluationsTabError = e is ApiException
+          ? e.message
+          : e.toString().replaceFirst('ApiException: ', '');
+      developer.log(
+        'Member evaluations prefetch failed: $e',
+        name: 'ACCESS.member',
+        error: e,
+        stackTrace: st,
+      );
+      notifyListeners();
+    }
   }
 
   bool get _isOrganizationUser =>
@@ -271,6 +339,7 @@ class MemberDataController extends ChangeNotifier {
 
     _finalizeSync(ctx);
     isLoading = false;
+    _invalidateEvaluationsTabIfStale();
     notifyListeners();
     appState.notifyListeners();
 
@@ -312,8 +381,22 @@ class MemberDataController extends ChangeNotifier {
     }
   }
 
+  bool get _evaluationsListsLookStale {
+    if (appState.evaluations.isNotEmpty || appState.gallery.isNotEmpty) {
+      return false;
+    }
+    return appState.profileEvaluationsCount > 0 || appState.profileUploads > 0;
+  }
+
+  void _invalidateEvaluationsTabIfStale() {
+    if (!evaluationsTabSynced || evaluationsTabError != null) return;
+    if (!_evaluationsListsLookStale) return;
+    evaluationsTabSynced = false;
+  }
+
   Future<void> ensureEvaluationsTab() {
     if (!authController.isLoggedIn) return Future.value();
+    _invalidateEvaluationsTabIfStale();
     if (evaluationsTabSynced && evaluationsTabError == null) {
       unawaited(_syncEvaluationsTabLight());
       unawaited(refreshParticipationQuota(reason: 'evaluations_tab_return'));
@@ -358,12 +441,40 @@ class MemberDataController extends ChangeNotifier {
   }
 
   Future<void> _ensureEvaluationsTabImpl() async {
+    final prefetch = _evaluationsPrefetchFuture;
+    if (prefetch != null && !evaluationsTabSynced) {
+      await prefetch;
+      if (evaluationsTabSynced) {
+        if (appState.gallery.isEmpty) {
+          await _syncEvaluationMediaSection();
+          appState.notifyListeners();
+        }
+        unawaited(refreshParticipationQuota(reason: 'evaluations_tab_open'));
+        return;
+      }
+    }
+    if (evaluationsTabSynced &&
+        appState.evaluations.isNotEmpty &&
+        appState.gallery.isNotEmpty) {
+      unawaited(refreshParticipationQuota(reason: 'evaluations_tab_open'));
+      return;
+    }
+
     final ctx = _MemberSyncContext();
-    await refreshParticipationQuota(reason: 'evaluations_tab_open');
-    await _runSectionsParallel(ctx, [
-      ('EvaluationMedia', _syncEvaluationMediaSection),
-      ('Evaluations', _syncEvaluationsSection),
+    await Future.wait<void>([
+      refreshParticipationQuota(reason: 'evaluations_tab_open'),
+      _runSection(ctx, 'Evaluations', _syncEvaluationsSection),
     ]);
+    if (!ctx.sessionExpired) {
+      final evalErr = _syncErrorFromContext(ctx, sectionPrefix: 'Evaluations');
+      if (evalErr == null && appState.evaluations.isNotEmpty) {
+        evaluationsTabSynced = true;
+        evaluationsTabError = null;
+        appState.notifyListeners();
+        notifyListeners();
+      }
+    }
+    await _runSection(ctx, 'EvaluationMedia', _syncEvaluationMediaSection);
     evaluationsTabError = _syncErrorFromContext(ctx);
     if (evaluationsTabError == null) {
       evaluationsTabSynced = true;
@@ -506,9 +617,6 @@ class MemberDataController extends ChangeNotifier {
     await _runSectionsParallel(ctx, [
       ('Events', _syncEventsSection),
       ('EventGallery', () => refreshEventGallery(previewOnly: true)),
-      ('EvaluationMedia', _syncEvaluationMediaSection),
-      ('Evaluations', _syncEvaluationsSection),
-      ('Rankings', _syncRankingsSection),
       ('Service requests', _syncServiceRequestsSection),
       if (_isOrganizationUser) ('Feedback', _syncFeedbackSection),
       if (!_isOrganizationUser) ('Requestor ratings', refreshRequestorRatings),
@@ -539,11 +647,13 @@ class MemberDataController extends ChangeNotifier {
     evaluationsTabError = null;
     notifyListeners();
     try {
-      await refreshParticipationQuota(reason: 'evaluations_tab_pull');
       final ctx = _MemberSyncContext();
-      await _runSectionsParallel(ctx, [
-        ('EvaluationMedia', _syncEvaluationMediaSection),
-        ('Evaluations', _syncEvaluationsSection),
+      await Future.wait<void>([
+        refreshParticipationQuota(reason: 'evaluations_tab_pull'),
+        _runSectionsParallel(ctx, [
+          ('EvaluationMedia', _syncEvaluationMediaSection),
+          ('Evaluations', _syncEvaluationsSection),
+        ]),
       ]);
       evaluationsTabError = _syncErrorFromContext(ctx);
       if (evaluationsTabError == null) {
@@ -1366,6 +1476,26 @@ class MemberDataController extends ChangeNotifier {
     return _evaluationFromApi(row);
   }
 
+  /// Refreshes one practice evaluation from the API and updates [appState.evaluations].
+  Future<Evaluation?> syncEvaluationFromServer(int mediaId) async {
+    if (mediaId <= 0) return null;
+    try {
+      final row = await memberApiService.getEvaluationRowForMedia(mediaId);
+      if (row == null) return null;
+      final ev = _evaluationFromApi(row);
+      final targetId = 'MED-$mediaId';
+      final idx = appState.evaluations.indexWhere((e) => e.id == targetId);
+      if (idx >= 0) {
+        appState.evaluations[idx] = ev;
+      }
+      appState.notifyListeners();
+      notifyListeners();
+      return ev;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Removes practice upload bytes only. Returns an error message on failure.
   Future<String?> removePracticeEvaluationStorage(int mediaId) async {
     try {
@@ -1423,6 +1553,8 @@ class MemberDataController extends ChangeNotifier {
       replacesMediaId: _jsonInt(e['replaces_media_id']),
       replacementLifecycle: e['replacement_lifecycle'] as String?,
       chainRole: e['chain_role'] as String?,
+      canReupload: e.containsKey('can_reupload') ? e['can_reupload'] == true : null,
+      replacementVerified: e['replacement_verified'] == true,
     );
   }
 

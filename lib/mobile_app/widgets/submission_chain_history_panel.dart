@@ -49,7 +49,7 @@ class _ChainMediaTile extends StatelessWidget {
   String get _roleLabel {
     if (item.mediaId == rootId) return 'Original submission';
     if (item.replacementLifecycle == 'active') return 'Replacement (in review)';
-    if (item.replacementLifecycle == 'superseded') return 'Replacement (accepted)';
+    if (item.replacementLifecycle == 'superseded') return 'Replacement verified';
     if (item.replacementLifecycle == 'terminal') return 'Replacement (rejected)';
     return 'Replacement';
   }

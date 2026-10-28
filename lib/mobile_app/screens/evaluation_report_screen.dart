@@ -14,13 +14,13 @@ import 'package:access_mobile/mobile_app/widgets/evaluation_report_integrity_com
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
+import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
 import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart' hide AiDetectionResult;
-import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
@@ -52,12 +52,11 @@ class EvaluationReportScreen extends StatefulWidget {
 class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
   SubmissionChainHistory? _chain;
   bool _loadingChain = false;
+  Evaluation? _liveEvaluation;
 
-  Evaluation get evaluation => widget.evaluation;
+  Evaluation get evaluation => _liveEvaluation ?? widget.evaluation;
 
   PhotoEvaluationResult? get _result => evaluationToPhotoResult(evaluation);
-
-  bool get _adminRequestedReupload => MemberReviewStatus.isReuploadRequested(evaluation.reviewStatus);
 
   bool get _isVideo => EvaluationMediaThumbnail.isVideoMedia(
         mediaType: evaluation.mediaType,
@@ -67,7 +66,18 @@ class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_refreshChain());
+    unawaited(_refreshReportState());
+  }
+
+  Future<void> _refreshReportState() async {
+    final mediaId = widget.evaluation.practiceMediaId;
+    if (mediaId != null) {
+      final synced = await memberDataController.syncEvaluationFromServer(mediaId);
+      if (mounted && synced != null) {
+        setState(() => _liveEvaluation = synced);
+      }
+    }
+    await _refreshChain();
   }
 
   Future<void> _refreshChain() async {
@@ -91,7 +101,7 @@ class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
     );
     if (refreshed == true) {
       await memberDataController.refreshAfterEvaluationSave();
-      if (mounted) await _refreshChain();
+      if (mounted) await _refreshReportState();
     }
   }
 
@@ -236,7 +246,7 @@ class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
               ),
             ],
             const SizedBox(height: 12),
-            if (_adminRequestedReupload) ...[
+            if (evaluation.showReuploadWorkflowSection) ...[
               if (_loadingChain)
                 const Center(
                   child: Padding(
@@ -252,24 +262,39 @@ class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
                 SubmissionChainHistoryPanel(history: _chain!),
                 const SizedBox(height: 10),
               ],
-              if (evaluation.hasActiveReplacementInChain)
+              if (evaluation.replacementVerified) ...[
+                const AdminReviewStatusBadge(reviewStatus: 'verified_human', compact: true),
+                const SizedBox(height: 6),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
-                    'Your replacement is in AI or admin review. Original remarks and history stay visible below.',
+                    'Replacement verified by admin. Re-upload is locked unless an administrator requests a new upload.',
                     style: TextStyle(color: kTextSecondary, fontSize: 12, height: 1.35),
                   ),
                 ),
-              _EvalReportActionButton(
-                label: evaluation.canSubmitLinkedReplacement
-                    ? (_isVideo ? 'Re-upload Media (video)' : 'Re-upload Media')
-                    : 'Replacement in review',
-                icon: Icons.upload_rounded,
-                outlined: false,
-                onPressed: evaluation.canSubmitLinkedReplacement
-                    ? () => unawaited(_openReuploadFlow(context))
-                    : null,
-              ),
+              ] else if (evaluation.hasActiveReplacementInChain)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    'Your replacement is in AI or admin review. Re-upload stays locked until review finishes.',
+                    style: TextStyle(color: kTextSecondary, fontSize: 12, height: 1.35),
+                  ),
+                ),
+              if (evaluation.canSubmitLinkedReplacement)
+                _EvalReportActionButton(
+                  label: _isVideo ? 'Re-upload Media (video)' : 'Re-upload Media',
+                  icon: Icons.upload_rounded,
+                  outlined: false,
+                  onPressed: () => unawaited(_openReuploadFlow(context)),
+                )
+              else if (!evaluation.replacementVerified &&
+                  MemberReviewStatus.isReuploadRequested(evaluation.reviewStatus))
+                _EvalReportActionButton(
+                  label: 'Replacement in review',
+                  icon: Icons.upload_rounded,
+                  outlined: false,
+                  onPressed: null,
+                ),
               const SizedBox(height: 10),
             ],
             if (parsed != null)
@@ -344,7 +369,10 @@ class _ReportMediaHeader extends StatelessWidget {
                 child: Center(
                   child: InteractiveViewer(
                     child: _hasNetworkMedia
-                        ? Image.network(evaluation.imageUrl!, fit: BoxFit.contain)
+                        ? MemberNetworkImage(
+                            url: evaluation.imageUrl!,
+                            fit: BoxFit.contain,
+                          )
                         : Image.memory(evaluation.images.first, fit: BoxFit.contain),
                   ),
                 ),
@@ -449,38 +477,31 @@ class _ReportMediaHeader extends StatelessWidget {
         videoUrl: evaluation.imageUrl!,
         title: evaluation.title,
         mediaType: evaluation.mediaType,
-        onTap: () => _openMedia(context),
+        interactive: false,
       );
     }
 
     if (_hasNetworkMedia) {
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _openMedia(context),
-          child: Image.network(
-            evaluation.imageUrl!,
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return EvaluationMediaThumbnail(
+            imageUrl: evaluation.imageUrl,
+            mediaType: evaluation.mediaType ?? 'photo',
+            height: constraints.maxHeight,
+            width: constraints.maxWidth,
             fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-            errorBuilder: (_, __, ___) => _placeholder(),
-          ),
-        ),
+            fallbackIconColor: kEvalSecondary,
+          );
+        },
       );
     }
 
     if (evaluation.images.isNotEmpty) {
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _openMedia(context),
-          child: Image.memory(
-            evaluation.images.first,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-          ),
-        ),
+      return Image.memory(
+        evaluation.images.first,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
       );
     }
 

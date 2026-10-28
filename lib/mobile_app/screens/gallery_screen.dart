@@ -7,6 +7,7 @@ import 'package:access_mobile/shared/models/event_gallery.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/screens/event_album_screen.dart';
+import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
@@ -1441,8 +1442,8 @@ class _AlbumCoverImage extends StatelessWidget {
         ),
       );
     }
-    return Image.network(
-      url,
+    return MemberNetworkImage(
+      url: url,
       fit: BoxFit.cover,
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;

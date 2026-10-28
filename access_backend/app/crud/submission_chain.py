@@ -35,6 +35,51 @@ REPLACEMENT_REVIEW_TERMINAL = frozenset(
 )
 
 
+def member_can_reupload(
+    db: Session,
+    *,
+    member_id: int,
+    media: MediaFile,
+    chain: SubmissionChain | None,
+    ai_review_status: str | None,
+) -> bool:
+    """Server-authoritative: member may submit one linked replacement for this target."""
+    from app.config import settings
+
+    if not settings.replacement_upload_enabled:
+        return False
+    if media.uploaded_by != member_id:
+        return False
+    if media.media_category != MEDIA_CATEGORY_EVALUATION:
+        return False
+    if media.replaces_media_id is not None:
+        return False
+    if (ai_review_status or "").strip().lower() != REUPLOAD_REQUESTED_STATUS:
+        return False
+    if chain is None:
+        return False
+    if chain.active_replacement_media_id is not None:
+        return False
+    if chain.awaiting_replacement_media_id != media.id:
+        return False
+    return True
+
+
+def member_replacement_verified(db: Session, chain: SubmissionChain | None, media: MediaFile) -> bool:
+    """True when a superseded replacement exists and the chain re-upload slot is closed."""
+    if chain is None or media.id != chain.root_media_id:
+        return False
+    if chain.active_replacement_media_id is not None:
+        return False
+    if chain.awaiting_replacement_media_id is not None:
+        return False
+    for mid in _media_ids_in_chain(db, chain):
+        row = db.get(MediaFile, mid)
+        if row and row.replacement_lifecycle == REPLACEMENT_LIFECYCLE_SUPERSEDED:
+            return True
+    return False
+
+
 class ReplacementUploadError(Exception):
     def __init__(self, code: str, message: str, status_code: int = 400) -> None:
         self.code = code
@@ -153,6 +198,15 @@ def on_active_replacement_review_outcome(
         replacement.replacement_lifecycle = REPLACEMENT_LIFECYCLE_SUPERSEDED
         chain.active_replacement_media_id = None
         chain.awaiting_replacement_media_id = None
+        root_ai = eval_crud.get_ai_for_media(db, chain.root_media_id)
+        if root_ai is not None:
+            prev_root = (root_ai.review_status or "").strip().lower()
+            if prev_root == REUPLOAD_REQUESTED_STATUS:
+                root_ai.review_status = status
+                root_ai.reviewed_by_admin = True
+                root_ai.reviewed_at = datetime.now(timezone.utc)
+                if actor_user_id is not None:
+                    root_ai.reviewed_by = actor_user_id
         append_chain_event(
             db,
             chain_id=chain.id,
@@ -224,6 +278,25 @@ def peek_replacement_target(
     ai = eval_crud.get_ai_for_media(db, replaces_media_id)
     status = (ai.review_status if ai else "") or ""
     if status.strip().lower() != REUPLOAD_REQUESTED_STATUS:
+        raise ReplacementUploadError(
+            "replacement_not_requested",
+            "Administrator has not requested a re-upload for this submission.",
+            409,
+        )
+    chain = get_chain_for_media(db, replaces_media_id)
+    if chain is None:
+        raise ReplacementUploadError(
+            "replacement_not_requested",
+            "Administrator has not requested a re-upload for this submission.",
+            409,
+        )
+    if chain.active_replacement_media_id is not None:
+        raise ReplacementUploadError(
+            "replacement_already_active",
+            "A replacement upload is already in progress for this chain.",
+            409,
+        )
+    if chain.awaiting_replacement_media_id != replaces_media_id:
         raise ReplacementUploadError(
             "replacement_not_requested",
             "Administrator has not requested a re-upload for this submission.",

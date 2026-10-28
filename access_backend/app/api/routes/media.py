@@ -2,10 +2,12 @@
 
 import asyncio
 import logging
+import mimetypes
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlalchemy import Date, cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,6 +20,7 @@ from app.crud import system_settings as settings_crud
 from app.database import get_db
 from app.models.media_file import MediaFile
 from app.models.media_constants import (
+    APPROVAL_APPROVED,
     APPROVAL_NOT_APPLICABLE,
     FB_NOT_PUBLISHED,
     MEDIA_CATEGORY_EVENT,
@@ -177,6 +180,68 @@ def list_media(
             or m.uploaded_by == current_user.id
         ]
     return [_media_out(m) for m in items]
+
+
+def _member_may_stream_media(user: User, media: MediaFile) -> bool:
+    if user.role.role_name == RoleName.ADMIN:
+        return True
+    if media.uploaded_by == user.id:
+        return True
+    return (
+        media.media_category == MEDIA_CATEGORY_EVENT
+        and media.approval_status == APPROVAL_APPROVED
+    )
+
+
+def _stream_content_type(file_name: str, file_type: str | None) -> str:
+    ft = (file_type or "").strip().lower()
+    if ft.startswith("video") or "video" in ft:
+        return "video/mp4"
+    if ft.startswith("image") or ft in ("photo", "picture"):
+        guessed, _ = mimetypes.guess_type(file_name or "")
+        return guessed or "image/jpeg"
+    guessed, _ = mimetypes.guess_type(file_name or "")
+    return guessed or "application/octet-stream"
+
+
+@router.get("/{media_id}/stream")
+def stream_member_media(
+    media_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    """JWT-protected stream for Flutter thumbnails (img/video cannot use supabase-ref)."""
+    from app.services.media_file_bytes import local_media_path, read_media_file_bytes
+
+    media = media_crud.get(db, media_id)
+    if not media or not media.file_url or media.storage_removed_at is not None:
+        raise HTTPException(status_code=404, detail="Media not found")
+    if not _member_may_stream_media(current_user, media):
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    file_url = normalize_supabase_storage_url(media.file_url or "")
+    content_type = _stream_content_type(media.file_name, media.file_type)
+    local = local_media_path(file_url)
+    if local is not None:
+        return FileResponse(
+            local,
+            media_type=content_type,
+            filename=media.file_name or local.name,
+            headers={"Cache-Control": "private, max-age=120"},
+        )
+
+    if file_url.startswith("http://") or file_url.startswith("https://"):
+        return RedirectResponse(url=file_url, status_code=307)
+
+    content = read_media_file_bytes(media.file_url or "", timeout=120.0)
+    if not content:
+        raise HTTPException(status_code=404, detail="Media file unavailable")
+
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, max-age=120", "Accept-Ranges": "bytes"},
+    )
 
 
 @router.get("/{media_id}", response_model=MediaOut)

@@ -26,6 +26,7 @@ type QueueKind = 'photos' | 'videos'
 
 const INBOX_CHIPS: { id: IntegrityInboxFilter; label: string }[] = [
   { id: 'needs_action', label: 'Needs Action' },
+  { id: 'reupload_requested', label: 'Re-upload Requested' },
   { id: 'all', label: 'All Scans' },
   { id: 'pending_scan', label: 'Pending Scan' },
   { id: 'suspicious', label: 'Suspicious' },

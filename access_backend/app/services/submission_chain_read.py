@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.media_file import MediaFile
@@ -14,7 +15,20 @@ from app.models.submission_chain_constants import (
 )
 
 
-def chain_metadata_for_media(db: Session, media: MediaFile | None) -> dict[str, Any]:
+def chains_by_ids(db: Session, chain_ids: list[int]) -> dict[int, SubmissionChain]:
+    ids = [int(x) for x in chain_ids if x]
+    if not ids:
+        return {}
+    rows = db.scalars(select(SubmissionChain).where(SubmissionChain.id.in_(ids))).all()
+    return {row.id: row for row in rows}
+
+
+def chain_metadata_for_media(
+    db: Session,
+    media: MediaFile | None,
+    *,
+    chain: SubmissionChain | None = None,
+) -> dict[str, Any]:
     """Backward-compatible optional fields; no XP inference."""
     empty: dict[str, Any] = {
         "submission_chain_id": None,
@@ -37,7 +51,8 @@ def chain_metadata_for_media(db: Session, media: MediaFile | None) -> dict[str, 
     if not chain_id:
         return out
 
-    chain = db.get(SubmissionChain, chain_id)
+    if chain is None or chain.id != chain_id:
+        chain = db.get(SubmissionChain, chain_id)
     if chain is None:
         out["submission_chain_id"] = chain_id
         return out

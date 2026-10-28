@@ -4,7 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:access_mobile/shared/models/event_gallery.dart';
 import 'package:access_mobile/shared/services/gallery_media_download_service.dart';
+import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/utils/member_media_display_url.dart';
+import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
 
 /// Opens a read-only full-screen viewer for approved event gallery media.
 void openMemberGalleryMediaViewer(
@@ -112,7 +115,14 @@ class _MemberGalleryMediaViewerState extends State<MemberGalleryMediaViewer> {
       return;
     }
 
-    final controller = VideoPlayerController.networkUrl(uri);
+    final url = _current.thumbnailUrl;
+    final controller = VideoPlayerController.networkUrl(
+      uri,
+      httpHeaders: memberMediaHttpHeaders(
+        url,
+        bearerToken: authController.user?.token,
+      ),
+    );
     _videoController = controller;
     try {
       await controller.initialize();
@@ -320,8 +330,8 @@ class _MediaStage extends StatelessWidget {
       child: InteractiveViewer(
         minScale: 0.8,
         maxScale: 4,
-        child: Image.network(
-          item.thumbnailUrl,
+        child: MemberNetworkImage(
+          url: item.thumbnailUrl,
           fit: BoxFit.contain,
           loadingBuilder: (context, child, progress) {
             if (progress == null) return child;

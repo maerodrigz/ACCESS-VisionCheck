@@ -257,15 +257,7 @@ def count_for_uploader(db: Session, user_id: int) -> int:
     )
 
 
-def delete_all_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
-    """Delete every media_files row for [user_id]. Returns (deleted, failed)."""
-    media_ids = list(
-        db.scalars(
-            select(MediaFile.id)
-            .where(MediaFile.uploaded_by == user_id)
-            .order_by(MediaFile.id)
-        )
-    )
+def _delete_media_ids(db: Session, media_ids: list[int]) -> tuple[int, int]:
     deleted = 0
     failed = 0
     for media_id in media_ids:
@@ -278,6 +270,48 @@ def delete_all_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
         except RuntimeError:
             failed += 1
     return deleted, failed
+
+
+def delete_all_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
+    """Delete every media_files row for [user_id]. Returns (deleted, failed)."""
+    media_ids = list(
+        db.scalars(
+            select(MediaFile.id)
+            .where(MediaFile.uploaded_by == user_id)
+            .order_by(MediaFile.id)
+        )
+    )
+    return _delete_media_ids(db, media_ids)
+
+
+def delete_practice_evaluations_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
+    """Remove practice evaluation uploads for a member (clears Media Integrity queue)."""
+    media_ids = list(
+        db.scalars(
+            select(MediaFile.id)
+            .where(
+                MediaFile.uploaded_by == user_id,
+                MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
+            )
+            .order_by(MediaFile.id)
+        )
+    )
+    return _delete_media_ids(db, media_ids)
+
+
+def delete_orphan_practice_evaluations(db: Session) -> tuple[int, int]:
+    """Delete practice eval media with no uploader (left after account permanent delete)."""
+    media_ids = list(
+        db.scalars(
+            select(MediaFile.id)
+            .where(
+                MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
+                MediaFile.uploaded_by.is_(None),
+            )
+            .order_by(MediaFile.id)
+        )
+    )
+    return _delete_media_ids(db, media_ids)
 
 
 def _delete_media_file_from_disk(file_url: str | None) -> None:

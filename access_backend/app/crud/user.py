@@ -134,6 +134,11 @@ def permanently_delete_member(
     media_failed = 0
     if delete_uploads:
         media_deleted, media_failed = media_crud.delete_all_for_uploader(db, user.id)
+    else:
+        # Always drop practice evaluations so Media Integrity does not keep orphaned rows.
+        ev_del, ev_fail = media_crud.delete_practice_evaluations_for_uploader(db, user.id)
+        media_deleted += ev_del
+        media_failed += ev_fail
 
     session_crud.revoke_sessions_for_user(db, user.id)
 

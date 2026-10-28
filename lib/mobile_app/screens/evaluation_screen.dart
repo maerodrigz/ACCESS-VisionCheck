@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
+import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/utils/member_integrity_display.dart';
+import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_report_screen.dart';
@@ -46,7 +48,8 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
         listenable: Listenable.merge([appState, memberDataController]),
         builder: (_, __) {
           final loading = memberDataController.evaluationsTabLoading &&
-              appState.evaluations.isEmpty;
+              appState.evaluations.isEmpty &&
+              !memberDataController.evaluationsTabSynced;
           final loadError = memberDataController.evaluationsTabError;
 
           if (loading) {
@@ -949,7 +952,7 @@ class _RecentEvaluationsSection extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               SizedBox(
-                height: 206,
+                height: 232,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
@@ -1188,14 +1191,16 @@ class _EvalMediaPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EvaluationMediaThumbnail(
-      imageUrl: ev.imageUrl,
-      mediaType: ev.mediaType,
-      memoryBytes: ev.images.isNotEmpty ? ev.images.first : null,
-      height: height,
-      fallbackIconColor: accent,
-      fallbackIconSize: 36,
-      storageRemoved: ev.storageRemoved,
+    return IgnorePointer(
+      child: EvaluationMediaThumbnail(
+        imageUrl: ev.imageUrl,
+        mediaType: ev.mediaType,
+        memoryBytes: ev.images.isNotEmpty ? ev.images.first : null,
+        height: height,
+        fallbackIconColor: accent,
+        fallbackIconSize: 36,
+        storageRemoved: ev.storageRemoved,
+      ),
     );
   }
 }
@@ -1260,6 +1265,10 @@ class _RecentEvalCard extends StatelessWidget {
                     qualityColor: accent,
                     integrityLabel: _integrityTierFor(ev),
                   ),
+                  if (MemberReviewStatus.isReuploadRequested(ev.reviewStatus)) ...[
+                    const SizedBox(height: 6),
+                    AdminReviewStatusBadge(reviewStatus: ev.reviewStatus!, compact: true),
+                  ],
                   if (ev.canRemovePracticeStorage) ...[
                     const SizedBox(height: 4),
                     Align(
@@ -1316,6 +1325,9 @@ class _PracticeEvalOverflowMenu extends StatelessWidget {
 }
 
 String _integrityTierFor(Evaluation ev) {
+  if (MemberReviewStatus.isReuploadRequested(ev.reviewStatus)) {
+    return 'Re-upload Required';
+  }
   final ai = ev.parsedEvaluation?.aiDetection;
   if (ai != null) {
     return memberEvaluationListIntegrityLabel(
@@ -1425,15 +1437,17 @@ class _EvalThumbnail extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: radius,
-        child: EvaluationMediaThumbnail(
-          imageUrl: ev.imageUrl,
-          mediaType: ev.mediaType,
-          memoryBytes: ev.images.isNotEmpty ? ev.images.first : null,
-          width: size,
-          height: size,
-          fallbackIconColor: accent,
-          fallbackIconSize: 22,
-          storageRemoved: ev.storageRemoved,
+        child: IgnorePointer(
+          child: EvaluationMediaThumbnail(
+            imageUrl: ev.imageUrl,
+            mediaType: ev.mediaType,
+            memoryBytes: ev.images.isNotEmpty ? ev.images.first : null,
+            width: size,
+            height: size,
+            fallbackIconColor: accent,
+            fallbackIconSize: 22,
+            storageRemoved: ev.storageRemoved,
+          ),
         ),
       ),
     );

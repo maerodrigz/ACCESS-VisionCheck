@@ -82,6 +82,10 @@ class Evaluation {
   final int? replacesMediaId;
   final String? replacementLifecycle;
   final String? chainRole;
+  /// From GET /evaluations (`can_reupload`). Server decides upload eligibility.
+  final bool? canReupload;
+  /// Replacement accepted by admin; re-upload slot closed (`replacement_verified`).
+  final bool replacementVerified;
   Evaluation({
     required this.id,
     required this.title,
@@ -112,6 +116,8 @@ class Evaluation {
     this.replacesMediaId,
     this.replacementLifecycle,
     this.chainRole,
+    this.canReupload,
+    this.replacementVerified = false,
   });
 
   int? get practiceMediaId {
@@ -147,10 +153,18 @@ class Evaluation {
   bool get hasActiveReplacementInChain =>
       activeReplacementMediaId != null && activeReplacementMediaId! > 0;
 
-  bool get canSubmitLinkedReplacement =>
-      MemberReviewStatus.isReuploadRequested(reviewStatus) &&
-      !hasActiveReplacementInChain &&
-      replacementTargetMediaId != null;
+  bool get canSubmitLinkedReplacement {
+    if (canReupload != null) return canReupload!;
+    return MemberReviewStatus.isReuploadRequested(reviewStatus) &&
+        !hasActiveReplacementInChain &&
+        replacementTargetMediaId != null;
+  }
+
+  bool get showReuploadWorkflowSection =>
+      canSubmitLinkedReplacement ||
+      hasActiveReplacementInChain ||
+      replacementVerified ||
+      MemberReviewStatus.isReuploadRequested(reviewStatus);
 
   /// DB stores 0–1; older payloads may store 1–5 in criteria_json only.
   double get displayScore => score <= 1.0 ? score : (score / 5).clamp(0.0, 1.0);
@@ -850,6 +864,10 @@ class AppState extends ChangeNotifier {
     evaluationMaxUploadMb = 350;
     evaluationMaxVideoSeconds = 30;
     evaluationDailyTimezone = 'Asia/Manila';
+    evaluations.clear();
+    gallery.clear();
+    eventGallery.clear();
+    memberSyncError = null;
     notifyListeners();
   }
 

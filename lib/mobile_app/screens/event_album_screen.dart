@@ -5,6 +5,7 @@ import 'package:access_mobile/shared/models/event_gallery.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/screens/member_gallery_media_viewer.dart';
 import 'package:access_mobile/mobile_app/widgets/gallery_media_thumbnail.dart';
+import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
@@ -241,8 +242,8 @@ class _RequestorEventDetailHeader extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   if (coverUrl.isNotEmpty)
-                    Image.network(
-                      coverUrl,
+                    MemberNetworkImage(
+                      url: coverUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => const _RequestorAlbumCoverFallback(),
                     )
@@ -653,8 +654,8 @@ class _MemberEventDetailHeader extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: _coverAspectRatio,
                 child: coverUrl.isNotEmpty
-                    ? Image.network(
-                        coverUrl,
+                    ? MemberNetworkImage(
+                        url: coverUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const _MemberAlbumCoverFallback(),
                       )

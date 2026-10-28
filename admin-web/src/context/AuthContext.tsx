@@ -12,6 +12,7 @@ import { fetchProfile, profileImageUrl } from '../api/profile'
 import {
   ApiError,
   checkBackendHealth,
+  clearAdminGetCache,
   getStoredToken,
   setStoredToken,
   setUnauthorizedHandler,
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     apiLogout()
+    clearAdminGetCache()
     localStorage.removeItem(USER_KEY)
     setStoredToken(null)
     setUser(null)
@@ -123,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true)
     try {
+      clearAdminGetCache()
       const loggedIn = await apiLogin(email, password)
       persistUser(loggedIn)
       setUser(loggedIn)

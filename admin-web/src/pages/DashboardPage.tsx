@@ -30,6 +30,7 @@ export function DashboardPage() {
     setError(null)
     try {
       const snap = await fetchHomeDashboard({
+        streamHeavy: true,
         onPartial: (partial) => {
           setData(partial)
           setLoading(false)

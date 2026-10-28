@@ -9,7 +9,9 @@ import 'package:access_mobile/mobile_app/widgets/eval_video_playback_stub.dart'
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
+import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/utils/member_media_display_url.dart';
 
 /// Shared preview frame for upload confirmation and evaluation result.
 const kEvalPreviewAspectRatio = 16 / 8.8;
@@ -378,17 +380,79 @@ class EvalNetworkVideoPreviewTile extends StatelessWidget {
     required this.title,
     this.mediaType,
     this.onTap,
+    this.interactive = true,
   });
 
   final String videoUrl;
   final String title;
   final String? mediaType;
   final VoidCallback? onTap;
+  /// When false, shows play chrome only (use explicit action buttons for playback).
+  final bool interactive;
+
+  Widget _previewStack(BoxConstraints constraints) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        EvaluationMediaThumbnail(
+          imageUrl: videoUrl,
+          mediaType: mediaType ?? 'video',
+          height: constraints.maxHeight,
+          width: constraints.maxWidth,
+          fallbackIconColor: kEvalSecondary,
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.04),
+                Colors.black.withValues(alpha: 0.32),
+              ],
+            ),
+          ),
+        ),
+        const Center(child: EvalVideoPlayBadge(onDarkBackground: true)),
+        if (interactive)
+          Positioned(
+            left: 12,
+            bottom: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Tap to play',
+                    style: dashText(const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    )),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final preview = _previewStack(constraints);
+        if (!interactive) {
+          return Material(color: Colors.transparent, child: preview);
+        }
         return Material(
           color: Colors.transparent,
           child: InkWell(
@@ -398,57 +462,7 @@ class EvalNetworkVideoPreviewTile extends StatelessWidget {
                       videoUrl: videoUrl,
                       title: title,
                     ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                EvaluationMediaThumbnail(
-                  imageUrl: videoUrl,
-                  mediaType: mediaType ?? 'video',
-                  height: constraints.maxHeight,
-                  width: constraints.maxWidth,
-                  fallbackIconColor: kEvalSecondary,
-                ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.04),
-                        Colors.black.withValues(alpha: 0.32),
-                      ],
-                    ),
-                  ),
-                ),
-                const Center(child: EvalVideoPlayBadge(onDarkBackground: true)),
-                Positioned(
-                  left: 12,
-                  bottom: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Tap to play',
-                          style: dashText(const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          )),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: preview,
           ),
         );
       },
@@ -506,7 +520,13 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
   Future<void> _initPlayer() async {
     try {
       final uri = Uri.parse(widget.videoUrl);
-      final controller = VideoPlayerController.networkUrl(uri);
+      final controller = VideoPlayerController.networkUrl(
+        uri,
+        httpHeaders: memberMediaHttpHeaders(
+          widget.videoUrl,
+          bearerToken: authController.user?.token,
+        ),
+      );
       await controller.initialize();
       if (!mounted) {
         await controller.dispose();

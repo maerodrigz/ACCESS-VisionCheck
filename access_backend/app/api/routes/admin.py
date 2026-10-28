@@ -407,10 +407,11 @@ class EvaluationRemarksUpdate(BaseModel):
     admin_remarks: str | None = Field(None, max_length=2000)
 
 
-def _evaluation_json(db: Session, ev) -> dict:
+def _evaluation_json(db: Session, ev, ai=None) -> dict:
     media = ev.media
     uploader = media.uploader if media else None
-    ai = eval_crud.get_ai_for_media(db, ev.media_id)
+    if ai is None:
+        ai = eval_crud.get_ai_for_media(db, ev.media_id)
     name = media.file_name if media else ""
     member = uploader.fullname if uploader else "Unknown"
     is_standalone = media is None or media.request_id is None
@@ -460,7 +461,8 @@ def evaluations_summary(db: Session = Depends(get_db), _: User = Depends(require
 def list_all_evaluations(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     try:
         rows = eval_crud.list_all(db)
-        return [_evaluation_json(db, ev) for ev in rows]
+        ai_map = eval_crud.ai_by_media_ids(db, [ev.media_id for ev in rows])
+        return [_evaluation_json(db, ev, ai=ai_map.get(ev.media_id)) for ev in rows]
     except Exception as exc:
         raise _load_error("media evaluations", exc) from exc
 
@@ -686,10 +688,11 @@ def list_ai_detection(
         if bucket not in ("all", "needs_action", "resolved"):
             bucket = "all"
         rows = eval_crud.list_ai_for_integrity_inbox(db, inbox=bucket)
+        eval_map = eval_crud.evaluations_by_media_ids(db, [ai.media_id for ai in rows])
         payload: list[dict] = []
         for ai in rows:
             insights = None
-            ev = eval_crud.get_for_media(db, ai.media_id)
+            ev = eval_map.get(ai.media_id)
             if ev is not None:
                 insights = _additional_quality_insights_from_criteria_json(ev.criteria_json)
             payload.append(_ai_detection_json(ai, additional_quality_insights=insights))
@@ -726,7 +729,13 @@ def admin_submission_chain_timeline(
 
     chain = chain_crud.get_chain_for_media(db, media_id)
     if chain is None:
-        raise HTTPException(status_code=404, detail="Submission chain not found")
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Submission chain not found for this media. "
+                "Chains are created on practice evaluation upload or when an admin requests re-upload."
+            ),
+        )
     return admin_chain_timeline(db, chain=chain)
 
 

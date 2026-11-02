@@ -64,6 +64,15 @@ void main() {
       expect(fields['daily_evaluation_limit'], 5);
       expect(fields['evaluation_daily_timezone'], 'Asia/Manila');
     });
+
+    test('maps skill eligible evaluation count', () {
+      final fields = participationFieldsFromApi({
+        'evaluations_count': 5,
+        'skill_eligible_evaluations_count': 3,
+      });
+      expect(fields['evaluations_count'], 5);
+      expect(fields['skill_eligible_evaluations_count'], 3);
+    });
   });
 
   group('AppState daily quota confirmation', () {

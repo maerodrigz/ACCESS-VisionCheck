@@ -5,6 +5,7 @@ import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/user_model.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/utils/practice_media_title.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
 
@@ -507,7 +508,12 @@ String eventNameForUpload(GalleryItem item) {
       }
     }
   }
-  if (item.category == 'Practice') return 'Practice Upload';
+  if (item.category == 'Practice') {
+    return practiceMediaDisplayTitle(
+      item.title,
+      isVideo: item.mediaType == MediaType.video,
+    );
+  }
   if (item.category.isNotEmpty) return item.category;
   return 'Event Coverage';
 }

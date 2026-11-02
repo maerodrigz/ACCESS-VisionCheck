@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
-import 'package:access_mobile/mobile_app/widgets/additional_quality_insights_panel.dart';
-import 'package:access_mobile/mobile_app/widgets/evaluation_report_integrity_compact.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_result_media_check.dart';
+import 'package:access_mobile/shared/utils/member_integrity_display.dart';
 import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/shared/models/member_review_status.dart';
@@ -120,8 +120,6 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
   @override
   Widget build(BuildContext context) {
     final showQuality = widget.result.showQualityFeedbackEffective;
-    final result = widget.result;
-
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
@@ -158,50 +156,50 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
                 dense: true,
                 useBreakdownCard: true,
                 showOverallHeader: false,
+                mergeSupplementaryInsights: true,
                 feedbackIsLocalFallback: _geminiFeedback == null &&
                     (widget.result.geminiFeedbackIsLocal || widget.fetchLiveGemini),
               ),
-              if (widget.result.hasAdditionalQualityInsights) ...[
-                const SizedBox(height: 10),
-                AdditionalQualityInsightsPanel(
-                  insights: widget.result.additionalQualityInsights!,
-                ),
-              ],
               const SizedBox(height: 10),
-            ] else if (result.aiDetection.isAiGenerated && !showQuality) ...[
+            ] else if (!memberShouldHideIntegrityOnlyReviewCard(
+              result: widget.result,
+              adminReviewStatus: widget.adminReviewStatus,
+            )) ...[
               IntegrityOnlyMessageCard(
-                result: result,
+                result: widget.result,
                 layout: IntegrityOnlyCardLayout.resultCompact,
                 reviewStatus: widget.adminReviewStatus,
                 adminRemarks: widget.adminRemarks,
               ),
               const SizedBox(height: 8),
             ],
-            if (MemberReviewStatus.isReuploadRequested(widget.adminReviewStatus) ||
-                (widget.adminRemarks?.trim().isNotEmpty ?? false)) ...[
+            if (showQuality &&
+                (MemberReviewStatus.isReuploadRequested(widget.adminReviewStatus) ||
+                    (widget.adminRemarks?.trim().isNotEmpty ?? false))) ...[
               AdminReviewRemarksPanel(
                 remarks: _adminRemarksForPanel(widget.adminReviewStatus, widget.adminRemarks),
               ),
               const SizedBox(height: 8),
             ],
-            EvaluationReportIntegrityCompact(
-              result: result,
+            EvaluationResultMediaCheckCard(
+              result: widget.result,
               adminReviewStatus: widget.adminReviewStatus,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             EvalResultActionBar(
               compact: true,
               evaluateAgainLabel: widget.media.isVideo ? 'Choose another video' : 'Choose another photo',
               onDone: _handleDone,
               onEvaluateAgain: widget.onEvaluateAgain,
-              onDetailedAnalysis: () => openEvaluationDetailedAnalysis(
-                context,
-                result: result,
-                geminiFeedback: _geminiFeedback ?? widget.geminiFeedback,
-                title: widget.media.name,
-                initialTab: showQuality ? 0 : 3,
-                adminReviewStatus: widget.adminReviewStatus,
-              ),
+              onDetailedAnalysis: showQuality
+                  ? () => openEvaluationDetailedAnalysis(
+                        context,
+                        result: widget.result,
+                        geminiFeedback: _geminiFeedback ?? widget.geminiFeedback,
+                        title: widget.media.name,
+                        initialTab: 0,
+                      )
+                  : null,
               adminReviewStatus: widget.adminReviewStatus,
             ),
           ],

@@ -14,6 +14,11 @@ import numpy as np
 
 from app.services.torch_runtime import get_torch, torch_available
 
+try:
+    from PIL import Image
+except ImportError:
+    Image = None  # type: ignore[misc, assignment]
+
 logger = logging.getLogger("ACCESS.probe_dino_detector")
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -72,7 +77,7 @@ def _get_probe_inference() -> tuple[Callable[..., Any], Callable[..., Any]]:
     return _probe_imports
 
 
-def resize_long_edge(image: Any, max_edge: int = DEFAULT_MAX_LONG_EDGE) -> Any:
+def resize_long_edge(image: Image.Image, max_edge: int = DEFAULT_MAX_LONG_EDGE) -> Image.Image:
     """Validated Step 8C.2 resize (no upscale)."""
     _ensure_probe_sys_path()
     from probe_inference import _resize_long_edge  # noqa: WPS433
@@ -89,8 +94,7 @@ def probe_checkpoint_on_disk() -> bool:
 
 
 def probe_detector_available() -> bool:
-    """Checkpoint present and PyTorch can load (inference possible)."""
-    if not torch_available():
+    if get_torch() is None or Image is None:
         return False
     return probe_checkpoint_on_disk()
 
@@ -156,12 +160,10 @@ def probe_ai_probability(content: bytes) -> float | None:
         return None
 
     torch = get_torch()
-    if torch is None:
+    if Image is None or torch is None:
         return None
 
     try:
-        from PIL import Image
-
         image = Image.open(BytesIO(content)).convert("RGB")
         if image.size[0] < 8 or image.size[1] < 8:
             return None

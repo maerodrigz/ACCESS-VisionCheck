@@ -5,6 +5,7 @@ import 'package:access_mobile/mobile_app/widgets/quality_breakdown_card.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
+import 'package:access_mobile/shared/utils/member_supplementary_insights_display.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
 Color qualityLevelColor(String? level) => switch (level) {
@@ -126,6 +127,7 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
     this.showFeedbackCard = true,
     this.useBreakdownCard = false,
     this.feedbackIsLocalFallback = false,
+    this.mergeSupplementaryInsights = false,
   });
 
   final PhotoEvaluationResult result;
@@ -137,6 +139,7 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
   final bool showFeedbackCard;
   final bool useBreakdownCard;
   final bool feedbackIsLocalFallback;
+  final bool mergeSupplementaryInsights;
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +226,22 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
             const LocalFeedbackNotice(),
             const SizedBox(height: 8),
           ],
-          AiFeedbackCard(feedback: gf, dense: dense),
+          AiFeedbackCard(
+            feedback: mergeSupplementaryInsights
+                ? MediaEvaluationFeedback(
+                    explanation: gf.explanation,
+                    strengths: gf.strengths,
+                    improvements: gf.improvements,
+                    tips: mergePracticalTipsWithSupplementaryInsights(
+                      tips: gf.tips,
+                      improvements: gf.improvements,
+                      insights: result.additionalQualityInsights,
+                    ),
+                    closingMessage: gf.closingMessage,
+                  )
+                : gf,
+            dense: dense,
+          ),
         ],
       ],
     );

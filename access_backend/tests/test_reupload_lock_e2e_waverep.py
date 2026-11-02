@@ -123,7 +123,10 @@ class ReuploadLockE2EWaverepTest(unittest.TestCase):
             "/api/media/upload",
             headers=headers,
             files={"file": (f"rep_{seed}.jpg", content, "image/jpeg")},
-            data={"replaces_media_id": str(root_id)},
+            data={
+                "replaces_media_id": str(root_id),
+                "file_name": "Replacement practice photo",
+            },
         )
 
     @patch.object(settings, "replacement_upload_enabled", True)

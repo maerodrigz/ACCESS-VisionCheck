@@ -44,25 +44,6 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
         dispose_engine_pool(engine)
         upgrade_submission_chains_phase1(engine)
 
-    def _ensure_chain_for_media(self, db, media: MediaFile) -> SubmissionChain:
-        chain = chain_crud.get_chain_for_media(db, media.id)
-        if chain is not None:
-            if media.submission_chain_id is None:
-                media.submission_chain_id = chain.id
-                db.commit()
-            return chain
-        chain = SubmissionChain(
-            root_media_id=media.id,
-            member_id=media.uploaded_by or 0,
-            xp_reconciliation_status=XP_RECONCILIATION_PENDING,
-        )
-        db.add(chain)
-        db.flush()
-        media.submission_chain_id = chain.id
-        db.commit()
-        db.refresh(chain)
-        return chain
-
     def _member(self) -> User:
         db = SessionLocal()
         try:
@@ -86,7 +67,8 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
             db.add(root)
             db.commit()
             db.refresh(root)
-            self._ensure_chain_for_media(db, root)
+            upgrade_submission_chains_phase1(engine)
+            db.refresh(root)
             ai = eval_crud.create_ai_result(
                 db,
                 {
@@ -144,6 +126,24 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_duplicate_active_replacement_blocked(self) -> None:
+        user = self._member()
+        root, _chain = self._root_with_reupload(user.id)
+        db = SessionLocal()
+        try:
+            rep1 = MediaFile(
+                uploaded_by=user.id,
+                file_name="rep_a.jpg",
+                file_type="photo",
+                file_url="/uploads/a.jpg",
+                media_category=MEDIA_CATEGORY_EVALUATION,
+            )
+            db.add(rep1)
+            db.commit()
+            db.refresh(rep1)
+            _, c1 = chain_crud.validate_replacement_target(db, member_id=user.id, replaces_media_id=root.id)
+            chain_crud.attach_replacement_media(db, chain=c1, replacement=rep1, replaces_media_id=root.id)
+            db.commit()
     def test_reupload_locked_after_admin_verifies_replacement(self) -> None:
         user = self._member()
         root, chain = self._root_with_reupload(user.id)
@@ -215,24 +215,6 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
         finally:
             db.close()
 
-    def test_duplicate_active_replacement_blocked(self) -> None:
-        user = self._member()
-        root, _chain = self._root_with_reupload(user.id)
-        db = SessionLocal()
-        try:
-            rep1 = MediaFile(
-                uploaded_by=user.id,
-                file_name="rep_a.jpg",
-                file_type="photo",
-                file_url="/uploads/a.jpg",
-                media_category=MEDIA_CATEGORY_EVALUATION,
-            )
-            db.add(rep1)
-            db.commit()
-            db.refresh(rep1)
-            _, c1 = chain_crud.validate_replacement_target(db, member_id=user.id, replaces_media_id=root.id)
-            chain_crud.attach_replacement_media(db, chain=c1, replacement=rep1, replaces_media_id=root.id)
-            db.commit()
 
             rep2 = MediaFile(
                 uploaded_by=user.id,
@@ -265,6 +247,24 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_chain_xp_awarded_only_once(self) -> None:
+        user = self._member()
+        db = SessionLocal()
+        try:
+            media = MediaFile(
+                uploaded_by=user.id,
+                file_name="xp_chain.jpg",
+                file_type="photo",
+                file_url="/uploads/xp.jpg",
+                media_category=MEDIA_CATEGORY_EVALUATION,
+            )
+            db.add(media)
+            db.commit()
+            db.refresh(media)
+            upgrade_submission_chains_phase1(engine)
+            db.refresh(media)
+            chain = chain_crud.get_chain_for_media(db, media.id)
+            assert chain is not None
     def test_ensure_submission_chain_for_evaluation_creates_root(self) -> None:
         user = self._member()
         db = SessionLocal()
@@ -288,21 +288,6 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
         finally:
             db.close()
 
-    def test_chain_xp_awarded_only_once(self) -> None:
-        user = self._member()
-        db = SessionLocal()
-        try:
-            media = MediaFile(
-                uploaded_by=user.id,
-                file_name="xp_chain.jpg",
-                file_type="photo",
-                file_url="/uploads/xp.jpg",
-                media_category=MEDIA_CATEGORY_EVALUATION,
-            )
-            db.add(media)
-            db.commit()
-            db.refresh(media)
-            chain = self._ensure_chain_for_media(db, media)
             eval_crud.create_evaluation(
                 db,
                 {
@@ -343,7 +328,7 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
             db.add(media)
             db.commit()
             db.refresh(media)
-            self._ensure_chain_for_media(db, media)
+            upgrade_submission_chains_phase1(engine)
             eval_crud.create_evaluation(
                 db,
                 {
@@ -358,7 +343,7 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
                     "criteria_json": json.dumps(
                         {"xp_awarded_at_review": True, "xp_points_preview": 55}
                     ),
-                },
+            self._ensure_chain_for_media(db, media)
             )
             ai = eval_crud.create_ai_result(
                 db,
@@ -366,8 +351,9 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
                     "media_id": media.id,
                     "ai_probability": 0.1,
                     "detection_result": "human",
-                    "review_status": "pending_review",
-                    "reviewed_by_admin": False,
+                    "review_status": "reupload_requested",
+                    "reviewed_by_admin": True,
+                    "admin_remarks": "Need a new upload please.",
                 },
             )
             apply_ai_review(
@@ -380,9 +366,8 @@ class ReplacementUploadPhase2DbTest(unittest.TestCase):
             assert chain is not None
             db.refresh(chain)
             self.assertTrue(chain.xp_award_locked)
-            self.assertGreaterEqual(chain.xp_awarded_total, 55)
-        finally:
-            db.close()
+                    "review_status": "pending_review",
+                    "reviewed_by_admin": False,
 
 
 class ReplacementUploadFlagTest(unittest.TestCase):

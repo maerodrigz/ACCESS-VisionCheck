@@ -8,8 +8,8 @@ import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/submission_chain_history.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
+import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
-import 'package:access_mobile/mobile_app/widgets/additional_quality_insights_panel.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_report_integrity_compact.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
@@ -189,7 +189,7 @@ class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
               ),
               const SizedBox(height: 14),
             ],
-            if (adminRemarks.isNotEmpty) ...[
+            if (parsed == null && adminRemarks.isNotEmpty) ...[
               AdminReviewRemarksPanel(remarks: adminRemarks),
               const SizedBox(height: 14),
             ],
@@ -212,28 +212,15 @@ class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
                   dense: true,
                   useBreakdownCard: true,
                   showOverallHeader: false,
+                  mergeSupplementaryInsights: true,
                   feedbackIsLocalFallback: parsed.geminiFeedbackIsLocal,
                 ),
-                if (parsed.hasAdditionalQualityInsights) ...[
-                  const SizedBox(height: 10),
-                  AdditionalQualityInsightsPanel(
-                    insights: parsed.additionalQualityInsights!,
-                  ),
-                ],
                 const SizedBox(height: 12),
-              ] else if (parsed.aiDetection.isAiGenerated &&
-                  !parsed.showQualityFeedbackEffective) ...[
-                IntegrityOnlyMessageCard(
-                  result: parsed,
-                  layout: IntegrityOnlyCardLayout.resultCompact,
-                  reviewStatus: evaluation.reviewStatus,
-                  adminRemarks: evaluation.adminRemarks,
-                ),
-                const SizedBox(height: 10),
               ],
               EvaluationReportIntegrityCompact(
                 result: parsed,
                 adminReviewStatus: evaluation.reviewStatus,
+                adminRemarks: evaluation.adminRemarks,
               ),
             ] else ...[
               Container(
@@ -577,9 +564,13 @@ void openEvaluationReport(
   Evaluation evaluation, {
   List<Evaluation>? allEvaluations,
 }) {
-  final comparisons = allEvaluations != null
-      ? comparisonResultsFromHistory(allEvaluations, excludeId: evaluation.id)
-      : comparisonResultsFromHistory(appState.evaluations, excludeId: evaluation.id);
+  final pool = allEvaluations ?? appState.evaluations;
+  final currentIsVideo = isVideoPracticeEvaluation(evaluation);
+  final comparisons = comparisonResultsFromHistory(
+    pool,
+    excludeId: evaluation.id,
+    sameMediaTypeAsVideo: currentIsVideo,
+  );
 
   Navigator.of(context).push(
     MaterialPageRoute<void>(

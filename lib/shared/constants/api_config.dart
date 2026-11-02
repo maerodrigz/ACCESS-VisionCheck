@@ -135,7 +135,7 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
-    '192.168.8.97',
+    '192.168.8.98',
     '10.216.233.169',
     '10.210.8.169',
     '192.168.8.94',
@@ -230,7 +230,20 @@ class ApiConfig {
   /// Dev default from [config/api.json] (bundled asset). Used on Android when
   /// no runtime URL is saved so physical phones do not stay on 10.0.2.2 only.
   /// Drop saved 10.0.2.2 override — that host is emulator-only and breaks physical phones.
-  /// True when [raw] points at the isolated QA API (port 3003).
+  static Future<void> clearStaleEmulatorBackendOverride() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    // Compile-time base (e.g. emulator --dart-define=API_BASE_URL=10.0.2.2:3002) wins.
+    if (apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty) return;
+    final saved = runtimeBaseUrl.value?.trim().toLowerCase() ?? '';
+    if (saved.contains('10.0.2.2')) {
+      await runtimeBaseUrl.clear();
+    }
+    if (_lastWorkingBaseUrl != null &&
+        _lastWorkingBaseUrl!.toLowerCase().contains('10.0.2.2')) {
+      await forgetLastWorkingBaseUrl(_lastWorkingBaseUrl!);
+    }
+  }
+
   static bool isIsolatedQaBackendUrl(String? raw) {
     final trimmed = raw?.trim() ?? '';
     if (trimmed.isEmpty) return false;
@@ -291,20 +304,6 @@ class ApiConfig {
     }
 
     return migrated;
-  }
-
-  static Future<void> clearStaleEmulatorBackendOverride() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
-    // Compile-time base (e.g. emulator --dart-define=API_BASE_URL=10.0.2.2:3002) wins.
-    if (apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty) return;
-    final saved = runtimeBaseUrl.value?.trim().toLowerCase() ?? '';
-    if (saved.contains('10.0.2.2')) {
-      await runtimeBaseUrl.clear();
-    }
-    if (_lastWorkingBaseUrl != null &&
-        _lastWorkingBaseUrl!.toLowerCase().contains('10.0.2.2')) {
-      await forgetLastWorkingBaseUrl(_lastWorkingBaseUrl!);
-    }
   }
 
   /// Same /24 IPv4 prefix (e.g. home Wi-Fi DHCP last-octet changes).

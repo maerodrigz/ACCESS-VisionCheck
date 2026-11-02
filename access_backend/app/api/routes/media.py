@@ -350,7 +350,12 @@ async def upload_media(
     if media_category == MEDIA_CATEGORY_EVALUATION and is_video:
         assert_evaluation_video_duration(db, ext, content)
 
-    display_name = (file_name or file.filename or "upload").strip()[:255]
+    if media_category == MEDIA_CATEGORY_EVALUATION:
+        from app.services.media_upload_config import assert_practice_media_title
+
+        display_name = assert_practice_media_title(file_name)[:255]
+    else:
+        display_name = (file_name or file.filename or "upload").strip()[:255]
     file_type = "video" if is_video else "photo"
 
     approval_status = APPROVAL_NOT_APPLICABLE

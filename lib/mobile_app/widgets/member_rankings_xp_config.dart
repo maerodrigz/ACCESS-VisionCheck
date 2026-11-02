@@ -1,6 +1,6 @@
 /// Configurable XP rules mirrored from the ACCESS backend pipeline.
 class MemberXpConfig {
-  const MemberXpConfig._();
+  MemberXpConfig._();
 
   /// From `access_backend/app/services/media_pipeline.py` — points added per evaluation.
   static const String evaluationFormula = 'overall_score × 100';
@@ -14,31 +14,42 @@ class MemberXpConfig {
     return (normalized.clamp(0.0, 1.0) * 100).round();
   }
 
-  /// Skill score weights from `access_backend/app/services/skill_scoring.py`.
-  static const skillScoreWeights = <({String label, String weight})>[
-    (label: 'Media quality', weight: '70%'),
-    (label: 'Media integrity', weight: '30%'),
-  ];
+  static const skillTierIntro =
+      'Skill Tier (Beginner through Expert) is based on the average quality score of '
+      'eligible, released practice evaluations only. Pending or withheld uploads do not count '
+      'until an officer releases scores.';
 
-  static const collapsedXpHint = 'Earn XP through eligible media evaluations.';
+  static const xpRankIntro =
+      'XP Rank reflects participation rewards on the leaderboard (total XP). It is separate '
+      'from Skill Tier and from Media Integrity review.';
+
+  static const mediaIntegrityIntro =
+      'Media Integrity covers AI detection and admin review. It can hold or exclude an upload '
+      'from skill tier and XP until resolved. A low AI probability alone is not treated as proof '
+      'of inauthentic media.';
+
+  static const collapsedXpHint =
+      'Earn XP from eligible practice evaluations. Skill Tier uses released quality scores only.';
 
   static const howXpIntro =
-      'XP comes from practice AI evaluations. Strong scores and a clean integrity record '
-      'help you climb the leaderboard and improve your skill label. '
-      'Leaderboard XP is separate from your skill tier score.';
+      'XP Rank is your participation score on the leaderboard. Skill Tier is your quality-based '
+      'classification. Media Integrity is a separate review path for AI and authenticity flags.';
 
   static const skillLevelIntro =
-      'Your skill label (Beginner, Intermediate, Advanced, Expert) comes from your average '
-      'evaluation quality and media integrity record, not a single upload. You need at least '
-      '3 evaluated submissions before leaving Beginner, 6 for Advanced, and 10 for Expert.';
+      'One overall Skill Tier from eligible practice quality (not XP). You need at least '
+      '3 eligible evaluations before Intermediate unlocks, 6 for Advanced, and 10 for Expert.';
 
   /// From `skill_level_from_score` in the backend.
   static const List<({String name, String range})> skillLevelTiers = [
-    (name: 'Expert', range: '90+ score'),
+    (name: 'Expert', range: '90+ quality'),
     (name: 'Advanced', range: '75–89'),
     (name: 'Intermediate', range: '60–74'),
     (name: 'Beginner', range: 'Below 60'),
   ];
+
+  static const leaderboardOrderNote =
+      'This screen sorts members by XP (monthly or all-time). Skill Tier rank on your profile '
+      'uses quality score and eligible evaluation count, not XP order.';
 
   static const uploadGuidanceIntro =
       'ACCESS uses two upload paths. Daily limits apply only to practice AI evaluations, not '
@@ -53,7 +64,7 @@ class MemberXpConfig {
       'the event. Submissions must fall within the admin-configured upload window (often 7 days after the event).';
 
   static const uploadQualityTip =
-      'Tip: Skill level rewards strong evaluation scores and a clean integrity record, not how many files you upload per day.';
+      'Tip: Skill Tier rewards strong released quality scores, not upload volume alone.';
 
   static const contentStandardsTitle = 'ACCESS content standards';
 
@@ -69,10 +80,18 @@ class MemberXpConfig {
 
   static const List<({String title, String body})> earningRules = [
     (
-      title: 'Quality evaluations',
+      title: 'XP Rank (participation)',
       body:
-          'Each evaluated upload earns XP using $evaluationFormula (rounded to whole points). '
-          'Higher scores mean more XP per submission.',
+          'Each eligible evaluated upload earns XP using $evaluationFormula (rounded). '
+          'XP drives leaderboard order on this screen.',
+    ),
+    (
+      title: 'Skill Tier (quality)',
+      body: skillTierIntro,
+    ),
+    (
+      title: 'Media Integrity',
+      body: mediaIntegrityIntro,
     ),
     (
       title: 'Event documentation',
@@ -85,12 +104,6 @@ class MemberXpConfig {
       body:
           'Accepting and covering assigned events builds your participation record with admins, '
           'but assignment completion alone does not award XP today.',
-    ),
-    (
-      title: 'Authentic media',
-      body:
-          'Integrity risk flags send media to review. They are not automatic proof of AI-generated content. '
-          'If an admin confirms AI-generated media, XP may be reduced by $aiConfirmedPenalty points.',
     ),
     (
       title: 'Appropriate content',

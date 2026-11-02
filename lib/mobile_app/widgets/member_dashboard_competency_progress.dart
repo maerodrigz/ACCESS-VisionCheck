@@ -6,6 +6,7 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/stat_card.dart';
 import 'package:access_mobile/mobile_app/widgets/member_skill_level_guide_sheet.dart';
+import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 
 class MemberCompetencyTier {
   const MemberCompetencyTier(this.name, this.minPoints, this.nextMinPoints);
@@ -85,7 +86,7 @@ class MemberProfileSkillProgressSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const AccessSectionHeader(title: 'Skill Progress'),
+            const AccessSectionHeader(title: 'Skill tier (quality)'),
             const SizedBox(height: 12),
             MemberDashboardCard(
               showAccentStrip: true,
@@ -326,26 +327,27 @@ class MemberCompetencySnapshot {
     final count = evaluationsCount ?? 0;
     if (count >= required) return null;
     final need = required - count;
-    return 'Complete $need more evaluated '
-        '${need == 1 ? 'submission' : 'submissions'} to unlock $nextLevelName';
+    return 'Complete $need more skill-eligible released '
+        '${need == 1 ? 'evaluation' : 'evaluations'} to unlock $nextLevelName '
+        '(pending or withheld uploads do not count)';
   }
 
   String get progressSubtitle {
     if (isMaxLevel) {
       if (skillScore != null) {
-        return 'Maximum skill tier reached (${skillScore!.round()} skill score)';
+        return 'Maximum skill tier reached (${skillScore!.round()} quality score)';
       }
       return 'Maximum skill tier reached';
     }
     if (!progressUsesSkillScore) {
-      return 'Visit Rankings to load skill score progress';
+      return 'Visit Rankings to load quality-based skill tier progress';
     }
     final gate = evalGateHint;
     if (gate != null) return gate;
-    if (nextLevelName == null) return 'Keep practicing to improve your skill score';
+    if (nextLevelName == null) return 'Keep practicing to improve your quality score';
     final scoreNote =
-        skillScore != null ? ' · ${skillScore!.round()} skill score now' : '';
-    return '$remainingPoints skill score pts to $nextLevelName$scoreNote';
+        skillScore != null ? ' · ${skillScore!.round()} quality score now' : '';
+    return '$remainingPoints quality pts to $nextLevelName$scoreNote';
   }
 
   List<({String name, SkillTierTrackState state})> get skillTrackStates {
@@ -369,7 +371,10 @@ class MemberCompetencySnapshot {
         ? appState.profileSkillLevel!.trim()
         : 'Beginner';
     final score = appState.profileSkillScore;
-    final evalCount = appState.profileEvaluationsCount;
+    var evalCount = appState.profileSkillEligibleEvaluationsCount;
+    if (evalCount <= 0) {
+      evalCount = skillEligibleEvaluations(appState.evaluations).length;
+    }
 
     if (score != null) {
       final idx = MemberBackendSkillTier.indexForLevel(levelName);
@@ -448,7 +453,8 @@ class MemberDashboardCompetencyProgress extends StatelessWidget {
 
         return MemberDashboardSection(
           title: 'Competency Progress',
-          subtitle: 'Earn XP from practice evaluations. Your skill label reflects evaluation quality and integrity.',
+          subtitle:
+              'XP rank reflects participation. Skill tier reflects average quality on eligible released practice evaluations only.',
           child: Container(
             padding: const EdgeInsets.all(kMemberDashboardCardPadding),
             decoration: memberDashboardCardDecoration(

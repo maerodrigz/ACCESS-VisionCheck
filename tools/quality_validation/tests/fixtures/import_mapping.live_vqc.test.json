@@ -1,0 +1,12 @@
+{
+  "source_dataset": "LIVE-VQC",
+  "label_provenance": "human_subjective",
+  "mos_scale": "0-100",
+  "format": "csv",
+  "filename_transform": "strip_extension",
+  "media_id_template": "vqc_{source_media_key}",
+  "columns": {
+    "source_media_key": "video_file",
+    "mos_quality_raw": "MOS"
+  }
+}

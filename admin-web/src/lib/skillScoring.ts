@@ -17,10 +17,11 @@ export function taskParticipationPercent(completed: number, assigned: number): n
   return pct(completed, assigned)
 }
 
-/** Skill level uses evaluation quality + media integrity only (mirrors backend). */
+/** Skill tier score: eligible practice media quality only (mirrors backend). */
 export function computeSkillScore(input: {
   mediaQualityScore: number
-  aiAuthenticityScore: number
+  aiAuthenticityScore?: number
 }): number {
-  return input.mediaQualityScore * 0.7 + input.aiAuthenticityScore * 0.3
+  void input.aiAuthenticityScore
+  return input.mediaQualityScore
 }

@@ -1,0 +1,20 @@
+{
+  "source_dataset": "SPAQ",
+  "label_provenance": "human_subjective",
+  "mos_scale": "0-100",
+  "attribute_scale": "0-100",
+  "filename_transform": "strip_extension",
+  "media_id_template": "spaq_{source_media_key_safe}",
+  "source_media_key_column": "REPLACE_WITH_ACTUAL_IMAGE_COLUMN",
+  "dataset_split_column": null,
+  "columns": {
+    "source_media_key": "REPLACE_WITH_ACTUAL_IMAGE_COLUMN",
+    "mos_quality_raw": "REPLACE_WITH_MOS_COLUMN",
+    "attr_sharpness_raw": "REPLACE_WITH_SHARPNESS_COLUMN",
+    "attr_brightness_raw": "REPLACE_WITH_BRIGHTNESS_COLUMN",
+    "attr_noisiness_raw": "REPLACE_WITH_NOISINESS_COLUMN",
+    "attr_contrast_raw": "REPLACE_WITH_CONTRAST_COLUMN",
+    "attr_colorfulness_raw": "REPLACE_WITH_COLORFULNESS_COLUMN"
+  },
+  "_comment": "After downloading SPAQ, open MOS and Image attribute scores.xlsx, copy exact header names into columns.* and source_media_key_column. Join splits via --manifest + --dataset-root."
+}

@@ -141,9 +141,9 @@ def _reconcile_candidate_has_readable_bytes(db: Session, media_id: int) -> bool:
         return True
     url = (media.file_url or "").strip()
     if url.startswith("supabase-ref:"):
-        from app.services.supabase_storage import is_supabase_storage_configured
+        from app.services.supabase_storage import can_resolve_supabase_storage
 
-        if not is_supabase_storage_configured():
+        if not can_resolve_supabase_storage():
             return False
     local = local_media_path(url)
     if local is not None:

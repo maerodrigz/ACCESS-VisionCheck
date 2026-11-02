@@ -77,11 +77,17 @@ void showMemberSkillLevelGuideSheet(BuildContext context) {
                       style: memberDashboardBodyStyle.copyWith(fontSize: 13),
                     ),
                     const SizedBox(height: 14),
-                    ...MemberXpConfig.skillScoreWeights.map(
-                      (row) => _BulletRow(
-                        title: row.label,
-                        body: '${row.weight} of your skill score',
-                      ),
+                    _BulletRow(
+                      title: 'Skill Tier (quality)',
+                      body: MemberXpConfig.skillTierIntro,
+                    ),
+                    _BulletRow(
+                      title: 'XP Rank (participation)',
+                      body: MemberXpConfig.xpRankIntro,
+                    ),
+                    _BulletRow(
+                      title: 'Media Integrity (AI review)',
+                      body: MemberXpConfig.mediaIntegrityIntro,
                     ),
                     const SizedBox(height: 14),
                     Text(

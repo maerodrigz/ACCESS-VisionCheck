@@ -209,12 +209,6 @@ class _SummaryTab extends StatelessWidget {
             const SizedBox(height: 10),
           ],
           AiFeedbackCard(feedback: feedback),
-          if (result.hasAdditionalQualityInsights) ...[
-            const SizedBox(height: 16),
-            AdditionalQualityInsightsDetailPanel(
-              insights: result.additionalQualityInsights!,
-            ),
-          ],
           const SizedBox(height: 20),
           const _ModelFooter(),
         ],

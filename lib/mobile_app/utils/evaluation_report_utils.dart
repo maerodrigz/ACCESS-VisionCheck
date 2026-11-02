@@ -3,6 +3,7 @@ import 'package:access_mobile/shared/controllers/app_state.dart' hide AiDetectio
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/utils/member_integrity_display.dart';
 import 'package:access_mobile/shared/models/member_review_status.dart';
+import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 
 AiDetectionResult _fallbackAiDetection(String? reviewStatus) {
   final status = reviewStatus?.trim().toLowerCase();
@@ -65,10 +66,16 @@ List<PhotoEvaluationResult> comparisonResultsFromHistory(
   List<Evaluation> all, {
   String? excludeId,
   int limit = 8,
+  bool skillEligibleOnly = true,
+  bool? sameMediaTypeAsVideo,
 }) {
   final out = <PhotoEvaluationResult>[];
-  for (final ev in all) {
+  for (final ev in skillEligibleOnly ? skillEligibleEvaluations(all) : all) {
     if (excludeId != null && ev.id == excludeId) continue;
+    if (sameMediaTypeAsVideo != null) {
+      final isVideo = isVideoPracticeEvaluation(ev);
+      if (isVideo != sameMediaTypeAsVideo) continue;
+    }
     final parsed = evaluationToPhotoResult(ev);
     if (parsed != null) out.add(parsed);
     if (out.length >= limit) break;

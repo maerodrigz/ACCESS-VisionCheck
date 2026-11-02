@@ -219,7 +219,10 @@ class ReplacementUploadHttpPhase25Test(unittest.TestCase):
             "/api/media/upload",
             headers=headers,
             files={"file": (filename, content, "image/jpeg")},
-            data={"replaces_media_id": str(root_id)},
+            data={
+                "replaces_media_id": str(root_id),
+                "file_name": "Replacement practice photo",
+            },
         )
 
     @patch.object(settings, "replacement_upload_enabled", True)
@@ -351,7 +354,10 @@ class ReplacementUploadHttpPhase25Test(unittest.TestCase):
             "/api/media/upload",
             headers=headers,
             files={"file": ("bad.exe", b"MZ", "application/octet-stream")},
-            data={"replaces_media_id": str(root_id)},
+            data={
+                "replaces_media_id": str(root_id),
+                "file_name": "Replacement practice photo",
+            },
         )
         self.assertEqual(resp.status_code, 400)
 
@@ -396,7 +402,10 @@ class ReplacementUploadHttpPhase25Test(unittest.TestCase):
                     "/api/media/upload",
                     headers=headers,
                     files={"file": (f"{seed}.jpg", content, "image/jpeg")},
-                    data={"replaces_media_id": str(root_id)},
+                    data={
+                        "replaces_media_id": str(root_id),
+                        "file_name": "Replacement practice photo",
+                    },
                 )
                 results.append(r.status_code)
             finally:

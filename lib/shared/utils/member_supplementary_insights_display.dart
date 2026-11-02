@@ -96,3 +96,51 @@ int supplementaryInsightVisibleCount(AdditionalQualityInsights insights) {
 
 bool _insightVisible(SupplementaryQualityInsight? insight) =>
     insight != null && !insight.isUnavailable && insight.feedback.trim().isNotEmpty;
+
+/// Coaching lines suitable for Practical Tips (member result screen).
+List<String> supplementaryInsightTipLines(AdditionalQualityInsights insights) {
+  final lines = <String>[];
+  void add(SupplementaryQualityInsight? insight, SupplementaryInsightKind kind) {
+    if (!_insightVisible(insight)) return;
+    final line = supplementaryInsightConciseLine(insight!, kind: kind);
+    if (line.trim().isNotEmpty) lines.add(line.trim());
+  }
+
+  add(insights.colorBalance, SupplementaryInsightKind.colorBalance);
+  add(insights.compositionFraming, SupplementaryInsightKind.compositionFraming);
+  add(insights.motionStability, SupplementaryInsightKind.cameraMovement);
+  return lines;
+}
+
+String _normalizeInsightLineForDedupe(String line) {
+  return line.toLowerCase().replaceAll(RegExp(r'[^a-z0-9\s]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+bool _insightLineDuplicatesExisting(String candidate, Iterable<String> existing) {
+  final normalized = _normalizeInsightLineForDedupe(candidate);
+  if (normalized.length < 12) return false;
+  for (final item in existing) {
+    final other = _normalizeInsightLineForDedupe(item);
+    if (other.isEmpty) continue;
+    if (normalized == other) return true;
+    if (normalized.contains(other) || other.contains(normalized)) return true;
+  }
+  return false;
+}
+
+/// Merges supplementary coaching into Practical Tips without repeating Gemini or rubric advice.
+List<String> mergePracticalTipsWithSupplementaryInsights({
+  required List<String> tips,
+  required List<String> improvements,
+  AdditionalQualityInsights? insights,
+}) {
+  if (insights == null || !insights.hasDisplayableData) return tips;
+  final merged = List<String>.from(tips);
+  final pool = [...tips, ...improvements];
+  for (final line in supplementaryInsightTipLines(insights)) {
+    if (_insightLineDuplicatesExisting(line, pool)) continue;
+    merged.add(line);
+    pool.add(line);
+  }
+  return merged;
+}

@@ -16,8 +16,10 @@ import 'package:access_mobile/shared/models/media_upload_response.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
 import 'package:access_mobile/shared/models/submission_chain_history.dart';
+import 'package:access_mobile/shared/utils/practice_media_title.dart';
 import 'package:access_mobile/shared/utils/replacement_upload_errors.dart';
 import 'package:access_mobile/shared/services/deferred_media_evaluation_poll.dart';
+import 'package:access_mobile/shared/services/practice_evaluation_result_parser.dart';
 import 'package:access_mobile/shared/services/pending_practice_evaluation_store.dart';
 import 'package:access_mobile/shared/services/push_notification_service.dart';
 import 'package:access_mobile/mobile_app/requestor/requestor_feedback_status.dart';
@@ -538,9 +540,16 @@ class MemberDataController extends ChangeNotifier {
     return owned;
   }
 
-  Future<void> ensureRankingsTab() {
-    if (!authController.isLoggedIn) return Future.value();
-    if (appState.members.isNotEmpty) return Future.value();
+  Future<void> ensureRankingsTab() async {
+    if (!authController.isLoggedIn) return;
+    final prefetch = _evaluationsPrefetchFuture;
+    if (prefetch != null) {
+      await prefetch;
+    }
+    if (!evaluationsTabSynced) {
+      await refreshSkillProgressSources(reason: 'rankings_tab_open');
+    }
+    if (appState.members.isNotEmpty) return;
     final inFlight = _rankingsTabFuture;
     if (inFlight != null) return inFlight;
     Future<void>? owned;
@@ -637,12 +646,40 @@ class MemberDataController extends ChangeNotifier {
     await refreshHomeBootstrap();
     if (!_isOrganizationUser) {
       unawaited(refreshRequestorRatings());
+      await refreshSkillProgressSources(reason: 'home_tab_pull');
+    }
+  }
+
+  /// Evaluation history + participation counts used by skill progress (all member tabs).
+  Future<void> refreshSkillProgressSources({required String reason}) async {
+    if (!authController.isLoggedIn) return;
+    try {
+      await Future.wait<void>([
+        _syncEvaluationsSection(),
+        refreshParticipationQuota(reason: reason),
+      ]);
+      evaluationsTabSynced = true;
+      evaluationsTabError = null;
+      appState.notifyListeners();
+      notifyListeners();
+    } catch (e, st) {
+      evaluationsTabError = e is ApiException
+          ? e.message
+          : e.toString().replaceFirst('ApiException: ', '');
+      developer.log(
+        'Skill progress source refresh failed: $e',
+        name: 'ACCESS.member',
+        error: e,
+        stackTrace: st,
+      );
+      notifyListeners();
     }
   }
 
   /// Evaluations tab pull-to-refresh.
   Future<void> refreshEvaluationsTab() async {
     if (!authController.isLoggedIn) return;
+    await reconcilePendingPracticeWithServer();
     evaluationsTabLoading = true;
     evaluationsTabError = null;
     notifyListeners();
@@ -901,6 +938,8 @@ class MemberDataController extends ChangeNotifier {
         averageScore: fields['average_score'] as double,
         totalPoints: fields['total_points'] as int,
         evaluationsCount: fields['evaluations_count'] as int,
+        skillEligibleEvaluationsCount:
+            fields['skill_eligible_evaluations_count'] as int,
         evaluationsToday: fields['evaluations_today'] as int,
         dailyEvaluationLimit: fields['daily_evaluation_limit'] as int,
         evaluationMaxUploadMb: fields['evaluation_max_upload_mb'] as int,
@@ -1179,8 +1218,13 @@ class MemberDataController extends ChangeNotifier {
     }
 
     try {
-      final rankings = await memberApiService.getRankings();
-      _applyRankingsRows(rankings);
+      await Future.wait<void>([
+        () async {
+          final rankings = await memberApiService.getRankings();
+          _applyRankingsRows(rankings);
+        }(),
+        refreshSkillProgressSources(reason: 'rankings_tab_pull'),
+      ]);
       rankingsError = null;
       appState.notifyListeners();
     } catch (e) {
@@ -1442,6 +1486,8 @@ class MemberDataController extends ChangeNotifier {
               .map(_galleryFromApi),
         );
 
+      evaluationsTabSynced = true;
+      evaluationsTabError = null;
       notifyListeners();
       appState.notifyListeners();
     } catch (e, st) {
@@ -1487,6 +1533,8 @@ class MemberDataController extends ChangeNotifier {
       final idx = appState.evaluations.indexWhere((e) => e.id == targetId);
       if (idx >= 0) {
         appState.evaluations[idx] = ev;
+      } else {
+        appState.evaluations.insert(0, ev);
       }
       appState.notifyListeners();
       notifyListeners();
@@ -1523,9 +1571,17 @@ class MemberDataController extends ChangeNotifier {
     final evaluatedAt = evaluatedRaw != null ? DateTime.tryParse(evaluatedRaw) : null;
     final storageRemoved = e['storage_removed'] == true;
     final fileUrlRaw = e['file_url'] as String?;
+    final mediaType = parsed?.mediaType ??
+        _inferEvaluationMediaType(
+          e['file_name'] as String?,
+          e['file_url'] as String?,
+        );
     return Evaluation(
       id: 'MED-${e['media_id']}',
-      title: e['file_name'] as String? ?? 'Upload',
+      title: practiceMediaDisplayTitle(
+        e['file_name'] as String?,
+        mediaType: mediaType,
+      ),
       score: (e['overall_score'] as num?)?.toDouble() ?? 0,
       composition: _scoreLabel(e['contrast_score']),
       lighting: _scoreLabel(e['brightness_score']),
@@ -1536,11 +1592,7 @@ class MemberDataController extends ChangeNotifier {
       storageRemoved: storageRemoved,
       criteria: parsed?.criteria ?? const [],
       qualityLevel: parsed?.qualityLevel ?? e['quality_level'] as String?,
-      mediaType: parsed?.mediaType ??
-          _inferEvaluationMediaType(
-            e['file_name'] as String?,
-            e['file_url'] as String?,
-          ),
+      mediaType: mediaType,
       geminiFeedback: parsed?.geminiFeedback,
       recommendation: parsed?.recommendation,
       scoringModel: parsed?.scoringModel,
@@ -1588,9 +1640,13 @@ class MemberDataController extends ChangeNotifier {
     if (score is num) {
       appState.profileSkillScore = score.toDouble();
     }
-    final evalCount = r['evaluation_count'];
-    if (evalCount is int) {
-      appState.profileEvaluationsCount = evalCount;
+    final skillEligible = r['evaluation_count'] ?? r['skill_eligible_evaluation_count'];
+    if (skillEligible is int) {
+      appState.profileSkillEligibleEvaluationsCount = skillEligible;
+    }
+    final totalRows = r['total_evaluation_rows'];
+    if (totalRows is int && appState.profileEvaluationsCount == 0) {
+      appState.profileEvaluationsCount = totalRows;
     }
     final level = r['skill_level'] as String?;
     if (level != null && level.trim().isNotEmpty) {
@@ -1648,7 +1704,7 @@ class MemberDataController extends ChangeNotifier {
   Future<PracticeEvaluationSaveOutcome> submitPracticeEvaluation({
     required List<int> bytes,
     required String fileName,
-    String? title,
+    required String title,
     String? evaluationMetadata,
     bool isVideo = false,
     bool Function()? shouldContinuePolling,
@@ -1657,10 +1713,11 @@ class MemberDataController extends ChangeNotifier {
   }) async {
     Map<String, dynamic> uploadRaw;
     try {
+      final displayTitle = normalizePracticeMediaTitle(title);
       uploadRaw = await memberApiService.uploadMedia(
         bytes: bytes,
         fileName: fileName,
-        displayName: title,
+        displayName: displayTitle,
         evaluationMetadata: evaluationMetadata,
       );
     } on ApiException catch (e) {
@@ -1695,10 +1752,7 @@ class MemberDataController extends ChangeNotifier {
 
     onDeferredProcessingStarted?.call(upload);
 
-    final poll = pollService ??
-        DeferredMediaEvaluationPoll(
-          fetchMediaById: (id) => memberApiService.getMediaById(id),
-        );
+    final poll = pollService ?? _practiceDeferredPoll();
 
     final pollOutcome = await poll.waitForCompletion(
       mediaId: upload.id,
@@ -1774,9 +1828,7 @@ class MemberDataController extends ChangeNotifier {
     await registerPendingPracticeAnalysis(upload.id, isVideo: isVideo);
     await refreshAfterEvaluationSave();
 
-    final poll = DeferredMediaEvaluationPoll(
-      fetchMediaById: (id) => memberApiService.getMediaById(id),
-    );
+    final poll = _practiceDeferredPoll();
     final pollOutcome = await poll.waitForCompletion(
       mediaId: upload.id,
       isVideo: isVideo,
@@ -1799,6 +1851,56 @@ class MemberDataController extends ChangeNotifier {
       upload: upload,
       pollOutcome: pollOutcome,
     );
+  }
+
+  DeferredMediaEvaluationPoll _practiceDeferredPoll() {
+    return DeferredMediaEvaluationPoll(
+      fetchMediaById: _fetchPracticeMediaPollRow,
+    );
+  }
+
+  Future<Map<String, dynamic>?> _fetchPracticeMediaPollRow(int mediaId) async {
+    final media = await memberApiService.getMediaById(mediaId);
+    Map<String, dynamic>? evalRow;
+    try {
+      evalRow = await memberApiService.getEvaluationRowForMedia(mediaId);
+    } catch (_) {
+      evalRow = null;
+    }
+    if (evalRow != null && practiceEvaluationApiRowReady(evalRow)) {
+      await PendingPracticeEvaluationStore.remove(mediaId);
+      _syncPendingPracticeCount();
+      final merged = Map<String, dynamic>.from(media ?? {});
+      merged['processing_status'] = 'completed';
+      if (evalRow['overall_score'] != null) {
+        merged['overall_score'] = evalRow['overall_score'];
+      }
+      final feedback = evalRow['feedback'] as String?;
+      if (feedback != null && feedback.trim().isNotEmpty) {
+        merged['feedback'] = feedback;
+      }
+      return merged;
+    }
+    return media;
+  }
+
+  /// Clears stale local "analyzing" flags when the server already has results.
+  Future<void> reconcilePendingPracticeWithServer() async {
+    await PendingPracticeEvaluationStore.ensureLoaded();
+    var changed = false;
+    for (final entry in [...PendingPracticeEvaluationStore.entries]) {
+      try {
+        final row = await memberApiService.getEvaluationRowForMedia(entry.mediaId);
+        if (row != null && practiceEvaluationApiRowReady(row)) {
+          await PendingPracticeEvaluationStore.remove(entry.mediaId);
+          changed = true;
+        }
+      } catch (_) {}
+    }
+    if (changed) {
+      _syncPendingPracticeCount();
+      notifyListeners();
+    }
   }
 
   Future<SubmissionChainHistory?> fetchSubmissionChainHistory(int rootMediaId) async {
@@ -1837,13 +1939,12 @@ class MemberDataController extends ChangeNotifier {
 
   Future<void> _resumePendingPracticeAnalysisImpl() async {
     await PendingPracticeEvaluationStore.ensureLoaded();
+    await reconcilePendingPracticeWithServer();
     _syncPendingPracticeCount();
     final entries = PendingPracticeEvaluationStore.entries;
     if (entries.isEmpty) return;
 
-    final poll = DeferredMediaEvaluationPoll(
-      fetchMediaById: (id) => memberApiService.getMediaById(id),
-    );
+    final poll = _practiceDeferredPoll();
 
     var anyCompleted = false;
     for (final entry in entries) {
@@ -2005,7 +2106,13 @@ class MemberDataController extends ChangeNotifier {
     final type = m['file_type'] as String? ?? 'photo';
     final isVideo = type == 'video';
     return GalleryItem(
-      title: m['file_name'] as String? ?? 'Media',
+      title: m['request_id'] == null
+          ? practiceMediaDisplayTitle(
+              m['file_name'] as String?,
+              mediaType: isVideo ? 'video' : 'photo',
+              isVideo: isVideo,
+            )
+          : (m['file_name'] as String? ?? 'Media'),
       category: m['request_id'] == null ? 'Practice' : 'Coverage',
       date: _formatIso(m['uploaded_at'] as String?),
       color: isVideo ? kAccent : kCyan,

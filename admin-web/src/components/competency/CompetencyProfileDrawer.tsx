@@ -155,6 +155,22 @@ export function CompetencyProfileDrawer({
         />
       </Section>
 
+      <Section title="Skill tier vs XP">
+        <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
+          Skill tier uses average quality on eligible, released practice evaluations (gates: 3 / 6 / 10
+          evals for Intermediate / Advanced / Expert). XP ({m.rankingPoints} pts) orders the member
+          leaderboard and does not set skill tier. Admin overrides apply until cleared.
+        </p>
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+          Practice uploads: {m.skillEligibleEvaluationCount} skill-eligible
+          {m.totalPracticeEvaluationRows > m.skillEligibleEvaluationCount
+            ? ` of ${m.totalPracticeEvaluationRows} total (pending/withheld excluded from tier).`
+            : m.totalPracticeEvaluationRows > 0
+              ? ' released evaluation(s).'
+              : ' (none on record).'}
+        </p>
+      </Section>
+
       <Section title="Performance metrics">
         <div className="space-y-2.5">
           <CompetencyProgressBar
@@ -169,7 +185,7 @@ export function CompetencyProfileDrawer({
             emptyLabel={acceptance.kind === 'na' ? acceptance.label : undefined}
           />
           <CompetencyProgressBar
-            label="Skill score"
+            label="Skill score (quality only)"
             value={skill.kind === 'value' ? skill.value : null}
             emptyLabel={skill.kind === 'na' ? skill.label : undefined}
             hint={skill.kind === 'value' ? skill.hint : undefined}

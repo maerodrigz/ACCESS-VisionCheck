@@ -80,7 +80,7 @@ void main() {
     });
   });
 
-  testWidgets('compact report shows verification, combined integrity, and XP pending', (tester) async {
+  testWidgets('compact report shows unified review decision with XP pending', (tester) async {
     const ai = AiDetectionResult(
       verdict: 'authentic',
       confidence: 0.99,
@@ -120,16 +120,12 @@ void main() {
       ),
     );
 
-    expect(find.text('Verification Status'), findsOneWidget);
-    expect(find.text('Pending Verification'), findsOneWidget);
-    expect(find.text('Integrity Assessment'), findsOneWidget);
-    expect(find.text('Low AI Risk'), findsOneWidget);
-    expect(find.text('Partial'), findsOneWidget);
-    expect(find.text('XP Status'), findsOneWidget);
-    expect(find.text('Pending'), findsOneWidget);
-    expect(find.text('Integrity review required'), findsNothing);
-    expect(find.text('Admin Verification Status'), findsNothing);
-    expect(find.textContaining('Up to 42 XP'), findsNothing);
+    expect(find.text('Review decision'), findsOneWidget);
+    expect(find.text('Pending Administrator Review'), findsOneWidget);
+    expect(find.text('Media Check'), findsNothing);
+    expect(find.textContaining('42 XP'), findsOneWidget);
+    expect(find.text('Integrity Assessment'), findsNothing);
+    expect(find.text('Verification Status'), findsNothing);
   });
 
   testWidgets('compact report shows awarded XP when released', (tester) async {
@@ -168,8 +164,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Verified as Human'), findsOneWidget);
-    expect(find.text('80 XP awarded'), findsOneWidget);
+    expect(find.text('Approved'), findsOneWidget);
+    expect(find.textContaining('80 XP awarded'), findsOneWidget);
+    expect(find.text('Media Check'), findsNothing);
   });
 
   testWidgets('evaluation result screen uses compact integrity (no legacy panels)', (tester) async {
@@ -191,25 +188,25 @@ void main() {
         home: EvaluationResultScreen(
           media: EvaluationResultMedia(
             name: 'practice.jpg',
-            bytes: base64Decode(
-              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+            bytes: Uint8List.fromList(
+              base64Decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+              ),
             ),
             isVideo: false,
           ),
           result: result,
-          evaluatedAt: DateTime(2026, 10, 27),
+          evaluatedAt: DateTime(2026, 6, 1),
           onEvaluateAgain: () {},
-          adminReviewStatus: 'needs_further_review',
         ),
       ),
     );
-    await tester.pump();
 
-    expect(find.text('Evaluation Result'), findsOneWidget);
-    expect(find.text('Verification Status'), findsOneWidget);
-    expect(find.text('Integrity Assessment'), findsOneWidget);
-    expect(find.text('XP Status'), findsOneWidget);
-    expect(find.text('Admin Verification Status'), findsNothing);
-    expect(find.text('Detailed Analysis'), findsOneWidget);
+    expect(find.text('Media Check'), findsOneWidget);
+    expect(find.text('Under Review'), findsOneWidget);
+    expect(find.text('AI Authenticity Assessment'), findsNothing);
+    expect(find.text('Camera Metadata / Provenance'), findsNothing);
+    expect(find.text('Additional Quality Insights'), findsNothing);
+    expect(find.textContaining('AI Score'), findsNothing);
   });
 }

@@ -253,7 +253,9 @@ class MemberApiService {
     if (data is! List || data.isEmpty) return null;
     final first = data.first;
     if (first is! Map) return null;
-    return Map<String, dynamic>.from(first);
+    final m = Map<String, dynamic>.from(first);
+    m['file_url'] = _mediaFileUrlFromJson(m);
+    return m;
   }
 
   Future<List<Map<String, dynamic>>> getMedia({

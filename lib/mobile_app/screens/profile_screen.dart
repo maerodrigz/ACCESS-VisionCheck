@@ -14,6 +14,7 @@ import 'package:access_mobile/mobile_app/widgets/member_profile_settings_section
 import 'package:access_mobile/mobile_app/widgets/member_profile_logout_section.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_skeleton.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_achievements.dart';
+import 'package:access_mobile/mobile_app/widgets/member_skill_progress_section.dart';
 
 const _kSectionGap = 20.0;
 /// Thin strip between pinned profile hero and stats card (scroll area only).
@@ -180,6 +181,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               _PerformanceSummaryCard(compact: compact),
+                              const SizedBox(height: _kSectionGap),
+                              MemberProfileSkillProgressSection(
+                                onViewRankings: widget.onViewRankings,
+                              ),
+                              const SizedBox(height: _kSectionGap),
+                              const MemberSkillProgressSection(),
+                              const SizedBox(height: _kSectionGap),
+                              MemberProfileEvaluationSummarySection(
+                                onViewEvaluations: widget.onViewEvaluations,
+                              ),
                               const SizedBox(height: _kSectionGap),
                               _ProfileAchievementsSection(
                                 onViewRankings: widget.onViewRankings,
@@ -688,13 +699,13 @@ class _PerformanceSummaryCard extends StatelessWidget {
             appState.profileRankStatLabel,
             Icons.leaderboard_outlined,
           ),
-          (_fmt(xp), 'Total XP', Icons.bolt_rounded),
-          ('${summary.completedCount}', 'Evaluations', Icons.fact_check_outlined),
+          (_fmt(xp), 'XP rank points', Icons.bolt_rounded),
+          ('${summary.completedCount}', 'Total evals', Icons.fact_check_outlined),
           (
             summary.averageScorePercent != null
                 ? '${summary.averageScorePercent}%'
                 : '-',
-            'Avg Score',
+            'Avg score',
             Icons.insights_outlined,
           ),
         ];
@@ -741,6 +752,19 @@ class _PerformanceSummaryCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (summary.skillEligibleFootnote.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                  child: Text(
+                    summary.skillEligibleFootnote,
+                    textAlign: TextAlign.center,
+                    style: dashText(TextStyle(
+                      color: Colors.white.withValues(alpha: 0.82),
+                      fontSize: 10,
+                      height: 1.35,
+                    )),
+                  ),
+                ),
               // XP progress (only when not max level)
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),

@@ -735,7 +735,6 @@ class AppState extends ChangeNotifier {
   int get evaluationsRemainingToday =>
       (dailyEvaluationLimit - evaluationsTodayCount).clamp(0, dailyEvaluationLimit);
 
-  /// Client gate aligned with the last confirmed server quota (not stale cache).
   bool get evaluationsTodayAtLimitConfirmed =>
       evaluationsTodayQuotaConfirmed &&
       evaluationsTodayCount >= dailyEvaluationLimit;
@@ -828,13 +827,15 @@ class AppState extends ChangeNotifier {
   int profileUploads = 0;
   Color profileColor = const Color(0xFF3B82F6);
   String? profileSkillLevel;
-  /// Composite skill score 0–100 from rankings API (quality + integrity).
+  /// Quality-only skill score 0–100 from rankings API (eligible practice evaluations).
   double? profileSkillScore;
   int profilePoints = 0;
   int? profileRankPosition;
   int profileAssignmentsCompleted = 0;
   double profileAverageScore = 0;
   int profileEvaluationsCount = 0;
+  /// Released practice evaluations that count toward skill tier (from participation or rankings).
+  int profileSkillEligibleEvaluationsCount = 0;
   String? profileAdminRemarks;
 
   /// Clears cached member profile (e.g. on logout) so the next user never sees stale data.
@@ -857,6 +858,7 @@ class AppState extends ChangeNotifier {
     profileAssignmentsCompleted = 0;
     profileAverageScore = 0;
     profileEvaluationsCount = 0;
+    profileSkillEligibleEvaluationsCount = 0;
     profileAdminRemarks = null;
     evaluationsTodayCount = 0;
     evaluationsTodayQuotaConfirmed = false;
@@ -864,10 +866,6 @@ class AppState extends ChangeNotifier {
     evaluationMaxUploadMb = 350;
     evaluationMaxVideoSeconds = 30;
     evaluationDailyTimezone = 'Asia/Manila';
-    evaluations.clear();
-    gallery.clear();
-    eventGallery.clear();
-    memberSyncError = null;
     notifyListeners();
   }
 
@@ -914,6 +912,7 @@ class AppState extends ChangeNotifier {
     int? uploadsCount,
     int? totalPoints,
     int? evaluationsCount,
+    int? skillEligibleEvaluationsCount,
     int? evaluationsToday,
     int? dailyEvaluationLimit,
     int? evaluationMaxUploadMb,
@@ -927,6 +926,9 @@ class AppState extends ChangeNotifier {
     if (uploadsCount != null) profileUploads = uploadsCount;
     if (totalPoints != null) profilePoints = totalPoints;
     if (evaluationsCount != null) profileEvaluationsCount = evaluationsCount;
+    if (skillEligibleEvaluationsCount != null) {
+      profileSkillEligibleEvaluationsCount = skillEligibleEvaluationsCount;
+    }
     if (evaluationsToday != null) {
       evaluationsTodayCount = evaluationsToday;
       evaluationsTodayQuotaConfirmed = true;
@@ -973,9 +975,8 @@ class AppState extends ChangeNotifier {
     return i < 0 ? sorted.length + 1 : i + 1;
   }
 
-  /// Profile stat label: skill-based rank after `/rankings` sync, else DB XP rank.
-  String get profileRankStatLabel =>
-      profileSkillScore != null ? 'Skill rank' : 'XP rank';
+  /// Profile stat label for stored `rank_position` (XP leaderboard order, not skill tier).
+  String get profileRankStatLabel => 'XP leaderboard';
 
   /// Earned photographer title for display (not the backend skill tier).
   String get profileTitleLabel {

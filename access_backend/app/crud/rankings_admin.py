@@ -15,6 +15,7 @@ from app.models.media_file import MediaFile
 from app.models.role import Role
 from app.models.user import User
 from app.services.supabase_storage import apply_display_profile_images
+from app.services.skill_evaluation_eligibility import eligible_skill_evaluation_stats
 from app.services.skill_scoring import (
     build_skill_payload,
     competency_level_from_skill_score,
@@ -110,7 +111,7 @@ def resolve_member_skill_level(
     if skill_payload is None:
         skill_payload = _skill_payload_for_user(db, user_id)
     if evaluation_count is None:
-        evaluation_count, _ = profile_crud.evaluations_stats(db, user_id)
+        evaluation_count = eligible_skill_evaluation_stats(db, user_id).count
 
     override = level_override
     if override is _OVERRIDE_UNSET:
@@ -135,13 +136,14 @@ def resolve_member_skill_level(
 def _skill_payload_for_user(db: Session, user_id: int) -> dict:
     total_uploads = profile_crud.uploads_count(db, user_id)
     approved_uploads = profile_crud.approved_uploads_count(db, user_id)
-    _, avg_score = profile_crud.evaluations_stats(db, user_id)
+    eligible = eligible_skill_evaluation_stats(db, user_id)
+    avg_score = eligible.average_score
     completed_tasks = profile_crud.assignments_completed(db, user_id)
     assigned_tasks = profile_crud.assignments_total(db, user_id)
     admin_eval = profile_crud.admin_evaluation_score(db, user_id)
     human, ai_gen, suspicious = _ai_counts(db, user_id)
     total_checked = human + ai_gen + suspicious
-    return build_skill_payload(
+    payload = build_skill_payload(
         average_quality_score=avg_score,
         approved_uploads=approved_uploads,
         total_uploads=total_uploads,
@@ -151,6 +153,18 @@ def _skill_payload_for_user(db: Session, user_id: int) -> dict:
         human_verified_uploads=human,
         total_checked_uploads=total_checked,
     )
+    payload["skill_eligible_evaluation_count"] = eligible.count
+    payload["skill_eligible_photo_count"] = eligible.photo_count
+    payload["skill_eligible_video_count"] = eligible.video_count
+    payload["skill_eligible_photo_average"] = round(
+        eligible.photo_average_score * 100.0 if eligible.photo_average_score <= 1.0 else eligible.photo_average_score,
+        2,
+    )
+    payload["skill_eligible_video_average"] = round(
+        eligible.video_average_score * 100.0 if eligible.video_average_score <= 1.0 else eligible.video_average_score,
+        2,
+    )
+    return payload
 
 
 def _ai_summary(human: int, ai_gen: int, suspicious: int) -> str:
@@ -223,7 +237,10 @@ def list_rankings(db: Session) -> list[dict]:
         monthly_points = monthly_points_for_user(db, u.id)
         total_uploads = profile_crud.uploads_count(db, u.id)
         approved_uploads = profile_crud.approved_uploads_count(db, u.id)
-        eval_count, avg_score = profile_crud.evaluations_stats(db, u.id)
+        eligible = eligible_skill_evaluation_stats(db, u.id)
+        eval_count = eligible.count
+        avg_score = eligible.average_score
+        _, all_eval_count = profile_crud.evaluations_stats(db, u.id)
         completed_tasks = profile_crud.assignments_completed(db, u.id)
         assigned_tasks = profile_crud.assignments_total(db, u.id)
         admin_eval = profile_crud.admin_evaluation_score(db, u.id)
@@ -242,16 +259,7 @@ def list_rankings(db: Session) -> list[dict]:
             last_activity=last_activity,
         )
 
-        skill = build_skill_payload(
-            average_quality_score=avg_score,
-            approved_uploads=approved_uploads,
-            total_uploads=total_uploads,
-            completed_tasks=completed_tasks,
-            assigned_tasks=assigned_tasks,
-            admin_evaluation_score=admin_eval,
-            human_verified_uploads=human,
-            total_checked_uploads=total_checked,
-        )
+        skill = _skill_payload_for_user(db, u.id)
         level_override = ranking.competency_level_override if ranking else None
         effective_level, competency_recommended, computed_level = resolve_member_skill_level(
             db,
@@ -274,6 +282,11 @@ def list_rankings(db: Session) -> list[dict]:
                 "monthly_points": monthly_points,
                 "good_evaluations": points,
                 "evaluation_count": eval_count,
+                "total_evaluation_rows": all_eval_count,
+                "skill_eligible_photo_count": skill.get("skill_eligible_photo_count", 0),
+                "skill_eligible_video_count": skill.get("skill_eligible_video_count", 0),
+                "skill_eligible_photo_average": skill.get("skill_eligible_photo_average", 0),
+                "skill_eligible_video_average": skill.get("skill_eligible_video_average", 0),
                 "uploads": total_uploads,
                 "total_uploads": total_uploads,
                 "approved_uploads": approved_uploads,

@@ -1142,26 +1142,11 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
                   children: [
                     Text(
                       ev.title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: evalCardTitleStyle.copyWith(fontSize: 12.5, height: 1.15),
                     ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Icon(Icons.swipe_rounded, size: 11, color: kEvalSecondary),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: Text(
-                            ev.date,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: memberDashboardMetaStyle.copyWith(fontSize: 10),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 6),
                     _EvaluationResultPills(
                       qualityLabel: bucket,
                       qualityColor: accent,

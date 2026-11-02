@@ -1023,6 +1023,457 @@ MemberReportXpStatus memberReportXpStatus(
   );
 }
 
+/// One-line XP outcome for the member saved evaluation report.
+String memberReportReviewDecisionXpLine(
+  PhotoEvaluationResult result, {
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus) ||
+      MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    return 'XP not awarded for this submission.';
+  }
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return 'XP not awarded until a replacement upload is approved.';
+  }
+  final awarded = result.memberXpAwardedPoints;
+  if (awarded != null && awarded > 0) {
+    return '$awarded XP awarded for this submission.';
+  }
+  if (awarded == 0 &&
+      result.memberScoresReleasedEffective &&
+      !result.xpPendingEffective) {
+    return 'XP not awarded for this submission.';
+  }
+  if (result.xpPendingEffective || result.scoresHeldForReview) {
+    if (result.xpPointsPreviewEffective > 0) {
+      return 'XP pending. Up to ${result.xpPointsPreviewEffective} XP if approved after review.';
+    }
+    return 'XP pending until administrator review completes.';
+  }
+  if (result.xpEligibleEffective == false) {
+    return 'XP not awarded for this submission.';
+  }
+  return 'XP pending until scoring and verification complete.';
+}
+
+/// Saved evaluation report: single authoritative admin / XP summary for members.
+class MemberReportReviewDecision {
+  const MemberReportReviewDecision({
+    required this.statusTitle,
+    required this.reason,
+    required this.xpOutcomeLine,
+    required this.colorKind,
+    required this.iconKind,
+    this.administratorRemarks,
+  });
+
+  final String statusTitle;
+  final String reason;
+  final String? administratorRemarks;
+  final String xpOutcomeLine;
+  final MemberIntegrityColorKind colorKind;
+  final MemberIntegrityIconKind iconKind;
+}
+
+String? _dedupeAdministratorRemarks({
+  required String? adminRemarks,
+  required String reason,
+}) {
+  final remarks = adminRemarks?.trim() ?? '';
+  if (remarks.isEmpty) return null;
+  final reasonLower = reason.trim().toLowerCase();
+  if (reasonLower.isEmpty) return remarks;
+  final r = remarks.toLowerCase();
+  if (r == reasonLower) return null;
+  if (reasonLower.contains(r) || r.contains(reasonLower)) return null;
+  return remarks;
+}
+
+MemberReportReviewDecision memberEvaluationReportReviewDecision({
+  required PhotoEvaluationResult result,
+  String? adminReviewStatus,
+  String? adminRemarks,
+}) {
+  final xpLine = memberReportReviewDecisionXpLine(
+    result,
+    adminReviewStatus: adminReviewStatus,
+  );
+  final automated = result.aiDetection;
+  final remarksForCard = _dedupeAdministratorRemarks(
+    adminRemarks: adminRemarks,
+    reason: '',
+  );
+
+  if (MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    const reason =
+        'The administrator confirmed this submission as AI-generated.';
+    return MemberReportReviewDecision(
+      statusTitle: 'Submission Rejected',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.ai,
+    );
+  }
+
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus)) {
+    const fallbackReason =
+        'An administrator completed review and did not approve this submission.';
+    final remarks = adminRemarks?.trim() ?? '';
+    final reason = remarks.isNotEmpty ? remarks : fallbackReason;
+    return MemberReportReviewDecision(
+      statusTitle: 'Submission Rejected',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    const fallback =
+        'An administrator requested a new upload before this evaluation can continue.';
+    final remarks = adminRemarks?.trim() ?? '';
+    final reason = remarks.isNotEmpty ? remarks : fallback;
+    return MemberReportReviewDecision(
+      statusTitle: 'Re-upload Required',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.neutral,
+    );
+  }
+
+  if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
+    const reason = 'An administrator verified this upload as human-captured.';
+    return MemberReportReviewDecision(
+      statusTitle: 'Approved',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  if (MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    const reason =
+        'An administrator accepted this submission and recorded a warning on file.';
+    return MemberReportReviewDecision(
+      statusTitle: 'Approved with Warning',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus)) {
+    const reason =
+        'Automated screening cleared this upload. No administrator review was required.';
+    return MemberReportReviewDecision(
+      statusTitle: 'Approved',
+      reason: reason,
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  if (automated.isDeferredAuthenticity) {
+    return MemberReportReviewDecision(
+      statusTitle: 'Processing',
+      reason: 'Authenticity screening is still running for this submission.',
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) {
+    final normalized = MemberReviewStatus.normalize(adminReviewStatus);
+    return MemberReportReviewDecision(
+      statusTitle: 'Review Complete',
+      reason:
+          'Administrator review status: ${normalized.replaceAll('_', ' ')}.',
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.neutral,
+      iconKind: MemberIntegrityIconKind.neutral,
+    );
+  }
+
+  if (memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    String reason;
+    if (memberProvenancePartialAndroidPendingReview(
+      automated: automated,
+      adminReviewStatus: adminReviewStatus,
+    )) {
+      reason =
+          'Screening found no major AI concerns, but an officer must still confirm this file. '
+          'Incomplete camera metadata alone does not mean the media is fake.';
+    } else {
+      final aiTier = memberAutomatedAiRiskTierLabel(automated);
+      if (aiTier == 'High AI Risk' || automated.isAiGenerated) {
+        reason =
+            'Screening raised concerns that require an administrator decision. '
+            'This is not a final rejection until review completes.';
+      } else if (aiTier == 'Needs Review') {
+        reason =
+            'Screening flagged this upload for a closer look. Scores and XP stay pending until review completes.';
+      } else {
+        reason =
+            'An administrator must complete review before this submission is finalized.';
+      }
+    }
+    return MemberReportReviewDecision(
+      statusTitle: 'Pending Administrator Review',
+      reason: reason,
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  if (automated.isAiAnalysisUnavailable) {
+    return MemberReportReviewDecision(
+      statusTitle: 'Pending Administrator Review',
+      reason:
+          'Automated screening could not finish. An administrator must review this submission.',
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (automated.isAiGenerated &&
+      !MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) {
+    return MemberReportReviewDecision(
+      statusTitle: 'Pending Administrator Review',
+      reason:
+          'Screening flagged this upload for review. An administrator must decide before scores and XP are final.',
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  return MemberReportReviewDecision(
+    statusTitle: 'Approved',
+    reason: 'No administrator review is required for this submission.',
+    administratorRemarks: remarksForCard,
+    xpOutcomeLine: xpLine,
+    colorKind: MemberIntegrityColorKind.green,
+    iconKind: MemberIntegrityIconKind.verified,
+  );
+}
+
+/// Plain-English media integrity status on the member Evaluation Result screen.
+class MemberMediaCheckPresentation {
+  const MemberMediaCheckPresentation({
+    required this.statusLabel,
+    required this.summary,
+    this.detail,
+    required this.colorKind,
+    required this.iconKind,
+  });
+
+  final String statusLabel;
+  final String summary;
+  final String? detail;
+  final MemberIntegrityColorKind colorKind;
+  final MemberIntegrityIconKind iconKind;
+}
+
+MemberMediaCheckPresentation memberEvaluationResultMediaCheck({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+  PhotoEvaluationResult? evaluationResult,
+}) {
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Reupload Required',
+      summary: 'An administrator needs a new photo or video before this evaluation can continue.',
+      detail: evaluationResult?.reviewGateMessage?.trim().isNotEmpty == true
+          ? evaluationResult!.reviewGateMessage!.trim()
+          : null,
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.neutral,
+    );
+  }
+
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus) ||
+      MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'Needs Attention',
+      summary:
+          'Review did not approve this upload for scoring or XP. '
+          'Contact your officer if you have questions.',
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (automated.isAiGenerated &&
+      !MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus) &&
+      !MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Needs Attention',
+      summary:
+          'This upload was flagged during screening. '
+          'Quality coaching may be limited until review is complete.',
+      detail: _memberMediaCheckGateDetail(evaluationResult),
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.ai,
+    );
+  }
+
+  if (automated.isDeferredAuthenticity) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'Under Review',
+      summary: 'Your file is still being checked. Results may update when screening finishes.',
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  if (memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    final aiTier = memberAutomatedAiRiskTierLabel(automated);
+    String summary;
+    if (memberProvenancePartialAndroidPendingReview(
+      automated: automated,
+      adminReviewStatus: adminReviewStatus,
+    )) {
+      summary =
+          'Screening found no major AI concerns, but an officer still needs to confirm this file. '
+          'Missing camera details alone do not mean the media is fake.';
+    } else if (aiTier == 'High AI Risk') {
+      summary =
+          'Screening raised concerns that require an officer review before scores and XP are final.';
+    } else if (aiTier == 'Needs Review') {
+      summary =
+          'Screening flagged this upload for a closer look. Scores and XP stay pending until review completes.';
+    } else {
+      summary =
+          'An officer is reviewing this upload. Scores, coaching, and XP may stay pending until review finishes.';
+    }
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Under Review',
+      summary: summary,
+      detail: _memberMediaCheckGateDetail(evaluationResult),
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  if (automated.isAiAnalysisUnavailable) {
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Under Review',
+      summary:
+          'Automated screening could not finish. An officer review is required before this submission is finalized.',
+      detail: _memberMediaCheckGateDetail(evaluationResult),
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'No Major Concerns',
+      summary:
+          'An officer verified this upload after review. '
+          'Automated checks cannot prove a photo or video is authentic.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  if (MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'No Major Concerns',
+      summary:
+          'Review completed and your upload was accepted with an admin note on record.',
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus)) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'No Major Concerns',
+      summary:
+          'Nothing flagged that needs your action right now. '
+          'Automated checks look for common signs of edited or AI-generated media; they cannot prove authenticity.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  final aiTier = memberAutomatedAiRiskTierLabel(automated);
+  if (aiTier == 'High AI Risk' || aiTier == 'Needs Review') {
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Needs Attention',
+      summary:
+          'Screening flagged this upload. An officer may need to review it before scores and XP are final.',
+      detail: _memberMediaCheckGateDetail(evaluationResult),
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  return const MemberMediaCheckPresentation(
+    statusLabel: 'No Major Concerns',
+    summary:
+        'Nothing flagged that needs your action right now. '
+        'Automated checks look for common signs of edited or AI-generated media; they cannot prove authenticity.',
+    colorKind: MemberIntegrityColorKind.green,
+    iconKind: MemberIntegrityIconKind.verified,
+  );
+}
+
+String? _memberMediaCheckGateDetail(PhotoEvaluationResult? evaluationResult) {
+  if (evaluationResult == null) return null;
+  final gate = evaluationResult.reviewGateMessage?.trim() ?? '';
+  if (gate.isNotEmpty) return gate;
+  if (evaluationResult.scoresHeldForReview) {
+    return 'Quality scores and coaching stay hidden until review completes.';
+  }
+  if (evaluationResult.xpPendingEffective && evaluationResult.xpPointsPreviewEffective > 0) {
+    return 'Up to ${evaluationResult.xpPointsPreviewEffective} XP may be awarded after review if approved.';
+  }
+  return null;
+}
+
 Color memberIntegrityColorKindToColor(MemberIntegrityColorKind kind) => switch (kind) {
       MemberIntegrityColorKind.green => kGreen,
       MemberIntegrityColorKind.yellow => kYellow,

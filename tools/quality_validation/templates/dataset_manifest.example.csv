@@ -1,0 +1,4 @@
+media_id,relative_path,media_type,dataset_split
+photo-001,dev/photos/example.jpg,photo,dev
+video-001,dev/videos/example.mp4,video,dev
+photo-h01,held_out/photos/example.jpg,photo,held_out

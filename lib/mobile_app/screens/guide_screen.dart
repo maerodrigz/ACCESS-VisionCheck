@@ -95,11 +95,12 @@ class GuideScreen extends StatelessWidget {
           color: kGreen,
           icon: Icons.bar_chart_rounded,
           title: 'Score Computation',
-          subtitle: 'Weighted algorithm',
+          subtitle: 'Separate tracks',
           bullets: [
-            'Media quality (70%) + Media integrity (30%)',
-            'Combined into your skill score on a 0–100 scale',
-            'Beginner / Intermediate / Advanced / Expert tiers use this score',
+            'Skill Tier: average quality on eligible, released practice evaluations (0–100)',
+            'XP Rank: participation points from evaluated uploads (leaderboard order)',
+            'Media Integrity: AI detection and admin review (can hold scores until resolved)',
+            'Beginner / Intermediate / Advanced / Expert tiers use quality thresholds (60 / 75 / 90)',
           ],
         ),
 

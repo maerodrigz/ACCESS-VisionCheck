@@ -16,11 +16,11 @@ from app.models.submission_chain_constants import (
 
 
 def chains_by_ids(db: Session, chain_ids: list[int]) -> dict[int, SubmissionChain]:
-    ids = [int(x) for x in chain_ids if x]
-    if not ids:
+    unique = list({cid for cid in chain_ids if cid})
+    if not unique:
         return {}
-    rows = db.scalars(select(SubmissionChain).where(SubmissionChain.id.in_(ids))).all()
-    return {row.id: row for row in rows}
+    rows = db.scalars(select(SubmissionChain).where(SubmissionChain.id.in_(unique))).all()
+    return {chain.id: chain for chain in rows}
 
 
 def chain_metadata_for_media(
@@ -51,8 +51,7 @@ def chain_metadata_for_media(
     if not chain_id:
         return out
 
-    if chain is None or chain.id != chain_id:
-        chain = db.get(SubmissionChain, chain_id)
+    chain = db.get(SubmissionChain, chain_id)
     if chain is None:
         out["submission_chain_id"] = chain_id
         return out

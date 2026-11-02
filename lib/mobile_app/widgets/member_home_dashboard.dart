@@ -8,6 +8,7 @@ import 'package:access_mobile/mobile_app/sheets/event_detail_sheet.dart';
 import 'package:access_mobile/mobile_app/widgets/gallery_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_announcements.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
+import 'package:access_mobile/mobile_app/widgets/member_skill_progress_section.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_requestor_feedback.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
@@ -157,6 +158,8 @@ class MemberHomeDashboard extends StatelessWidget {
                         ),
                       if (onViewAllRequestorFeedback != null) const SizedBox(height: 22),
                       _HomeSkillProgressSection(onViewRankings: onViewRankings),
+                      const SizedBox(height: 16),
+                      const MemberSkillProgressSection(compact: true),
                       const SizedBox(height: 22),
                       const _HomeAnnouncementsSection(),
                     ],
@@ -1716,7 +1719,7 @@ class _HomeSkillProgressSection extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Skill Progress',
+                    'Skill tier (quality)',
                     style: dashText(const TextStyle(
                       color: kTextPrimary,
                       fontSize: 16,

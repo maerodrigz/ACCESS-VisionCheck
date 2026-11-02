@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Info, Loader2, RefreshCw, Search } from 'lucide-react'
 import { fetchAiDetectionForMedia, fetchAiDetectionList } from '../api/admin'

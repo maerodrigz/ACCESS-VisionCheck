@@ -184,6 +184,9 @@ def acknowledge_member_milestone(
 def participation(db: Session = Depends(get_db), current_user: User = Depends(require_approved)):
     ranking = ranking_crud.get_or_create(db, current_user.id)
     eval_count, avg = profile_crud.evaluations_stats(db, current_user.id)
+    from app.services.skill_evaluation_eligibility import eligible_skill_evaluation_stats
+
+    eligible = eligible_skill_evaluation_stats(db, current_user.id)
     eval_rules = evaluation_rules(db)
     return ParticipationOut(
         assignments_total=profile_crud.assignments_total(db, current_user.id),
@@ -196,6 +199,8 @@ def participation(db: Session = Depends(get_db), current_user: User = Depends(re
         evaluation_max_video_seconds=int(eval_rules["max_video_seconds"]),
         evaluation_daily_timezone=settings.evaluation_daily_timezone,
         average_score=round(avg, 3),
+        skill_eligible_evaluations_count=eligible.count,
+        skill_eligible_average_score=round(eligible.average_score, 3),
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,
     )

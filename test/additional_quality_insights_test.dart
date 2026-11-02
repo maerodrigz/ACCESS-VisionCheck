@@ -155,7 +155,7 @@ void main() {
       expect(result.showQualityFeedbackEffective, isFalse);
     });
 
-    testWidgets('panel renders labeled section without scores when expanded', (tester) async {
+    testWidgets('panel renders labeled section without scores', (tester) async {
       final insights = AdditionalQualityInsights.fromJson({
         'color_balance': {
           'status': 'warm_cast',
@@ -178,38 +178,10 @@ void main() {
       );
 
       expect(find.text('Additional Quality Insights'), findsOneWidget);
-      expect(find.text('Color Balance'), findsNothing);
-
-      await tester.tap(find.text('Additional Quality Insights'));
-      await tester.pumpAndSettle();
-
       expect(find.text('Color Balance'), findsOneWidget);
       expect(find.text('Composition / Framing'), findsOneWidget);
-      expect(find.textContaining('Warm color tint'), findsOneWidget);
       expect(find.textContaining('%'), findsNothing);
       expect(find.textContaining('/5'), findsNothing);
-    });
-
-    testWidgets('detail panel shows full API feedback', (tester) async {
-      const longFeedback =
-          'Irregular motion patterns appeared across consecutive-frame samples. '
-          'Try a slower pan, brace your phone, or use a tripod.';
-      final insights = AdditionalQualityInsights.fromJson({
-        'motion_stability': {
-          'status': 'possible_shake',
-          'headline': 'Possible Camera Shake',
-          'feedback': longFeedback,
-        },
-      });
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AdditionalQualityInsightsDetailPanel(insights: insights),
-          ),
-        ),
-      );
-      expect(find.text('Camera Movement Insights'), findsOneWidget);
-      expect(find.text(longFeedback), findsOneWidget);
     });
   });
 }

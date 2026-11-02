@@ -30,6 +30,8 @@ Map<String, dynamic> participationFieldsFromApi(Map<String, dynamic> participati
     'average_score': (participation['average_score'] as num?)?.toDouble() ?? 0,
     'total_points': participation['total_points'] as int? ?? 0,
     'evaluations_count': participation['evaluations_count'] as int? ?? 0,
+    'skill_eligible_evaluations_count':
+        participation['skill_eligible_evaluations_count'] as int? ?? 0,
     'evaluations_today': participation['evaluations_today'] as int? ?? 0,
     'daily_evaluation_limit': participation['daily_evaluation_limit'] as int? ?? 5,
     'evaluation_max_upload_mb': participation['evaluation_max_upload_mb'] as int? ?? 350,

@@ -19,8 +19,21 @@ PhotoEvaluationResult? photoEvaluationResultFromApiRow(Map<String, dynamic> row)
 
   final parsed = PhotoEvaluationResult.fromJson(payload);
   if (parsed == null) return null;
-  if (parsed.aiDetection.isDeferredAuthenticity) return null;
   return parsed;
+}
+
+/// True when GET /evaluations row is ready to show (scores or integrity payload).
+bool practiceEvaluationApiRowReady(Map<String, dynamic> row) {
+  if (photoEvaluationResultFromApiRow(row) != null) return true;
+  final criteriaRaw = row['criteria_json'];
+  if (criteriaRaw is String && criteriaRaw.trim().isNotEmpty) return true;
+  if (criteriaRaw is Map && criteriaRaw.isNotEmpty) return true;
+  final review = (row['review_status'] as String?)?.trim();
+  if (review != null && review.isNotEmpty) return true;
+  final feedback = (row['feedback'] as String?)?.trim();
+  if (feedback != null && feedback.isNotEmpty) return true;
+  final score = row['overall_score'];
+  return score is num;
 }
 
 List<String> qualityWarningsFromEvaluationPayload(Map<String, dynamic> payload) {

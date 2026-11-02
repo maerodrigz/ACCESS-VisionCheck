@@ -8,6 +8,7 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_pro
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_skill_level_guide_sheet.dart';
 import 'package:access_mobile/mobile_app/widgets/member_rankings_xp_config.dart';
+import 'package:access_mobile/mobile_app/widgets/member_skill_progress_section.dart';
 
 enum _LeaderboardPeriod { thisMonth, allTime }
 
@@ -261,6 +262,17 @@ class _RankingsScreenState extends State<RankingsScreen> {
                             12,
                           ),
                           child: _SkillProgressCard(snapshot: snapshot),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            mobilePagePaddingOf(context),
+                            0,
+                            mobilePagePaddingOf(context),
+                            12,
+                          ),
+                          child: const MemberSkillProgressSection(compact: true),
                         ),
                       ),
                       // ── How XP works ───────────────────────────────────
@@ -1434,6 +1446,11 @@ class _HowXpWorksSection extends StatelessWidget {
                       Text(
                         MemberXpConfig.howXpIntro,
                         style: memberDashboardBodyStyle.copyWith(fontSize: 13),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        MemberXpConfig.leaderboardOrderNote,
+                        style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.4),
                       ),
                       const SizedBox(height: 12),
                       ...MemberXpConfig.earningRules.map(

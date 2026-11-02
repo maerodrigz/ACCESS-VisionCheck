@@ -87,9 +87,11 @@ def _member_performance_score(db: Session, user: User) -> tuple[float, str]:
     admin_score = profile_crud.admin_evaluation_score(db, user.id)
     human, ai_gen, suspicious = rankings_crud._ai_counts(db, user.id)
     total_checked = human + ai_gen + suspicious
-    _, avg_score = profile_crud.evaluations_stats(db, user.id)
+    from app.services.skill_evaluation_eligibility import eligible_skill_evaluation_stats
+
+    eligible = eligible_skill_evaluation_stats(db, user.id)
     payload = build_skill_payload(
-        average_quality_score=avg_score,
+        average_quality_score=eligible.average_score,
         approved_uploads=approved,
         total_uploads=uploads,
         completed_tasks=completed,

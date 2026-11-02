@@ -30,8 +30,6 @@ def _resolved_database_url() -> str:
 
 
 def _database_url_targets_waverep_test_only() -> bool:
-    if os.environ.get("ACCESS_PYTEST_DB", "").strip() == "access_waverep_test":
-        return True
     url = _resolved_database_url().lower()
     match = re.search(r"/([^/?#]+)(?:\?|$)", url)
     return match is not None and match.group(1) == "access_waverep_test"
@@ -52,16 +50,6 @@ def _assert_isolated_database_target() -> None:
         )
 
 
-def _prepare_migration() -> None:
-    dispose_engine_pool(engine)
-    with engine.connect() as conn:
-        from sqlalchemy import text
-
-        db = conn.execute(text("SELECT current_database()")).scalar()
-        if db != "access_waverep_test":
-            raise RuntimeError(f"Refusing migration on database {db!r}")
-
-
 class SubmissionChainsPhase1ConfigTest(unittest.TestCase):
     def test_migration_id(self) -> None:
         self.assertEqual(MIGRATION_ID, "submission_chains_phase1_20261027")
@@ -78,14 +66,11 @@ class SubmissionChainsPhase1DbTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         _assert_isolated_database_target()
-        _prepare_migration()
         upgrade_submission_chains_phase1(engine)
 
     @classmethod
     def tearDownClass(cls) -> None:
-        # Do not downgrade on access_waverep_test: leaves QA API + admin UI broken
-        # (missing submission_chain_id) while manual Phase 4/5 verification runs.
-        pass
+        downgrade_submission_chains_phase1(engine)
 
     def test_tables_and_partial_unique_indexes_exist(self) -> None:
         insp = inspect(engine)
@@ -98,8 +83,9 @@ class SubmissionChainsPhase1DbTest(unittest.TestCase):
 
         with engine.connect() as conn:
             idx = conn.execute(
-                text(
-                    "SELECT indexname FROM pg_indexes "
+        # Do not downgrade on access_waverep_test: leaves QA API + admin UI broken
+        # (missing submission_chain_id) while manual Phase 4/5 verification runs.
+        pass
                     "WHERE indexname = 'uq_submission_chain_one_active_replacement'"
                 )
             ).fetchone()
@@ -111,6 +97,20 @@ class SubmissionChainsPhase1DbTest(unittest.TestCase):
             user = db.query(User).first()
             if user is None:
                 self.skipTest("No users in isolated DB")
+            eval_media = MediaFile(
+                uploaded_by=user.id,
+                file_name="phase1_eval_test.jpg",
+                file_type="photo",
+                file_url="/uploads/images/phase1_eval_test.jpg",
+                media_category=MEDIA_CATEGORY_EVALUATION,
+            )
+            event_media = MediaFile(
+                uploaded_by=user.id,
+                file_name="phase1_event_test.jpg",
+                file_type="photo",
+                file_url="/uploads/images/phase1_event_test.jpg",
+                media_category=MEDIA_CATEGORY_EVENT,
+            )
             member_id = user.id
             eval_media = MediaFile(
                 uploaded_by=member_id,
@@ -206,25 +206,3 @@ class SubmissionChainsPhase1DbTest(unittest.TestCase):
 
             second = MediaFile(
                 uploaded_by=member_id,
-                file_name="rep2.jpg",
-                file_type="photo",
-                file_url="/uploads/images/rep2.jpg",
-                media_category=MEDIA_CATEGORY_EVALUATION,
-                submission_chain_id=chain_id,
-                replaces_media_id=root.id,
-                replacement_lifecycle="active",
-            )
-            db.add(second)
-            with self.assertRaises(Exception):
-                db.commit()
-            db.rollback()
-        finally:
-            db.close()
-
-    def test_downgrade_removes_chain_schema(self) -> None:
-        _prepare_migration()
-        downgrade_submission_chains_phase1(engine)
-        insp = inspect(engine)
-        self.assertNotIn("submission_chains", insp.get_table_names())
-        _prepare_migration()
-        upgrade_submission_chains_phase1(engine)

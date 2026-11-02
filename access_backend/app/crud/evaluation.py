@@ -117,9 +117,8 @@ def summary_stats(db: Session) -> dict:
     avg = sum(r.overall_score for r in rows) / total
     human = 0
     ai_suspicious = 0
-    ai_map = ai_by_media_ids(db, [ev.media_id for ev in rows])
     for ev in rows:
-        ai = ai_map.get(ev.media_id)
+        ai = get_ai_for_media(db, ev.media_id)
         label = (ai.detection_result or "").strip().lower() if ai else ""
         if not label:
             ai_suspicious += 1

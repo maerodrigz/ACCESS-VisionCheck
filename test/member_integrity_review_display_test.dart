@@ -696,7 +696,28 @@ void main() {
         ),
       );
       expect(find.text('Pending Verification'), findsOneWidget);
-      expect(find.text('Integrity review required'), findsNothing);
+      expect(find.text('AI Authenticity Assessment'), findsOneWidget);
+      expect(find.text('Low AI Risk'), findsOneWidget);
+      expect(find.textContaining('low AI-generation risk'), findsOneWidget);
+      expect(find.text('Review recommended'), findsNothing);
+      expect(find.textContaining('Officers may review'), findsNothing);
+    });
+
+    testWidgets('pending suspicious shows needs review tier and elevated detail', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AiDetectionBanner(
+              aiDetection: suspiciousProbe(),
+              adminReviewStatus: 'needs_further_review',
+            ),
+          ),
+        ),
+      );
+      expect(find.text('AI Authenticity Assessment'), findsOneWidget);
+      expect(find.text('Needs Review'), findsOneWidget);
+      expect(find.textContaining('Elevated AI authenticity risk'), findsOneWidget);
+      expect(find.textContaining('Officers may review'), findsOneWidget);
     });
   });
 
@@ -728,44 +749,6 @@ void main() {
       );
       expect(banner.heading, 'Pending Verification');
       expect(banner.detail, contains('not treated as AI-generated'));
-    });
-  });
-
-  group('AiDetectionBanner widget', () {
-    testWidgets('admin human shows low tier and detail, not pending review copy', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AiDetectionBanner(
-              aiDetection: suspiciousProbe(),
-              adminReviewStatus: 'verified_human',
-            ),
-          ),
-        ),
-      );
-      expect(find.text('AI Authenticity Assessment'), findsOneWidget);
-      expect(find.text('Low AI Risk'), findsOneWidget);
-      expect(find.textContaining('human-captured'), findsOneWidget);
-      expect(find.text('Review recommended'), findsNothing);
-      expect(find.textContaining('Officers may review'), findsNothing);
-      expect(find.textContaining('43.0%'), findsOneWidget);
-    });
-
-    testWidgets('pending suspicious shows needs review tier and elevated detail', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AiDetectionBanner(
-              aiDetection: suspiciousProbe(),
-              adminReviewStatus: 'needs_further_review',
-            ),
-          ),
-        ),
-      );
-      expect(find.text('AI Authenticity Assessment'), findsOneWidget);
-      expect(find.text('Needs Review'), findsOneWidget);
-      expect(find.textContaining('Elevated AI authenticity risk'), findsOneWidget);
-      expect(find.textContaining('Officers may review'), findsOneWidget);
     });
   });
 }

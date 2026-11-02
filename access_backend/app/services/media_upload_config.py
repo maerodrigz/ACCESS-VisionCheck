@@ -151,6 +151,29 @@ def assert_evaluation_video_duration(db: Session, ext: str, content: bytes) -> N
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+PRACTICE_MEDIA_TITLE_MAX_LEN = 80
+
+
+def normalize_practice_media_title(raw: str | None) -> str:
+    return (raw or "").strip()
+
+
+def assert_practice_media_title(raw: str | None) -> str:
+    """Member practice uploads must include a non-empty display title (stored as file_name)."""
+    title = normalize_practice_media_title(raw)
+    if not title:
+        raise HTTPException(
+            status_code=422,
+            detail="A photo or video title is required for practice evaluation.",
+        )
+    if len(title) > PRACTICE_MEDIA_TITLE_MAX_LEN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Title must be {PRACTICE_MEDIA_TITLE_MAX_LEN} characters or fewer.",
+        )
+    return title
+
+
 def rules_for_category(db: Session, media_category: str) -> dict:
     if media_category == MEDIA_CATEGORY_EVALUATION:
         return evaluation_rules(db)

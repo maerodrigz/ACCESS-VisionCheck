@@ -60,6 +60,10 @@ export interface CompetencyMember {
   levelOverridden: boolean
   /** XP / good evaluation points from rankings (0 when not on leaderboard). */
   rankingPoints: number
+  /** Eligible released practice evaluations for skill tier (mirrors rankings `evaluation_count`). */
+  skillEligibleEvaluationCount: number
+  /** All practice evaluation rows including pending/withheld (`total_evaluation_rows`). */
+  totalPracticeEvaluationRows: number
 }
 
 export interface CompetencyOverviewStats {
@@ -93,6 +97,8 @@ export interface RankingRow {
   integrityViolations: number
   integrityWarnings: number
   points: number
+  skillEligibleEvaluationCount: number
+  totalEvaluationRows: number
 }
 
 const LEVEL_LABELS: Record<CompetencyLevel, string> = {
@@ -223,6 +229,10 @@ export function parseRankingRow(m: Record<string, unknown>): RankingRow {
     integrityViolations: Number(m.integrity_violations ?? 0),
     integrityWarnings: Number(m.integrity_warnings ?? 0),
     points: Number(m.points ?? m.good_evaluations ?? 0),
+    skillEligibleEvaluationCount: Number(
+      m.evaluation_count ?? m.skill_eligible_evaluation_count ?? 0,
+    ),
+    totalEvaluationRows: Number(m.total_evaluation_rows ?? 0),
   }
 }
 
@@ -257,7 +267,32 @@ function buildAssessment(
     return `${pct}%: ${completed} of ${assigned} assigned tasks completed`
   })()
 
+  const eligibleEvals = ranking?.skillEligibleEvaluationCount ?? 0
+  const totalEvalRows = ranking?.totalEvaluationRows ?? 0
+  const evalDetail =
+    totalEvalRows > eligibleEvals
+      ? `${eligibleEvals} skill-eligible of ${totalEvalRows} practice uploads (pending/withheld excluded)`
+      : `${eligibleEvals} skill-eligible released evaluation${eligibleEvals === 1 ? '' : 's'}`
+
   const criteria: CompetencyCriterion[] = [
+    {
+      label: 'Intermediate tier: 3+ skill-eligible evaluations',
+      met: eligibleEvals >= 3,
+      detail: evalDetail,
+      status: eligibleEvals >= 3 ? 'met' : eligibleEvals > 0 ? 'not_met' : 'insufficient_data',
+    },
+    {
+      label: 'Advanced tier: 6+ skill-eligible evaluations',
+      met: eligibleEvals >= 6,
+      detail: `${eligibleEvals} of 6 required (quality avg must also reach 75+)`,
+      status: eligibleEvals >= 6 ? 'met' : eligibleEvals > 0 ? 'not_met' : 'insufficient_data',
+    },
+    {
+      label: 'Expert tier: 10+ skill-eligible evaluations',
+      met: eligibleEvals >= 10,
+      detail: `${eligibleEvals} of 10 required (quality avg must also reach 90+)`,
+      status: eligibleEvals >= 10 ? 'met' : eligibleEvals > 0 ? 'not_met' : 'insufficient_data',
+    },
     {
       label: 'Completed 25+ documentation requests',
       met: completed >= 25,
@@ -513,6 +548,8 @@ export function buildCompetencyDashboard(input: {
       adminNotes: ranking?.adminRemarks ?? null,
       levelOverridden,
       rankingPoints: ranking?.points ?? 0,
+      skillEligibleEvaluationCount: ranking?.skillEligibleEvaluationCount ?? 0,
+      totalPracticeEvaluationRows: ranking?.totalEvaluationRows ?? 0,
     })
   }
 

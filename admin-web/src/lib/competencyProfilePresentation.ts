@@ -39,7 +39,8 @@ export function profileSkillScore(member: CompetencyMember): ProfileMetricState 
   return {
     kind: 'value',
     value: member.assessment.skillScore,
-    hint: 'Combined media quality and integrity weighting from existing records.',
+    hint:
+      'Average quality on eligible, released practice evaluations (0–100). Media Integrity and XP are separate.',
   }
 }
 

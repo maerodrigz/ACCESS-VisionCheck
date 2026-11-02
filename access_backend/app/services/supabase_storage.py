@@ -119,6 +119,31 @@ def resolve_supabase_storage_urls(urls: list[str | None]) -> list[str]:
         return [_normalize_with_client(url, client) for url in urls]
 
 
+def read_supabase_ref_bytes(ref: str, *, timeout: float = 120.0) -> bytes | None:
+    """Download object bytes with the service role (deferred pipeline / admin tools)."""
+    parsed = _parse_storage_ref(ref)
+    if parsed is None or not can_resolve_supabase_storage():
+        return None
+    bucket, object_path = parsed
+    object_url = (
+        f"{_base_url()}/storage/v1/object/{bucket}/{quote(object_path, safe='/')}"
+    )
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.get(object_url, headers=_headers())
+            if resp.status_code >= 400:
+                logger.error(
+                    "Supabase object GET failed (%s) for %s",
+                    resp.status_code,
+                    object_path,
+                )
+                return None
+            return resp.content
+    except Exception:
+        logger.exception("Supabase object GET failed for %s", object_path)
+        return None
+
+
 def can_resolve_supabase_storage() -> bool:
     """True when stored supabase-ref rows can be signed for read (independent of upload flag)."""
     if not (settings.supabase_url or "").strip():

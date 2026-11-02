@@ -321,6 +321,8 @@ class ParticipationOut(BaseModel):
     evaluation_max_video_seconds: int = 30
     evaluation_daily_timezone: str = "Asia/Manila"
     average_score: float
+    skill_eligible_evaluations_count: int = 0
+    skill_eligible_average_score: float = 0.0
     total_points: int
     rank_position: int | None = None
 

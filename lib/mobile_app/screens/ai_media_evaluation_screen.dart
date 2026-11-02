@@ -27,6 +27,7 @@ import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
 import 'package:access_mobile/shared/services/practice_evaluation_result_parser.dart';
 import 'package:access_mobile/mobile_app/services/file_picker_service.dart';
+import 'package:access_mobile/shared/utils/practice_media_title.dart';
 
 enum AiMediaEvaluationMode { photo, video }
 
@@ -72,6 +73,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
   String? _error;
   bool _webDragging = false;
   bool _contentStandardsAccepted = false;
+  bool _titleValidationVisible = false;
 
   bool get _isVideo => widget.isVideo;
   int get _videoMaxBytes => appState.evaluationMaxUploadMb * 1024 * 1024;
@@ -103,6 +105,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
   @override
   void initState() {
     super.initState();
+    _labelController.addListener(_onTitleFieldChanged);
     if (kIsWeb) {
       EvalWebDropBinding.install(
         isVideo: _isVideo,
@@ -121,17 +124,23 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
   @override
   void dispose() {
     EvalWebDropBinding.dispose();
+    _labelController.removeListener(_onTitleFieldChanged);
     _labelController.dispose();
     super.dispose();
   }
 
-  String get _submissionTitle {
-    final label = _labelController.text.trim();
-    if (label.isNotEmpty) return label;
-    if (_media == null) return 'Practice submission';
-    final base = _media!.name.replaceAll(RegExp(r'\.[^.]+$'), '');
-    return base.isNotEmpty ? base : 'Practice submission';
+  void _onTitleFieldChanged() {
+    if (mounted) setState(() {});
   }
+
+  String? get _titleValidationMessage => validatePracticeMediaTitle(
+        _labelController.text,
+        isVideo: _isVideo,
+      );
+
+  bool get _hasValidTitle => _titleValidationMessage == null;
+
+  String get _normalizedSubmissionTitle => normalizePracticeMediaTitle(_labelController.text);
 
   bool get _busy => _phase != _EvalPhase.idle;
 
@@ -270,7 +279,14 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
   }
 
   Future<void> _runEvaluation() async {
+    setState(() => _titleValidationVisible = true);
     final media = _media;
+    if (!_hasValidTitle) {
+      final message = _titleValidationMessage ?? 'Enter a title before you start evaluation.';
+      setState(() => _error = message);
+      showMobileToast(context, message, success: false);
+      return;
+    }
     if (media == null) {
       showMobileToast(context, 'Please select a file first.', success: false);
       return;
@@ -316,7 +332,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
       final outcome = await memberDataController.submitPracticeEvaluation(
         bytes: media.bytes,
         fileName: media.name,
-        title: _submissionTitle,
+        title: _normalizedSubmissionTitle,
         isVideo: media.isVideo,
         shouldContinuePolling: () => mounted,
       );
@@ -333,7 +349,16 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         return;
       }
 
-      if (!outcome.evaluationSettledOnServer) {
+      final mediaId = outcome.upload?.id ?? 0;
+      var settledOnServer = outcome.evaluationSettledOnServer;
+      if (!settledOnServer && mediaId > 0) {
+        await memberDataController.reconcilePendingPracticeWithServer();
+        final evalRow = await memberApiService.getEvaluationRowForMedia(mediaId);
+        if (evalRow != null && practiceEvaluationApiRowReady(evalRow)) {
+          settledOnServer = true;
+        }
+      }
+      if (!settledOnServer) {
         setState(() => _phase = _EvalPhase.idle);
         showMobileToast(
           context,
@@ -343,11 +368,10 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         return;
       }
 
-      final mediaId = outcome.upload?.id ?? 0;
       final cachedEval = await memberDataController.findEvaluationForMedia(mediaId);
       Map<String, dynamic>? evalRow;
       PhotoEvaluationResult? scored = cachedEval?.parsedEvaluation;
-      if (scored == null || scored.aiDetection.isDeferredAuthenticity) {
+      if (scored == null) {
         evalRow = await memberApiService.getEvaluationRowForMedia(mediaId);
         scored = evalRow != null ? photoEvaluationResultFromApiRow(evalRow) : null;
       } else {
@@ -424,7 +448,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
           previewBytes: media.previewBytes,
           filePath: media.filePath,
         ),
-        submissionTitle: _submissionTitle,
+        submissionTitle: _normalizedSubmissionTitle,
         result: finalResult,
         geminiFeedback: feedback,
         qualityWarnings: warnings,
@@ -475,10 +499,17 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (!_busy) ...[
+                _PracticeMediaTitleField(
+                  controller: _labelController,
+                  isVideo: _isVideo,
+                  validationMessage: _titleValidationVisible ? _titleValidationMessage : null,
+                ),
+                const SizedBox(height: 12),
+              ],
               if (_media != null && !_busy) ...[
                 _MediaPreviewCard(
                   media: _media!,
-                  titleController: _labelController,
                   onRemove: () => setState(_resetResults),
                 ),
                 const SizedBox(height: 10),
@@ -508,7 +539,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                 const SizedBox(height: 12),
                 _StartEvaluationButton(
                   atLimit: atLimit,
-                  enabled: _contentStandardsAccepted,
+                  enabled: _contentStandardsAccepted && _hasValidTitle,
                   onPressed: _runEvaluation,
                 ),
                 if (!atLimit && _contentStandardsAccepted) ...[
@@ -818,15 +849,78 @@ class _CompactSourceButton extends StatelessWidget {
 // ── Preview before evaluation ────────────────────────────────────────────────
 
 /// ~12% shorter than 16:10 while keeping aspect ratio (no stretch).
+class _PracticeMediaTitleField extends StatelessWidget {
+  const _PracticeMediaTitleField({
+    required this.controller,
+    required this.isVideo,
+    this.validationMessage,
+  });
+
+  final TextEditingController controller;
+  final bool isVideo;
+  final String? validationMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = practiceMediaTitleFieldLabel(isVideo: isVideo);
+    final hasError = validationMessage != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: evalSectionTitleStyle.copyWith(fontSize: 14),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Give this upload a short name you will recognize in your evaluation history.',
+          style: evalSectionSubtitleStyle.copyWith(fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: 1,
+          maxLength: kPracticeMediaTitleMaxLength,
+          style: dashText(const TextStyle(
+            color: kTextPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          )),
+          decoration: InputDecoration(
+            hintText: practiceMediaTitlePlaceholder(isVideo: isVideo),
+            hintStyle: memberDashboardMetaStyle.copyWith(fontSize: 14),
+            errorText: hasError ? validationMessage : null,
+            counterText: '',
+            filled: true,
+            fillColor: kSurface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: hasError ? kRed.withValues(alpha: 0.55) : kBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: hasError ? kRed.withValues(alpha: 0.55) : kBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: hasError ? kRed : kAccent.withValues(alpha: 0.55)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _MediaPreviewCard extends StatelessWidget {
   const _MediaPreviewCard({
     required this.media,
-    required this.titleController,
     this.onRemove,
   });
 
   final _PickedMedia media;
-  final TextEditingController titleController;
   final VoidCallback? onRemove;
 
   @override
@@ -928,54 +1022,6 @@ class _MediaPreviewCard extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-          decoration: BoxDecoration(
-            color: kSurface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: kBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Title (optional)',
-                style: memberDashboardMetaStyle.copyWith(fontSize: 11, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              TextField(
-                controller: titleController,
-                maxLines: 1,
-                style: dashText(const TextStyle(
-                  color: kTextPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                )),
-                decoration: InputDecoration(
-                  hintText: media.name.replaceAll(RegExp(r'\.[^.]+$'), ''),
-                  hintStyle: memberDashboardMetaStyle.copyWith(fontSize: 13),
-                  isDense: true,
-                  filled: true,
-                  fillColor: kBg,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: kBorder),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: kBorder),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: kAccent.withValues(alpha: 0.55)),
-                  ),
-                ),
               ),
             ],
           ),

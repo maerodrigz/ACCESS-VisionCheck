@@ -125,7 +125,11 @@ function ProfileContent({
         {!isRequestorRole(user.role) ? (
           <div className="account-mgmt__profile-stat">
             <span className="account-mgmt__profile-stat-label">Skill Level</span>
-            <span className="account-mgmt__profile-stat-value">{user.skill_level || 'N/A'}</span>
+            <span className="account-mgmt__profile-stat-value">
+              {(user as { skill_effective_tier?: string | null }).skill_effective_tier ??
+                user.skill_level ||
+                'N/A'}
+            </span>
           </div>
         ) : null}
         <div className="account-mgmt__profile-stat">

@@ -3,8 +3,6 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
-import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
-import 'package:access_mobile/mobile_app/widgets/stat_card.dart';
 import 'package:access_mobile/mobile_app/widgets/member_skill_level_guide_sheet.dart';
 import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 
@@ -36,18 +34,26 @@ class MemberCompetencyTier {
   }
 }
 
+/// Profile tab density tokens (logical sp / dp).
+const _kProfileSectionTitle = 18.0;
+const _kProfileCardRadius = 18.0;
+const _kProfileCardPad = 14.0;
+const _kProfileBtnHeight = 46.0;
+
+TextStyle _profileSectionTitle() =>
+    memberDashboardSectionTitleStyle.copyWith(fontSize: _kProfileSectionTitle, fontWeight: FontWeight.w700);
+
+TextStyle _profileBody({Color? color, FontWeight? weight}) =>
+    memberDashboardMetaStyle.copyWith(fontSize: 13, height: 1.35, color: color, fontWeight: weight);
+
+TextStyle _profileCaption({Color? color}) =>
+    memberDashboardMetaStyle.copyWith(fontSize: 11.5, height: 1.3, color: color ?? kTextSecondary);
+
 /// Compact skill progress summary for the member Profile tab.
 class MemberProfileSkillProgressSection extends StatelessWidget {
-  const MemberProfileSkillProgressSection({
-    super.key,
-    this.onViewRankings,
-  });
+  const MemberProfileSkillProgressSection({super.key});
 
-  final VoidCallback? onViewRankings;
-
-  static const _trackLevels = MemberCompetencyTier.skillTrackLevels;
-
-  String _formatXp(int value) {
+  static String formatParticipationXp(int value) {
     final s = value.abs().toString();
     if (s.length <= 3) return s;
     final buf = StringBuffer();
@@ -58,18 +64,35 @@ class MemberProfileSkillProgressSection extends StatelessWidget {
     return buf.toString();
   }
 
-  bool _levelMatches(String current, String trackLabel) {
-    final c = current.toLowerCase();
-    final t = trackLabel.toLowerCase();
-    if (c.contains(t)) return true;
-    if (t == 'beginner' && (c.contains('novice') || c.contains('beginner'))) {
-      return true;
+  static IconData levelBadgeIcon(String levelName) {
+    final idx = MemberBackendSkillTier.indexForLevel(levelName);
+    return switch (idx) {
+      0 => Icons.school_rounded,
+      1 => Icons.trending_up_rounded,
+      2 => Icons.auto_awesome_rounded,
+      _ => Icons.workspace_premium_rounded,
+    };
+  }
+
+  static String friendlyMotivationLine(MemberCompetencySnapshot snapshot) {
+    if (snapshot.isMaxLevel) {
+      if (snapshot.skillScore != null) {
+        return 'Top level unlocked. Your practice quality score is ${snapshot.skillScore!.round()}.';
+      }
+      return 'You have reached the highest skill level. Keep up the great work.';
     }
-    if (t == 'advanced' &&
-        (c.contains('advanced') || c.contains('expert') || c.contains('master'))) {
-      return true;
+    if (!snapshot.progressUsesSkillScore) {
+      return 'Open Rankings to load your level from released practice quality.';
     }
-    return false;
+    final gate = snapshot.evalGateHint;
+    if (gate != null) return gate;
+    if (snapshot.nextLevelName == null) {
+      return 'Keep practicing to strengthen your quality score.';
+    }
+    final scoreNote = snapshot.skillScore != null
+        ? ' Current quality score: ${snapshot.skillScore!.round()}.'
+        : '';
+    return '${snapshot.remainingPoints} more quality points to reach ${snapshot.nextLevelName}.$scoreNote';
   }
 
   @override
@@ -82,152 +105,230 @@ class MemberProfileSkillProgressSection extends StatelessWidget {
         final displayLevel = hasSkillLevel
             ? appState.profileSkillLevel!.trim()
             : snapshot.levelName;
+        final track = snapshot.skillTrackStates;
+        final motivation = friendlyMotivationLine(snapshot);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const AccessSectionHeader(title: 'Skill tier (quality)'),
-            const SizedBox(height: 12),
-            MemberDashboardCard(
-              showAccentStrip: true,
-              padding: const EdgeInsets.all(18),
+            Text('Skill progress', style: _profileSectionTitle()),
+            const SizedBox(height: 4),
+            Text(
+              'Eligible released practice only. Daily upload cap (${appState.dailyEvaluationLimit}/day) is separate from tier progress.',
+              style: _profileCaption(),
+              softWrap: true,
+            ),
+            const SizedBox(height: 10),
+            LayoutBuilder(
+              builder: (context, cardConstraints) {
+                final narrowCard = cardConstraints.maxWidth < 300;
+                return Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(narrowCard ? 12 : _kProfileCardPad),
+              decoration: BoxDecoration(
+                color: kDashAccentCompetency,
+                borderRadius: BorderRadius.circular(_kProfileCardRadius),
+                boxShadow: memberDashboardCardShadows(tint: kDashAccentCompetencyIcon),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        displayLevel,
-                        style: memberDashboardSectionTitleStyle.copyWith(
-                          fontSize: 18,
+                      _ProfileLevelBadge(
+                        icon: levelBadgeIcon(displayLevel),
+                        size: narrowCard ? 46 : 52,
+                      ),
+                      SizedBox(width: narrowCard ? 6 : 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Your level', style: _profileCaption(color: kTextSecondary)),
+                            const SizedBox(height: 2),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                              displayLevel,
+                              style: dashText(TextStyle(
+                                color: kMemberPrimary,
+                                fontSize: narrowCard ? 20 : 23,
+                                fontWeight: FontWeight.w700,
+                                height: 1.12,
+                                letterSpacing: -0.3,
+                              )),
+                            ),
+                            ),
+                            if (snapshot.skillScore != null &&
+                                snapshot.progressUsesSkillScore) ...[
+                              const SizedBox(height: 6),
+                              _ProfileSoftChip(
+                                icon: Icons.insights_rounded,
+                                label:
+                                    'Quality score ${snapshot.skillScore!.round()}',
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: _trackLevels.map((label) {
-                      final active = _levelMatches(displayLevel, label);
-                      return Expanded(
-                        child: Column(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              width: active ? 12 : 10,
-                              height: active ? 12 : 10,
-                              decoration: BoxDecoration(
-                                color: active ? kMemberPrimary : kDashBorder,
-                                shape: BoxShape.circle,
-                                boxShadow: active
-                                    ? [
-                                        BoxShadow(
-                                          color: kMemberPrimary.withValues(alpha: 0.25),
-                                          blurRadius: 6,
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              label,
-                              textAlign: TextAlign.center,
-                              style: memberDashboardMetaStyle.copyWith(
-                                fontSize: 10,
-                                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                                color: active ? kMemberPrimary : kTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                  const SizedBox(height: 14),
+                  _ProfileSkillTrack(states: track),
+                  const SizedBox(height: 12),
                   if (snapshot.progressUsesSkillScore) ...[
-                  const SizedBox(height: 16),
-                  TweenAnimationBuilder<double>(
-                    key: ValueKey('profile-skill-${snapshot.points}-${snapshot.progress}'),
-                    tween: Tween(begin: 0, end: snapshot.progress),
-                    duration: const Duration(milliseconds: 800),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, _) {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: SizedBox(
-                          height: 10,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              ColoredBox(color: kSurfaceAlt),
-                              FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: value.clamp(0.0, 1.0),
-                                child: const ColoredBox(color: kMemberPrimary),
-                              ),
-                            ],
+                    _ProfileTierProgressBar(
+                      progress: snapshot.progress,
+                      isMaxLevel: snapshot.isMaxLevel,
+                    ),
+                    const SizedBox(height: 6),
+                    if (!snapshot.isMaxLevel &&
+                        snapshot.evalGateHint == null &&
+                        snapshot.nextLevelName != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          '${(snapshot.progress * 100).round()}% toward ${snapshot.nextLevelName}',
+                          textAlign: TextAlign.end,
+                          softWrap: true,
+                          style: _profileCaption(color: kMemberPrimary).copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  ],
-                  Text(
-                    '${_formatXp(snapshot.points)} XP',
-                    style: memberDashboardCardTitleStyle.copyWith(fontSize: 20),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    snapshot.progressSubtitle,
-                    style: memberDashboardMetaStyle.copyWith(
-                      color: snapshot.isMaxLevel
-                          ? kTextSecondary
-                          : kMemberPrimary,
-                      fontWeight:
-                          snapshot.isMaxLevel ? FontWeight.w500 : FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton.icon(
-                    onPressed: () => showMemberSkillLevelGuideSheet(context),
-                    style: TextButton.styleFrom(
-                      foregroundColor: kMemberPrimary,
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    icon: const Icon(Icons.info_outline_rounded, size: 16),
-                    label: Text(
-                      'How your level is calculated',
-                      style: memberDashboardMetaStyle.copyWith(
-                        color: kMemberPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                      ),
+                  ] else
+                    _ProfileUnavailablePanel(),
+                  if (snapshot.progressUsesSkillScore) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Text(
+                      motivation,
+                      softWrap: true,
+                      style: _profileBody(
+                        color: snapshot.evalGateHint != null
+                            ? const Color(0xFF92400E)
+                            : snapshot.isMaxLevel
+                                ? kTextSecondary
+                                : kMemberPrimary,
+                        weight: FontWeight.w500,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
-                    height: kMobileMinTouch,
-                    child: OutlinedButton.icon(
-                      onPressed: onViewRankings,
-                      style: OutlinedButton.styleFrom(
+                    child: TextButton(
+                      onPressed: () => showMemberSkillLevelGuideSheet(context),
+                      style: TextButton.styleFrom(
                         foregroundColor: kMemberPrimary,
-                        side: BorderSide(
-                          color: kMemberPrimary.withValues(alpha: 0.4),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
-                        ),
-                        textStyle: dashText(const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        )),
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(44, 36),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        alignment: Alignment.centerLeft,
                       ),
-                      icon: const Icon(Icons.emoji_events_outlined, size: 18),
-                      label: const Text('View Rankings'),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.help_outline_rounded, size: 18),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'How levels work',
+                              softWrap: true,
+                              style: _profileBody(color: kMemberPrimary, weight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ),
+                ],
+              ),
+            );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Leaderboard rank and participation XP (separate from quality-based skill tier).
+class MemberProfileRankingsXpSection extends StatelessWidget {
+  const MemberProfileRankingsXpSection({
+    super.key,
+    this.onViewRankings,
+  });
+
+  final VoidCallback? onViewRankings;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([appState, memberDataController]),
+      builder: (context, _) {
+        final rank = appState.profileRank;
+        final xp = appState.profilePoints;
+        final rankLabel = rank > 0 ? '#$rank' : 'N/A';
+        final rankCaption = appState.profileRankStatLabel;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Rankings & XP', style: _profileSectionTitle()),
+            const SizedBox(height: 4),
+            Text(
+              'Leaderboard participation, separate from skill quality',
+              style: _profileCaption(),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(_kProfileCardPad),
+              decoration: BoxDecoration(
+                color: kSurfaceAlt,
+                borderRadius: BorderRadius.circular(_kProfileCardRadius),
+                boxShadow: memberDashboardCardShadows(),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _RankingsXpTile(
+                            icon: Icons.leaderboard_rounded,
+                            label: rankCaption,
+                            value: rankLabel,
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          color: kBorder.withValues(alpha: 0.6),
+                        ),
+                        Expanded(
+                          child: _RankingsXpTile(
+                            icon: Icons.bolt_rounded,
+                            label: 'Participation XP',
+                            value: MemberProfileSkillProgressSection.formatParticipationXp(xp),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  MemberDashboardPrimaryButton(
+                    label: 'View Rankings',
+                    icon: Icons.emoji_events_rounded,
+                    onPressed: onViewRankings,
+                    minHeight: _kProfileBtnHeight,
                   ),
                 ],
               ),
@@ -239,24 +340,377 @@ class MemberProfileSkillProgressSection extends StatelessWidget {
   }
 }
 
-/// Evaluation minimums before higher tiers unlock (`skill_scoring.py`).
+class _RankingsXpTile extends StatelessWidget {
+  const _RankingsXpTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: kMemberPrimary),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: dashText(const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              height: 1.05,
+            )),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: _profileCaption(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileLevelBadge extends StatelessWidget {
+  const _ProfileLevelBadge({
+    required this.icon,
+    this.size = 52,
+  });
+
+  final IconData icon;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: kMemberBrandAccentGradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: kMemberPrimary.withValues(alpha: 0.18),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Icon(icon, color: Colors.white, size: size * 0.5),
+    );
+  }
+}
+
+class _ProfileSoftChip extends StatelessWidget {
+  const _ProfileSoftChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: kSurface.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: kMemberPrimary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+              softWrap: true,
+              style: dashText(const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: kMemberPrimary,
+              )),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSkillTrack extends StatelessWidget {
+  const _ProfileSkillTrack({required this.states});
+
+  final List<({String name, SkillTierTrackState state})> states;
+
+  static String _compactTrackLabel(String name, {required bool compact}) {
+    if (!compact) return name;
+    return switch (name.toLowerCase()) {
+      'beginner' => 'Beg',
+      'intermediate' => 'Int',
+      'advanced' => 'Adv',
+      'expert' => 'Exp',
+      _ => name.length <= 4 ? name : name.substring(0, 3),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 400;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < states.length; i++) ...[
+              if (i > 0)
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 6, left: compact ? 0 : 2, right: compact ? 0 : 2),
+                    child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        gradient: states[i - 1].state == SkillTierTrackState.completed
+                            ? LinearGradient(
+                                colors: [
+                                  kMemberCyan.withValues(alpha: 0.5),
+                                  kMemberPrimary.withValues(alpha: 0.45),
+                                ],
+                              )
+                            : null,
+                        color: states[i - 1].state == SkillTierTrackState.completed
+                            ? null
+                            : kSurface.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: _ProfileTrackNode(
+                  label: _compactTrackLabel(states[i].name, compact: compact),
+                  semanticsLabel: states[i].name,
+                  state: states[i].state,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfileTrackNode extends StatelessWidget {
+  const _ProfileTrackNode({
+    required this.label,
+    required this.semanticsLabel,
+    required this.state,
+  });
+
+  final String label;
+  final String semanticsLabel;
+  final SkillTierTrackState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCurrent = state == SkillTierTrackState.current;
+    final isDone = state == SkillTierTrackState.completed;
+    final dotColor = isCurrent
+        ? kMemberPrimary
+        : isDone
+            ? kMemberCyan
+            : kSurfaceAlt;
+    final labelColor = isCurrent ? kMemberPrimary : kTextSecondary;
+    final dotSize = isCurrent ? 12.0 : 9.0;
+
+    return Semantics(
+      label: semanticsLabel,
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              width: dotSize,
+              height: dotSize,
+              decoration: BoxDecoration(
+                color: isCurrent ? Colors.white : dotColor,
+                shape: BoxShape.circle,
+                border: isCurrent
+                    ? Border.all(color: kMemberPrimary, width: 3)
+                    : null,
+                boxShadow: isCurrent
+                    ? [
+                        BoxShadow(
+                          color: kMemberPrimary.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                softWrap: false,
+                style: memberDashboardMetaStyle.copyWith(
+                  fontSize: isCurrent ? 10 : 9,
+                  fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                  color: labelColor,
+                  height: 1.05,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileTierProgressBar extends StatelessWidget {
+  const _ProfileTierProgressBar({
+    required this.progress,
+    required this.isMaxLevel,
+  });
+
+  final double progress;
+  final bool isMaxLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('profile-tier-bar-$progress-$isMaxLevel'),
+      tween: Tween(begin: 0, end: progress),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: SizedBox(
+            height: 8,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColoredBox(color: kSurface.withValues(alpha: 0.9)),
+                FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: value.clamp(0.0, 1.0),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: isMaxLevel
+                          ? const LinearGradient(
+                              colors: [kCyan, kMemberPrimary],
+                            )
+                          : kMemberDashboardAccentGradient,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProfileUnavailablePanel extends StatelessWidget {
+  const _ProfileUnavailablePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kSurface.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.sync_rounded, color: kMemberPrimary.withValues(alpha: 0.9), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Level details loading',
+                  style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Open Rankings below to refresh your quality-based level and progress bar.',
+                  style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Client fallbacks only when participation has not synced; backend is authoritative.
 class MemberSkillEvalGates {
   MemberSkillEvalGates._();
 
-  static const minForIntermediate = 3;
-  static const minForAdvanced = 6;
-  static const minForExpert = 10;
+  static bool isV2Policy(String policyVersion) =>
+      policyVersion.trim().toLowerCase() == 'v2';
 
-  static int minEvaluationsForTierIndex(int tierIndex) {
+  static const v2MinForIntermediate = 3;
+  static const v2MinDaysIntermediate = 2;
+  static const v2MinForAdvanced = 12;
+  static const v2MinDaysAdvanced = 10;
+  static const v2MinForExpert = 24;
+  static const v2MinDaysExpert = 24;
+
+  static const v1MinForIntermediate = 3;
+  static const v1MinForAdvanced = 6;
+  static const v1MinForExpert = 10;
+
+  static int minEvaluationsForTierIndex(int tierIndex, {required String policyVersion}) {
     switch (tierIndex.clamp(0, 3)) {
       case 1:
-        return minForIntermediate;
+        return isV2Policy(policyVersion) ? v2MinForIntermediate : v1MinForIntermediate;
       case 2:
-        return minForAdvanced;
+        return isV2Policy(policyVersion) ? v2MinForAdvanced : v1MinForAdvanced;
       case 3:
-        return minForExpert;
+        return isV2Policy(policyVersion) ? v2MinForExpert : v1MinForExpert;
       default:
         return 0;
+    }
+  }
+
+  static int? minDistinctDaysForTierIndex(int tierIndex, {required String policyVersion}) {
+    if (!isV2Policy(policyVersion)) return null;
+    switch (tierIndex.clamp(0, 3)) {
+      case 1:
+        return v2MinDaysIntermediate;
+      case 2:
+        return v2MinDaysAdvanced;
+      case 3:
+        return v2MinDaysExpert;
+      default:
+        return null;
     }
   }
 }
@@ -303,6 +757,12 @@ class MemberCompetencySnapshot {
     this.skillScore,
     this.progressUsesSkillScore = false,
     this.evaluationsCount,
+    this.distinctUploadDays,
+    this.remainingEligibleEvaluations,
+    this.remainingDistinctUploadDays,
+    this.remainingQualityPoints,
+    this.progressionPolicyVersion = 'v1',
+    this.progressionParticipationSynced = false,
   });
 
   final String levelName;
@@ -314,22 +774,66 @@ class MemberCompetencySnapshot {
   final double? skillScore;
   final bool progressUsesSkillScore;
   final int? evaluationsCount;
+  final int? distinctUploadDays;
+  final int? remainingEligibleEvaluations;
+  final int? remainingDistinctUploadDays;
+  final int? remainingQualityPoints;
+  final String progressionPolicyVersion;
+  final bool progressionParticipationSynced;
 
-  /// When eval count blocks the next tier despite score (`effective_skill_level`).
+  /// Quality, eligible count, or distinct upload-day gates (backend participation when loaded).
   String? get evalGateHint {
     if (!progressUsesSkillScore || isMaxLevel || nextLevelName == null) {
+      return null;
+    }
+    final remScore = remainingQualityPoints ?? 0;
+    if (remScore > 0) {
+      return 'Raise your eligible quality average by $remScore points to reach '
+          '$nextLevelName. Only released, skill-eligible practice counts.';
+    }
+    final remEvals = remainingEligibleEvaluations;
+    final remDays = remainingDistinctUploadDays;
+    if (remEvals != null && remEvals > 0) {
+      return 'Complete $remEvals more skill-eligible released '
+          '${remEvals == 1 ? 'evaluation' : 'evaluations'} toward $nextLevelName '
+          '(pending or withheld uploads do not count).';
+    }
+    if (MemberSkillEvalGates.isV2Policy(progressionPolicyVersion) &&
+        remDays != null &&
+        remDays > 0) {
+      return 'Practice on $remDays more distinct days with skill-eligible released '
+          'evaluations toward $nextLevelName (Manila calendar days).';
+    }
+    if (progressionParticipationSynced) {
       return null;
     }
     final idx = MemberBackendSkillTier.indexForLevel(levelName);
     if (idx >= MemberBackendSkillTier.order.length - 1) return null;
     final nextIdx = idx + 1;
-    final required = MemberSkillEvalGates.minEvaluationsForTierIndex(nextIdx);
+    final required = MemberSkillEvalGates.minEvaluationsForTierIndex(
+      nextIdx,
+      policyVersion: progressionPolicyVersion,
+    );
+    final requiredDays = MemberSkillEvalGates.minDistinctDaysForTierIndex(
+      nextIdx,
+      policyVersion: progressionPolicyVersion,
+    );
     final count = evaluationsCount ?? 0;
-    if (count >= required) return null;
-    final need = required - count;
-    return 'Complete $need more skill-eligible released '
-        '${need == 1 ? 'evaluation' : 'evaluations'} to unlock $nextLevelName '
-        '(pending or withheld uploads do not count)';
+    final days = distinctUploadDays ?? 0;
+    if (count < required) {
+      final need = required - count;
+      return 'Complete $need more skill-eligible released '
+          '${need == 1 ? 'evaluation' : 'evaluations'} to unlock $nextLevelName '
+          '(pending or withheld uploads do not count).';
+    }
+    if (requiredDays != null &&
+        progressionParticipationSynced &&
+        days < requiredDays) {
+      final needDays = requiredDays - days;
+      return 'Spread skill-eligible released practice across $needDays more '
+          'distinct upload days toward $nextLevelName.';
+    }
+    return null;
   }
 
   String get progressSubtitle {
@@ -367,6 +871,8 @@ class MemberCompetencySnapshot {
 
   factory MemberCompetencySnapshot.fromAppState() {
     final points = appState.profilePoints;
+    final policyVersion = appState.profileSkillProgressionPolicyVersion;
+    final participationSynced = appState.profileSkillProgressionSynced;
     final levelName = appState.profileSkillLevel?.trim().isNotEmpty == true
         ? appState.profileSkillLevel!.trim()
         : 'Beginner';
@@ -375,6 +881,36 @@ class MemberCompetencySnapshot {
     if (evalCount <= 0) {
       evalCount = skillEligibleEvaluations(appState.evaluations).length;
     }
+    final distinctDays = appState.profileSkillDistinctUploadDays;
+    final remEvals = participationSynced
+        ? (appState.profileSkillRemainingEligibleEvaluations > 0
+            ? appState.profileSkillRemainingEligibleEvaluations
+            : 0)
+        : _remainingFromApi(
+            appState.profileSkillNextTierRequiredEvaluations,
+            evalCount,
+          );
+    final remDays = participationSynced &&
+            MemberSkillEvalGates.isV2Policy(policyVersion)
+        ? (appState.profileSkillRemainingDistinctUploadDays > 0
+            ? appState.profileSkillRemainingDistinctUploadDays
+            : 0)
+        : (participationSynced
+            ? null
+            : _remainingFromApi(
+                appState.profileSkillNextTierRequiredDays,
+                distinctDays,
+              ));
+    final remScore = participationSynced
+        ? (appState.profileSkillRemainingQualityPoints > 0
+            ? appState.profileSkillRemainingQualityPoints
+            : 0)
+        : (appState.profileSkillScore != null
+            ? _remainingQualityPoints(
+                levelName,
+                appState.profileSkillScore!,
+              )
+            : null);
 
     if (score != null) {
       final idx = MemberBackendSkillTier.indexForLevel(levelName);
@@ -389,6 +925,12 @@ class MemberCompetencySnapshot {
           skillScore: score,
           progressUsesSkillScore: true,
           evaluationsCount: evalCount,
+          distinctUploadDays: distinctDays,
+          remainingEligibleEvaluations: remEvals,
+          remainingDistinctUploadDays: remDays,
+          remainingQualityPoints: remScore,
+          progressionPolicyVersion: policyVersion,
+          progressionParticipationSynced: participationSynced,
         );
       }
 
@@ -409,6 +951,12 @@ class MemberCompetencySnapshot {
         skillScore: score,
         progressUsesSkillScore: true,
         evaluationsCount: evalCount,
+        distinctUploadDays: distinctDays,
+        remainingEligibleEvaluations: remEvals,
+        remainingDistinctUploadDays: remDays,
+        remainingQualityPoints: remScore,
+        progressionPolicyVersion: policyVersion,
+        progressionParticipationSynced: participationSynced,
       );
     }
 
@@ -421,8 +969,26 @@ class MemberCompetencySnapshot {
       nextLevelName: null,
       isMaxLevel: false,
       evaluationsCount: evalCount,
+      distinctUploadDays: distinctDays,
       progressUsesSkillScore: false,
+      progressionPolicyVersion: policyVersion,
+      progressionParticipationSynced: participationSynced,
     );
+  }
+
+  static int? _remainingFromApi(int? requiredThreshold, int current) {
+    if (requiredThreshold == null || requiredThreshold <= 0) return null;
+    final rem = requiredThreshold - current;
+    return rem > 0 ? rem : 0;
+  }
+
+  static int? _remainingQualityPoints(String levelName, double score) {
+    final idx = MemberBackendSkillTier.indexForLevel(levelName);
+    if (idx >= MemberBackendSkillTier.order.length - 1) return null;
+    final nextMin = MemberBackendSkillTier.nextMinScoreForIndex(idx);
+    if (nextMin == null) return null;
+    final rem = (nextMin - score).ceil();
+    return rem > 0 ? rem : 0;
   }
 }
 

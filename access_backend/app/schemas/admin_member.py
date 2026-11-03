@@ -19,6 +19,8 @@ class AdminMemberResponse(BaseModel):
     rejection_reason: str | None = None
     approved_at: datetime | None = None
     skill_level: str | None = None
+    skill_effective_tier: str | None = None
+    skill_tier_stored_legacy: str | None = None
     assigned_tasks: int = 0
     completed_tasks: int = 0
     media_eval_score: float = 0.0

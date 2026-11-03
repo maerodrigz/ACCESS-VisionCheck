@@ -28,7 +28,7 @@ def test_upload_media_supabase_fallback_uses_module_logging() -> None:
         user = SimpleNamespace(id=9)
         db = MagicMock()
         bg = MagicMock()
-        row = SimpleNamespace(id=77)
+        row = SimpleNamespace(id=77, media_category="member_evaluation")
 
         with patch.object(media_routes, "_validate_upload_file"):
             with patch.object(media_routes, "is_video_extension", return_value=True):
@@ -48,7 +48,7 @@ def test_upload_media_supabase_fallback_uses_module_logging() -> None:
                                 with patch.object(
                                     media_routes,
                                     "evaluation_rules",
-                                    return_value={"max_files_per_day": 5},
+                                    return_value={"max_files_per_day": 3},
                                 ):
                                     with patch(
                                         "app.services.supabase_storage.is_supabase_storage_configured",
@@ -89,25 +89,27 @@ def test_upload_media_supabase_fallback_uses_module_logging() -> None:
                                                                     media_routes,
                                                                     "stash_evaluation_upload",
                                                                 ):
-                                                                    with patch.object(
-                                                                        media_routes.logging,
-                                                                        "getLogger",
-                                                                    ) as get_logger:
-                                                                        logger = MagicMock()
-                                                                        get_logger.return_value = (
-                                                                            logger
-                                                                        )
-                                                                        await media_routes.upload_media(
-                                                                            background_tasks=bg,
-                                                                            file=upload,
-                                                                            request_id=None,
-                                                                            file_name="VID_test.mp4",
-                                                                            evaluation_metadata=None,
-                                                                            cloud_file_url=None,
-                                                                            db=db,
-                                                                            current_user=user,
-                                                                        )
-                                                                        logger.warning.assert_called_once()
+                                                                    with patch(
+                                                                        "app.crud.submission_chain.ensure_submission_chain_for_evaluation"
+                                                                    ):
+                                                                        with patch.object(
+                                                                            media_routes.logging,
+                                                                            "getLogger",
+                                                                        ) as get_logger:
+                                                                            logger = MagicMock()
+                                                                            get_logger.return_value = logger
+                                                                            await media_routes.upload_media(
+                                                                                background_tasks=bg,
+                                                                                file=upload,
+                                                                                request_id=None,
+                                                                                file_name="VID_test.mp4",
+                                                                                evaluation_metadata=None,
+                                                                                cloud_file_url=None,
+                                                                                replaces_media_id=None,
+                                                                                db=db,
+                                                                                current_user=user,
+                                                                            )
+                                                                            logger.warning.assert_called_once()
 
     _run(invoke())
 

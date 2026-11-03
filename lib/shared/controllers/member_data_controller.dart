@@ -191,7 +191,7 @@ class MemberDataController extends ChangeNotifier {
         name: profile['name'] as String? ?? authController.user!.name,
         email: profile['email'] as String? ?? authController.user!.email,
         uploads: profile['uploads_count'] as int? ?? 0,
-        skillLevel: profile['skill_level'] as String?,
+        skillLevel: authoritativeSkillTierFromProfile(profile),
         points: profile['total_points'] as int? ?? 0,
         rankPosition: profile['rank_position'] as int?,
         contactNumber: profile['contact_number'] as String?,
@@ -856,7 +856,7 @@ class MemberDataController extends ChangeNotifier {
       name: _nonEmptyProfileName(profile['name'], authController.user!.name),
       email: profile['email'] as String? ?? authController.user!.email,
       uploads: profile['uploads_count'] as int? ?? 0,
-      skillLevel: profile['skill_level'] as String?,
+      skillLevel: authoritativeSkillTierFromProfile(profile),
       points: profile['total_points'] as int? ?? 0,
       rankPosition: profile['rank_position'] as int?,
       contactNumber: profile['contact_number'] as String?,
@@ -945,6 +945,24 @@ class MemberDataController extends ChangeNotifier {
         evaluationMaxUploadMb: fields['evaluation_max_upload_mb'] as int,
         evaluationMaxVideoSeconds: fields['evaluation_max_video_seconds'] as int,
         evaluationDailyTimezone: fields['evaluation_daily_timezone'] as String,
+        skillDistinctUploadDays:
+            fields['skill_eligible_distinct_upload_days'] as int,
+        skillQualityAverage: fields['skill_quality_average'] as double?,
+        skillEffectiveTier: fields['skill_effective_tier'] as String?,
+        skillComputedTierV2Preview:
+            fields['skill_computed_tier_v2_preview'] as String?,
+        skillNextTierRequiredEvaluations:
+            fields['skill_next_tier_required_evaluations'] as int?,
+        skillNextTierRequiredDays:
+            fields['skill_next_tier_required_days'] as int?,
+        skillProgressionPolicyVersion:
+            fields['skill_progression_policy_version'] as String,
+        skillRemainingEligibleEvaluations:
+            fields['skill_remaining_eligible_evaluations'] as int,
+        skillRemainingDistinctUploadDays:
+            fields['skill_remaining_distinct_upload_days'] as int,
+        skillRemainingQualityPoints:
+            fields['skill_remaining_quality_points'] as int,
       );
       participationQuotaSyncError = null;
       appState.notifyListeners();

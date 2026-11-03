@@ -1135,7 +1135,7 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
+                padding: const EdgeInsets.fromLTRB(9, 6, 9, 7),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -17,6 +17,25 @@ from app.models.request_assignment import RequestAssignment
 from app.models.user import User
 
 
+def _member_skill_tier_fields(db: Session, user: User) -> dict[str, str | None]:
+    from app.services.skill_progression import build_skill_progression_snapshot
+
+    stored = user.skill_level.level_name if user.skill_level else None
+    if user.role and user.role.role_name != "Member":
+        return {
+            "skill_level": stored,
+            "skill_effective_tier": stored,
+            "skill_tier_stored_legacy": stored,
+        }
+    snap = build_skill_progression_snapshot(db, user.id)
+    effective = snap.effective_tier
+    return {
+        "skill_level": effective,
+        "skill_effective_tier": effective,
+        "skill_tier_stored_legacy": stored,
+    }
+
+
 def _last_active(db: Session, user_id: int, created_at: datetime | None) -> datetime | None:
     candidates: list[datetime] = []
     if created_at:
@@ -88,6 +107,7 @@ def list_admin_members(db: Session) -> list[dict]:
         assigned = profile_crud.assignments_total(db, u.id)
         completed = profile_crud.assignments_completed(db, u.id)
         ranking = u.member_ranking
+        tier_fields = _member_skill_tier_fields(db, u)
         rows.append(
             {
                 "user_id": u.id,
@@ -104,7 +124,7 @@ def list_admin_members(db: Session) -> list[dict]:
                 "adviser_name": u.adviser_name,
                 "rejection_reason": u.rejection_reason,
                 "approved_at": u.approved_at,
-                "skill_level": u.skill_level.level_name if u.skill_level else None,
+                **tier_fields,
                 "assigned_tasks": assigned,
                 "completed_tasks": completed,
                 "media_eval_score": _avg_media_score(db, u.id),
@@ -139,6 +159,7 @@ def get_admin_member(db: Session, user_id: int) -> dict | None:
     assigned = profile_crud.assignments_total(db, u.id)
     completed = profile_crud.assignments_completed(db, u.id)
     ranking = u.member_ranking
+    tier_fields = _member_skill_tier_fields(db, u)
     return {
         "user_id": u.id,
         "name": u.fullname,
@@ -154,7 +175,7 @@ def get_admin_member(db: Session, user_id: int) -> dict | None:
         "adviser_name": u.adviser_name,
         "rejection_reason": u.rejection_reason,
         "approved_at": u.approved_at,
-        "skill_level": u.skill_level.level_name if u.skill_level else None,
+        **tier_fields,
         "assigned_tasks": assigned,
         "completed_tasks": completed,
         "media_eval_score": _avg_media_score(db, u.id),

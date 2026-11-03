@@ -53,6 +53,25 @@ void main() {
     });
   });
 
+  group('authoritativeSkillTierFromProfile', () {
+    test('prefers skill_effective_tier over stored skill_level', () {
+      expect(
+        authoritativeSkillTierFromProfile({
+          'skill_effective_tier': 'Beginner',
+          'skill_level': 'Expert',
+        }),
+        'Beginner',
+      );
+    });
+
+    test('falls back to skill_level when effective missing', () {
+      expect(
+        authoritativeSkillTierFromProfile({'skill_level': 'Intermediate'}),
+        'Intermediate',
+      );
+    });
+  });
+
   group('participationFieldsFromApi', () {
     test('maps evaluations_today and daily limit', () {
       final fields = participationFieldsFromApi({
@@ -77,20 +96,20 @@ void main() {
 
   group('AppState daily quota confirmation', () {
     test('applyParticipation confirms evaluations today count', () {
-      appState.applyParticipation(evaluationsToday: 2, dailyEvaluationLimit: 5);
+      appState.applyParticipation(evaluationsToday: 2, dailyEvaluationLimit: 3);
       expect(appState.evaluationsTodayCount, 2);
       expect(appState.evaluationsTodayQuotaConfirmed, isTrue);
-      expect(appState.evaluationsRemainingToday, 3);
+      expect(appState.evaluationsRemainingToday, 1);
       expect(appState.evaluationsTodayAtLimitConfirmed, isFalse);
     });
 
-    test('confirmed 5/5 blocks client gate', () {
-      appState.applyParticipation(evaluationsToday: 5, dailyEvaluationLimit: 5);
+    test('confirmed 3/3 blocks client gate', () {
+      appState.applyParticipation(evaluationsToday: 3, dailyEvaluationLimit: 3);
       expect(appState.evaluationsTodayAtLimitConfirmed, isTrue);
     });
 
     test('invalidate clears confirmation without erasing limit', () {
-      appState.applyParticipation(evaluationsToday: 2, dailyEvaluationLimit: 5);
+      appState.applyParticipation(evaluationsToday: 2, dailyEvaluationLimit: 3);
       appState.invalidateEvaluationsTodayQuota();
       expect(appState.evaluationsTodayQuotaConfirmed, isFalse);
       expect(appState.evaluationsTodayAtLimitConfirmed, isFalse);
@@ -98,7 +117,7 @@ void main() {
     });
 
     test('clearMemberProfile resets quota state', () {
-      appState.applyParticipation(evaluationsToday: 5, dailyEvaluationLimit: 5);
+      appState.applyParticipation(evaluationsToday: 3, dailyEvaluationLimit: 3);
       appState.clearMemberProfile();
       expect(appState.evaluationsTodayCount, 0);
       expect(appState.evaluationsTodayQuotaConfirmed, isFalse);

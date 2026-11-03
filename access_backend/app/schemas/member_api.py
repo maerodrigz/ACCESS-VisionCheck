@@ -295,6 +295,8 @@ class ProfileOut(BaseModel):
     adviser_name: str | None = None
     profile_image: str | None = None
     skill_level: str | None = None
+    skill_effective_tier: str | None = None
+    skill_tier_stored_legacy: str | None = None
     total_points: int = 0
     rank_position: int | None = None
     uploads_count: int = 0
@@ -316,13 +318,32 @@ class ParticipationOut(BaseModel):
     uploads_count: int
     evaluations_count: int
     evaluations_today: int = 0
-    daily_evaluation_limit: int = 5
+    daily_evaluation_limit: int = 3
     evaluation_max_upload_mb: int = 350
     evaluation_max_video_seconds: int = 30
     evaluation_daily_timezone: str = "Asia/Manila"
     average_score: float
     skill_eligible_evaluations_count: int = 0
     skill_eligible_average_score: float = 0.0
+    skill_eligible_distinct_upload_days: int = 0
+    skill_quality_average: float = 0.0
+    skill_computed_tier: str = "Beginner"
+    skill_effective_tier: str = "Beginner"
+    skill_computed_tier_v2_preview: str = "Beginner"
+    skill_computed_tier_v1: str = "Beginner"
+    skill_computed_tier_v2_strict: str = "Beginner"
+    skill_computed_tier_v2_grandfather_adjusted: str = "Beginner"
+    skill_tier_grandfather_floor: str | None = None
+    skill_tier_stored_legacy: str | None = None
+    skill_admin_competency_override: str | None = None
+    skill_next_tier_required_evaluations: int | None = None
+    skill_next_tier_required_days: int | None = None
+    skill_remaining_eligible_evaluations: int = 0
+    skill_remaining_distinct_upload_days: int = 0
+    skill_remaining_quality_points: int = 0
+    skill_progression_policy_version: str = "v1"
+    skill_progression_policy_configured: str = "v1"
+    skill_progression_v2_blocked_reason: str | None = None
     total_points: int
     rank_position: int | None = None
 

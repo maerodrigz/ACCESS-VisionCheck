@@ -61,11 +61,20 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Quality progress',
+              widget.compact ? 'Quality trend' : 'Practice quality over time',
               style: widget.compact
                   ? memberDashboardSectionTitleStyle.copyWith(fontSize: 14)
-                  : memberDashboardSectionTitleStyle,
+                  : memberDashboardSectionTitleStyle.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
             ),
+            const SizedBox(height: 4),
+            if (!widget.compact)
+              Text(
+                'Historical scores from eligible released practice',
+                style: memberDashboardMetaStyle.copyWith(fontSize: 11.5, height: 1.35),
+              ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -87,11 +96,6 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
                   onTap: () => setState(() => _filter = _MediaFilter.video),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'See how your released practice scores trend over time.',
-              style: memberDashboardMetaStyle.copyWith(fontSize: 11, height: 1.35),
             ),
             if (pendingCount > 0 || withheldCount > 0) ...[
               const SizedBox(height: 6),
@@ -166,7 +170,7 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
     if (withheldCount > 0) {
       parts.add('$withheldCount withheld');
     }
-    return '${parts.join(' · ')} (not shown in chart yet)';
+    return '${parts.join(' · ')}. These are not shown in the chart yet.';
   }
 
   Widget _buildChartArea({
@@ -223,9 +227,15 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
 
     final width = maxWidth > 0 ? maxWidth : 320.0;
     final height = (width * 0.48).clamp(140.0, widget.compact ? 210.0 : 260.0);
-    return SizedBox(
+    return Container(
       height: height,
       width: width,
+      padding: const EdgeInsets.fromLTRB(8, 12, 12, 4),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+        boxShadow: memberDashboardCardShadows(),
+      ),
       child: _QualityLineChart(points: chronological),
     );
   }
@@ -256,7 +266,11 @@ class _SkillProgressMessageCard extends StatelessWidget {
         horizontal: compact ? 16 : 20,
         vertical: compact ? 18 : 24,
       ),
-      decoration: memberDashboardCardDecoration(backgroundColor: kDashCardBg),
+      decoration: BoxDecoration(
+        color: kSurfaceAlt,
+        borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
+        boxShadow: memberDashboardCardShadows(),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -305,21 +319,19 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? kAccent.withValues(alpha: 0.12) : kSurface,
+      color: selected ? kCyanDim : kSurface,
+      elevation: selected ? 0 : 0,
+      shadowColor: Colors.transparent,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: selected ? kAccent : kBorder),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           child: Text(
             label,
             style: dashText(TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: selected ? kAccent : kTextSecondary,
             )),
@@ -343,27 +355,39 @@ class _TrendBadge extends StatelessWidget {
       SkillProgressTrend.stable => (kAccent.withValues(alpha: 0.1), kAccent, Icons.trending_flat_rounded),
       SkillProgressTrend.insufficientData => (kBorder.withValues(alpha: 0.5), kTextSecondary, Icons.help_outline_rounded),
     };
+    final hint = switch (trend) {
+      SkillProgressTrend.improving => 'Your recent scores are moving up',
+      SkillProgressTrend.declining => 'Recent scores dipped a little',
+      SkillProgressTrend.stable => 'Scores are holding steady',
+      SkillProgressTrend.insufficientData => 'Add more eligible practice to see a trend',
+    };
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: fg.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: fg),
-          Text(
-            trend.label,
-            style: dashText(TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: fg)),
-          ),
-          Text(
-            '(±${SkillProgressTrendThresholds.improvingMinDelta.toStringAsFixed(0)} pts)',
-            style: dashText(TextStyle(fontSize: 10, color: fg.withValues(alpha: 0.85))),
+          Icon(icon, size: 20, color: fg),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trend.label,
+                  style: dashText(TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: fg)),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hint,
+                  style: dashText(TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.88), height: 1.3)),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -382,11 +406,10 @@ class _LatestCompareRow extends StatelessWidget {
     final prev = compare.previous;
     final delta = compare.deltaPoints;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
+        color: kCyanDim.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
       ),
       child: Row(
         children: [
@@ -394,10 +417,10 @@ class _LatestCompareRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Latest', style: memberDashboardMetaStyle.copyWith(fontSize: 10)),
+                Text('Most recent', style: memberDashboardMetaStyle.copyWith(fontSize: 11)),
                 Text(
                   '${latest.displayPercent}%',
-                  style: dashText(const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                  style: dashText(const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
                 ),
               ],
             ),
@@ -407,7 +430,7 @@ class _LatestCompareRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Previous', style: memberDashboardMetaStyle.copyWith(fontSize: 10)),
+                  Text('Before that', style: memberDashboardMetaStyle.copyWith(fontSize: 11)),
                   Text(
                     '${prev.displayPercent}%',
                     style: dashText(const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
@@ -415,16 +438,24 @@ class _LatestCompareRow extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              delta >= 0 ? '+${delta.round()} pts' : '${delta.round()} pts',
-              style: dashText(TextStyle(
-                fontWeight: FontWeight.w800,
-                color: delta >= SkillProgressTrendThresholds.improvingMinDelta
-                    ? kGreen
-                    : delta <= SkillProgressTrendThresholds.decliningMaxDelta
-                        ? kOrange
-                        : kAccent,
-              )),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: kSurface.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                delta >= 0 ? '+${delta.round()} pts' : '${delta.round()} pts',
+                style: dashText(TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: delta >= SkillProgressTrendThresholds.improvingMinDelta
+                      ? kGreen
+                      : delta <= SkillProgressTrendThresholds.decliningMaxDelta
+                          ? kOrange
+                          : kAccent,
+                )),
+              ),
             ),
           ],
         ],

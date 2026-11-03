@@ -6,16 +6,20 @@ import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/auth_wave_painter.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
 
-/// Upper hero: gradient, org seal, ACCESS VisionCheck, tagline. No background photo.
+/// Upper hero: org seal, ACCESS VisionCheck, tagline (gradient or image-backed).
 class MobileAuthHeader extends StatelessWidget {
   const MobileAuthHeader({
     super.key,
     this.compact = false,
     this.minimal = false,
+    this.imageBacked = false,
   });
 
   final bool compact;
   final bool minimal;
+
+  /// Sign-in uses [signin_background.png]; skip painted gradient and wave chrome.
+  final bool imageBacked;
 
   @override
   Widget build(BuildContext context) {
@@ -23,21 +27,22 @@ class MobileAuthHeader extends StatelessWidget {
       fit: StackFit.expand,
       clipBehavior: Clip.hardEdge,
       children: [
-        const DecoratedBox(decoration: BoxDecoration(gradient: MobileAuthConstants.headerGradient)),
-        const _MobileAuthHeroGlow(),
+        if (!imageBacked)
+          const DecoratedBox(decoration: BoxDecoration(gradient: MobileAuthConstants.headerGradient)),
+        if (!imageBacked) const _MobileAuthHeroGlow(),
         SafeArea(
           bottom: false,
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               18,
-              minimal ? 2 : (compact ? 2 : 10),
+              minimal ? 2 : (compact ? (imageBacked ? 10 : 2) : 10),
               18,
-              minimal ? 6 : (compact ? 46 : 52),
+              minimal ? 6 : (compact ? (imageBacked ? 24 : 46) : 52),
             ),
             child: minimal ? _minimalTitle() : (compact ? _signInBrandRow() : _registrationBrandColumn()),
           ),
         ),
-        if (minimal)
+        if (minimal && !imageBacked)
           const Positioned(
             left: 0,
             right: 0,
@@ -47,7 +52,7 @@ class MobileAuthHeader extends StatelessWidget {
               child: SizedBox(height: 12),
             ),
           )
-        else
+        else if (!minimal && !imageBacked)
           const Positioned(left: 0, right: 0, bottom: 0, child: AuthWaveDivider()),
       ],
     );

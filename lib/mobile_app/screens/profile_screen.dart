@@ -16,7 +16,7 @@ import 'package:access_mobile/mobile_app/widgets/member_profile_skeleton.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_achievements.dart';
 import 'package:access_mobile/mobile_app/widgets/member_skill_progress_section.dart';
 
-const _kSectionGap = 20.0;
+const _kSectionGap = 14.0;
 /// Thin strip between pinned profile hero and stats card (scroll area only).
 const _kProfileStatsCardTopGap = 6.0;
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,17 +180,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _PerformanceSummaryCard(compact: compact),
+                              MemberProfileSkillProgressSection(),
                               const SizedBox(height: _kSectionGap),
-                              MemberProfileSkillProgressSection(
+                              MemberProfileRankingsXpSection(
                                 onViewRankings: widget.onViewRankings,
                               ),
-                              const SizedBox(height: _kSectionGap),
-                              const MemberSkillProgressSection(),
                               const SizedBox(height: _kSectionGap),
                               MemberProfileEvaluationSummarySection(
                                 onViewEvaluations: widget.onViewEvaluations,
                               ),
+                              const SizedBox(height: _kSectionGap),
+                              const MemberSkillProgressSection(),
                               const SizedBox(height: _kSectionGap),
                               _ProfileAchievementsSection(
                                 onViewRankings: widget.onViewRankings,
@@ -664,292 +664,6 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Performance summary — 4 compact stats + XP progress
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PerformanceSummaryCard extends StatelessWidget {
-  const _PerformanceSummaryCard({required this.compact});
-
-  final bool compact;
-
-  static String _fmt(int v) {
-    final s = v.abs().toString();
-    if (s.length <= 3) return s;
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([appState, memberDataController]),
-      builder: (context, _) {
-        final snapshot = MemberCompetencySnapshot.fromAppState();
-        final summary = MemberEvaluationSummaryData.fromAppState();
-        final rank = appState.profileRank;
-        final xp = appState.profilePoints;
-
-        final stats = [
-          (
-            rank > 0 ? '#$rank' : '-',
-            appState.profileRankStatLabel,
-            Icons.leaderboard_outlined,
-          ),
-          (_fmt(xp), 'XP rank points', Icons.bolt_rounded),
-          ('${summary.completedCount}', 'Total evals', Icons.fact_check_outlined),
-          (
-            summary.averageScorePercent != null
-                ? '${summary.averageScorePercent}%'
-                : '-',
-            'Avg score',
-            Icons.insights_outlined,
-          ),
-        ];
-
-        return Container(
-          decoration: BoxDecoration(
-            gradient: kMemberBrandAccentGradient,
-            borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x3300C4E8),
-                blurRadius: 10,
-                spreadRadius: -2,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 4 stat tiles
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 14, 4, 12),
-                child: Row(
-                  children: [
-                    for (var i = 0; i < stats.length; i++) ...[
-                      if (i > 0)
-                        Container(
-                          width: 1,
-                          height: 36,
-                          color: Colors.white.withValues(alpha: 0.22),
-                        ),
-                      Expanded(
-                        child: _StatTile(
-                          value: stats[i].$1,
-                          label: stats[i].$2,
-                          icon: stats[i].$3,
-                          compact: compact,
-                          onBrandGradient: true,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (summary.skillEligibleFootnote.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                  child: Text(
-                    summary.skillEligibleFootnote,
-                    textAlign: TextAlign.center,
-                    style: dashText(TextStyle(
-                      color: Colors.white.withValues(alpha: 0.82),
-                      fontSize: 10,
-                      height: 1.35,
-                    )),
-                  ),
-                ),
-              // XP progress (only when not max level)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                child: snapshot.isMaxLevel
-                    ? const _MaxLevelBadge(onBrandGradient: true)
-                    : snapshot.progressUsesSkillScore
-                        ? _XpProgressRow(snapshot: snapshot, onBrandGradient: true)
-                        : Text(
-                            snapshot.progressSubtitle,
-                            textAlign: TextAlign.center,
-                            style: dashText(TextStyle(
-                              color: Colors.white.withValues(alpha: 0.78),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            )),
-                          ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.compact,
-    this.onBrandGradient = false,
-  });
-
-  final String value;
-  final String label;
-  final IconData icon;
-  final bool compact;
-  final bool onBrandGradient;
-
-  @override
-  Widget build(BuildContext context) {
-    final iconColor =
-        onBrandGradient ? Colors.white.withValues(alpha: 0.88) : kAccent.withValues(alpha: 0.7);
-    final valueColor = onBrandGradient ? Colors.white : kTextPrimary;
-    final labelColor =
-        onBrandGradient ? Colors.white.withValues(alpha: 0.78) : kTextSecondary;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: iconColor),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: dashText(TextStyle(
-            color: valueColor,
-            fontSize: compact ? 14 : 16,
-            fontWeight: FontWeight.w800,
-            height: 1,
-          )),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          style: dashText(TextStyle(
-            color: labelColor,
-            fontSize: compact ? 9 : 10,
-            fontWeight: FontWeight.w500,
-          )),
-        ),
-      ],
-    );
-  }
-}
-
-class _XpProgressRow extends StatelessWidget {
-  const _XpProgressRow({
-    required this.snapshot,
-    this.onBrandGradient = false,
-  });
-
-  final MemberCompetencySnapshot snapshot;
-  final bool onBrandGradient;
-
-  @override
-  Widget build(BuildContext context) {
-    final trackColor =
-        onBrandGradient ? Colors.white.withValues(alpha: 0.22) : kBorder;
-    final subtitleColor =
-        onBrandGradient ? Colors.white.withValues(alpha: 0.78) : kTextSecondary;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: snapshot.progress.clamp(0.0, 1.0)),
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeOutCubic,
-            builder: (_, v, __) => SizedBox(
-              height: 6,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ColoredBox(color: trackColor),
-                  FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: v,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: onBrandGradient
-                              ? [Colors.white, Colors.white.withValues(alpha: 0.85)]
-                              : [kCyan, kAccent],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          snapshot.progressSubtitle,
-          style: dashText(TextStyle(
-            color: subtitleColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          )),
-        ),
-      ],
-    );
-  }
-}
-
-class _MaxLevelBadge extends StatelessWidget {
-  const _MaxLevelBadge({this.onBrandGradient = false});
-
-  final bool onBrandGradient;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: onBrandGradient
-            ? Colors.white.withValues(alpha: 0.14)
-            : kAccent.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: onBrandGradient
-              ? Colors.white.withValues(alpha: 0.28)
-              : kAccent.withValues(alpha: 0.18),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.workspace_premium_rounded,
-            size: 15,
-            color: onBrandGradient ? Colors.white : kAccent,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            'Highest competency level reached',
-            style: dashText(TextStyle(
-              color: onBrandGradient ? Colors.white : kAccent,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            )),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Achievements — badge strip with View All, no duplicate detail list
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -977,7 +691,10 @@ class _ProfileAchievementsSectionState extends State<_ProfileAchievementsSection
       builder: (context, _) {
         final achievements = MemberAchievementsResolver.resolve(
           serverMilestones: memberDataController.memberMilestones,
-        );
+        ).where((a) {
+          final title = a.title.trim().toLowerCase();
+          return !title.startsWith('skill tier');
+        }).toList();
 
         if (achievements.isEmpty) {
           return Column(
@@ -988,9 +705,9 @@ class _ProfileAchievementsSectionState extends State<_ProfileAchievementsSection
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: kSurface,
+                  color: kSurfaceAlt,
                   borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-                  border: Border.all(color: kBorder),
+                  boxShadow: memberDashboardCardShadows(),
                 ),
                 child: Row(
                   children: [

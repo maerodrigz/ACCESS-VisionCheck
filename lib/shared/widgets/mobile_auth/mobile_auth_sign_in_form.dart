@@ -68,7 +68,7 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const MobileAuthSectionHeader(
-          title: 'Sign In',
+          title: 'Welcome Back',
           subtitle: 'Continue to your account.',
           compact: true,
         ),

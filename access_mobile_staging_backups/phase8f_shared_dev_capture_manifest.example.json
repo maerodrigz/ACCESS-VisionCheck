@@ -1,0 +1,17 @@
+{
+  "shared_development_mode": true,
+  "backup_dump_path": "../access_mobile_staging_backups/phase8a_postgres_shared_dev_20261103_215723.dump",
+  "baseline_json_path": "../access_mobile_staging_backups/phase8a_shared_dev_baseline_20261103_215626.json",
+  "expected_database_role": "postgres",
+  "min_backup_bytes": 1024,
+  "expected": {
+    "approved_member_count": 1,
+    "would_capture_count": 1,
+    "target_user_id": 77,
+    "target_ranking_id": 62,
+    "computed_tier_v1": "Intermediate",
+    "admin_override_count": 0,
+    "users_skill_level_id": 3,
+    "total_points": 208
+  }
+}

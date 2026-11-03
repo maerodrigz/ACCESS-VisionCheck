@@ -1,0 +1,43 @@
+{
+  "phase": "8A",
+  "generated_at_utc": "2026-11-03T22:26:27.107081+00:00",
+  "settings": {
+    "db_name": "postgres",
+    "db_host": "localhost",
+    "db_port": 5432,
+    "api_port": 3001,
+    "skill_progression_active_policy": "v1"
+  },
+  "live_identity": {
+    "current_database": "postgres",
+    "current_user": "postgres",
+    "inet_server_addr": "::1",
+    "inet_server_port": 5432
+  },
+  "counts": {
+    "approved_members": 1,
+    "grandfather_floor_rows": 1,
+    "admin_competency_overrides": 0,
+    "grandfather_column_count": 3
+  },
+  "member_77": {
+    "user_id": 77,
+    "email": "sl9360621@gmail.com",
+    "status": "approved",
+    "total_points": 208,
+    "rank_position": 1,
+    "users_skill_level_id": 3,
+    "legacy_stored_skill_label": "Intermediate",
+    "computed_tier_v1_policy": "Intermediate",
+    "effective_tier": "Intermediate",
+    "skill_score_pct": 69.53,
+    "eligible_evaluation_count": 3,
+    "distinct_eligible_upload_days": 2,
+    "grandfather_floor": "Intermediate",
+    "competency_level_override": null,
+    "milestone_count": 7
+  },
+  "approved_member_ids": [
+    77
+  ]
+}

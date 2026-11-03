@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.config import settings
 from app.crud import evaluation as eval_crud
 from app.models.media_constants import MEDIA_CATEGORY_EVALUATION
 from app.models.media_evaluation import MediaEvaluation
@@ -69,6 +72,20 @@ def _is_video_media(media: MediaFile) -> bool:
     return ft == "video" or ft.startswith("video/")
 
 
+def eligible_upload_calendar_date(uploaded_at: datetime | None) -> date | None:
+    """Calendar date for skill progression (EVALUATION_DAILY_TIMEZONE, usually Asia/Manila)."""
+    if uploaded_at is None:
+        return None
+    tz_name = (settings.evaluation_daily_timezone or "Asia/Manila").strip()
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = ZoneInfo("Asia/Manila")
+    if uploaded_at.tzinfo is None:
+        uploaded_at = uploaded_at.replace(tzinfo=timezone.utc)
+    return uploaded_at.astimezone(tz).date()
+
+
 @dataclass(frozen=True)
 class EligibleSkillEvaluationStats:
     count: int
@@ -77,6 +94,7 @@ class EligibleSkillEvaluationStats:
     video_count: int
     photo_average_score: float
     video_average_score: float
+    distinct_upload_days: int
 
 
 def eligible_skill_evaluation_stats(db: Session, user_id: int) -> EligibleSkillEvaluationStats:
@@ -95,6 +113,7 @@ def eligible_skill_evaluation_stats(db: Session, user_id: int) -> EligibleSkillE
     scores: list[float] = []
     photo_scores: list[float] = []
     video_scores: list[float] = []
+    upload_days: set[date] = set()
 
     for ev in rows:
         media = ev.media
@@ -110,6 +129,9 @@ def eligible_skill_evaluation_stats(db: Session, user_id: int) -> EligibleSkillE
             continue
         score = float(ev.overall_score)
         scores.append(score)
+        day = eligible_upload_calendar_date(media.uploaded_at)
+        if day is not None:
+            upload_days.add(day)
         if _is_video_media(media):
             video_scores.append(score)
         else:
@@ -127,4 +149,5 @@ def eligible_skill_evaluation_stats(db: Session, user_id: int) -> EligibleSkillE
         video_count=len(video_scores),
         photo_average_score=_avg(photo_scores),
         video_average_score=_avg(video_scores),
+        distinct_upload_days=len(upload_days),
     )

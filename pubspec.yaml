@@ -109,6 +109,8 @@ flutter:
     - assets/images/access_launcher_foreground.png
     - assets/images/access_login_hero.png
     - assets/images/auth_header.png
+    - assets/images/splash_background.png
+    - assets/images/signin_background.png
     - config/firebase.json
     - config/api.json
 

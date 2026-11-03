@@ -35,9 +35,22 @@ class MemberXpConfig {
       'XP Rank is your participation score on the leaderboard. Skill Tier is your quality-based '
       'classification. Media Integrity is a separate review path for AI and authenticity flags.';
 
-  static const skillLevelIntro =
-      'One overall Skill Tier from eligible practice quality (not XP). You need at least '
-      '3 eligible evaluations before Intermediate unlocks, 6 for Advanced, and 10 for Expert.';
+  static const skillLevelIntroV1 =
+      'Skill Tier uses eligible released practice quality and evaluation count. '
+      'Intermediate: 60%+ average with 3 eligible evaluations. Advanced: 75%+ with 6. '
+      'Expert: 90%+ with 10. Daily upload cap (3/day) is separate from tier progress.';
+
+  static const skillLevelIntroV2 =
+      'Skill Tier uses eligible released practice quality, evaluation count, and distinct '
+      'upload days (Manila calendar). Intermediate: 60%+, 3 evals, 2 days. Advanced: 75%+, '
+      '12 evals, 10 days. Expert: 90%+, 24 evals, 24 days. Daily upload cap (3/day) is separate.';
+
+  static String skillLevelIntroForPolicy(String policyVersion) {
+    if (policyVersion.trim().toLowerCase() == 'v2') {
+      return skillLevelIntroV2;
+    }
+    return skillLevelIntroV1;
+  }
 
   /// From `skill_level_from_score` in the backend.
   static const List<({String name, String range})> skillLevelTiers = [

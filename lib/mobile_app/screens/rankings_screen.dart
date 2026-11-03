@@ -1494,7 +1494,9 @@ class _HowXpWorksSection extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        MemberXpConfig.skillLevelIntro,
+                        MemberXpConfig.skillLevelIntroForPolicy(
+                          appState.profileSkillProgressionPolicyVersion,
+                        ),
                         style: memberDashboardBodyStyle.copyWith(fontSize: 12),
                       ),
                       const SizedBox(height: 8),

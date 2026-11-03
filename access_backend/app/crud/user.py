@@ -309,15 +309,23 @@ def recalculate_skill_level(db: Session, user: User) -> str:
     """
     from app.crud.rankings_admin import resolve_member_skill_level
     from app.services import member_milestones as milestone_service
+    from app.services.skill_progression import build_skill_progression_snapshot
 
     old_level = user.skill_level.level_name if user.skill_level else None
+    old_snap = build_skill_progression_snapshot(db, user.id)
     effective, _, _ = resolve_member_skill_level(db, user.id)
     skill_id = _skill_level_id_for_name(db, effective)
     if skill_id:
         user.skill_level_id = skill_id
     db.flush()
+    new_snap = build_skill_progression_snapshot(db, user.id)
     milestone_service.on_skill_level_recalculated(
-        db, user.id, old_level=old_level, new_level=effective
+        db,
+        user.id,
+        old_level=old_level,
+        new_level=effective,
+        old_computed_tier=old_snap.computed_tier_active,
+        new_computed_tier=new_snap.computed_tier_active,
     )
     db.commit()
     return effective

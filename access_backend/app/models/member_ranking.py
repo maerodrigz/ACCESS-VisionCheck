@@ -19,6 +19,11 @@ class MemberRanking(Base):
     rank_position: Mapped[int | None] = mapped_column(Integer, index=True)
     admin_remarks: Mapped[str | None] = mapped_column(Text)
     competency_level_override: Mapped[str | None] = mapped_column(Text)
+    skill_tier_grandfather_floor: Mapped[str | None] = mapped_column(Text)
+    skill_tier_grandfather_captured_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    skill_tier_grandfather_from_policy: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

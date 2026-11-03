@@ -144,6 +144,13 @@ class Settings(BaseSettings):
     # IANA timezone for practice evaluation daily upload cap (midnight boundary).
     evaluation_daily_timezone: str = Field(default="Asia/Manila", alias="EVALUATION_DAILY_TIMEZONE")
 
+    # Skill tier progression: v1 (legacy count gates) or v2 (balanced count + distinct upload days).
+    # Default v1 until grandfather snapshots are captured and ops sets SKILL_PROGRESSION_ACTIVE_POLICY=v2.
+    skill_progression_active_policy: str = Field(
+        default="v1",
+        alias="SKILL_PROGRESSION_ACTIVE_POLICY",
+    )
+
     # Outbound email (SMTP) — registration approve/reject and related alerts
     email_enabled: bool = Field(default=False, alias="EMAIL_ENABLED")
     smtp_host: str = Field(default="", alias="SMTP_HOST")

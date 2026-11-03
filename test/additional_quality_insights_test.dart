@@ -178,6 +178,8 @@ void main() {
       );
 
       expect(find.text('Additional Quality Insights'), findsOneWidget);
+      await tester.tap(find.text('Additional Quality Insights'));
+      await tester.pumpAndSettle();
       expect(find.text('Color Balance'), findsOneWidget);
       expect(find.text('Composition / Framing'), findsOneWidget);
       expect(find.textContaining('%'), findsNothing);

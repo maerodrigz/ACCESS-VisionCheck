@@ -36,7 +36,7 @@ void main() {
       expect(result.qualityProvisionalEffective, isFalse);
     });
 
-    test('rejects deferred preview payload', () {
+    test('deferred preview payload parses with deferred authenticity flag', () {
       const criteria = '''
       {
         "criteria": [],
@@ -44,7 +44,10 @@ void main() {
         "ai_detection": {"analysis_status": "deferred", "is_final": false, "detail": "pending"}
       }
       ''';
-      expect(photoEvaluationResultFromApiRow({'criteria_json': criteria}), isNull);
+      final result = photoEvaluationResultFromApiRow({'criteria_json': criteria});
+      expect(result, isNotNull);
+      expect(result!.aiDetection.isDeferredAuthenticity, isTrue);
+      expect(result.aiDetection.isFinal, isFalse);
     });
 
     test('final suspicious copy inputs', () {

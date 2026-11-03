@@ -721,7 +721,7 @@ class AppState extends ChangeNotifier {
   bool evaluationsTodayQuotaConfirmed = false;
 
   /// Daily cap for practice evaluations (from system settings via API).
-  int dailyEvaluationLimit = 5;
+  int dailyEvaluationLimit = 3;
 
   /// Max file size for practice evaluation videos (from GET /member/participation).
   int evaluationMaxUploadMb = 350;
@@ -836,6 +836,16 @@ class AppState extends ChangeNotifier {
   int profileEvaluationsCount = 0;
   /// Released practice evaluations that count toward skill tier (from participation or rankings).
   int profileSkillEligibleEvaluationsCount = 0;
+  int profileSkillDistinctUploadDays = 0;
+  String profileSkillProgressionPolicyVersion = 'v1';
+  /// True after participation API synced skill progression fields (avoids client-invented day gates).
+  bool profileSkillProgressionSynced = false;
+  String? profileSkillComputedTierV2Preview;
+  int? profileSkillNextTierRequiredEvaluations;
+  int? profileSkillNextTierRequiredDays;
+  int profileSkillRemainingEligibleEvaluations = 0;
+  int profileSkillRemainingDistinctUploadDays = 0;
+  int profileSkillRemainingQualityPoints = 0;
   String? profileAdminRemarks;
 
   /// Clears cached member profile (e.g. on logout) so the next user never sees stale data.
@@ -859,10 +869,19 @@ class AppState extends ChangeNotifier {
     profileAverageScore = 0;
     profileEvaluationsCount = 0;
     profileSkillEligibleEvaluationsCount = 0;
+    profileSkillDistinctUploadDays = 0;
+    profileSkillProgressionPolicyVersion = 'v1';
+    profileSkillProgressionSynced = false;
+    profileSkillComputedTierV2Preview = null;
+    profileSkillNextTierRequiredEvaluations = null;
+    profileSkillNextTierRequiredDays = null;
+    profileSkillRemainingEligibleEvaluations = 0;
+    profileSkillRemainingDistinctUploadDays = 0;
+    profileSkillRemainingQualityPoints = 0;
     profileAdminRemarks = null;
     evaluationsTodayCount = 0;
     evaluationsTodayQuotaConfirmed = false;
-    dailyEvaluationLimit = 5;
+    dailyEvaluationLimit = 3;
     evaluationMaxUploadMb = 350;
     evaluationMaxVideoSeconds = 30;
     evaluationDailyTimezone = 'Asia/Manila';
@@ -918,6 +937,16 @@ class AppState extends ChangeNotifier {
     int? evaluationMaxUploadMb,
     int? evaluationMaxVideoSeconds,
     String? evaluationDailyTimezone,
+    int? skillDistinctUploadDays,
+    double? skillQualityAverage,
+    String? skillEffectiveTier,
+    String? skillComputedTierV2Preview,
+    int? skillNextTierRequiredEvaluations,
+    int? skillNextTierRequiredDays,
+    String? skillProgressionPolicyVersion,
+    int? skillRemainingEligibleEvaluations,
+    int? skillRemainingDistinctUploadDays,
+    int? skillRemainingQualityPoints,
   }) {
     if (assignmentsCompleted != null) {
       profileAssignmentsCompleted = assignmentsCompleted;
@@ -940,6 +969,45 @@ class AppState extends ChangeNotifier {
     }
     if (evaluationDailyTimezone != null && evaluationDailyTimezone.trim().isNotEmpty) {
       this.evaluationDailyTimezone = evaluationDailyTimezone.trim();
+    }
+    if (skillDistinctUploadDays != null) {
+      profileSkillDistinctUploadDays = skillDistinctUploadDays;
+    }
+    if (skillQualityAverage != null && skillQualityAverage > 0) {
+      profileSkillScore = skillQualityAverage;
+    }
+    if (skillEffectiveTier != null && skillEffectiveTier.trim().isNotEmpty) {
+      profileSkillLevel = skillEffectiveTier.trim();
+      profileYear = 'Skill: ${skillEffectiveTier.trim()}';
+    }
+    if (skillComputedTierV2Preview != null) {
+      profileSkillComputedTierV2Preview = skillComputedTierV2Preview.trim().isEmpty
+          ? null
+          : skillComputedTierV2Preview.trim();
+    }
+    profileSkillNextTierRequiredEvaluations = skillNextTierRequiredEvaluations;
+    profileSkillNextTierRequiredDays = skillNextTierRequiredDays;
+    if (skillProgressionPolicyVersion != null &&
+        skillProgressionPolicyVersion.trim().isNotEmpty) {
+      profileSkillProgressionPolicyVersion = skillProgressionPolicyVersion.trim();
+    }
+    if (skillRemainingEligibleEvaluations != null) {
+      profileSkillRemainingEligibleEvaluations = skillRemainingEligibleEvaluations;
+    }
+    if (skillRemainingDistinctUploadDays != null) {
+      profileSkillRemainingDistinctUploadDays = skillRemainingDistinctUploadDays;
+    }
+    if (skillRemainingQualityPoints != null) {
+      profileSkillRemainingQualityPoints = skillRemainingQualityPoints;
+    }
+    if (skillProgressionPolicyVersion != null ||
+        skillEffectiveTier != null ||
+        skillNextTierRequiredEvaluations != null ||
+        skillNextTierRequiredDays != null ||
+        skillRemainingEligibleEvaluations != null ||
+        skillRemainingDistinctUploadDays != null ||
+        skillRemainingQualityPoints != null) {
+      profileSkillProgressionSynced = true;
     }
     notifyListeners();
   }

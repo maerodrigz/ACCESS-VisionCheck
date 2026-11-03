@@ -42,6 +42,7 @@ def _mock_media_row(**overrides):
         "evaluations": [],
         "ai_detection_results": [],
         "storage_removed_at": None,
+        "media_category": "member_evaluation",
     }
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -165,7 +166,7 @@ class UploadRouteOrderTest(unittest.IsolatedAsyncioTestCase):
                             media_routes, "_member_evaluations_today", return_value=0
                         ) as count_today:
                             with patch.object(
-                                media_routes, "evaluation_rules", return_value={"max_files_per_day": 5}
+                                media_routes, "evaluation_rules", return_value={"max_files_per_day": 3}
                             ):
                                 with patch(
                                     "app.services.supabase_storage.is_supabase_storage_configured",
@@ -202,16 +203,20 @@ class UploadRouteOrderTest(unittest.IsolatedAsyncioTestCase):
                                                             media_routes,
                                                             "stash_evaluation_upload",
                                                         ) as stash:
-                                                            await media_routes.upload_media(
-                                                                background_tasks=bg,
-                                                                file=upload,
-                                                                request_id=request_id,
-                                                                file_name=file_name,
-                                                                evaluation_metadata=None,
-                                                                cloud_file_url=None,
-                                                                db=db,
-                                                                current_user=user,
-                                                            )
+                                                            with patch(
+                                                                "app.crud.submission_chain.ensure_submission_chain_for_evaluation"
+                                                            ):
+                                                                await media_routes.upload_media(
+                                                                    background_tasks=bg,
+                                                                    file=upload,
+                                                                    request_id=request_id,
+                                                                    file_name=file_name or "Practice title",
+                                                                    evaluation_metadata=None,
+                                                                    cloud_file_url=None,
+                                                                    replaces_media_id=None,
+                                                                    db=db,
+                                                                    current_user=user,
+                                                                )
                                                             return assert_dup, count_today, stash, bg
 
     async def test_duplicate_rejected_before_daily_limit(self) -> None:
@@ -244,6 +249,7 @@ class UploadRouteOrderTest(unittest.IsolatedAsyncioTestCase):
                                     file_name="other-name.jpg",
                                     evaluation_metadata=None,
                                     cloud_file_url=None,
+                                    replaces_media_id=None,
                                     db=db,
                                     current_user=user,
                                 )
@@ -279,9 +285,10 @@ class UploadRouteOrderTest(unittest.IsolatedAsyncioTestCase):
                                         background_tasks=MagicMock(),
                                         file=upload,
                                         request_id=None,
-                                        file_name=None,
+                                        file_name="Practice title",
                                         evaluation_metadata=None,
                                         cloud_file_url=None,
+                                        replaces_media_id=None,
                                         db=MagicMock(),
                                         current_user=SimpleNamespace(id=1),
                                     )
@@ -293,7 +300,7 @@ class UploadRouteOrderTest(unittest.IsolatedAsyncioTestCase):
         assert_dup.assert_called_once()
         hash_arg = assert_dup.call_args.kwargs["file_hash"]
         self.assertEqual(hash_arg, sha256_hex(OTHER_BYTES))
-        count_today.assert_called_once()
+        self.assertGreaterEqual(count_today.call_count, 1)
         stash.assert_called_once()
         bg.add_task.assert_called_once()
 
@@ -348,6 +355,7 @@ class UploadRouteOrderTest(unittest.IsolatedAsyncioTestCase):
                                                     file_name=None,
                                                     evaluation_metadata=None,
                                                     cloud_file_url=None,
+                                                    replaces_media_id=None,
                                                     db=db,
                                                     current_user=user,
                                                 )
@@ -374,7 +382,7 @@ class UploadRouteOrderTest(unittest.IsolatedAsyncioTestCase):
                             media_routes, "_member_evaluations_today", return_value=0
                         ):
                             with patch.object(
-                                media_routes, "evaluation_rules", return_value={"max_files_per_day": 5}
+                                media_routes, "evaluation_rules", return_value={"max_files_per_day": 3}
                             ):
                                 with patch(
                                     "app.services.supabase_storage.is_supabase_storage_configured",
@@ -406,9 +414,10 @@ class UploadRouteOrderTest(unittest.IsolatedAsyncioTestCase):
                                                             background_tasks=MagicMock(),
                                                             file=upload,
                                                             request_id=None,
-                                                            file_name=None,
+                                                            file_name="Practice title",
                                                             evaluation_metadata=None,
                                                             cloud_file_url=None,
+                                                            replaces_media_id=None,
                                                             db=MagicMock(),
                                                             current_user=user,
                                                         )

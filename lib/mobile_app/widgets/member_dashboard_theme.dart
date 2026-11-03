@@ -742,6 +742,7 @@ class MemberDashboardPrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.color = kMemberButtonPrimary,
+    this.minHeight,
   });
 
   final String label;
@@ -749,8 +750,12 @@ class MemberDashboardPrimaryButton extends StatelessWidget {
   final IconData? icon;
   final Color color;
 
+  /// When set (e.g. 46 on Profile), keeps tap target while reducing visual bulk.
+  final double? minHeight;
+
   @override
   Widget build(BuildContext context) {
+    final height = minHeight ?? kMobileMinTouch;
     return SizedBox(
       width: double.infinity,
       child: FilledButton.icon(
@@ -761,7 +766,8 @@ class MemberDashboardPrimaryButton extends StatelessWidget {
           backgroundColor: color,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size.fromHeight(kMobileMinTouch),
+          minimumSize: Size.fromHeight(height),
+          padding: EdgeInsets.symmetric(vertical: height <= 48 ? 10 : 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
           ),

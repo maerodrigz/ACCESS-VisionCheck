@@ -106,31 +106,19 @@ def resolve_member_skill_level(
     effective_level is persisted on the user and shown in rankings/profile.
     When an admin override is set, it wins until cleared.
     """
-    from app.models.member_ranking import MemberRanking
+    from app.services.skill_progression import build_skill_progression_snapshot
 
-    if skill_payload is None:
-        skill_payload = _skill_payload_for_user(db, user_id)
-    if evaluation_count is None:
-        evaluation_count = eligible_skill_evaluation_stats(db, user_id).count
-
-    override = level_override
-    if override is _OVERRIDE_UNSET:
-        row = db.scalar(select(MemberRanking).where(MemberRanking.user_id == user_id))
-        override = row.competency_level_override if row else None
-
-    computed = effective_skill_level(skill_payload["skill_score"], evaluation_count)
-    recommended = competency_level_from_skill_score(skill_payload["skill_score"])
-
-    if override and str(override).strip():
-        raw = str(override).strip()
-        try:
-            effective = _normalize_competency_level(raw)
-        except ValueError:
-            effective = computed
-    else:
-        effective = computed
-
-    return effective, recommended, computed
+    score_override = None
+    if skill_payload is not None:
+        score_override = float(skill_payload.get("skill_score") or 0)
+    snap = build_skill_progression_snapshot(
+        db,
+        user_id,
+        skill_score_pct=score_override,
+        eligible_count=evaluation_count,
+        level_override=level_override,
+    )
+    return snap.effective_tier, snap.competency_recommended, snap.computed_tier_active
 
 
 def _skill_payload_for_user(db: Session, user_id: int) -> dict:
@@ -154,6 +142,7 @@ def _skill_payload_for_user(db: Session, user_id: int) -> dict:
         total_checked_uploads=total_checked,
     )
     payload["skill_eligible_evaluation_count"] = eligible.count
+    payload["skill_eligible_distinct_upload_days"] = eligible.distinct_upload_days
     payload["skill_eligible_photo_count"] = eligible.photo_count
     payload["skill_eligible_video_count"] = eligible.video_count
     payload["skill_eligible_photo_average"] = round(

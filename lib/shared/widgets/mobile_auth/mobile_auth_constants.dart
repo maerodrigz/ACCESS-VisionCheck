@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:access_mobile/shared/constants/app_constants.dart';
 
 /// Mobile sign-in / sign-up chrome (cyan header + white form).
 abstract final class MobileAuthConstants {
-  static const tagline = 'Beyond Documentation Towards Excellence.';
+  static const tagline = AppConstants.tagline;
+
+  static const splashBackgroundAsset = 'assets/images/splash_background.png';
+  static const signInBackgroundAsset = 'assets/images/signin_background.png';
   /// Registration / sign-up (scrollable body).
   static const headerHeightFactor = 0.30;
 

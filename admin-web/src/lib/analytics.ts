@@ -143,7 +143,7 @@ export function participationRows(rankings: Record<string, unknown>[]) {
     uploads: Number(r.uploads ?? r.total_uploads ?? r.media_uploads ?? r.upload_count ?? 0),
     participation: Number(r.points ?? r.total_points ?? r.good_evaluations ?? r.participation_score ?? 0),
     quality: qualityPercentFromRanking(r),
-    status: String(r.skill_level ?? r.status ?? '—'),
+    status: String(r.skill_effective_tier ?? r.skill_level ?? r.status ?? '—'),
   }))
 }
 

@@ -8,10 +8,10 @@ void main() {
       expect(ApiConfig.isSameIpv4Subnet24('192.168.8.97', '192.168.1.97'), isFalse);
     });
 
-    test('suggestedPhoneBackendUrl prefers current home Wi-Fi host', () {
+    test('suggestedPhoneBackendUrl uses first known LAN host and dev port', () {
       expect(
         ApiConfig.suggestedPhoneBackendUrl,
-        'http://192.168.8.97:3001',
+        'http://${ApiConfig.knownLanHosts.first}:${ApiConfig.defaultPort}',
       );
     });
   });

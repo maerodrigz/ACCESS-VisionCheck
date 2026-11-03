@@ -13,11 +13,50 @@ _KIND_FIRST_EVAL = "first_evaluation"
 _KIND_EVAL_GATE = "eval_gate"
 _KIND_PHOTO_TITLE = "photographer_title"
 
-_EVAL_GATES: tuple[tuple[int, str, str], ...] = (
+_EVAL_GATES_V1: tuple[tuple[int, str, str], ...] = (
     (3, "Intermediate", "3 evaluated submissions unlock Intermediate tier eligibility."),
     (6, "Advanced", "6 evaluated submissions unlock Advanced tier eligibility."),
     (10, "Expert", "10 evaluated submissions unlock Expert tier eligibility."),
 )
+
+_EVAL_GATES_V2: tuple[tuple[int, str, str], ...] = (
+    (
+        3,
+        "Intermediate",
+        "3 skill-eligible released evaluations toward Intermediate "
+        "(balanced progression also requires 60%+ quality and 2 distinct upload days).",
+    ),
+    (
+        12,
+        "Advanced",
+        "12 skill-eligible released evaluations toward Advanced "
+        "(balanced progression also requires 75%+ quality and 10 distinct upload days).",
+    ),
+    (
+        24,
+        "Expert",
+        "24 skill-eligible released evaluations toward Expert "
+        "(balanced progression also requires 90%+ quality and 24 distinct upload days).",
+    ),
+)
+
+
+def _eval_gates_for_active_policy() -> tuple[tuple[int, str, str], ...]:
+    from app.services.skill_progression import active_skill_progression_policy
+    from app.services.skill_progression_policy import POLICY_V2
+
+    if active_skill_progression_policy() == POLICY_V2:
+        return _EVAL_GATES_V2
+    return _EVAL_GATES_V1
+
+
+def _eval_gate_milestone_key(gate_count: int) -> str:
+    from app.services.skill_progression import active_skill_progression_policy
+    from app.services.skill_progression_policy import POLICY_V2
+
+    if active_skill_progression_policy() == POLICY_V2:
+        return f"v2:{gate_count}"
+    return str(gate_count)
 
 
 def _photographer_title(avg_score: float, eval_count: int) -> str | None:
@@ -77,21 +116,24 @@ def on_skill_level_recalculated(
     *,
     old_level: str | None,
     new_level: str,
+    old_computed_tier: str | None = None,
+    new_computed_tier: str | None = None,
 ) -> None:
-    if not new_level or not new_level.strip():
+    """Notify on computed tier promotion (ignores admin override-only effective label changes)."""
+    new_computed = (new_computed_tier or new_level or "").strip()
+    old_computed = (old_computed_tier or old_level or "").strip()
+    if not new_computed:
         return
-    new_clean = new_level.strip()
-    old_clean = (old_level or "").strip()
-    if old_clean.lower() == new_clean.lower():
+    if old_computed.lower() == new_computed.lower():
         return
     _award(
         db,
         user_id,
         milestone_kind=_KIND_SKILL_TIER,
-        milestone_key=new_clean,
-        title=f"Skill tier: {new_clean}",
+        milestone_key=new_computed,
+        title=f"Skill tier: {new_computed}",
         message=(
-            f"Congratulations. Your official ACCESS skill label is now {new_clean}. "
+            f"Congratulations. Your official ACCESS skill label is now {new_computed}. "
             "Keep building quality scores and a clean integrity record."
         ),
     )
@@ -114,14 +156,14 @@ def on_evaluation_completed(db: Session, user_id: int, *, evaluation_count: int)
             ),
         )
 
-    for gate_count, tier_name, gate_msg in _EVAL_GATES:
+    for gate_count, tier_name, gate_msg in _eval_gates_for_active_policy():
         if evaluation_count != gate_count:
             continue
         _award(
             db,
             user_id,
             milestone_kind=_KIND_EVAL_GATE,
-            milestone_key=str(gate_count),
+            milestone_key=_eval_gate_milestone_key(gate_count),
             title=f"{gate_count} evaluations milestone",
             message=gate_msg,
         )

@@ -10,6 +10,7 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_sign_in_form.dart';
 import 'package:access_mobile/shared/widgets/forgot_password_dialog.dart';
@@ -212,6 +213,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     return MobileAuthScaffold(
       scrollable: false,
       fixedViewport: true,
+      backgroundAsset: MobileAuthConstants.signInBackgroundAsset,
       body: MobileAuthSignInForm(
         key: const ValueKey('mobile_sign_in_form'),
         emailController: _emailCtrl,

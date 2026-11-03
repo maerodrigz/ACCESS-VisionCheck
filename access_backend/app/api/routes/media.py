@@ -78,6 +78,35 @@ def _member_evaluations_today(db: Session, user_id: int) -> int:
     return media_crud.count_member_evaluations_today(db, user_id)
 
 
+def _raise_daily_evaluation_limit(daily_limit: int) -> None:
+    raise HTTPException(
+        status_code=429,
+        detail=f"Daily evaluation limit reached ({daily_limit} uploads per day).",
+    )
+
+
+def _enforce_evaluation_daily_quota_after_insert(
+    db: Session,
+    *,
+    user_id: int,
+    daily_limit: int,
+    row: MediaFile,
+    stored_url: str | None,
+) -> None:
+    """Close race where concurrent uploads pass the pre-insert count check."""
+    if _member_evaluations_today(db, user_id) <= daily_limit:
+        return
+    media_crud.discard_stored_upload_blob(stored_url)
+    try:
+        media_crud.delete_media(db, row)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Failed to roll back media_id=%s after daily quota race", row.id
+        )
+    db.flush()
+    _raise_daily_evaluation_limit(daily_limit)
+
+
 def _validate_upload_file(db: Session, ext: str, content: bytes, media_category: str) -> None:
     if not is_allowed_extension(db, ext, media_category):
         rules = rules_for_category(db, media_category)
@@ -388,10 +417,7 @@ async def upload_media(
         daily_limit = int(eval_rules["max_files_per_day"])
         skip_daily_for_replacement = replaces_media_id is not None and settings.replacement_upload_enabled
         if not skip_daily_for_replacement and _member_evaluations_today(db, current_user.id) >= daily_limit:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Daily evaluation limit reached ({daily_limit} uploads per day).",
-            )
+            _raise_daily_evaluation_limit(daily_limit)
 
     from app.services.supabase_storage import is_supabase_storage_configured, upload_media_bytes as supabase_upload
     from app.services.firebase_storage import is_firebase_storage_configured, upload_media_bytes
@@ -452,6 +478,18 @@ async def upload_media(
     except EvaluationDuplicateUploadError:
         media_crud.discard_stored_upload_blob(stored_url)
         _raise_evaluation_duplicate()
+
+    if (
+        media_category == MEDIA_CATEGORY_EVALUATION
+        and not skip_daily_for_replacement
+    ):
+        _enforce_evaluation_daily_quota_after_insert(
+            db,
+            user_id=current_user.id,
+            daily_limit=daily_limit,
+            row=row,
+            stored_url=stored_url,
+        )
 
     if media_category == MEDIA_CATEGORY_EVALUATION and replaces_media_id is None:
         from app.crud.submission_chain import ensure_submission_chain_for_evaluation

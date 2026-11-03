@@ -73,7 +73,9 @@ void showMemberSkillLevelGuideSheet(BuildContext context) {
                     _SectionTitle('Skill level (Beginner → Expert)'),
                     const SizedBox(height: 8),
                     Text(
-                      MemberXpConfig.skillLevelIntro,
+                      MemberXpConfig.skillLevelIntroForPolicy(
+                        appState.profileSkillProgressionPolicyVersion,
+                      ),
                       style: memberDashboardBodyStyle.copyWith(fontSize: 13),
                     ),
                     const SizedBox(height: 14),

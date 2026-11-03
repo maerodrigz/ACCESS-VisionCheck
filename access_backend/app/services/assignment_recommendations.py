@@ -100,8 +100,10 @@ def _member_performance_score(db: Session, user: User) -> tuple[float, str]:
         human_verified_uploads=human,
         total_checked_uploads=total_checked,
     )
-    skill_level = payload.get("skill_level") or (user.skill_level.level_name if user.skill_level else "Beginner")
-    return float(payload.get("skill_score") or 0), str(skill_level)
+    from app.crud.rankings_admin import resolve_member_skill_level
+
+    effective, _, _ = resolve_member_skill_level(db, user.id, skill_payload=payload)
+    return float(payload.get("skill_score") or 0), str(effective)
 
 
 def recommend_members_for_request(

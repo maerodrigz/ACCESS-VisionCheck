@@ -32,8 +32,12 @@ router = APIRouter(prefix="/member", tags=["Member"])
 
 
 def _profile_out(db: Session, user: User) -> ProfileOut:
+    from app.services.skill_progression import build_skill_progression_snapshot
+
     ranking = ranking_crud.get_or_create(db, user.id)
-    skill = user.skill_level.level_name if user.skill_level else None
+    stored = user.skill_level.level_name if user.skill_level else None
+    progression = build_skill_progression_snapshot(db, user.id)
+    effective = progression.effective_tier
     return ProfileOut(
         id=user.id,
         name=user.fullname,
@@ -44,7 +48,9 @@ def _profile_out(db: Session, user: User) -> ProfileOut:
         contact_number=user.contact_number,
         adviser_name=user.adviser_name,
         profile_image=display_profile_image(user.profile_image),
-        skill_level=skill,
+        skill_level=effective,
+        skill_effective_tier=effective,
+        skill_tier_stored_legacy=stored,
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,
         uploads_count=profile_crud.uploads_count(db, user.id),
@@ -187,7 +193,14 @@ def participation(db: Session = Depends(get_db), current_user: User = Depends(re
     from app.services.skill_evaluation_eligibility import eligible_skill_evaluation_stats
 
     eligible = eligible_skill_evaluation_stats(db, current_user.id)
+    from app.services.skill_progression import build_skill_progression_snapshot
+
+    progression = build_skill_progression_snapshot(db, current_user.id)
+    stored_legacy = (
+        current_user.skill_level.level_name if current_user.skill_level else None
+    )
     eval_rules = evaluation_rules(db)
+    quality_avg = round(progression.skill_score_pct, 2)
     return ParticipationOut(
         assignments_total=profile_crud.assignments_total(db, current_user.id),
         assignments_completed=profile_crud.assignments_completed(db, current_user.id),
@@ -201,6 +214,25 @@ def participation(db: Session = Depends(get_db), current_user: User = Depends(re
         average_score=round(avg, 3),
         skill_eligible_evaluations_count=eligible.count,
         skill_eligible_average_score=round(eligible.average_score, 3),
+        skill_eligible_distinct_upload_days=progression.distinct_eligible_upload_days,
+        skill_quality_average=quality_avg,
+        skill_computed_tier=progression.computed_tier_active,
+        skill_effective_tier=progression.effective_tier,
+        skill_computed_tier_v2_preview=progression.computed_tier_v2,
+        skill_computed_tier_v1=progression.computed_tier_v1,
+        skill_computed_tier_v2_strict=progression.computed_tier_v2_raw,
+        skill_computed_tier_v2_grandfather_adjusted=progression.computed_tier_v2,
+        skill_tier_grandfather_floor=progression.grandfather_floor,
+        skill_tier_stored_legacy=stored_legacy,
+        skill_admin_competency_override=progression.admin_override,
+        skill_next_tier_required_evaluations=progression.next_tier_required_evaluations,
+        skill_next_tier_required_days=progression.next_tier_required_days,
+        skill_remaining_eligible_evaluations=progression.remaining_eligible_evaluations,
+        skill_remaining_distinct_upload_days=progression.remaining_distinct_upload_days,
+        skill_remaining_quality_points=progression.remaining_score_points,
+        skill_progression_policy_version=progression.policy_version,
+        skill_progression_policy_configured=progression.configured_policy_version,
+        skill_progression_v2_blocked_reason=progression.v2_activation_blocked_reason,
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,
     )

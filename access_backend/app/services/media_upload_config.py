@@ -101,7 +101,7 @@ def evaluation_rules(db: Session) -> dict:
         "workflow": MEDIA_CATEGORY_EVALUATION,
         "max_upload_mb": max_mb,
         "max_video_seconds": default_evaluation_max_video_seconds(),
-        "max_files_per_day": int(cfg.get("max_evaluation_uploads_per_day") or 5),
+        "max_files_per_day": int(cfg.get("max_evaluation_uploads_per_day") or 3),
         "allowed_image_formats": extensions_to_list(
             cfg.get("evaluation_allowed_image_formats"), DEFAULT_IMAGE_EXTENSIONS
         ),
@@ -208,7 +208,7 @@ def admin_media_payload(db: Session, *, storage_usage_percent: float | None = No
             "event_max_upload_mb": default_event_max_upload_mb(),
             "evaluation_max_upload_mb": default_evaluation_max_upload_mb(),
             "evaluation_max_video_seconds": default_evaluation_max_video_seconds(),
-            "max_evaluation_uploads_per_day": 5,
+            "max_evaluation_uploads_per_day": 3,
             "allowed_image_formats": list(DEFAULT_IMAGE_EXTENSIONS),
             "allowed_video_formats": list(DEFAULT_VIDEO_EXTENSIONS),
         },

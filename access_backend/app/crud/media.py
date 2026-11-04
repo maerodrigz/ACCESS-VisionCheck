@@ -10,8 +10,6 @@ from app.services.evaluation_daily import evaluation_calendar_date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.config import settings
-
 from app.models.documentation_request import DocumentationRequest
 from app.models.media_constants import (
     APPROVAL_APPROVED,
@@ -315,24 +313,11 @@ def delete_orphan_practice_evaluations(db: Session) -> tuple[int, int]:
 
 
 def _delete_media_file_from_disk(file_url: str | None) -> None:
-    if not file_url or not file_url.strip():
-        return
-    from app.services.firebase_storage import delete_firebase_url
-    from app.services.supabase_storage import delete_supabase_url
+    from app.services.storage_deletion import StorageDeleteOutcome, delete_storage_for_file_url
 
-    if delete_supabase_url(file_url):
-        return
-    if delete_firebase_url(file_url):
-        return
-    url = file_url.strip()
-    if url.startswith("http://") or url.startswith("https://"):
-        return
-    rel = url.lstrip("/")
-    if rel.startswith("uploads/"):
-        rel = rel[len("uploads/") :]
-    local = Path(settings.upload_dir) / rel
-    if local.is_file():
-        local.unlink(missing_ok=True)
+    result = delete_storage_for_file_url(file_url)
+    if result.outcome == StorageDeleteOutcome.FAILED:
+        raise RuntimeError(result.error or "Storage delete failed")
 
 
 # Placeholder when the member frees cloud storage but keeps the evaluation row.
@@ -359,9 +344,8 @@ def remove_practice_storage_only(db: Session, media: MediaFile) -> MediaFile:
     return media
 
 
-def delete_media(db: Session, media: MediaFile) -> None:
-    if media.file_url and media.file_url != REMOVED_STORAGE_FILE_URL:
-        _delete_media_file_from_disk(media.file_url)
+def delete_media_row_only(db: Session, media: MediaFile) -> None:
+    """Delete DB row only (evaluations/AI cascade). Caller must have removed storage already."""
     try:
         db.delete(media)
         db.commit()
@@ -371,6 +355,12 @@ def delete_media(db: Session, media: MediaFile) -> None:
             "This file is linked to other records and could not be deleted. "
             "Try archiving it instead, or remove related evaluations first."
         ) from exc
+
+
+def delete_media(db: Session, media: MediaFile) -> None:
+    if media.file_url and media.file_url != REMOVED_STORAGE_FILE_URL:
+        _delete_media_file_from_disk(media.file_url)
+    delete_media_row_only(db, media)
 
 
 def create(db: Session, data: dict) -> MediaFile:

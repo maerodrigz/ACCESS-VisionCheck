@@ -9,6 +9,7 @@ import {
   fetchRankings,
   fetchTasks,
   fetchUsers,
+  deactivateUserAccount,
   setUserStatus,
 } from '../api/admin'
 import { PageLoader } from '../components/PageLoader'
@@ -134,14 +135,8 @@ export function DocumentationTeamPage() {
     [all, pendingMembers],
   )
 
-  async function handleDeactivate(member: TeamMemberProfile, deleteUploads: boolean) {
-    const result = await setUserStatus(member.id, 'rejected', 'Deactivated by administrator', {
-      deleteUploads,
-    })
-    if (result.message) {
-      // Toast not wired on this page; parent reload reflects changes.
-      void result.message
-    }
+  async function handleDeactivate(member: TeamMemberProfile) {
+    await deactivateUserAccount(member.id)
     await load()
   }
 

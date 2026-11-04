@@ -13,6 +13,7 @@ from app.crud import media as media_crud
 from app.schemas.admin_member import (
     AdminMemberResponse,
     AdminUserProfileResponse,
+    UserDeactivateBody,
     UserRoleUpdate,
     UserStatusUpdate,
     UserStatusUpdateResponse,
@@ -165,6 +166,41 @@ def media_upload_count(
     return {"count": media_crud.count_for_uploader(db, user_id)}
 
 
+@router.post("/users/{user_id}/deactivate", response_model=MessageResponse)
+def deactivate_user_account(
+    user_id: int,
+    body: UserDeactivateBody | None = None,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Disable sign-in; preserve user id, media, evaluations, and rankings."""
+    user = user_crud.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="You cannot deactivate your own account")
+    role_name = user.role.role_name if user.role else None
+    if role_name not in (RoleName.MEMBER, RoleName.ORGANIZATION, RoleName.ADMIN):
+        raise HTTPException(status_code=400, detail="Unsupported account role")
+    if role_name == RoleName.ADMIN and user_crud.count_active_admins(db) <= 1 and user.is_active:
+        raise HTTPException(status_code=400, detail="Cannot deactivate the last active administrator")
+    if not user.is_active and user.removed_at is not None:
+        raise HTTPException(status_code=400, detail="Account is already deactivated")
+
+    reason = (body.removal_reason if body else None) or None
+    user_crud.deactivate_account(db, user, removed_by=admin.id, removal_reason=reason)
+    db.add(
+        AuditLog(
+            user_id=admin.id,
+            action="account_deactivated",
+            description=f"Deactivated user {user_id} ({user.email})"
+            + (f": {reason.strip()}" if reason and reason.strip() else ""),
+        )
+    )
+    db.commit()
+    return MessageResponse(message="Account deactivated. Historical records were preserved.")
+
+
 @router.patch("/users/{user_id}/status", response_model=UserStatusUpdateResponse)
 def update_user_status(
     user_id: int,
@@ -183,6 +219,14 @@ def update_user_status(
             raise HTTPException(
                 status_code=400,
                 detail="delete_uploads is only allowed when setting status to rejected.",
+            )
+        if user.status == UserStatus.APPROVED:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Cannot purge uploads for an approved account via status update. "
+                    "Use account deactivation (preserves media) or permanent account delete."
+                ),
             )
         if not user.role or user.role.role_name not in (RoleName.MEMBER, RoleName.ORGANIZATION):
             raise HTTPException(

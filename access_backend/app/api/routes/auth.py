@@ -87,11 +87,16 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
         )
 
     if existing and verify_password(body.password, existing.password) and not existing.is_active:
+        deactivated = existing.removed_at is not None and existing.status == UserStatus.APPROVED
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={
-                "error": "removed",
-                "message": "Your account has been removed. Please contact the administrator.",
+                "error": "deactivated" if deactivated else "removed",
+                "message": (
+                    "Your account has been deactivated. Contact your ACCESS administrator to restore access."
+                    if deactivated
+                    else "Your account has been removed. Please contact the administrator."
+                ),
             },
         )
 

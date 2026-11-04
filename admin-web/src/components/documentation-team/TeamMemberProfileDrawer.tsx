@@ -19,7 +19,7 @@ import { MemberRequesterRatingsHistory } from '../documentation-requests/MemberR
 interface Props {
   member: TeamMemberProfile | null
   onClose: () => void
-  onDeactivate: (member: TeamMemberProfile, deleteUploads: boolean) => Promise<void>
+  onDeactivate: (member: TeamMemberProfile) => Promise<void>
   onStatusChange: (member: TeamMemberProfile, status: string, reason?: string) => Promise<void>
 }
 
@@ -44,10 +44,10 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
     }
   }
 
-  async function handleDeactivate(deleteUploads: boolean) {
+  async function handleDeactivate() {
     setBusy(true)
     try {
-      await onDeactivate(member!, deleteUploads)
+      await onDeactivate(member!)
       onClose()
     } finally {
       setBusy(false)
@@ -223,10 +223,8 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
       <DeactivateMemberDialog
         open={showDeactivateConfirm}
         memberName={member.name}
-        userId={member.id}
-        uploadCount={member.uploadCount}
         loading={busy}
-        onConfirm={(deleteUploads) => void handleDeactivate(deleteUploads)}
+        onConfirm={() => void handleDeactivate()}
         onCancel={() => setShowDeactivateConfirm(false)}
       />
     </>

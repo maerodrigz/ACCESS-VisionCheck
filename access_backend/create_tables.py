@@ -53,6 +53,7 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     PushDeviceToken,
     RegistrationEmailOtp,
     PasswordResetEmailOtp,
+    PendingStorageDeletion,
 )
 
 
@@ -420,6 +421,35 @@ def upgrade_media_storage_removed_schema() -> None:
         )
 
 
+def upgrade_pending_storage_deletions_schema() -> None:
+    """Queue failed Supabase/local deletes during permanent account removal."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS pending_storage_deletions (
+                    id SERIAL PRIMARY KEY,
+                    media_id INTEGER REFERENCES media_files(id) ON DELETE SET NULL,
+                    owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    file_url TEXT NOT NULL,
+                    bucket VARCHAR(120),
+                    object_path TEXT,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_pending_storage_owner "
+                "ON pending_storage_deletions (owner_user_id)"
+            )
+        )
+
+
 def upgrade_media_curation_schema() -> None:
     """Server-side best picks and album grouping for event media."""
     with engine.begin() as conn:
@@ -536,6 +566,7 @@ def main() -> None:
     upgrade_feedback_admin_review_schema()
     upgrade_media_curation_schema()
     upgrade_media_storage_removed_schema()
+    upgrade_pending_storage_deletions_schema()
     upgrade_media_files_file_url_text()
     upgrade_media_files_evaluation_file_hash()
     from app.migrations.submission_chains_phase1 import upgrade_submission_chains_phase1

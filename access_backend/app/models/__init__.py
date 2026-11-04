@@ -36,6 +36,7 @@ from app.models.system_settings import SystemSettings
 from app.models.push_device_token import PushDeviceToken
 from app.models.registration_email_otp import RegistrationEmailOtp
 from app.models.password_reset_email_otp import PasswordResetEmailOtp
+from app.models.pending_storage_deletion import PendingStorageDeletion
 
 __all__ = [
     "Role",
@@ -70,4 +71,5 @@ __all__ = [
     "PushDeviceToken",
     "RegistrationEmailOtp",
     "PasswordResetEmailOtp",
+    "PendingStorageDeletion",
 ]

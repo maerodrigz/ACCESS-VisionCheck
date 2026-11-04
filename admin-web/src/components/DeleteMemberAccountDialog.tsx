@@ -10,7 +10,7 @@ interface Props {
   userId: number
   accountRole?: AccountRole
   loading?: boolean
-  onConfirm: (deleteUploads: boolean, confirmationEmail: string) => void
+  onConfirm: (confirmationEmail: string) => void
   onCancel: () => void
 }
 
@@ -26,13 +26,11 @@ export function DeleteMemberAccountDialog({
 }: Props) {
   const isRequestor = accountRole === 'Organization'
   const accountLabel = isRequestor ? 'requestor' : 'member'
-  const [deleteUploads, setDeleteUploads] = useState(false)
   const [confirmEmail, setConfirmEmail] = useState('')
   const [uploadCount, setUploadCount] = useState<number | null>(null)
 
   useEffect(() => {
     if (!open) {
-      setDeleteUploads(false)
       setConfirmEmail('')
       return
     }
@@ -70,13 +68,17 @@ export function DeleteMemberAccountDialog({
         <div className="flex items-start justify-between border-b border-[var(--color-border)] px-5 py-4">
           <div>
             <h2 className="text-base font-extrabold text-[var(--color-text-primary)]">
-              Delete {accountLabel} account?
+              Delete {accountLabel} account permanently?
             </h2>
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-              This permanently removes <strong className="text-[var(--color-text-primary)]">{memberName}</strong>{' '}
-              from the system
-              {isRequestor ? ', including their documentation requests,' : ''}. They cannot sign in again. This
-              cannot be undone.
+              This removes <strong className="text-[var(--color-text-primary)]">{memberName}</strong> and
+              eligible {accountLabel}-owned data: practice evaluations, AI detection history, rankings,
+              assignments, and uploaded media (database and Supabase when configured). Shared documentation
+              owned by other users is not removed.
+              {isRequestor
+                ? ' Requestors with active documentation requests must resolve those first (use Deactivate instead).'
+                : null}{' '}
+              This cannot be undone. Use Deactivate if you only need to block sign-in while keeping everything.
             </p>
           </div>
           <button
@@ -90,26 +92,10 @@ export function DeleteMemberAccountDialog({
         </div>
         <div className="space-y-3 px-5 py-4">
           {uploadCount != null ? (
-            <p className="text-xs text-[var(--color-text-secondary)]">
-              {uploadCount} uploaded file(s) on record for this {accountLabel}.
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)]">
+              {uploadCount} uploaded file(s) will be targeted for removal with this account.
             </p>
           ) : null}
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={deleteUploads}
-              disabled={loading}
-              onChange={(e) => setDeleteUploads(e.target.checked)}
-            />
-            <span className="text-sm text-[var(--color-text-primary)]">
-              Also delete all photos and videos uploaded by this {accountLabel}
-              <span className="mt-1 block text-xs font-normal text-[var(--color-text-secondary)]">
-                Frees storage (local disk or Supabase).
-                {!isRequestor ? ' Evaluations linked to those files are removed too.' : null}
-              </span>
-            </span>
-          </label>
           <label className="block">
             <span className="text-xs font-bold text-[var(--color-text-secondary)]">
               Type the account email to confirm
@@ -136,7 +122,7 @@ export function DeleteMemberAccountDialog({
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(deleteUploads, confirmEmail.trim())}
+            onClick={() => onConfirm(confirmEmail.trim())}
             disabled={!canSubmit}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-danger)] py-2.5 text-sm font-bold text-white disabled:opacity-50"
           >

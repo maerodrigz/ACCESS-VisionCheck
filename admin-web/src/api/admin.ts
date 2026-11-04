@@ -74,18 +74,41 @@ export function fetchMemberMediaUploadCount(userId: number) {
   )
 }
 
-export function permanentlyDeleteMemberAccount(
-  userId: number,
-  confirmationEmail: string,
-  deleteUploads: boolean,
-) {
-  return apiRequest<{ message: string }>(`/admin/members/${userId}/delete`, {
+export function deactivateUserAccount(userId: number, removalReason?: string) {
+  return apiRequest<{ message: string }>(`/users/${userId}/deactivate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      removal_reason: removalReason?.trim() || 'Deactivated by administrator',
+    }),
+  })
+}
+
+export type MemberPermanentDeleteResult = {
+  message: string
+  media_deleted?: number
+  media_failed?: number
+  storage_deleted?: number
+  storage_queued?: number
+  chains_removed?: number
+  assignments_removed?: number
+  partial_failure?: boolean
+}
+
+export function permanentlyDeleteMemberAccount(userId: number, confirmationEmail: string) {
+  return apiRequest<MemberPermanentDeleteResult>(`/admin/members/${userId}/delete`, {
     method: 'POST',
     body: JSON.stringify({
       confirmation_email: confirmationEmail,
-      delete_uploads: deleteUploads,
+      delete_uploads: true,
     }),
   })
+}
+
+export function retryMemberStorageCleanup(userId: number) {
+  return apiRequest<MemberPermanentDeleteResult>(
+    `/admin/members/${userId}/retry-storage-cleanup`,
+    { method: 'POST' },
+  )
 }
 
 export function setUserStatus(

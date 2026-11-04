@@ -335,13 +335,7 @@ def object_path_from_supabase_url(url: str) -> tuple[str, str] | None:
     return None
 
 
-def delete_supabase_url(url: str | None) -> bool:
-    if not url or not is_supabase_storage_configured():
-        return False
-    parsed = object_path_from_supabase_url(url)
-    if not parsed:
-        return False
-    bucket, object_path = parsed
+def _delete_supabase_object_once(bucket: str, object_path: str) -> tuple[bool, str | None]:
     remove_url = f"{_base_url()}/storage/v1/object/{bucket}/remove"
     try:
         with httpx.Client(timeout=30.0) as client:
@@ -351,10 +345,44 @@ def delete_supabase_url(url: str | None) -> bool:
                 json={"prefixes": [object_path]},
             )
             if resp.status_code < 400:
-                return True
+                return True, None
+            if resp.status_code in (404, 400):
+                return True, None
             single = f"{_base_url()}/storage/v1/object/{bucket}/{quote(object_path, safe='/')}"
             resp2 = client.delete(single, headers=_headers())
-            return resp2.status_code < 400
-    except Exception:
+            if resp2.status_code < 400 or resp2.status_code == 404:
+                return True, None
+            return False, f"HTTP {resp2.status_code}"
+    except Exception as exc:
         logger.exception("Supabase delete failed for %s", object_path)
-        return False
+        return False, str(exc)
+
+
+def delete_supabase_url(url: str | None) -> bool:
+    ok, _ = delete_supabase_url_with_retries(url, max_attempts=1)
+    return ok
+
+
+def delete_supabase_url_with_retries(
+    url: str | None,
+    *,
+    max_attempts: int = 3,
+    retry_delay_sec: float = 0.35,
+) -> tuple[bool, str | None]:
+    if not url or not is_supabase_storage_configured():
+        return False, "Supabase storage not configured"
+    parsed = object_path_from_supabase_url(url)
+    if not parsed:
+        return False, "Not a Supabase storage URL"
+    bucket, object_path = parsed
+    last_err: str | None = None
+    import time
+
+    for attempt in range(max(1, max_attempts)):
+        ok, err = _delete_supabase_object_once(bucket, object_path)
+        if ok:
+            return True, None
+        last_err = err
+        if attempt + 1 < max_attempts:
+            time.sleep(retry_delay_sec)
+    return False, last_err or "Supabase delete failed"

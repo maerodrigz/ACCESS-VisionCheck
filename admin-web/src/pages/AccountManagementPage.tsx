@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ClipboardCheck, Loader2, RefreshCw, Search, UserPlus, Users } from 'lucide-react'
 import {
   createUser,
+  deactivateUserAccount,
   fetchUserProfile,
   fetchUsers,
   permanentlyDeleteMemberAccount,
@@ -243,9 +244,9 @@ export function AccountManagementPage() {
 
     try {
       if (modal.kind === 'confirm-deactivate') {
-        await setUserStatus(u.user_id, 'rejected', 'Deactivated by administrator')
+        const result = await deactivateUserAccount(u.user_id)
         setActionModal(null)
-        showToast(`Account deactivated for ${u.name}`)
+        showToast(result.message || `Account deactivated for ${u.name}`)
         await loadUsers()
         return
       }
@@ -308,36 +309,38 @@ export function AccountManagementPage() {
     setMemberDelete(user)
   }
 
-  async function confirmMemberDelete(deleteUploads: boolean, confirmationEmail: string) {
+  async function confirmMemberDelete(confirmationEmail: string) {
     if (!memberDelete || memberDeleteLoading) return
     setMemberDeleteLoading(true)
     try {
-      const result = await permanentlyDeleteMemberAccount(
-        memberDelete.user_id,
-        confirmationEmail,
-        deleteUploads,
-      )
-      showToast(result.message || `Deleted ${memberDelete.name}`)
+      const result = await permanentlyDeleteMemberAccount(memberDelete.user_id, confirmationEmail)
+      const detail =
+        result.media_deleted != null
+          ? ` Media: ${result.media_deleted} removed${result.storage_deleted != null ? `, storage: ${result.storage_deleted}` : ''}.`
+          : ''
+      showToast(`${result.message || `Deleted ${memberDelete.name}`}${detail}`)
       setMemberDelete(null)
       if (profileUserId === memberDelete.user_id) setProfileUserId(null)
       await loadUsers()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Delete failed', true)
+      const msg = e instanceof Error ? e.message : 'Delete failed'
+      const needsRetry = /queued for retry|storage cleanup/i.test(msg)
+      showToast(
+        needsRetry
+          ? `${msg} Run storage cleanup retry for this member, then try permanent delete again.`
+          : msg,
+        true,
+      )
     } finally {
       setMemberDeleteLoading(false)
     }
   }
 
-  async function confirmMemberDeactivate(deleteUploads: boolean) {
+  async function confirmMemberDeactivate() {
     if (!memberDeactivate || memberDeactivateLoading) return
     setMemberDeactivateLoading(true)
     try {
-      const result = await setUserStatus(
-        memberDeactivate.user_id,
-        'rejected',
-        'Deactivated by administrator',
-        { deleteUploads },
-      )
+      const result = await deactivateUserAccount(memberDeactivate.user_id)
       showToast(result.message || `Account deactivated for ${memberDeactivate.name}`)
       setMemberDeactivate(null)
       await loadUsers()
@@ -581,9 +584,8 @@ export function AccountManagementPage() {
           <DeactivateMemberDialog
             open
             memberName={memberDeactivate.name}
-            userId={memberDeactivate.user_id}
             loading={memberDeactivateLoading}
-            onConfirm={(deleteUploads) => void confirmMemberDeactivate(deleteUploads)}
+            onConfirm={() => void confirmMemberDeactivate()}
             onCancel={() => {
               if (memberDeactivateLoading) return
               setMemberDeactivate(null)
@@ -599,7 +601,7 @@ export function AccountManagementPage() {
             userId={memberDelete.user_id}
             accountRole={memberDelete.role}
             loading={memberDeleteLoading}
-            onConfirm={(deleteUploads, email) => void confirmMemberDelete(deleteUploads, email)}
+            onConfirm={(email) => void confirmMemberDelete(email)}
             onCancel={() => {
               if (memberDeleteLoading) return
               setMemberDelete(null)

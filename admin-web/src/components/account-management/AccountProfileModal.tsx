@@ -127,7 +127,7 @@ function ProfileContent({
             <span className="account-mgmt__profile-stat-label">Skill Level</span>
             <span className="account-mgmt__profile-stat-value">
               {(user as { skill_effective_tier?: string | null }).skill_effective_tier ??
-                user.skill_level ||
+                user.skill_level ??
                 'N/A'}
             </span>
           </div>

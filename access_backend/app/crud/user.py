@@ -112,48 +112,47 @@ def permanently_delete_member(
     user: User,
     *,
     acting_admin_id: int,
-    delete_uploads: bool = False,
-) -> tuple[int, int]:
+    delete_uploads: bool = True,
+) -> "PermanentDeletionStats":
     """
-    Remove a Member or Organization (requestor) row from the database.
-    Returns (media_deleted, media_failed). Raises RuntimeError when blocked.
+    Remove a Member or Organization row after owned media and storage cleanup.
+    Raises RuntimeError when blocked or storage cleanup incomplete.
     """
     from sqlalchemy.exc import IntegrityError
 
-    from app.crud import media as media_crud
     from app.crud import session as session_crud
-    from app.models.request_assignment import RequestAssignment
+    from app.services.member_permanent_deletion import (
+        PermanentDeletionStats,
+        assert_requestor_permanent_delete_allowed,
+        cleanup_member_assignments,
+        delete_owned_media_for_user,
+    )
 
     role_name = user.role.role_name if user.role else None
     if role_name not in (RoleName.MEMBER, RoleName.ORGANIZATION):
         raise RuntimeError("Only Member or Organization accounts can be permanently deleted.")
     if user.id == acting_admin_id:
         raise RuntimeError("You cannot delete your own account.")
+    if role_name == RoleName.ADMIN:
+        raise RuntimeError("Administrator accounts cannot be permanently deleted here.")
 
-    media_deleted = 0
-    media_failed = 0
-    if delete_uploads:
-        media_deleted, media_failed = media_crud.delete_all_for_uploader(db, user.id)
-    else:
-        # Always drop practice evaluations so Media Integrity does not keep orphaned rows.
-        ev_del, ev_fail = media_crud.delete_practice_evaluations_for_uploader(db, user.id)
-        media_deleted += ev_del
-        media_failed += ev_fail
+    assert_requestor_permanent_delete_allowed(db, user)
 
     session_crud.revoke_sessions_for_user(db, user.id)
 
-    if role_name == RoleName.MEMBER:
-        for row in db.scalars(
-            select(RequestAssignment).where(RequestAssignment.assigned_by == user.id)
-        ).all():
-            row.assigned_by = acting_admin_id
+    stats = delete_owned_media_for_user(
+        db,
+        user.id,
+        include_event_gallery=bool(delete_uploads),
+    )
+    stats.assignments_removed = cleanup_member_assignments(db, user, acting_admin_id=acting_admin_id)
 
-        for row in db.scalars(
-            select(RequestAssignment).where(RequestAssignment.member_id == user.id)
-        ).all():
-            db.delete(row)
-
-    db.flush()
+    if stats.media_failed > 0 or stats.storage_queued > 0:
+        raise RuntimeError(
+            f"Could not finish removing {stats.media_failed} media file(s). "
+            f"{stats.storage_queued} storage object(s) queued for retry. "
+            "Retry deletion after storage cleanup completes; the account was not removed."
+        )
 
     account_kind = "requestor" if role_name == RoleName.ORGANIZATION else "member"
     try:
@@ -166,17 +165,20 @@ def permanently_delete_member(
             "Try deactivating the account instead, or contact support."
         ) from exc
 
-    return media_deleted, media_failed
+    return stats
 
 
-def remove_member(
+def deactivate_account(
     db: Session,
     user: User,
     *,
     removed_by: int,
     removal_reason: str | None = None,
 ) -> User:
-    """Soft-delete a member account — blocks login and hides from active lists."""
+    """
+    Disable sign-in while preserving the user row, status, and all related history.
+    Does not delete media or change registration status (rejected vs approved).
+    """
     from app.crud import session as session_crud
 
     user.is_active = False
@@ -187,6 +189,19 @@ def remove_member(
     session_crud.revoke_sessions_for_user(db, user.id)
     db.refresh(user)
     return user
+
+
+def remove_member(
+    db: Session,
+    user: User,
+    *,
+    removed_by: int,
+    removal_reason: str | None = None,
+) -> User:
+    """Alias for deactivate_account (legacy admin members route)."""
+    return deactivate_account(
+        db, user, removed_by=removed_by, removal_reason=removal_reason
+    )
 
 
 def list_users(db: Session) -> list[User]:
@@ -288,6 +303,10 @@ def update_status(
         user.rejection_reason = None
         user.approved_by = approved_by
         user.approved_at = datetime.now(timezone.utc)
+        user.is_active = True
+        user.removed_at = None
+        user.removed_by = None
+        user.removal_reason = None
     else:
         user.rejection_reason = None
         user.approved_by = None

@@ -12,11 +12,15 @@ class AuthGate extends StatelessWidget {
     required this.adminBuilder,
     required this.memberBuilder,
     this.organizationBuilder,
+    this.mobileUnauthenticatedChild,
   });
 
   final Widget Function(AuthUser user) adminBuilder;
   final Widget Function(AuthUser user) memberBuilder;
   final Widget Function(AuthUser user)? organizationBuilder;
+
+  /// Mobile-only welcome / onboarding stack (nested [Navigator]). Web uses [VisionLoginScreen].
+  final Widget? mobileUnauthenticatedChild;
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +29,9 @@ class AuthGate extends StatelessWidget {
       builder: (context, _) {
         final user = authController.user;
         if (user == null) {
+          if (!kIsWeb && mobileUnauthenticatedChild != null) {
+            return mobileUnauthenticatedChild!;
+          }
           return const VisionLoginScreen();
         }
         return _routeForRole(user);

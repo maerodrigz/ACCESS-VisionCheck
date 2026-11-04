@@ -11,6 +11,7 @@ import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_navigation.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_sign_in_form.dart';
 import 'package:access_mobile/shared/widgets/forgot_password_dialog.dart';
@@ -159,9 +160,9 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Future<void> _openRegistration() async {
-    final registeredEmail = await Navigator.push<String>(
+    final registeredEmail = await pushMobileAuthPage<String>(
       context,
-      MaterialPageRoute(builder: (_) => const RegistrationChoiceScreen()),
+      const RegistrationChoiceScreen(),
     );
     if (!mounted || registeredEmail == null || registeredEmail.isEmpty) return;
     setState(() {

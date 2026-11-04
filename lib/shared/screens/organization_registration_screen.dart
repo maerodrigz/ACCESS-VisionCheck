@@ -166,6 +166,7 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
             MobileAuthSectionHeader(
               title: _screenTitle,
               subtitle: _introText,
+              compact: true,
             )
           else
             Text(
@@ -276,8 +277,9 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
               const SizedBox(height: 28),
               if (mobileAuth)
                 MobileAuthGradientButton(
-                  label: 'Register',
+                  label: 'Create Account',
                   loading: _loading,
+                  compact: true,
                   onPressed: _loading || !_acceptedLegal || _emailVerificationToken == null
                       ? null
                       : _submit,
@@ -307,24 +309,12 @@ class _RequestorRegistrationScreenState extends State<RequestorRegistrationScree
                           ),
                   ),
                 ),
-              if (mobileAuth) ...[
-                const SizedBox(height: 20),
-                MobileAuthTextLinkRow(
-                  prompt: 'Already have an account?',
-                  linkLabel: 'Sign In',
-                  onLinkTap: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
             ],
           ),
     );
 
     if (mobileAuth) {
-      return MobileAuthScaffold(body: formBody);
+      return MobileAuthScaffold.signUp(body: formBody);
     }
 
     return Scaffold(

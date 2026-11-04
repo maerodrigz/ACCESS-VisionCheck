@@ -14,17 +14,16 @@ import { MediaPreviewContent } from '../media-library/MediaPreviewContent'
 import { formatScannedDate } from '../../lib/aiDetection'
 import {
   adminDecisionDisplay,
+  aiContentCheckExplanation,
   detectorAiRiskBand,
   detectorAiRiskSummaryLabel,
-  detectorRiskHint,
-  integrityAssessmentSummary,
-  integrityManualReviewParagraph,
   integrityNeedsAdminAction,
-  integrityProvenanceBullets,
-  integrityReviewTriggerLines,
   INTEGRITY_AI_DISCLAIMER,
+  mediaSourceCheckExplanation,
+  reviewDecisionExplanation,
   sourceVerificationDisplay,
   visualAiRiskColor,
+  whyThisResultExplanation,
 } from '../../lib/reviewScanPresentation'
 import { ReviewScanTechnicalDetails } from './ReviewScanTechnicalDetails'
 import { SubmissionChainPanel } from './SubmissionChainPanel'
@@ -261,14 +260,10 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
     isVideoMediaPath(row.media_url) ||
     row.file_type?.toLowerCase().includes('video') === true
   const needsAdminAction = integrityNeedsAdminAction(row)
-  const manualParagraph = integrityManualReviewParagraph(row)
-  const provenanceBullets = integrityProvenanceBullets(row)
-  const reviewTriggerLines = integrityReviewTriggerLines(row)
   const detectorBand = detectorAiRiskBand(row)
   const detectorRiskColor = visualAiRiskColor(detectorBand)
   const source = sourceVerificationDisplay(row)
   const adminDecision = adminDecisionDisplay(row.review_status)
-  const assessmentSummary = integrityAssessmentSummary(row)
   const remarksRequired = REMARKS_REQUIRED_STATUSES.includes(status)
 
   return (
@@ -325,23 +320,25 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:min-h-0">
                 <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 pr-0.5">
-                  <Collapsible title="Integrity Assessment" defaultOpen>
+                  <Collapsible title="Scan Results" defaultOpen>
                     <div className="space-y-2">
                       <p className="text-[10px] text-[var(--color-text-muted)]">
                         Scanned {formatScannedDate(row.scanned_at)}
                       </p>
                       {!needsAdminAction ? (
                         <p className="rounded-lg border border-emerald-200/80 bg-emerald-50/90 px-2.5 py-1.5 text-[11px] leading-snug text-emerald-950">
-                          <span className="font-bold">No admin action required.</span> Auto-cleared under current policy.
+                          <span className="font-bold">No action required.</span> Cleared automatically under current
+                          policy.
                         </p>
                       ) : (
                         <p className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-2.5 py-1.5 text-[11px] leading-snug text-amber-950">
-                          <span className="font-bold">Manual review required.</span> Choose a decision below when ready.
+                          <span className="font-bold">Your review is needed.</span> Choose an action under Review
+                          Actions when ready.
                         </p>
                       )}
 
                       <div className="space-y-2">
-                        <StatusBlock title="AI-Generation Risk" hint={detectorRiskHint(row)}>
+                        <StatusBlock title="AI Content Check" hint={aiContentCheckExplanation(row)}>
                           <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-primary)]">
                             <span
                               className="h-2 w-2 shrink-0 rounded-full"
@@ -352,63 +349,51 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
                           </p>
                         </StatusBlock>
 
-                        <StatusBlock title="Source Verification" hint={source.detail}>
+                        <StatusBlock title="Media Source Check" hint={mediaSourceCheckExplanation(row)}>
                           <p className="text-xs font-semibold" style={{ color: source.color }}>
                             {source.status}
                           </p>
                         </StatusBlock>
 
-                        <StatusBlock title="Admin Decision">
+                        <StatusBlock title="Review Decision" hint={reviewDecisionExplanation(row)}>
                           <p className="text-xs font-semibold" style={{ color: adminDecision.color }}>
                             {adminDecision.label}
                           </p>
                         </StatusBlock>
                       </div>
 
-                      {needsAdminAction && manualParagraph ? (
-                        <div className="rounded-lg border border-[var(--color-border)] px-2.5 py-2">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                            Why manual review?
-                          </p>
-                          <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-primary)]">
-                            {manualParagraph}
-                          </p>
-                          {reviewTriggerLines.length > 0 ? (
-                            <ul className="mt-2 list-disc space-y-0.5 pl-4 text-[10px] leading-snug text-[var(--color-text-secondary)]">
-                              {reviewTriggerLines.map((line) => (
-                                <li key={line}>{line}</li>
-                              ))}
-                            </ul>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      {!needsAdminAction && provenanceBullets.length > 0 ? (
-                        <p className="text-[11px] leading-snug text-[var(--color-text-secondary)]">
-                          {provenanceBullets[0]}
+                      <div className="rounded-lg border border-[var(--color-border)] px-2.5 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                          Why this result?
                         </p>
-                      ) : null}
+                        <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-primary)]">
+                          {whyThisResultExplanation(row)}
+                        </p>
+                      </div>
 
-                      <p className="text-[11px] leading-snug text-[var(--color-text-primary)]">{assessmentSummary}</p>
                       <p className="text-[10px] leading-snug text-[var(--color-text-muted)]">
                         {INTEGRITY_AI_DISCLAIMER}
                       </p>
                     </div>
                   </Collapsible>
 
-                  <Collapsible title="Technical Details">
-                    <ReviewScanTechnicalDetails row={row} />
-                  </Collapsible>
-
-                  <Collapsible title="Submission chain" defaultOpen>
-                    <SubmissionChainPanel
-                      mediaId={row.media_id}
-                      refreshKey={`${row.id}-${chainRefresh}`}
-                      onOpenRelatedMedia={onOpenRelatedMedia}
-                    />
+                  <Collapsible title="Advanced Details">
+                    <div className="space-y-4">
+                      <ReviewScanTechnicalDetails row={row} />
+                      <div className="border-t border-[var(--color-border)] pt-3">
+                        <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                          Submission chain
+                        </p>
+                        <SubmissionChainPanel
+                          mediaId={row.media_id}
+                          refreshKey={`${row.id}-${chainRefresh}`}
+                          onOpenRelatedMedia={onOpenRelatedMedia}
+                        />
+                      </div>
+                    </div>
                   </Collapsible>
                   {history.length > 0 ? (
-                    <Collapsible title={`Review History (${history.length})`}>
+                    <Collapsible title={`Previous Reviews (${history.length})`}>
                       <ul className="space-y-1.5">
                         {history.map((h) => (
                           <li key={h.id} className="rounded-lg bg-[var(--color-surface-muted)] px-3 py-2 text-xs">
@@ -436,15 +421,17 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
           >
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <div className="min-w-0">
-                <h3 className="text-xs font-bold text-[var(--color-text-primary)]">
-                  {needsAdminAction ? 'Admin decision' : 'Optional override'}
-                </h3>
+                <h3 className="text-xs font-bold text-[var(--color-text-primary)]">Review Actions</h3>
                 {needsAdminAction ? (
                   <p className="text-[10px] leading-snug text-[var(--color-text-muted)]">
                     Use <span className="font-semibold text-[var(--color-text-primary)]">Request Re-upload</span>{' '}
-                    when the member should submit a new linked file (see Submission chain below).
+                    when the member should submit a new linked file (see Advanced Details).
                   </p>
-                ) : null}
+                ) : (
+                  <p className="text-[10px] leading-snug text-[var(--color-text-muted)]">
+                    Optional override if you disagree with the automated result.
+                  </p>
+                )}
                 {selectedActionLabel ? (
                   <p className="text-[10px] leading-snug text-[var(--color-text-secondary)]">
                     <span className="font-semibold text-[var(--color-text-primary)]">{selectedActionLabel}</span>

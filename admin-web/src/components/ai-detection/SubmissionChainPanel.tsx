@@ -48,9 +48,9 @@ export function SubmissionChainPanel({ mediaId, refreshKey, onOpenRelatedMedia }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-3 py-2 text-xs text-[var(--color-danger)]">
-        {error}
-      </div>
+      <p className="text-xs leading-snug text-[var(--color-text-muted)]">
+        Submission history is not available for this file. You can still complete this review.
+      </p>
     )
   }
 

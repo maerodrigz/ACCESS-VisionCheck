@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_fixed_background.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_header.dart';
 
 /// Shared mobile auth layout: header + body (scrollable for long forms, fixed for sign-in).
@@ -26,54 +27,71 @@ class MobileAuthScaffold extends StatelessWidget {
   /// Full-screen decorative background (sign-in art); header and form stay as widgets on top.
   final String? backgroundAsset;
 
-  double _headerHeight(MediaQueryData media) {
-    if (fixedViewport) {
-      final h = media.size.height * MobileAuthConstants.signInHeaderHeightFactor;
+  double _headerHeight(double screenHeight) {
+    final imageBacked = backgroundAsset != null && backgroundAsset!.isNotEmpty;
+    if (fixedViewport || imageBacked) {
+      final h = screenHeight * MobileAuthConstants.signInHeaderHeightFactor;
       return h.clamp(
         MobileAuthConstants.signInHeaderMinHeight,
         MobileAuthConstants.signInHeaderMaxHeight,
       );
     }
-    final h = media.size.height * headerHeightFactor;
+    final h = screenHeight * headerHeightFactor;
     return h.clamp(200, 280);
+  }
+
+  /// Mobile sign-up flows: same midnight scanner background as sign-in.
+  factory MobileAuthScaffold.signUp({required Widget body}) {
+    return MobileAuthScaffold(
+      backgroundAsset: MobileAuthConstants.signInBackgroundAsset,
+      body: body,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final imageBacked = backgroundAsset != null && backgroundAsset!.isNotEmpty;
+    final keyboardBottom = media.viewInsets.bottom;
+    // Full layout height (keyboard does not shrink body when resizeToAvoidBottomInset is false).
+    final screenHeight = media.size.height;
 
     Widget column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: _headerHeight(media),
+          height: _headerHeight(screenHeight),
           child: MobileAuthHeader(
-            compact: fixedViewport,
+            compact: fixedViewport || imageBacked,
             imageBacked: imageBacked,
           ),
         ),
-        Expanded(child: _bodySlot(body, media, imageBacked: imageBacked)),
+        Expanded(
+          child: _bodySlot(
+            body,
+            keyboardBottom: keyboardBottom,
+            bottomSafe: media.padding.bottom,
+            imageBacked: imageBacked,
+          ),
+        ),
       ],
     );
 
     if (imageBacked) {
       return Scaffold(
-        resizeToAvoidBottomInset: true,
-        backgroundColor: kSurface,
+        resizeToAvoidBottomInset: false,
+        backgroundColor: MobileAuthConstants.midnightScaffoldColor,
         body: Stack(
           fit: StackFit.expand,
+          alignment: Alignment.topCenter,
+          clipBehavior: Clip.hardEdge,
           children: [
-            Positioned.fill(
-              child: Image.asset(
-                backgroundAsset!,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                filterQuality: FilterQuality.high,
-                gaplessPlayback: true,
-              ),
+            MobileAuthFixedBackground(assetPath: backgroundAsset!),
+            SafeArea(
+              top: true,
+              bottom: false,
+              child: column,
             ),
-            SafeArea(top: false, bottom: false, child: column),
           ],
         ),
       );
@@ -89,23 +107,42 @@ class MobileAuthScaffold extends StatelessWidget {
     );
   }
 
-  Widget _bodySlot(Widget child, MediaQueryData media, {required bool imageBacked}) {
+  Widget _bodySlot(
+    Widget child, {
+    required double keyboardBottom,
+    required double bottomSafe,
+    required bool imageBacked,
+  }) {
     if (scrollable) {
       return SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.fromLTRB(
           24,
-          4,
+          imageBacked ? 6 : 4,
           24,
-          24 + media.viewInsets.bottom,
+          16 + bottomSafe + keyboardBottom,
         ),
         child: child,
       );
     }
 
-    const formPadding = EdgeInsets.fromLTRB(24, 8, 24, 12);
+    const formPadding = EdgeInsets.fromLTRB(24, 2, 24, 4);
 
-    final scrollChild = LayoutBuilder(
+    final scrollChild = SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      physics: const ClampingScrollPhysics(),
+      padding: EdgeInsets.only(bottom: keyboardBottom),
+      child: Padding(
+        padding: formPadding,
+        child: child,
+      ),
+    );
+
+    if (imageBacked) {
+      return scrollChild;
+    }
+
+    final scrollChildWithMinHeight = LayoutBuilder(
       builder: (context, constraints) {
         final minBodyHeight = constraints.maxHeight - formPadding.vertical;
         return SingleChildScrollView(
@@ -124,15 +161,11 @@ class MobileAuthScaffold extends StatelessWidget {
       },
     );
 
-    if (imageBacked) {
-      return scrollChild;
-    }
-
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: ColoredBox(
         color: kSurface,
-        child: scrollChild,
+        child: scrollChildWithMinHeight,
       ),
     );
   }

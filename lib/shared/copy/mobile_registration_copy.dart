@@ -1,18 +1,17 @@
 /// User-facing copy for mobile sign-up flows (plain punctuation, no em dashes).
 abstract final class MobileRegistrationCopy {
-  static const choiceTitle = 'Create an account';
-  static const choiceSubtitle = 'Choose member or requestor registration.';
+  static const choiceTitle = 'Welcome Back!';
+  static const choiceSubtitle = 'Join ACCESS VisionCheck and start your journey!';
   static const choiceBody =
       'Members join as student media. Requestors are faculty, staff, or organizations '
       'that need documentation services.';
 
-  static const memberTitle = 'Member registration';
-  static const memberSubtitle =
-      'Complete the form below. An administrator must approve your account before you can sign in.';
+  static const memberTitle = 'Welcome Back!';
+  static const memberSubtitle = 'Join ACCESS VisionCheck and start your journey!';
 
-  static const requestorTypeTitle = 'Requestor registration';
+  static const requestorTypeTitle = 'Welcome Back!';
   static const requestorTypeSubtitle =
-      'Choose the option that best describes you or your organization.';
+      'Choose the option that best describes you or your organization!';
 
   static const emailVerificationTitle = 'Email verification';
   static const emailVerificationBody =

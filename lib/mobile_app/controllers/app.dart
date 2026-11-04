@@ -30,6 +30,7 @@ import 'package:access_mobile/mobile_app/screens/requestor/documentation_request
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_bottom_nav.dart';
 import 'package:access_mobile/mobile_app/sheets/notifications_sheet.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
+import 'package:access_mobile/mobile_app/navigation/mobile_onboarding_navigator.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_splash_gate.dart';
 import 'package:access_mobile/mobile_app/widgets/member_bottom_nav.dart';
 import 'package:access_mobile/shared/constants/app_constants.dart';
@@ -70,6 +71,9 @@ class _AccessAppState extends State<AccessApp> {
         home: MobileSplashGate(
           key: const ValueKey('access_mobile_splash_gate'),
           child: AuthGate(
+            mobileUnauthenticatedChild: kIsWeb
+                ? null
+                : const MobileOnboardingNavigator(),
             adminBuilder: (user) => kIsWeb
                 ? AdminReactWebRedirect(
                     userName: user.name,

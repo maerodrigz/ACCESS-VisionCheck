@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/screens/member_registration_screen.dart';
 import 'package:access_mobile/shared/screens/requestor_type_selection_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_navigation.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_widgets.dart';
 import 'package:access_mobile/shared/copy/mobile_registration_copy.dart';
@@ -21,6 +22,7 @@ class RegistrationChoiceScreen extends StatelessWidget {
         const MobileAuthSectionHeader(
           title: MobileRegistrationCopy.choiceTitle,
           subtitle: MobileRegistrationCopy.choiceSubtitle,
+          compact: true,
         ),
         const SizedBox(height: 8),
         const Text(
@@ -30,13 +32,14 @@ class RegistrationChoiceScreen extends StatelessWidget {
         const SizedBox(height: 22),
         RegistrationTypeCard(
           title: 'Register as Member',
-          subtitle: 'Student photographers, videographers, and editors',
+          subtitle:
+              'Analyze media authenticity, explore quality insights, and enhance your skills through hands-on practice!',
           icon: Icons.groups_rounded,
           mobileAuthStyle: !kIsWeb,
           onTap: () async {
-            final email = await Navigator.push<String>(
+            final email = await pushMobileAuthPage<String>(
               context,
-              MaterialPageRoute(builder: (_) => const MemberRegistrationScreen()),
+              const MemberRegistrationScreen(),
             );
             if (email != null && context.mounted) {
               Navigator.pop(context, email);
@@ -46,27 +49,28 @@ class RegistrationChoiceScreen extends StatelessWidget {
         const SizedBox(height: 12),
         RegistrationTypeCard(
           title: 'Register as Requestor',
-          subtitle: 'Faculty, staff, and student organizations',
+          subtitle:
+              'Request documentation services, track your request status, and share feedback on completed services!',
           icon: Icons.description_rounded,
           mobileAuthStyle: !kIsWeb,
           onTap: () async {
-            final email = await Navigator.push<String>(
+            final email = await pushMobileAuthPage<String>(
               context,
-              MaterialPageRoute(
-                builder: (_) => const RequestorTypeSelectionScreen(),
-              ),
+              const RequestorTypeSelectionScreen(),
             );
             if (email != null && context.mounted) {
               Navigator.pop(context, email);
             }
           },
         ),
-        const SizedBox(height: 24),
-        MobileAuthTextLinkRow(
-          prompt: 'Already have an account?',
-          linkLabel: 'Sign In',
-          onLinkTap: () => Navigator.pop(context),
-        ),
+        if (kIsWeb) ...[
+          const SizedBox(height: 24),
+          MobileAuthTextLinkRow(
+            prompt: 'Already have an account?',
+            linkLabel: 'Sign In',
+            onLinkTap: () => Navigator.pop(context),
+          ),
+        ],
       ],
     );
 
@@ -86,6 +90,6 @@ class RegistrationChoiceScreen extends StatelessWidget {
       );
     }
 
-    return MobileAuthScaffold(body: body);
+    return MobileAuthScaffold.signUp(body: body);
   }
 }

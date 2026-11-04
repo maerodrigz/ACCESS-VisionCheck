@@ -5,6 +5,7 @@ import {
   cameraFileDisplayRows,
   detectorAiRiskBand,
   detectorDisplayName,
+  integrityReviewTriggerLines,
   probeRawPFakePercent,
   supplementalExifFieldRows,
   visualAiRiskColor,
@@ -57,8 +58,10 @@ export function ReviewScanTechnicalDetails({ row }: { row: AiDetectionRow }) {
   const policyOutcome = meta?.provenance_policy_outcome
     ? String(meta.provenance_policy_outcome).replace(/_/g, ' ')
     : null
+  const triggerLines = integrityReviewTriggerLines(row)
 
   return (
+    <div className="space-y-3">
     <dl className="grid w-full min-w-0 grid-cols-[minmax(7.25rem,38%)_minmax(0,1fr)] items-start gap-x-3">
       <SectionHeading>Automated detector</SectionHeading>
       <DetailCells label="Detector" value={detectorDisplayName(row)} />
@@ -106,5 +109,18 @@ export function ReviewScanTechnicalDetails({ row }: { row: AiDetectionRow }) {
         </>
       ) : null}
     </dl>
+    {triggerLines.length > 0 ? (
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+          Review queue signals
+        </p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[11px] leading-snug text-[var(--color-text-secondary)]">
+          {triggerLines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </div>
+    ) : null}
+    </div>
   )
 }

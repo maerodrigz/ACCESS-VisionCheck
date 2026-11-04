@@ -74,11 +74,18 @@ export function probeRawPFakePercent(row: AiDetectionRow): string | null {
   return null
 }
 
+function aiRiskBandWord(band: VisualRiskBand): string {
+  if (band === 'HIGH') return 'High'
+  if (band === 'SUSPICIOUS') return 'Moderate'
+  return 'Low'
+}
+
+/** Main UI label, e.g. "Low AI Risk (1%)". */
 export function detectorAiRiskSummaryLabel(row: AiDetectionRow): string {
   const band = detectorAiRiskBand(row)
-  const word = band.charAt(0) + band.slice(1).toLowerCase()
+  const word = aiRiskBandWord(band)
   const pct = probeRawPFakePercent(row)
-  return pct ? `${word} (${pct} P(fake))` : word
+  return pct ? `${word} AI Risk (${pct})` : `${word} AI Risk`
 }
 
 /** @deprecated Prefer detectorAiRiskSummaryLabel. */
@@ -491,20 +498,61 @@ export function integrityReviewReason(row: AiDetectionRow): string | null {
   return integrityProvenanceNotes(row)
 }
 
-/** Short assessment summary for administrators. */
+/** Plain-language AI content check (main Review Scan view). */
+export function aiContentCheckExplanation(row: AiDetectionRow): string {
+  const band = detectorAiRiskBand(row)
+  const pct = probeRawPFakePercent(row)
+  const pctPhrase = pct ? ` (${pct} estimated)` : ''
+  if (band === 'HIGH') {
+    return `Automated screening suggests a higher chance this file may be AI-generated or heavily manipulated${pctPhrase}. This is a risk estimate, not proof.`
+  }
+  if (band === 'SUSPICIOUS') {
+    return `Automated screening flagged elevated AI-generation signals${pctPhrase}. Review the media and source information before deciding.`
+  }
+  return `Automated screening found low AI-generation signals${pctPhrase}. Low risk does not guarantee the file is authentic.`
+}
+
+/** Plain-language media source check (main Review Scan view). */
+export function mediaSourceCheckExplanation(row: AiDetectionRow): string {
+  return sourceVerificationDisplay(row).detail
+}
+
+/** Whether the current review status reflects policy automation vs admin action. */
+export function reviewDecisionExplanation(row: AiDetectionRow): string {
+  const pending = adminDecisionDisplay(row.review_status).pending
+  if (row.review_status === 'automated_low_ai_risk') {
+    return 'Set automatically under integrity policy. No administrator decision is recorded unless you override below.'
+  }
+  if (pending) {
+    return 'No final administrator decision yet. Choose an action under Review Actions when you are ready.'
+  }
+  return 'Recorded from a prior administrator review or action. Automated screening informed the queue but does not replace your judgment.'
+}
+
+/** Short "Why this result?" from existing assessment data only. */
+export function whyThisResultExplanation(row: AiDetectionRow): string {
+  const manual = integrityManualReviewParagraph(row)
+  if (manual) return manual
+  const bullets = integrityProvenanceBullets(row)
+  if (bullets.length > 0) return bullets.join(' ')
+  if (row.review_status === 'automated_low_ai_risk') {
+    return 'This upload met auto-clear rules under current policy: low AI-generation risk and acceptable source checks.'
+  }
+  return 'Use scan results, source verification, and the media preview together. Open Advanced Details for metadata and diagnostics.'
+}
+
+/** @deprecated Main view uses section explanations; kept for compatibility. */
 export function integrityAssessmentSummary(row: AiDetectionRow): string {
   const risk = detectorAiRiskSummaryLabel(row)
   const source = sourceVerificationDisplay(row).status
   const decision = adminDecisionDisplay(row.review_status).label
-
-  const detector = detectorDisplayName(row)
   if (integrityNeedsAdminAction(row)) {
-    return `${detector}: ${risk}. Source: ${source}. Awaiting admin decision (currently ${decision}).`
+    return `AI content: ${risk}. Source: ${source}. Review decision pending (${decision}).`
   }
   if (row.review_status === 'automated_low_ai_risk') {
-    return `${detector}: ${risk}. Source: ${source}. Auto-cleared; override only if you disagree.`
+    return `AI content: ${risk}. Source: ${source}. Auto-cleared by policy; override only if you disagree.`
   }
-  return `${detector}: ${risk}. Source: ${source}. Admin decision: ${decision}.`
+  return `AI content: ${risk}. Source: ${source}. Review decision: ${decision}.`
 }
 
 /** Remaining EXIF fields not already shown in cameraFileDisplayRows (display only). */

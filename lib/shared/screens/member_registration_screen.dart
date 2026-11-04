@@ -104,6 +104,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
             const MobileAuthSectionHeader(
               title: MobileRegistrationCopy.memberTitle,
               subtitle: MobileRegistrationCopy.memberSubtitle,
+              compact: true,
             )
           else
             const Text(
@@ -201,8 +202,9 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
               const SizedBox(height: 28),
               if (mobileAuth)
                 MobileAuthGradientButton(
-                  label: 'Register',
+                  label: 'Create Account',
                   loading: _loading,
+                  compact: true,
                   onPressed: _loading || !_acceptedLegal || _emailVerificationToken == null
                       ? null
                       : _submit,
@@ -232,23 +234,12 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                           ),
                   ),
                 ),
-              if (mobileAuth) ...[
-                const SizedBox(height: 20),
-                MobileAuthTextLinkRow(
-                  prompt: 'Already have an account?',
-                  linkLabel: 'Sign In',
-                  onLinkTap: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
             ],
           ),
     );
 
     if (mobileAuth) {
-      return MobileAuthScaffold(body: formBody);
+      return MobileAuthScaffold.signUp(body: formBody);
     }
 
     return Scaffold(

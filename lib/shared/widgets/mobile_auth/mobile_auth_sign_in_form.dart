@@ -68,7 +68,7 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const MobileAuthSectionHeader(
-          title: 'Welcome Back',
+          title: 'Welcome Back!',
           subtitle: 'Continue to your account.',
           compact: true,
         ),
@@ -176,7 +176,7 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         MobileAuthGradientButton(
           label: 'Sign In',
           loading: widget.loading,
@@ -184,14 +184,14 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
           compact: true,
         ),
         if (widget.onCreateAccount != null) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           MobileAuthTextLinkRow(
             prompt: "Don't have an account?",
             linkLabel: 'Sign Up',
             onLinkTap: widget.onCreateAccount!,
           ),
         ],
-        SizedBox(height: keyboardOpen ? 16 : 32),
+        SizedBox(height: keyboardOpen ? 10 : 14),
         if (!keyboardOpen) ...[
           const LegalFooterLinks(useLoginTokens: false),
           const SizedBox(height: 4),
@@ -202,7 +202,7 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: kTextSecondary, fontSize: 10),
           ),
-          SizedBox(height: bottomInset + 10),
+          SizedBox(height: bottomInset > 0 ? bottomInset : 8),
         ],
       ],
     );

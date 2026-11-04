@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/api/auth_service.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
 
 /// Email OTP password reset (same flow as admin web).
 Future<void> showForgotPasswordDialog(
@@ -11,6 +13,9 @@ Future<void> showForgotPasswordDialog(
 }) {
   return showDialog<void>(
     context: context,
+    barrierColor: kIsWeb
+        ? null
+        : MobileAuthConstants.midnightScaffoldColor.withValues(alpha: 0.78),
     builder: (ctx) => _ForgotPasswordDialog(initialEmail: initialEmail),
   );
 }

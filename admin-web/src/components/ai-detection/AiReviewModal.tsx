@@ -17,6 +17,7 @@ import {
   aiContentCheckExplanation,
   detectorAiRiskBand,
   detectorAiRiskSummaryLabel,
+  detectorAiScoreLabel,
   integrityNeedsAdminAction,
   INTEGRITY_AI_DISCLAIMER,
   mediaSourceCheckExplanation,
@@ -265,6 +266,7 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
   const source = sourceVerificationDisplay(row)
   const adminDecision = adminDecisionDisplay(row.review_status)
   const remarksRequired = REMARKS_REQUIRED_STATUSES.includes(status)
+  const aiScoreLabel = detectorAiScoreLabel(row)
 
   return (
     <>
@@ -347,6 +349,11 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
                             />
                             {detectorAiRiskSummaryLabel(row)}
                           </p>
+                          {aiScoreLabel ? (
+                            <p className="mt-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
+                              {aiScoreLabel}
+                            </p>
+                          ) : null}
                         </StatusBlock>
 
                         <StatusBlock title="Media Source Check" hint={mediaSourceCheckExplanation(row)}>

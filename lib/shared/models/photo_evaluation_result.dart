@@ -211,6 +211,16 @@ class AiDetectionResult {
         if (isDeferredAuthenticity && isFinal) 'is_final': false,
       };
 
+  static double? _syntheticProbabilityFromMap(Map<String, dynamic> ai) {
+    final direct = (ai['probability'] as num?)?.toDouble() ??
+        (ai['raw_detector_probability'] as num?)?.toDouble();
+    if (direct != null) return direct;
+    final exif = _parseExifMetadata(ai['exif_metadata']);
+    if (exif == null) return null;
+    return (exif['visual_ai_probability'] as num?)?.toDouble() ??
+        (exif['raw_detector_probability'] as num?)?.toDouble();
+  }
+
   static AiDetectionResult? fromJsonMap(Map<String, dynamic>? ai) {
     if (ai == null) return null;
     final status = ai['analysis_status'] as String?;
@@ -229,8 +239,7 @@ class AiDetectionResult {
       verdict: ai['verdict'] as String? ?? 'authentic',
       confidence: (ai['confidence'] as num?)?.toDouble() ?? 0.85,
       detail: ai['detail'] as String? ?? '',
-      probability: (ai['probability'] as num?)?.toDouble() ??
-          (ai['raw_detector_probability'] as num?)?.toDouble(),
+      probability: _syntheticProbabilityFromMap(ai),
       analysisStatus: status,
       isFinal: isFinal,
       riskLevel: ai['risk_level'] as String?,

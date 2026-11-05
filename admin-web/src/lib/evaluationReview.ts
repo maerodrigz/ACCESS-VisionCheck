@@ -109,6 +109,20 @@ export function isEvaluationFlagged(item: EvaluationReviewItem): boolean {
   return r === 'ai_generated' || r === 'suspicious'
 }
 
+/** Practice photo/video rows carry an AI authenticity score; event documentation does not. */
+export function practicePhotoOrVideoEvaluation(item: EvaluationReviewItem): boolean {
+  if (item.sourceType !== 'practice') return false
+  const mt = (item.mediaType ?? '').trim().toLowerCase()
+  if (mt === 'photo' || mt === 'video') return true
+  const name = item.fileName.toLowerCase()
+  return /\.(jpe?g|png|webp|heic|heif|mp4|mov|m4v|webm)(\?|$)/i.test(name)
+}
+
+export function formatEvaluationAiScore(probability: number | null): string | null {
+  if (probability == null || Number.isNaN(probability)) return null
+  return `${Math.round(Math.min(1, Math.max(0, probability)) * 100)}%`
+}
+
 export function formatEvalDate(d: Date | null): string {
   if (!d) return 'N/A'
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })

@@ -64,9 +64,15 @@ def cmd_runserver(args: argparse.Namespace) -> None:
             f"  WaveRep G4: enabled={wr.get('enabled')} "
             f"detector_loaded={wr.get('detector_initialized')}"
         )
+    from app.dev_lan import detect_default_route_ipv4
+
+    lan_ip = detect_default_route_ipv4()
     print(f"  Docs:   {public}/docs")
     print(f"  Health: {public}/api/health")
     print(f"  Local:  http://127.0.0.1:{port}/api/health")
+    if lan_ip:
+        print(f"  Phone:  http://{lan_ip}:{port}/api/health  (physical device on same hotspot/LAN)")
+    print(f"  DB:     PostgreSQL on {settings.db_host}:{settings.db_port} (local only)")
     if reload:
         print("  Reload: on (code changes restart the worker; stop stray uvicorn on the same port if LAN sees stale API).")
     print("Press CTRL+C to stop.\n")

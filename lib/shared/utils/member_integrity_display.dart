@@ -51,19 +51,39 @@ String memberAutomatedIntegrityTierLabel(AiDetectionResult automated) {
   return memberAutomatedAiRiskTierLabel(automated);
 }
 
+/// Synthetic-media probability (0–1) for member-facing AI score on photo/video practice evals.
+double? memberSyntheticAiProbability(AiDetectionResult automated) {
+  if (automated.isAiAnalysisUnavailable || automated.isDeferredAuthenticity) {
+    return null;
+  }
+  if (automated.probability != null) return automated.probability;
+  final exif = automated.exifMetadata;
+  if (exif != null) {
+    final visual = exif['visual_ai_probability'];
+    if (visual is num) return visual.toDouble();
+    final raw = exif['raw_detector_probability'];
+    if (raw is num) return raw.toDouble();
+  }
+  return null;
+}
+
 String formatMemberAiProbabilityPercent(AiDetectionResult automated) {
-  final p = automated.probability;
+  final p = memberSyntheticAiProbability(automated);
   if (p == null) return 'N/A';
   final pct = p * 100;
   return '${pct.toStringAsFixed(1)}%';
 }
 
+bool memberPracticePhotoOrVideoMediaType(String? mediaType) {
+  final mt = (mediaType ?? '').trim().toLowerCase();
+  if (mt.isEmpty) return true;
+  return mt == 'photo' || mt == 'video';
+}
+
 /// Member-facing AI card: score only (no frames, detector names, or admin metadata).
 String? memberFacingAiScoreLine(AiDetectionResult automated) {
-  if (automated.isAiAnalysisUnavailable || automated.isDeferredAuthenticity) {
-    return null;
-  }
-  if (automated.probability == null) return null;
+  final p = memberSyntheticAiProbability(automated);
+  if (p == null) return null;
   return 'AI Score: ${formatMemberAiProbabilityPercent(automated)}';
 }
 
@@ -592,7 +612,8 @@ Color memberIntegrityTierColor(String tierLabel) {
 }
 
 String automatedScreeningSecondaryLine(AiDetectionResult automated) {
-  final pct = automated.probability != null ? formatMemberAiProbabilityPercent(automated) : null;
+  final pct =
+      memberSyntheticAiProbability(automated) != null ? formatMemberAiProbabilityPercent(automated) : null;
   final band = _automatedBandLabel(automated);
   if (pct != null) {
     return 'Automated screening initially reported $band AI authenticity risk ($pct).';

@@ -17,6 +17,16 @@ PhotoEvaluationResult? photoEvaluationResultFromApiRow(Map<String, dynamic> row)
   }
   if (payload == null) return null;
 
+  final ai = payload['ai_detection'];
+  final topProb = (row['ai_probability'] as num?)?.toDouble();
+  if (topProb != null && ai is Map) {
+    final aiMap = Map<String, dynamic>.from(ai);
+    if (aiMap['probability'] == null && aiMap['raw_detector_probability'] == null) {
+      aiMap['probability'] = topProb;
+      payload = Map<String, dynamic>.from(payload)..['ai_detection'] = aiMap;
+    }
+  }
+
   final parsed = PhotoEvaluationResult.fromJson(payload);
   if (parsed == null) return null;
   return parsed;

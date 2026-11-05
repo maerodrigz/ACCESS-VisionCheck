@@ -65,13 +65,23 @@ export function visualAiRiskColor(band: VisualRiskBand): string {
   return 'var(--color-success)'
 }
 
-/** PROBE raw P(fake) from persisted metadata (not legacy classifier probability). */
+/** Synthetic-media AI score (0–100%) from PROBE/WaveRep metadata or stored ai_probability. */
 export function probeRawPFakePercent(row: AiDetectionRow): string | null {
   const probe = row.exif_metadata?.visual_ai_probability
   if (probe != null && !Number.isNaN(probe)) {
     return `${Math.round(Math.min(1, Math.max(0, probe)) * 100)}%`
   }
+  const stored = row.ai_probability
+  if (stored != null && !Number.isNaN(stored)) {
+    return `${Math.round(Math.min(1, Math.max(0, stored)) * 100)}%`
+  }
   return null
+}
+
+/** Plain label for Scan Results (photo/video practice integrity). */
+export function detectorAiScoreLabel(row: AiDetectionRow): string | null {
+  const pct = probeRawPFakePercent(row)
+  return pct != null ? `AI score: ${pct}` : null
 }
 
 function aiRiskBandWord(band: VisualRiskBand): string {

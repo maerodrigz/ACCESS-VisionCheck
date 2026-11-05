@@ -8,7 +8,13 @@ import { AdminConfirmDialog } from '../AdminConfirmDialog'
 import { AdminDrawer } from '../AdminDrawer'
 import { MediaPreviewContent } from '../media-library/MediaPreviewContent'
 import type { EvaluationReviewItem } from '../../lib/evaluationReview'
-import { formatEvalDate, isEvaluationFlagged, scoreTone } from '../../lib/evaluationReview'
+import {
+  formatEvalDate,
+  formatEvaluationAiScore,
+  isEvaluationFlagged,
+  practicePhotoOrVideoEvaluation,
+  scoreTone,
+} from '../../lib/evaluationReview'
 
 interface Props {
   item: EvaluationReviewItem | null
@@ -109,6 +115,26 @@ export function EvaluationDetailDrawer({
             className="max-w-full"
           />
         </div>
+
+        {practicePhotoOrVideoEvaluation(item) ? (
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+            <div className="text-[10px] font-bold uppercase text-[var(--color-text-secondary)]">
+              AI detection result
+            </div>
+            <div className="mt-1 flex flex-wrap items-baseline gap-2">
+              <span className="text-sm font-bold text-[var(--color-text-primary)]">
+                {item.aiResult?.replace(/_/g, ' ') ?? 'N/A'}
+              </span>
+              {formatEvaluationAiScore(item.aiProbability) ? (
+                <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
+                  AI score: {formatEvaluationAiScore(item.aiProbability)}
+                </span>
+              ) : (
+                <span className="text-xs text-[var(--color-text-muted)]">AI score: N/A</span>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">

@@ -207,6 +207,6 @@ void main() {
     expect(find.text('AI Authenticity Assessment'), findsNothing);
     expect(find.text('Camera Metadata / Provenance'), findsNothing);
     expect(find.text('Additional Quality Insights'), findsNothing);
-    expect(find.textContaining('AI Score'), findsNothing);
+    expect(find.text('AI Score: 2.0%'), findsOneWidget);
   });
 }

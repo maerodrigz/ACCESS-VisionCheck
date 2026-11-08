@@ -505,6 +505,9 @@ class PhotoEvaluationResult {
     this.memberScoresReleased,
     this.reviewGateMessage,
     this.additionalQualityInsights,
+    this.evaluationAvailable = true,
+    this.qualityEngine,
+    this.opencvFallback = false,
   });
 
   final List<CriterionScore> criteria;
@@ -531,8 +534,12 @@ class PhotoEvaluationResult {
   final bool? memberScoresReleased;
   final String? reviewGateMessage;
   final AdditionalQualityInsights? additionalQualityInsights;
+  final bool evaluationAvailable;
+  final String? qualityEngine;
+  final bool opencvFallback;
 
-  int get overallPercent => ((overallScore / 5) * 100).round().clamp(0, 100);
+  int get overallPercent =>
+      evaluationAvailable ? ((overallScore / 5) * 100).round().clamp(0, 100) : 0;
 
   bool get hasAdditionalQualityInsights =>
       additionalQualityInsights?.hasDisplayableData ?? false;
@@ -697,21 +704,39 @@ class PhotoEvaluationResult {
           ? (legacyOverall * 5).clamp(0.0, 5.0)
           : legacyOverall.clamp(0.0, 5.0);
     }
-    return 3;
+    return 0;
+  }
+
+  static bool payloadMarksEvaluationFailed(Map<String, dynamic> j) {
+    final status = (j['evaluation_status'] as String?)?.trim().toLowerCase() ?? '';
+    if (status == 'failed' || status == 'unavailable' || status == 'error') {
+      return true;
+    }
+    return j['evaluation_available'] == false;
   }
 
   static PhotoEvaluationResult? fromJson(Map<String, dynamic>? j) {
     if (j == null) return null;
+    final analysis = j['analysis'] is Map ? Map<String, dynamic>.from(j['analysis'] as Map) : null;
+    final failed = payloadMarksEvaluationFailed(j);
     final raw = j['criteria'];
-    final list = raw is List
-        ? raw.map((e) => CriterionScore.fromJson(Map<String, dynamic>.from(e as Map))).toList()
-        : <CriterionScore>[];
+    final list = failed
+        ? <CriterionScore>[]
+        : raw is List
+            ? raw
+                .whereType<Map>()
+                .where((e) => e['score'] != null)
+                .map((e) => CriterionScore.fromJson(Map<String, dynamic>.from(e)))
+                .toList()
+            : <CriterionScore>[];
     final ai = j['ai_detection'];
     final geminiRaw = j['gemini_feedback'];
     return PhotoEvaluationResult(
       criteria: list,
-      overallScore: parseOverallScoreFromJson(j),
-      qualityLevel: j['quality_level'] as String? ?? 'Fair',
+      overallScore: failed ? 0 : parseOverallScoreFromJson(j),
+      qualityLevel: failed
+          ? 'Unavailable'
+          : (j['quality_level'] as String? ?? 'Fair'),
       feedback: j['ai_feedback'] as String? ?? j['feedback'] as String? ?? '',
       improvementSuggestions: j['improvement_suggestions'] as String? ?? '',
       recommendation: j['recommendation'] as String? ?? 'Needs Improvement',
@@ -750,6 +775,9 @@ class PhotoEvaluationResult {
               Map<String, dynamic>.from(j['additional_quality_insights'] as Map),
             )
           : null,
+      evaluationAvailable: !failed,
+      qualityEngine: analysis?['quality_engine'] as String? ?? j['scoring_engine'] as String?,
+      opencvFallback: analysis?['opencv_fallback'] == true,
     );
   }
 
@@ -792,6 +820,9 @@ class PhotoEvaluationResult {
         memberScoresReleased: memberScoresReleased ?? this.memberScoresReleased,
         reviewGateMessage: reviewGateMessage ?? this.reviewGateMessage,
         additionalQualityInsights: additionalQualityInsights,
+        evaluationAvailable: evaluationAvailable,
+        qualityEngine: qualityEngine,
+        opencvFallback: opencvFallback,
       );
 
   PhotoEvaluationResult copyWithGemini(MediaEvaluationFeedback gf, {bool geminiFeedbackIsLocal = false}) {
@@ -828,7 +859,12 @@ class PhotoEvaluationResult {
         memberIntegrityMessage: memberIntegrityMessage,
         xpPending: xpPending,
         xpPointsPreview: xpPointsPreview,
+        memberScoresReleased: memberScoresReleased,
+        reviewGateMessage: reviewGateMessage,
         additionalQualityInsights: additionalQualityInsights,
+        evaluationAvailable: evaluationAvailable,
+        qualityEngine: qualityEngine,
+        opencvFallback: opencvFallback,
       );
   }
 }

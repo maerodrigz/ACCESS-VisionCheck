@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import threading
-from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -56,9 +55,11 @@ def analyze_image_bytes(content: bytes) -> dict[str, Any] | None:
         return None
 
     try:
-        from PIL import Image
+        from app.services.image_orientation import oriented_pil_image
 
-        image = Image.open(BytesIO(content)).convert("RGB")
+        image = oriented_pil_image(content)
+        if image is None:
+            return None
     except Exception:
         return None
 

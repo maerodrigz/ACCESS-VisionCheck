@@ -91,12 +91,28 @@ def test_deferred_metadata_not_accepted_as_final_preview() -> None:
 
 
 def test_final_metadata_still_fast_path_when_not_deferred() -> None:
+    names = (
+        "Sharpness",
+        "Blur",
+        "Noise",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Ringing Artifacts",
+    )
     preview = {
-        "criteria": [{"name": "Sharpness", "score": 4}],
+        "criteria": [{"name": n, "score": 4} for n in names],
         "overall_score": 4.0,
         "ai_detection": {"verdict": "authentic", "confidence": 0.8, "probability": 0.1, "detail": "x"},
         "scoring_model": "efficientnet-b0",
-        "legacy": {"overall_score": 0.8},
+        "legacy": {
+            "sharpness_score": 0.8,
+            "brightness_score": 0.8,
+            "contrast_score": 0.8,
+            "blur_score": 0.8,
+            "noise_score": 0.2,
+            "overall_score": 0.8,
+        },
     }
     assert _payload_from_preview_metadata(json.dumps(preview)) is not None
 
@@ -104,13 +120,29 @@ def test_final_metadata_still_fast_path_when_not_deferred() -> None:
 def test_background_pipeline_runs_full_evaluate_when_metadata_deferred() -> None:
     db = MagicMock()
     media = MagicMock(id=1, file_name="p.jpg", file_url="/uploads/p.jpg", file_type="photo", uploaded_by=2)
+    names = (
+        "Sharpness",
+        "Blur",
+        "Noise",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Ringing Artifacts",
+    )
     deferred_meta = json.dumps(
         {
-            "criteria": [{"name": "Sharpness", "score": 4}],
+            "criteria": [{"name": n, "score": 4} for n in names],
             "overall_score": 4.0,
             "ai_detection": deferred_authenticity_preview(),
             "scoring_model": "efficientnet-b0",
-            "legacy": {"overall_score": 0.8},
+            "legacy": {
+                "sharpness_score": 0.8,
+                "brightness_score": 0.8,
+                "contrast_score": 0.8,
+                "blur_score": 0.8,
+                "noise_score": 0.2,
+                "overall_score": 0.8,
+            },
         }
     )
 

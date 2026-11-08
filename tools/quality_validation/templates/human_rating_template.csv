@@ -1,1 +1,1 @@
-media_id,dataset_split,media_type,rater_id,sharpness_blur,exposure,noise_contrast,compression_artifacts,color_balance,composition_framing,subject_clarity,video_motion_stability,video_flickering,overall_documentation,notes
+media_id,rater_id,media_type,sharpness,blur,noise,brightness,contrast,blocking_artifacts,ringing_artifacts,flickering,motion_stability,overall_visual_quality,notes

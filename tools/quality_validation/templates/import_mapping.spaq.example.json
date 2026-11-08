@@ -3,18 +3,18 @@
   "label_provenance": "human_subjective",
   "mos_scale": "0-100",
   "attribute_scale": "0-100",
-  "filename_transform": "strip_extension",
+  "filename_transform": "identity",
   "media_id_template": "spaq_{source_media_key_safe}",
-  "source_media_key_column": "REPLACE_WITH_ACTUAL_IMAGE_COLUMN",
+  "source_media_key_column": "Image name",
   "dataset_split_column": null,
   "columns": {
-    "source_media_key": "REPLACE_WITH_ACTUAL_IMAGE_COLUMN",
-    "mos_quality_raw": "REPLACE_WITH_MOS_COLUMN",
-    "attr_sharpness_raw": "REPLACE_WITH_SHARPNESS_COLUMN",
-    "attr_brightness_raw": "REPLACE_WITH_BRIGHTNESS_COLUMN",
-    "attr_noisiness_raw": "REPLACE_WITH_NOISINESS_COLUMN",
-    "attr_contrast_raw": "REPLACE_WITH_CONTRAST_COLUMN",
-    "attr_colorfulness_raw": "REPLACE_WITH_COLORFULNESS_COLUMN"
+    "source_media_key": "Image name",
+    "mos_quality_raw": "MOS",
+    "attr_sharpness_raw": "Sharpness",
+    "attr_brightness_raw": "Brightness",
+    "attr_noisiness_raw": "Noisiness",
+    "attr_contrast_raw": "Contrast",
+    "attr_colorfulness_raw": "Colorfulness"
   },
-  "_comment": "After downloading SPAQ, open MOS and Image attribute scores.xlsx, copy exact header names into columns.* and source_media_key_column. Join splits via --manifest + --dataset-root."
+  "_comment": "Verified 2026-11-07 against local MOS and Image attribute scores.xlsx (Sheet1, 11125 rows). Images still required separately. Do not retrain on SPAQ."
 }

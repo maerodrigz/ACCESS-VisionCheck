@@ -135,6 +135,7 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
+    '10.159.240.169',
     '192.168.8.98',
     '10.216.233.169',
     '10.210.8.169',
@@ -427,6 +428,12 @@ class ApiConfig {
   /// Set from [initAndroidDeviceProfile] in mobile main() before API calls.
   static bool? _androidIsPhysicalDevice;
 
+  /// Physical Android phone (not Studio emulator). USB reverse may apply.
+  static bool get isPhysicalAndroidDevice {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    return _androidIsPhysicalDevice != false;
+  }
+
   static Future<void> initAndroidDeviceProfile() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
@@ -483,7 +490,8 @@ class ApiConfig {
     if (!explicitCompileTimeHost) {
       add(runtime);
       add(_lastWorkingBaseUrl);
-      if (_androidIsPhysicalDevice != false) {
+      if (isPhysicalAndroidDevice) {
+        add(originalUsbDevBaseUrl);
         add('http://${knownLanHosts.first}:$port');
       }
       if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
@@ -534,6 +542,9 @@ class ApiConfig {
 
     add(runtimeBaseUrl.value);
     add(_lastWorkingBaseUrl);
+    if (isPhysicalAndroidDevice) {
+      add(originalUsbDevBaseUrl);
+    }
     add(_webSameOriginBaseUrl);
 
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {

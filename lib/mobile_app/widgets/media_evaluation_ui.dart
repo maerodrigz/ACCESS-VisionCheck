@@ -152,6 +152,15 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
     if (!showQuality) {
       return IntegrityOnlyMessageCard(result: result);
     }
+    if (!result.evaluationAvailable) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'Quality evaluation unavailable. This is not a measured score.',
+          style: TextStyle(color: kTextSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

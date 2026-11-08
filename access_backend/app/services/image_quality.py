@@ -213,38 +213,66 @@ def parse_client_payload(raw: str | None) -> dict[str, Any] | None:
     return data
 
 
-def legacy_scores_from_payload(payload: dict[str, Any]) -> dict[str, float]:
+def _legacy_float(raw: Any) -> float | None:
+    if raw is None or raw == "":
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def legacy_scores_from_payload(payload: dict[str, Any]) -> dict[str, float] | None:
+    """Measured 0–1 columns from a complete payload. None if scores cannot be derived."""
+    keys = (
+        "sharpness_score",
+        "brightness_score",
+        "contrast_score",
+        "blur_score",
+        "noise_score",
+        "overall_score",
+    )
     legacy = payload.get("legacy")
     if isinstance(legacy, dict):
-        return {
-            "sharpness_score": float(legacy.get("sharpness_score", 0.6)),
-            "brightness_score": float(legacy.get("brightness_score", 0.6)),
-            "contrast_score": float(legacy.get("contrast_score", 0.6)),
-            "blur_score": float(legacy.get("blur_score", 0.6)),
-            "noise_score": float(legacy.get("noise_score", 0.4)),
-            "overall_score": float(legacy.get("overall_score", 0.6)),
-        }
-    criteria = payload.get("criteria")
-    if isinstance(criteria, list):
-        by_name = {
-            c.get("name"): int(c.get("score", 3))
-            for c in criteria
-            if isinstance(c, dict) and c.get("name")
-        }
+        out: dict[str, float] = {}
+        for key in keys:
+            val = _legacy_float(legacy.get(key))
+            if val is None:
+                break
+            out[key] = val
+        else:
+            if out["overall_score"] > 0:
+                return out
 
-        def s(primary: str, fallback: str | None = None) -> int:
+    criteria = payload.get("criteria")
+    if isinstance(criteria, list) and criteria:
+        by_name: dict[Any, int] = {}
+        for c in criteria:
+            if not isinstance(c, dict) or not c.get("name"):
+                continue
+            try:
+                by_name[c.get("name")] = int(round(float(c.get("score"))))
+            except (TypeError, ValueError):
+                continue
+
+        def s(primary: str, fallback: str | None = None) -> int | None:
             if primary in by_name:
-                return by_name[primary]
+                return int(by_name[primary])
             if fallback and fallback in by_name:
-                return by_name[fallback]
-            return 3
+                return int(by_name[fallback])
+            return None
 
         sharpness = s("Sharpness", "Focus and Sharpness")
         blur = s("Blur", "Focus and Sharpness")
         noise = s("Noise", "Technical Quality")
         brightness = s("Brightness", "Lighting and Exposure")
         contrast = s("Contrast", "Color and White Balance")
-        overall = float(payload.get("overall_score", 3)) / 5.0
+        overall_raw = _legacy_float(payload.get("overall_score"))
+        if None in (sharpness, blur, noise, brightness, contrast, overall_raw):
+            return None
+        overall = float(overall_raw) / 5.0 if float(overall_raw) > 1 else float(overall_raw)
+        if overall <= 0:
+            return None
         return {
             "sharpness_score": round(sharpness / 5, 3),
             "brightness_score": round(brightness / 5, 3),
@@ -253,12 +281,4 @@ def legacy_scores_from_payload(payload: dict[str, Any]) -> dict[str, float]:
             "noise_score": round(1 - noise / 5, 3),
             "overall_score": round(overall, 3),
         }
-    overall = float(payload.get("overall_score", 3)) / 5.0
-    return {
-        "sharpness_score": float(payload.get("focus_score", 3)) / 5.0,
-        "brightness_score": float(payload.get("lighting_score", 3)) / 5.0,
-        "contrast_score": float(payload.get("color_score", 3)) / 5.0,
-        "blur_score": float(payload.get("focus_score", 3)) / 5.0,
-        "noise_score": max(0.0, 1.0 - float(payload.get("technical_quality_score", 3)) / 5.0),
-        "overall_score": round(overall, 3),
-    }
+    return None

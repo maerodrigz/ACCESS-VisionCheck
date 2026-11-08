@@ -11,10 +11,26 @@ from app.services.media_pipeline import _quality_preview_from_metadata, run_pipe
 
 
 def _quality_preview_metadata() -> str:
+    names = (
+        "Sharpness",
+        "Blur",
+        "Noise",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Ringing Artifacts",
+    )
     payload = {
-        "criteria": [{"name": "Sharpness", "score": 4, "label": "Good"}],
+        "criteria": [{"name": n, "score": 4, "label": "Good"} for n in names],
         "overall_score": 4.0,
-        "legacy": {"overall_score": 0.8},
+        "legacy": {
+            "sharpness_score": 0.8,
+            "brightness_score": 0.8,
+            "contrast_score": 0.8,
+            "blur_score": 0.8,
+            "noise_score": 0.2,
+            "overall_score": 0.8,
+        },
         "scoring_engine": "efficientnet-b0+ffmpeg",
         "ai_detection": deferred_authenticity_preview(),
     }

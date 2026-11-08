@@ -140,11 +140,17 @@ export function EvaluationDetailDrawer({
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
             <div className="text-[10px] font-bold uppercase text-[var(--color-text-secondary)]">Overall</div>
             <div className={`mt-1 text-2xl font-extrabold ${scoreTone(item.overallScore)}`}>
-              {Math.round(item.overallScore)}%
+              {item.qualityAvailable && item.overallScore != null ? `${Math.round(item.overallScore)}%` : 'N/A'}
             </div>
             <div className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              {item.qualityLevel ?? 'No quality tier'}
+              {item.qualityAvailable ? (item.qualityLevel ?? 'No quality tier') : 'Quality evaluation unavailable'}
             </div>
+            {item.qualityEngine ? (
+              <div className="mt-1 text-[10px] text-[var(--color-text-muted)]">
+                Engine: {item.qualityEngine}
+                {item.opencvFallback ? ' (OpenCV fallback)' : ''}
+              </div>
+            ) : null}
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
             <div className="text-[10px] font-bold uppercase text-[var(--color-text-secondary)]">Source</div>
@@ -163,6 +169,9 @@ export function EvaluationDetailDrawer({
             <ScoreRow label="Contrast" value={item.contrastScore} />
             <ScoreRow label="Blur" value={item.blurScore} />
             <ScoreRow label="Noise" value={item.noiseScore} />
+            <p className="pt-1 text-[10px] text-[var(--color-text-muted)]">
+              Higher percent is better for every criterion, including Blur and Noise.
+            </p>
           </div>
         </div>
 

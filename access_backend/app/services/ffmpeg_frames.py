@@ -46,7 +46,11 @@ def extract_frames(content: bytes, ext: str, *, max_frames: int | None = None) -
                 return frames
 
         if cv2 is not None:
-            return _extract_with_opencv(video_path, max_frames=max_frames)
+            return _extract_with_opencv(
+                video_path,
+                max_frames=max_frames,
+                rotation_degrees=_probe_rotation_degrees(video_path),
+            )
 
     return []
 
@@ -167,9 +171,58 @@ def _probe_duration(video_path: Path) -> float:
     return 0.0
 
 
-def _extract_with_opencv(video_path: Path, *, max_frames: int) -> list[bytes]:
+def _probe_rotation_degrees(video_path: Path) -> int:
+    """Display rotation from container tags (OpenCV does not apply this). FFmpeg autorotates by default."""
+    import json
+
+    if not shutil.which("ffprobe"):
+        return 0
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream_tags=rotate:stream_side_data=rotation",
+        "-of",
+        "json",
+        str(video_path),
+    ]
+    try:
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=15)
+        if result.returncode != 0 or not result.stdout.strip():
+            return 0
+        data = json.loads(result.stdout)
+        streams = data.get("streams") or []
+        if not streams:
+            return 0
+        stream = streams[0]
+        tags = stream.get("tags") or {}
+        rotate = tags.get("rotate")
+        if rotate is not None:
+            return int(float(rotate)) % 360
+        for item in stream.get("side_data_list") or []:
+            if not isinstance(item, dict):
+                continue
+            rot = item.get("rotation")
+            if rot is not None:
+                return int(float(rot)) % 360
+    except (ValueError, TypeError, subprocess.SubprocessError, OSError, json.JSONDecodeError):
+        return 0
+    return 0
+
+
+def _extract_with_opencv(
+    video_path: Path,
+    *,
+    max_frames: int,
+    rotation_degrees: int = 0,
+) -> list[bytes]:
     if cv2 is None:
         return []
+
+    from app.services.image_orientation import rotate_bgr
 
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
@@ -189,6 +242,7 @@ def _extract_with_opencv(video_path: Path, *, max_frames: int) -> list[bytes]:
             ok, frame = cap.read()
             if not ok or frame is None:
                 continue
+            frame = rotate_bgr(frame, rotation_degrees)
             ok, encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
             if ok:
                 frames.append(encoded.tobytes())

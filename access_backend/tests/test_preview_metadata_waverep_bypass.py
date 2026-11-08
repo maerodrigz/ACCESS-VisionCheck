@@ -16,13 +16,35 @@ from app.services.media_pipeline import (
 )
 
 
+def _complete_quality_fields() -> dict:
+    names = (
+        "Sharpness",
+        "Blur",
+        "Noise",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Ringing Artifacts",
+    )
+    return {
+        "criteria": [{"name": n, "score": 4, "label": "Good"} for n in names],
+        "overall_score": 4.0,
+        "legacy": {
+            "sharpness_score": 0.8,
+            "brightness_score": 0.8,
+            "contrast_score": 0.8,
+            "blur_score": 0.8,
+            "noise_score": 0.2,
+            "overall_score": 0.8,
+        },
+        "scoring_engine": "efficientnet-b0+ffmpeg",
+    }
+
+
 def _fake_full_preview_metadata() -> str:
     return json.dumps(
         {
-            "criteria": [{"name": "Sharpness", "score": 4, "label": "Good"}],
-            "overall_score": 4.0,
-            "legacy": {"overall_score": 0.8},
-            "scoring_engine": "efficientnet-b0+ffmpeg",
+            **_complete_quality_fields(),
             "ai_detection": {
                 "verdict": "authentic",
                 "probability": 0.01,
@@ -37,10 +59,7 @@ def _fake_full_preview_metadata() -> str:
 def _quality_only_metadata() -> str:
     return json.dumps(
         {
-            "criteria": [{"name": "Sharpness", "score": 4, "label": "Good"}],
-            "overall_score": 4.0,
-            "legacy": {"overall_score": 0.8},
-            "scoring_engine": "efficientnet-b0+ffmpeg",
+            **_complete_quality_fields(),
             "ai_detection": deferred_authenticity_preview(),
         }
     )
@@ -88,9 +107,7 @@ def test_video_full_preview_bypass_blocked_in_run_pipeline() -> None:
     }
 
     analyzed = {
-        "criteria": [{"name": "Sharpness", "score": 4}],
-        "overall_score": 4.0,
-        "legacy": {"overall_score": 0.8},
+        **_complete_quality_fields(),
         "ai_detection": waverep_ai,
     }
     with patch("app.services.waverep_g4_detector.is_waverep_video_detection_enabled", return_value=True):
@@ -148,9 +165,7 @@ def test_video_no_metadata_uses_evaluate_bytes() -> None:
     db = MagicMock()
     media = _video_media()
     analyzed = {
-        "criteria": [{"name": "Sharpness", "score": 4}],
-        "overall_score": 4.0,
-        "legacy": {"overall_score": 0.8},
+        **_complete_quality_fields(),
         "ai_detection": {"verdict": "suspicious", "probability": 0.5, "detector_backend": "waverep_g4"},
     }
 

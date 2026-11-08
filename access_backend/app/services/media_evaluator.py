@@ -25,8 +25,61 @@ from app.services.supplementary_quality_insights import (
 
 
 SCORING_ENGINE = "efficientnet-b0+ffmpeg"
+QUALITY_ENGINE_EFFICIENTNET = "efficientnet-b0"
+QUALITY_ENGINE_OPENCV = "opencv"
 
 _PRACTICE_VIDEO_EXTENSIONS = frozenset(DEFAULT_VIDEO_EXTENSIONS)
+_PHOTO_CRITERION_NAMES = (
+    "Sharpness",
+    "Blur",
+    "Noise",
+    "Brightness",
+    "Contrast",
+    "Blocking Artifacts",
+    "Ringing Artifacts",
+)
+_VIDEO_EXTRA_CRITERION_NAMES = ("Flickering", "Motion Stability")
+
+
+def preferred_quality_engine() -> str | None:
+    if efficientnet_available() and ensure_weights():
+        return QUALITY_ENGINE_EFFICIENTNET
+    if opencv_available():
+        return QUALITY_ENGINE_OPENCV
+    return None
+
+
+def analyze_image_for_engine(content: bytes, engine: str) -> dict[str, Any] | None:
+    if engine == QUALITY_ENGINE_EFFICIENTNET:
+        if efficientnet_available() and ensure_weights():
+            return efficientnet_analyze(content)
+        return None
+    if engine == QUALITY_ENGINE_OPENCV:
+        if opencv_available():
+            return opencv_analyze(content)
+        return None
+    return None
+
+
+def resolve_quality_engine_for_bytes(content: bytes) -> tuple[dict[str, Any] | None, str | None, bool]:
+    """
+    Returns (metrics, engine_used, opencv_fallback).
+    Tries EfficientNet first; OpenCV only if EfficientNet is unavailable or fails.
+    """
+    preferred = preferred_quality_engine()
+    if preferred == QUALITY_ENGINE_EFFICIENTNET:
+        metrics = analyze_image_for_engine(content, QUALITY_ENGINE_EFFICIENTNET)
+        if metrics is not None:
+            return metrics, QUALITY_ENGINE_EFFICIENTNET, False
+        if opencv_available():
+            metrics = analyze_image_for_engine(content, QUALITY_ENGINE_OPENCV)
+            if metrics is not None:
+                return metrics, QUALITY_ENGINE_OPENCV, True
+        return None, None, False
+    if preferred == QUALITY_ENGINE_OPENCV:
+        metrics = analyze_image_for_engine(content, QUALITY_ENGINE_OPENCV)
+        return (metrics, QUALITY_ENGINE_OPENCV, False) if metrics else (None, None, False)
+    return None, None, False
 
 
 def deferred_authenticity_preview() -> dict[str, Any]:
@@ -68,13 +121,8 @@ def _apply_preview_integrity_policy(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _analyze_image(content: bytes) -> dict[str, Any] | None:
-    if efficientnet_available() and ensure_weights():
-        metrics = efficientnet_analyze(content)
-        if metrics is not None:
-            return metrics
-    if opencv_available():
-        return opencv_analyze(content)
-    return None
+    metrics, _engine, _fallback = resolve_quality_engine_for_bytes(content)
+    return metrics
 
 
 def evaluate_authenticity_bytes(content: bytes, *, file_name: str = "") -> dict[str, Any] | None:
@@ -108,7 +156,7 @@ def evaluate_bytes(
 
 
 def evaluate_photo(content: bytes, *, file_name: str = "", include_authenticity: bool = True) -> dict[str, Any] | None:
-    metrics = _analyze_image(content)
+    metrics, engine, opencv_fallback = resolve_quality_engine_for_bytes(content)
     if metrics is None:
         return None
     criteria = _photo_criteria(metrics)
@@ -122,6 +170,9 @@ def evaluate_photo(content: bytes, *, file_name: str = "", include_authenticity:
         file_name=file_name,
         include_authenticity=include_authenticity,
         supplementary_insights=supplementary,
+        quality_engine=engine,
+        opencv_fallback=opencv_fallback,
+        frames_analyzed=1,
     )
 
 
@@ -136,9 +187,21 @@ def evaluate_video(
     if not frame_bytes:
         return None
 
-    workers = min(4, max(1, len(frame_bytes)))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        frame_metrics = [m for m in pool.map(_analyze_image, frame_bytes) if m is not None]
+    first, engine, opencv_fallback = resolve_quality_engine_for_bytes(frame_bytes[0])
+    if first is None or engine is None:
+        return None
+
+    frame_metrics = [first]
+    rest = frame_bytes[1:]
+    if rest:
+        workers = min(4, max(1, len(rest)))
+
+        def _score_frame(frame: bytes) -> dict[str, Any] | None:
+            return analyze_image_for_engine(frame, engine)
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            pinned = list(pool.map(_score_frame, rest))
+        frame_metrics.extend(m for m in pinned if m is not None)
     if not frame_metrics:
         return None
 
@@ -174,15 +237,10 @@ def evaluate_video(
         ai_detection=ai_payload,
         include_authenticity=include_authenticity,
         supplementary_insights=supplementary,
+        quality_engine=engine,
+        opencv_fallback=opencv_fallback,
+        frames_analyzed=len(frame_metrics),
     )
-    payload["analysis"] = {
-        "engine": SCORING_ENGINE,
-        "model": MODEL_ID,
-        "efficientnet_used": efficientnet_available() and ensure_weights(),
-        "ffmpeg_used": ffmpeg_available(),
-        "opencv_fallback": not (efficientnet_available() and ensure_weights()) and opencv_available(),
-        "frames_analyzed": len(frame_metrics),
-    }
     return payload
 
 
@@ -214,8 +272,47 @@ def merge_client_gemini(server_payload: dict[str, Any], client_raw: str | None) 
     return finalize_member_evaluation_payload(merged)
 
 
-def scores_from_payload(payload: dict[str, Any]) -> dict[str, float]:
-    return legacy_scores_from_payload(payload)
+def scores_from_payload(payload: dict[str, Any]) -> dict[str, float] | None:
+    from app.services.quality_score_display import evaluation_failed
+
+    if evaluation_failed(payload):
+        return None
+    scores = legacy_scores_from_payload(payload)
+    if not scores or scores.get("overall_score") is None:
+        return None
+    return scores
+
+
+def preview_quality_complete(payload: dict[str, Any] | None) -> bool:
+    """True when preview JSON has a full measured rubric (not a placeholder)."""
+    from app.services.quality_score_display import evaluation_failed
+
+    if not isinstance(payload, dict) or evaluation_failed(payload):
+        return False
+    criteria = payload.get("criteria")
+    if not isinstance(criteria, list) or not criteria:
+        return False
+    names = {str(c.get("name")) for c in criteria if isinstance(c, dict)}
+    required = set(_PHOTO_CRITERION_NAMES)
+    media_type = str(payload.get("media_type") or "").lower()
+    if media_type == "video":
+        required.update(_VIDEO_EXTRA_CRITERION_NAMES)
+    if not required.issubset(names):
+        return False
+    overall = payload.get("overall_score")
+    if not isinstance(overall, (int, float)) or float(overall) <= 0:
+        return False
+    if not (payload.get("scoring_engine") or payload.get("scoring_model")):
+        return False
+    legacy = payload.get("legacy")
+    if not isinstance(legacy, dict) or legacy.get("overall_score") in (None,):
+        return False
+    try:
+        if float(legacy.get("overall_score", 0)) <= 0:
+            return False
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 def _photo_criteria(m: dict[str, Any]) -> list[dict[str, Any]]:
@@ -425,6 +522,9 @@ def _build_payload(
     ai_detection: dict[str, Any] | None = None,
     include_authenticity: bool = True,
     supplementary_insights: dict[str, Any] | None = None,
+    quality_engine: str | None = None,
+    opencv_fallback: bool = False,
+    frames_analyzed: int | None = None,
 ) -> dict[str, Any]:
     overall = round(sum(c["score"] for c in criteria) / len(criteria), 2)
     quality_level = (
@@ -467,6 +567,9 @@ def _build_payload(
         "overall_score": round(overall / 5, 3),
     }
 
+    used_opencv = quality_engine == QUALITY_ENGINE_OPENCV
+    scoring_engine = QUALITY_ENGINE_OPENCV if used_opencv else SCORING_ENGINE
+    scoring_model = "opencv" if used_opencv else MODEL_ID
     payload = {
         "criteria": criteria,
         "overall_score": overall,
@@ -476,12 +579,23 @@ def _build_payload(
         "improvement_suggestions": improvement,
         "ai_detection": ai_detection,
         "media_type": media_type,
-        "scoring_model": MODEL_ID,
-        "scoring_engine": SCORING_ENGINE,
+        "scoring_model": scoring_model,
+        "scoring_engine": scoring_engine,
         "strengths": strengths,
         "weaknesses": weaknesses,
         "quality_warnings": quality_warnings,
         "legacy": legacy,
+        "evaluation_status": "ok",
+        "evaluation_available": True,
+        "analysis": {
+            "engine": scoring_engine,
+            "model": scoring_model,
+            "quality_engine": quality_engine,
+            "efficientnet_used": quality_engine == QUALITY_ENGINE_EFFICIENTNET,
+            "ffmpeg_used": ffmpeg_available() if media_type == "video" else False,
+            "opencv_fallback": bool(opencv_fallback),
+            "frames_analyzed": frames_analyzed if frames_analyzed is not None else (1 if media_type == "photo" else None),
+        },
     }
     if supplementary_insights:
         payload["additional_quality_insights"] = supplementary_insights

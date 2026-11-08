@@ -114,7 +114,8 @@ def summary_stats(db: Session) -> dict:
             "human_media_count": 0,
             "ai_suspicious_count": 0,
         }
-    avg = sum(r.overall_score for r in rows) / total
+    scored = [r.overall_score for r in rows if r.overall_score is not None]
+    avg = (sum(scored) / len(scored)) if scored else 0.0
     human = 0
     ai_suspicious = 0
     for ev in rows:
@@ -137,6 +138,11 @@ def summary_stats(db: Session) -> dict:
 
 
 def create_evaluation(db: Session, data: dict) -> MediaEvaluation:
+    media_id = data.get("media_id")
+    if media_id is not None:
+        existing = get_for_media(db, int(media_id))
+        if existing is not None:
+            return existing
     row = MediaEvaluation(**data)
     db.add(row)
     db.commit()

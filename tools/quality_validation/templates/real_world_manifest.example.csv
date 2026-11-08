@@ -1,0 +1,3 @@
+media_id,relative_path,media_type,quality_condition,notes
+PHOTO-001,photos/PHOTO-001.jpg,photo,well_exposed,
+VIDEO-001,videos/VIDEO-001.mp4,video,handheld,

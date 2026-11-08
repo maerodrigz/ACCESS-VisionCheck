@@ -197,7 +197,7 @@ class GalleryMediaOut(BaseModel):
 class MediaEvaluateOut(BaseModel):
     evaluation: dict[str, Any]
     media_type: str
-    scoring_engine: str = "efficientnet-b0+ffmpeg"
+    scoring_engine: str | None = None
 
 
 class EvaluationOut(BaseModel):
@@ -205,12 +205,12 @@ class EvaluationOut(BaseModel):
     media_id: int
     file_name: str
     file_url: str
-    sharpness_score: float
-    brightness_score: float
-    contrast_score: float
-    blur_score: float
-    noise_score: float
-    overall_score: float
+    sharpness_score: float | None = None
+    brightness_score: float | None = None
+    contrast_score: float | None = None
+    blur_score: float | None = None
+    noise_score: float | None = None
+    overall_score: float | None = None
     feedback: str | None
     evaluated_at: datetime
     ai_probability: float | None = None

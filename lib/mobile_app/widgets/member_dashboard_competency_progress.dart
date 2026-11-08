@@ -151,7 +151,7 @@ class MemberProfileSkillProgressSection extends StatelessWidget {
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
                               child: Text(
-                              displayLevel,
+                        displayLevel,
                               style: dashText(TextStyle(
                                 color: kMemberPrimary,
                                 fontSize: narrowCard ? 20 : 23,
@@ -539,46 +539,46 @@ class _ProfileTrackNode extends StatelessWidget {
       label: semanticsLabel,
       child: SizedBox(
         width: double.infinity,
-        child: Column(
-          children: [
-            AnimatedContainer(
+                        child: Column(
+                          children: [
+                            AnimatedContainer(
               duration: const Duration(milliseconds: 280),
               width: dotSize,
               height: dotSize,
-              decoration: BoxDecoration(
+                              decoration: BoxDecoration(
                 color: isCurrent ? Colors.white : dotColor,
-                shape: BoxShape.circle,
+                                shape: BoxShape.circle,
                 border: isCurrent
                     ? Border.all(color: kMemberPrimary, width: 3)
                     : null,
                 boxShadow: isCurrent
-                    ? [
-                        BoxShadow(
+                                    ? [
+                                        BoxShadow(
                           color: kMemberPrimary.withValues(alpha: 0.28),
                           blurRadius: 8,
-                        ),
-                      ]
-                    : null,
-              ),
-            ),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
             const SizedBox(height: 8),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
-                label,
-                textAlign: TextAlign.center,
+                              label,
+                              textAlign: TextAlign.center,
                 maxLines: 1,
                 softWrap: false,
-                style: memberDashboardMetaStyle.copyWith(
+                              style: memberDashboardMetaStyle.copyWith(
                   fontSize: isCurrent ? 10 : 9,
                   fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
                   color: labelColor,
                   height: 1.05,
                 ),
-              ),
-            ),
-          ],
-        ),
+                              ),
+                            ),
+                          ],
+                        ),
       ),
     );
   }
@@ -599,19 +599,19 @@ class _ProfileTierProgressBar extends StatelessWidget {
       key: ValueKey('profile-tier-bar-$progress-$isMaxLevel'),
       tween: Tween(begin: 0, end: progress),
       duration: const Duration(milliseconds: 900),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, _) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: SizedBox(
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, _) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: SizedBox(
             height: 8,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
                 ColoredBox(color: kSurface.withValues(alpha: 0.9)),
-                FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: value.clamp(0.0, 1.0),
+                              FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: value.clamp(0.0, 1.0),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: isMaxLevel
@@ -621,12 +621,12 @@ class _ProfileTierProgressBar extends StatelessWidget {
                           : kMemberDashboardAccentGradient,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
     );
   }
 }
@@ -651,19 +651,19 @@ class _ProfileUnavailablePanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                  Text(
                   'Level details loading',
                   style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
-                ),
+                  ),
                 const SizedBox(height: 4),
-                Text(
+                  Text(
                   'Open Rankings below to refresh your quality-based level and progress bar.',
                   style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.4),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
       ),
     );
   }
@@ -915,13 +915,13 @@ class MemberCompetencySnapshot {
     if (score != null) {
       final idx = MemberBackendSkillTier.indexForLevel(levelName);
       if (idx >= MemberBackendSkillTier.order.length - 1) {
-        return MemberCompetencySnapshot(
+      return MemberCompetencySnapshot(
           levelName: levelName,
-          points: points,
-          progress: 1,
-          remainingPoints: 0,
-          nextLevelName: null,
-          isMaxLevel: true,
+        points: points,
+        progress: 1,
+        remainingPoints: 0,
+        nextLevelName: null,
+        isMaxLevel: true,
           skillScore: score,
           progressUsesSkillScore: true,
           evaluationsCount: evalCount,
@@ -938,16 +938,16 @@ class MemberCompetencySnapshot {
       final nextMin = MemberBackendSkillTier.nextMinScoreForIndex(idx)!;
       final span = nextMin - currentMin;
       final earned = (score - currentMin).clamp(0.0, span.toDouble());
-      final progress = span > 0 ? earned / span : 0.0;
+    final progress = span > 0 ? earned / span : 0.0;
       final remaining = (nextMin - score).ceil().clamp(0, span);
 
-      return MemberCompetencySnapshot(
-        levelName: levelName,
-        points: points,
-        progress: progress.clamp(0.0, 1.0),
-        remainingPoints: remaining,
+    return MemberCompetencySnapshot(
+      levelName: levelName,
+      points: points,
+      progress: progress.clamp(0.0, 1.0),
+      remainingPoints: remaining,
         nextLevelName: MemberBackendSkillTier.nameAt(idx + 1),
-        isMaxLevel: false,
+      isMaxLevel: false,
         skillScore: score,
         progressUsesSkillScore: true,
         evaluationsCount: evalCount,
@@ -1163,7 +1163,7 @@ class MemberDashboardCompetencyProgress extends StatelessWidget {
                   Text(
                     snapshot.progressSubtitle,
                     style: memberDashboardMetaStyle,
-                  ),
+                ),
                 const SizedBox(height: 18),
                 Row(
                   children: [

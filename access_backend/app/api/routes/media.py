@@ -320,7 +320,7 @@ async def evaluate_media(
     if payload is None:
         raise HTTPException(
             status_code=422,
-            detail="Could not analyze this media. Run: python scripts/train_efficientnet_heads.py",
+            detail="Quality evaluation could not be completed. No measured score was produced.",
         )
 
     return MediaEvaluateOut(

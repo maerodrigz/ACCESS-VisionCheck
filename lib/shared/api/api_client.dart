@@ -198,10 +198,17 @@ class ApiClient {
       if (!out.contains(normalized)) out.add(normalized);
     }
 
-    add(_pinnedBaseUrl);
     add(ApiConfig.runtimeBaseUrl.value);
+    add(_pinnedBaseUrl);
     add(ApiConfig.effectiveBaseUrl);
     add(ApiConfig.baseUrl);
+    // USB `adb reverse tcp:3001 tcp:3001`: phone 127.0.0.1 is the PC.
+    // Fail-fast if reverse is off (connection refused). Not the Android default.
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        ApiConfig.isPhysicalAndroidDevice) {
+      add(ApiConfig.originalUsbDevBaseUrl);
+    }
     if (out.isEmpty) {
       add('http://${ApiConfig.host}:${ApiConfig.port}');
     }

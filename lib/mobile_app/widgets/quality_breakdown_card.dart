@@ -23,6 +23,19 @@ class QualityBreakdownCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!result.evaluationAvailable) {
+      return Container(
+        padding: EdgeInsets.fromLTRB(18, dense ? 16 : 20, 18, dense ? 16 : 20),
+        decoration: BoxDecoration(
+          color: kDashCardBg,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Text(
+          'Quality evaluation unavailable. This is not a measured score.',
+          style: TextStyle(color: kTextSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
     final percent = result.overallPercent;
     final levelColor = qualityLevelColor(result.qualityLevel);
     final showTrophy = percent >= 90;

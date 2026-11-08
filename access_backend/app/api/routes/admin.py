@@ -419,6 +419,17 @@ def _evaluation_json(db: Session, ev, ai=None) -> dict:
     if media and media.request_id and media.request:
         event_title = media.request.title
     source_label = "Practice evaluation" if is_standalone else (event_title or "Event coverage")
+    from app.services.quality_score_display import quality_display_from_evaluation
+
+    quality_display = quality_display_from_evaluation(
+        criteria_json=ev.criteria_json,
+        sharpness_score=ev.sharpness_score,
+        brightness_score=ev.brightness_score,
+        contrast_score=ev.contrast_score,
+        blur_score=ev.blur_score,
+        noise_score=ev.noise_score,
+        overall_score=ev.overall_score,
+    )
     return {
         "id": ev.id,
         "media_id": ev.media_id,
@@ -443,6 +454,7 @@ def _evaluation_json(db: Session, ev, ai=None) -> dict:
         "quality_level": ev.quality_level,
         "recommendation": ev.recommendation,
         "criteria_json": ev.criteria_json,
+        "quality_display": quality_display,
         "created_at": first_timestamp_iso(ev, "evaluated_at"),
         "evaluated_at": first_timestamp_iso(ev, "evaluated_at"),
         "updated_at": first_timestamp_iso(ev, "evaluated_at"),

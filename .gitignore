@@ -92,10 +92,38 @@ access_backend/uploads_waverep_test/
 access_backend/probe_test_image.jpg
 demo/videos/
 
+# Quality-validation private media, official datasets, and generated reports
+tools/quality_validation/workspace/**/*.jpg
+tools/quality_validation/workspace/**/*.jpeg
+tools/quality_validation/workspace/**/*.png
+tools/quality_validation/workspace/**/*.bmp
+tools/quality_validation/workspace/**/*.webp
+tools/quality_validation/workspace/**/*.heic
+tools/quality_validation/workspace/**/*.mp4
+tools/quality_validation/workspace/**/*.mov
+tools/quality_validation/workspace/**/*.avi
+tools/quality_validation/workspace/**/*.mkv
+tools/quality_validation/workspace/**/*.webm
+tools/quality_validation/workspace/**/*.m4v
+tools/quality_validation/workspace/**/*.mat
+tools/quality_validation/workspace/**/*.zip
+tools/quality_validation/workspace/**/*.tab
+tools/quality_validation/workspace/**/*.csv
+tools/quality_validation/workspace/**/*.json
+!tools/quality_validation/workspace/**/README.md
+!tools/quality_validation/workspace/human_pilot/rater_pack/INSTRUCTIONS.md
+!tools/quality_validation/workspace/human_pilot/rater_pack/HUMAN_RATING_RUBRIC.md
+!tools/quality_validation/workspace/human_pilot/rater_pack/rating_sheet.html
+tools/quality_validation/output/**
+
 # Local DB backups, QA run artifacts, and device captures (never commit)
 access_backend/backups/
 **/*.dump
 access_backend/evaluation_results/
 access_backend/validation_data/
 access_backend/.venv_waverep_benchmark/
+tools/quality_validation/.venv_musiq_research/
+tools/quality_validation/.venv_musiq_official/
+tools/quality_validation/workspace/datasets/koniq10k/musiq_paq2piq_benchmark/cache/
+tools/quality_validation/workspace/datasets/koniq10k/official_musiq_engine_verification/cache/
 access_backend/.env.waverep_nopush_test

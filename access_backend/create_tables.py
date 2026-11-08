@@ -349,6 +349,16 @@ def upgrade_media_evaluation_schema() -> None:
             "ALTER TABLE media_evaluations ADD COLUMN IF NOT EXISTS recommendation VARCHAR(80)",
         ):
             conn.execute(text(stmt))
+        if engine.dialect.name == "postgresql":
+            for stmt in (
+                "ALTER TABLE media_evaluations ALTER COLUMN sharpness_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN brightness_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN contrast_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN blur_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN noise_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN overall_score DROP NOT NULL",
+            ):
+                conn.execute(text(stmt))
 
 
 def upgrade_media_files_schema() -> None:

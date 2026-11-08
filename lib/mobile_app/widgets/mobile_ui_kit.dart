@@ -365,6 +365,17 @@ Future<bool> showBackendUrlDialog(BuildContext context) async {
                   'Default port is ${ApiConfig.defaultPort}.',
                   style: TextStyle(color: ctx.colors.textSecondary, fontSize: 11),
                 ),
+                if (!kIsWeb &&
+                    defaultTargetPlatform == TargetPlatform.android) ...[
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () {
+                      controller.text = ApiConfig.originalUsbDevBaseUrl;
+                      handleSave();
+                    },
+                    child: const Text('Use USB cable (this PC)'),
+                  ),
+                ],
               ],
             ),
             actions: [

@@ -17,11 +17,9 @@ def opencv_available() -> bool:
 
 
 def decode_image(content: bytes) -> np.ndarray | None:
-    if cv2 is None or not content:
-        return None
-    arr = np.frombuffer(content, dtype=np.uint8)
-    bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    return bgr
+    from app.services.image_orientation import decode_oriented_bgr
+
+    return decode_oriented_bgr(content)
 
 
 def analyze_image_bytes(content: bytes) -> dict[str, Any] | None:

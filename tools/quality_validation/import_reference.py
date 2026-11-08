@@ -16,6 +16,7 @@ for p in (_BACKEND, _REPO):
         sys.path.insert(0, str(p))
 
 from tools.quality_validation.dataset import load_manifest  # noqa: E402
+from tools.quality_validation.importers.koniq10k import import_koniq10k  # noqa: E402
 from tools.quality_validation.importers.live_vqc import import_live_vqc  # noqa: E402
 from tools.quality_validation.importers.spaq import import_spaq  # noqa: E402
 from tools.quality_validation.manifest_validation import manifest_lookup_by_source_key  # noqa: E402
@@ -24,7 +25,7 @@ from tools.quality_validation.reference_io import write_reference_labels  # noqa
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Import external dataset reference labels")
-    parser.add_argument("--dataset", choices=("spaq", "live_vqc"), required=True)
+    parser.add_argument("--dataset", choices=("spaq", "live_vqc", "koniq10k"), required=True)
     parser.add_argument("--source", type=Path, required=True, help="Official scores file (xlsx/csv/mat)")
     parser.add_argument("--mapping", type=Path, required=True, help="JSON column mapping config")
     parser.add_argument("--output", type=Path, required=True, help="reference_labels.csv path")
@@ -44,6 +45,13 @@ def main(argv: list[str] | None = None) -> int:
     strict = not args.no_strict_scale
     if args.dataset == "spaq":
         ref_rows, warnings = import_spaq(
+            args.source.resolve(),
+            args.mapping.resolve(),
+            manifest_by_source_key=manifest_map,
+            strict_scale=strict,
+        )
+    elif args.dataset == "koniq10k":
+        ref_rows, warnings = import_koniq10k(
             args.source.resolve(),
             args.mapping.resolve(),
             manifest_by_source_key=manifest_map,

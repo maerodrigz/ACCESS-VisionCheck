@@ -8,10 +8,36 @@ from pathlib import Path
 from typing import Any
 
 
-def load_mapping_config(path: Path) -> dict[str, Any]:
+PLACEHOLDER_MARK = "REPLACE_WITH_"
+
+
+def mapping_placeholder_paths(value: Any, prefix: str = "") -> list[str]:
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if str(key).startswith("_"):
+                continue
+            found.extend(mapping_placeholder_paths(item, f"{prefix}.{key}" if prefix else str(key)))
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            found.extend(mapping_placeholder_paths(item, f"{prefix}[{i}]"))
+    elif isinstance(value, str) and PLACEHOLDER_MARK in value:
+        found.append(prefix or value)
+    return found
+
+
+def load_mapping_config(path: Path, *, allow_placeholders: bool = False) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("Mapping config must be a JSON object")
+    if not allow_placeholders:
+        placeholders = mapping_placeholder_paths(data)
+        if placeholders:
+            raise ValueError(
+                "Mapping still contains REPLACE_WITH_* placeholders: "
+                + ", ".join(placeholders)
+                + ". Inspect official metadata first; do not guess column names."
+            )
     return data
 
 

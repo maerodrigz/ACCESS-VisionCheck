@@ -14,6 +14,15 @@ def pearson_spearman(x: Sequence[float], y: Sequence[float]) -> dict[str, float 
         return {"pearson_r": None, "pearson_p": None, "spearman_r": None, "spearman_p": None, "n": len(x)}
     xa = np.asarray(x, dtype=float)
     ya = np.asarray(y, dtype=float)
+    if float(np.std(xa)) == 0.0 or float(np.std(ya)) == 0.0:
+        return {
+            "pearson_r": None,
+            "pearson_p": None,
+            "spearman_r": None,
+            "spearman_p": None,
+            "n": len(x),
+            "note": "correlation undefined when a series has zero variance",
+        }
     pr, pp = stats.pearsonr(xa, ya)
     sr, sp = stats.spearmanr(xa, ya)
     return {
@@ -118,3 +127,68 @@ def repeatability_std(values: Sequence[float]) -> dict[str, float | None]:
         return {"mean": float(values[0]) if values else None, "std": 0.0, "n": len(values)}
     arr = np.asarray(values, dtype=float)
     return {"mean": float(arr.mean()), "std": float(arr.std(ddof=1)), "n": len(arr)}
+
+
+def spearman_bootstrap(
+    x: Sequence[float],
+    y: Sequence[float],
+    *,
+    n_boot: int = 1000,
+    seed: int = 20261107,
+    ci: float = 0.95,
+) -> dict[str, float | None]:
+    """Percentile bootstrap on Spearman r. Does not refit score maps."""
+    base = pearson_spearman(x, y)
+    n = len(x)
+    if n < 5 or base.get("spearman_r") is None:
+        return {**base, "spearman_ci_low": None, "spearman_ci_high": None, "n_boot": 0}
+    rng = np.random.default_rng(seed)
+    xa = np.asarray(x, dtype=float)
+    ya = np.asarray(y, dtype=float)
+    samples: list[float] = []
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, size=n)
+        corr = pearson_spearman(xa[idx], ya[idx])
+        r = corr.get("spearman_r")
+        if r is not None:
+            samples.append(float(r))
+    if len(samples) < 20:
+        return {**base, "spearman_ci_low": None, "spearman_ci_high": None, "n_boot": len(samples)}
+    alpha = (1.0 - ci) / 2.0
+    lo, hi = np.quantile(samples, [alpha, 1.0 - alpha])
+    return {
+        **base,
+        "spearman_ci_low": float(lo),
+        "spearman_ci_high": float(hi),
+        "n_boot": len(samples),
+    }
+
+
+def correlation_bootstrap(
+    x: Sequence[float],
+    y: Sequence[float],
+    *,
+    n_boot: int = 1000,
+    seed: int = 20261107,
+    ci: float = 0.95,
+) -> dict[str, float | None]:
+    """Percentile bootstrap on Pearson and Spearman r. Does not refit maps."""
+    base = spearman_bootstrap(x, y, n_boot=n_boot, seed=seed, ci=ci)
+    n = len(x)
+    if n < 5 or base.get("pearson_r") is None:
+        return {**base, "pearson_ci_low": None, "pearson_ci_high": None}
+    rng = np.random.default_rng(seed)
+    xa = np.asarray(x, dtype=float)
+    ya = np.asarray(y, dtype=float)
+    samples: list[float] = []
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, size=n)
+        corr = pearson_spearman(xa[idx], ya[idx])
+        r = corr.get("pearson_r")
+        if r is not None:
+            samples.append(float(r))
+    if len(samples) < 20:
+        return {**base, "pearson_ci_low": None, "pearson_ci_high": None}
+    alpha = (1.0 - ci) / 2.0
+    lo, hi = np.quantile(samples, [alpha, 1.0 - alpha])
+    return {**base, "pearson_ci_low": float(lo), "pearson_ci_high": float(hi)}

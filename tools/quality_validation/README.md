@@ -1,4 +1,118 @@
-# ACCESS VisionCheck — Quality Validation Toolkit (Milestone 1)
+# ACCESS VisionCheck — Quality Validation Toolkit
+
+Non-production tooling. Does **not** write to PostgreSQL, upload to Supabase, call PROBE/WaveRep, or call Gemini.
+
+This is **not** a scientific validation of EfficientNet-B0. Use it to collect real human ratings and compare them to the live quality pipeline.
+
+## Phase 3 — real-world ACCESS criteria (use this for the 40 photo / 20 video study)
+
+Scoring contract: `SCORING_CONTRACT.md`. Human rubric: `HUMAN_RATING_RUBRIC.md`.
+
+Workspace (local originals only, gitignored media):
+
+```
+tools/quality_validation/workspace/real_world/
+  photos/     # 40 real photographs
+  videos/     # 20 real videos
+  ratings/    # completed human CSVs
+  output/     # machine scores and reports
+  manifest.csv  # written by --prepare
+```
+
+### Add real media
+
+Copy original files into `photos/` and `videos/`. Do not generate synthetic stand-ins for this study. Do not import production `uploads/` or database rows.
+
+```powershell
+cd C:\Users\Dell\Desktop\access_mobile
+$env:PYTHONPATH = "access_backend;."
+python tools/quality_validation/real_world_batch.py --prepare
+python tools/quality_validation/real_world_batch.py --dry-run
+```
+
+`--prepare` assigns `PHOTO-001` … and `VIDEO-001` … and writes `manifest.csv`. Fill `quality_condition` labels in that CSV (for example `well_exposed`, `low_light`, `handheld`).
+
+### Human ratings
+
+Criterion-specific protocol (prepare only until you approve live rating): `HUMAN_VALIDATION_PROTOCOL.md`, `HUMAN_RATING_RUBRIC.md`, `HUMAN_RATING_TEMPLATE.csv`, `VALIDATION_DATASET_PLAN.md`.
+
+1. Give raters `HUMAN_RATING_RUBRIC.md` and a blank `HUMAN_RATING_TEMPLATE.csv`. Do not give machine scores or KonIQ MOS.
+2. Need at least three independent raters (`R1`, `R2`, `R3`).
+3. Score 1–5, higher is better (including Blur and Noise). Use `N/A` when a criterion cannot be judged.
+4. Photos: Flickering and Motion Stability must be `N/A`.
+5. `overall_visual_quality` is an independent impression, not required to equal the mean of the other scores.
+6. Save the completed file under `workspace/real_world/ratings/`.
+7. Published KonIQ MOS stays overall-only. Do not copy it into criterion columns.
+
+### System predictions (production quality path)
+
+```powershell
+python tools/quality_validation/real_world_batch.py --output-dir tools/quality_validation/workspace/real_world/output/run_001
+```
+
+This calls `evaluate_bytes(..., include_authenticity=False)` so EfficientNet-B0 can fall back to OpenCV the same way production does. Failures stay failures (no 0.5). AI detection and Gemini are not invoked. Nothing is written to PostgreSQL.
+
+### Comparison report
+
+Only after both human ratings and machine results exist:
+
+```powershell
+python tools/quality_validation/real_world_analyze.py `
+  --machine-results tools/quality_validation/workspace/real_world/output/run_001/machine_results.json `
+  --human-ratings tools/quality_validation/workspace/real_world/ratings/human_ratings.csv `
+  --manifest tools/quality_validation/workspace/real_world/manifest.csv `
+  --output-dir tools/quality_validation/workspace/real_world/output/run_001
+```
+
+Outputs: `comparison_summary.csv`, `VALIDATION_REPORT.md`, `analysis_report.json`. MAE and Spearman are reported only for paired observations. There is no invented accuracy percentage.
+
+Forced-engine A/B (EfficientNet vs OpenCV, no fallback) remains available below for diagnostics. It is not the production path.
+
+---
+
+## Research datasets (KonIQ-10k 40 photos / LIVE-VQC 20 videos)
+
+Preparation only. No downloads and no scoring in this step. Details: `DATASETS.md`.
+
+```powershell
+cd C:\Users\Dell\Desktop\access_mobile
+$env:PYTHONPATH = "access_backend;."
+python tools/quality_validation/research_preview.py --inspect-only
+```
+
+After you place official files yourself:
+
+```powershell
+python tools/quality_validation/research_preview.py --dataset koniq10k --photo-n 40 --seed 20261106
+python tools/quality_validation/research_import.py --dataset koniq10k --n 40 --seed 20261106
+python tools/quality_validation/research_preview.py --dataset live_vqc --inspect-only
+```
+
+Extract only the 40 selected KonIQ JPEGs from a local official ZIP (dry-run first):
+
+```powershell
+python tools/quality_validation/koniq_extract.py --zip "C:\path\to\koniq10k_1024x768.zip" --dry-run
+python tools/quality_validation/koniq_extract.py --zip "C:\path\to\koniq10k_1024x768.zip"
+```
+
+KonIQ production-path scoring (after approval; dry-run does not score):
+
+```powershell
+python tools/quality_validation/research_evaluate.py --dry-run
+python tools/quality_validation/research_evaluate.py --output-dir tools/quality_validation/workspace/datasets/koniq10k/metadata/output/run_001
+```
+
+Run 002 stratified 100-image selection (no extract/score until approved):
+
+```powershell
+python tools/quality_validation/koniq_stratify.py --seed 20261107 --n-per-stratum 20
+```
+
+Published MOS is overall-only. Independent ACCESS criterion CSVs stay under `workspace/real_world/`. Do not compute Fleiss kappa from MOS.
+
+---
+
+## Milestone 1 — forced-engine baseline (optional)
 
 Non-production tooling to batch-score local photos/videos with **EfficientNet-B0** or **OpenCV only** (no silent fallback), export machine results, merge **human ratings**, and produce correlation reports. Does **not** write to PostgreSQL or change production scoring code.
 
@@ -159,6 +273,8 @@ python -c "import sys; sys.path[:0]=['access_backend','.']; from tools.quality_v
 cd access_backend
 python -m pytest ../tools/quality_validation/tests -q
 ```
+
+Phase 3 tests live in `tests/test_real_world_validation.py`.
 
 ## Baseline report
 

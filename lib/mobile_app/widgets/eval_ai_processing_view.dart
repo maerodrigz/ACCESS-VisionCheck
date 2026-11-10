@@ -22,11 +22,11 @@ class EvalAiProcessingView extends StatefulWidget {
   static const _photoStages = [
     'Analyzing Sharpness…',
     'Analyzing Blur…',
-    'Analyzing Noise…',
     'Analyzing Brightness…',
     'Analyzing Contrast…',
     'Analyzing Blocking Artifacts…',
-    'Analyzing Ringing Artifacts…',
+    'Analyzing Color Balance…',
+    'Analyzing Color Saturation…',
   ];
 
   static const _videoExtraStages = [

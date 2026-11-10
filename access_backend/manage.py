@@ -73,6 +73,12 @@ def cmd_runserver(args: argparse.Namespace) -> None:
     if lan_ip:
         print(f"  Phone:  http://{lan_ip}:{port}/api/health  (physical device on same hotspot/LAN)")
     print(f"  DB:     PostgreSQL on {settings.db_host}:{settings.db_port} (local only)")
+    print(
+        f"  Auth lockout: {'ON' if settings.auth_lockout_enabled else 'OFF'} "
+        f"(APP_ENV={settings.app_env})"
+    )
+    if not settings.auth_lockout_enabled and not settings.is_production:
+        print("  Auth lockout note: disabled for local UI testing only — re-enable AUTH_LOCKOUT_ENABLED=true when done.")
     if reload:
         print("  Reload: on (code changes restart the worker; stop stray uvicorn on the same port if LAN sees stale API).")
     print("Press CTRL+C to stop.\n")

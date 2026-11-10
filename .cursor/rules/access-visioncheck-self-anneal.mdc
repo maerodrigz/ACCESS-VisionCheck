@@ -82,6 +82,8 @@ Add a short bullet to this file (or `docs/SELF_ANNEALING.md`) under **Incident l
 
 ### Incident log
 
+- **2026-11:** Android `processDebugResources` failed after `flutter clean` with missing AppCompat `abc_*` layouts/anims (`layout/abc_alert_dialog_material`). AppCompat 1.1.0 was on the graph (facebook-login / shared_preferences). Root cause: Cursor sandboxed `GRADLE_USER_HOME` under `Temp\cursor-sandbox-cache\...\gradle` plus `org.gradle.caching=true` served a corrupt `mergeDebugResources` FROM-CACHE entry (values/styles without anim/layout files). Fix: build with real `GRADLE_USER_HOME=%USERPROFILE%\.gradle` and `--no-build-cache` / `--rerun-tasks`; do not add AppCompat deps blindly. Deduped duplicate migrator flags in `android/gradle.properties`.
+- **2026-11:** SMS password reset succeeded then login still showed temporary lockout / invalid credentials. Failed sign-ins lock for `account_lockout_minutes` (default 30) after `max_login_attempts` (default 5). `/auth/forgot-password/complete` must clear `failed_login_count` + `locked_until` in the same password commit (`set_password(..., clear_lockout=True)`); login/reset must share the pinned auth host so they hit the same Postgres. Lockout responses stay 403 with an accurate remaining-time message, not 401.
 - **2025-05:** Disabled routers during DB refactor → dashboard 404.
 - **2025-05:** `SizedBox.shrink()` for admin on web → white screen after login.
 - **2025-05:** Stale uvicorn on `10.0.22.98` after adding routes → restart required.

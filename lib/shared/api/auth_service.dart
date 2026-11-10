@@ -68,27 +68,63 @@ class AuthService {
     });
   }
 
-  Future<ForgotPasswordSendResult> sendForgotPasswordOtp(String email) async {
-    final data = await _api.post('/auth/forgot-password/send', {
-      'email': email.trim().toLowerCase(),
+  Future<ForgotPasswordSendResult> sendForgotPasswordOtp(String phone) async {
+    // Same host policy as login — avoids resetting on host A then signing in on host B.
+    final data = await _api.postAuthCritical('/auth/forgot-password/send', {
+      'phone': phone.trim(),
     }) as Map<String, dynamic>;
     return ForgotPasswordSendResult(
-      message: (data['message'] as String?) ?? 'If an account exists, a code was sent.',
+      message: (data['message'] as String?) ??
+          'If a verified account exists for this mobile number, a code was sent.',
       devCode: data['dev_code'] as String?,
+      resendAfterSeconds: data['resend_after_seconds'] as int?,
+      accountEmailHint: data['account_email_hint'] as String?,
     );
   }
 
   Future<String> completeForgotPasswordReset({
-    required String email,
+    required String phone,
     required String code,
     required String newPassword,
   }) async {
-    final data = await _api.post('/auth/forgot-password/complete', {
-      'email': email.trim().toLowerCase(),
+    final data = await _api.postAuthCritical('/auth/forgot-password/complete', {
+      'phone': phone.trim(),
       'code': code.trim(),
       'new_password': newPassword,
     }) as Map<String, dynamic>;
-    return (data['message'] as String?) ?? 'Password updated.';
+    final hint = (data['account_email_hint'] as String?)?.trim();
+    final base = (data['message'] as String?) ?? 'Password updated.';
+    if (hint != null && hint.isNotEmpty) {
+      return '$base Sign in with $hint.';
+    }
+    return base;
+  }
+
+  Future<PhoneVerifySendResult> sendPhoneVerificationOtp(String phone) async {
+    final data = await _api.postAuthCritical('/auth/phone/verify/send', {
+      'phone': phone.trim(),
+    }) as Map<String, dynamic>;
+    return PhoneVerifySendResult(
+      message: (data['message'] as String?) ?? 'Verification code sent.',
+      phone: (data['phone'] as String?) ?? phone.trim(),
+      devCode: data['dev_code'] as String?,
+      resendAfterSeconds: data['resend_after_seconds'] as int?,
+    );
+  }
+
+  Future<PhoneVerifyCompleteResult> completePhoneVerification({
+    required String phone,
+    required String code,
+  }) async {
+    final data = await _api.postAuthCritical('/auth/phone/verify/complete', {
+      'phone': phone.trim(),
+      'code': code.trim(),
+    }) as Map<String, dynamic>;
+    return PhoneVerifyCompleteResult(
+      message: (data['message'] as String?) ?? 'Mobile number verified.',
+      phone: (data['phone'] as String?) ?? phone.trim(),
+      phoneVerified: data['phone_verified'] as bool? ?? true,
+    );
   }
 
   Future<void> logout() async {
@@ -102,10 +138,43 @@ class AuthService {
 }
 
 class ForgotPasswordSendResult {
-  const ForgotPasswordSendResult({required this.message, this.devCode});
+  const ForgotPasswordSendResult({
+    required this.message,
+    this.devCode,
+    this.resendAfterSeconds,
+    this.accountEmailHint,
+  });
 
   final String message;
   final String? devCode;
+  final int? resendAfterSeconds;
+  final String? accountEmailHint;
+}
+
+class PhoneVerifySendResult {
+  const PhoneVerifySendResult({
+    required this.message,
+    required this.phone,
+    this.devCode,
+    this.resendAfterSeconds,
+  });
+
+  final String message;
+  final String phone;
+  final String? devCode;
+  final int? resendAfterSeconds;
+}
+
+class PhoneVerifyCompleteResult {
+  const PhoneVerifyCompleteResult({
+    required this.message,
+    required this.phone,
+    required this.phoneVerified,
+  });
+
+  final String message;
+  final String phone;
+  final bool phoneVerified;
 }
 
 class RegistrationOtpSendResult {

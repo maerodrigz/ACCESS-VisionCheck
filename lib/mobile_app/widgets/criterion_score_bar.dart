@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-/// Bar color by 0–100 score band (matches overall quality legend).
-Color criterionPercentColor(int percent) {
-  if (percent >= 90) return kGreen;
-  if (percent >= 70) return kBlue;
-  if (percent >= 50) return kOrange;
-  return kRed;
-}
+/// Bar color by 0–100 overall score band (legacy helper for overall legends).
+Color criterionPercentColor(int percent) => qualityPercentBandColor(percent);
 
-/// Animated progress bar for a single AI criterion (1–5 stored, 0–100 displayed).
+/// Animated progress bar for a single quality criterion (1–5 levels).
 class CriterionScoreBar extends StatefulWidget {
   const CriterionScoreBar({
     super.key,
@@ -62,9 +58,10 @@ class _CriterionScoreBarState extends State<CriterionScoreBar> with SingleTicker
   }
 
   Widget _buildStackedRow() {
-    final percent = widget.criterion.percentScore;
-    final barColor = criterionPercentColor(percent);
-    final targetProgress = percent / 100;
+    final available = widget.criterion.available;
+    final score = widget.criterion.score;
+    final barColor = available ? criterionLevelColor(score) : kTextSecondary;
+    final targetProgress = available ? (score.clamp(1, 5) / 5.0) : 0.0;
     final explanation = _explanation;
     final barHeight = widget.dense ? 5.0 : 10.0;
     final nameSize = widget.dense ? 12.0 : 13.0;
@@ -97,7 +94,7 @@ class _CriterionScoreBarState extends State<CriterionScoreBar> with SingleTicker
                   borderRadius: BorderRadius.circular(widget.dense ? 6 : 8),
                 ),
                 child: Text(
-                  '$percent',
+                  available ? widget.criterion.displayScoreWithLabel : 'N/A',
                   style: TextStyle(color: barColor, fontSize: scoreSize, fontWeight: FontWeight.w800),
                 ),
               ),
@@ -123,13 +120,14 @@ class _CriterionScoreBarState extends State<CriterionScoreBar> with SingleTicker
   }
 
   Widget _buildHorizontalRow() {
-    final percent = widget.criterion.percentScore;
-    final barColor = criterionPercentColor(percent);
-    final targetProgress = percent / 100;
+    final available = widget.criterion.available;
+    final score = widget.criterion.score;
+    final barColor = available ? criterionLevelColor(score) : kTextSecondary;
+    final targetProgress = available ? (score.clamp(1, 5) / 5.0) : 0.0;
     final explanation = _explanation;
     final barHeight = widget.dense ? 5.0 : 10.0;
     final nameSize = widget.dense ? 12.0 : 13.0;
-    final scoreSize = widget.dense ? 11.0 : 13.0;
+    final scoreSize = widget.dense ? 11.0 : 12.0;
     final explanationSize = widget.dense ? 11.0 : 12.0;
     final bottomPad = widget.dense ? 10.0 : 12.0;
     final labelWidth = widget.dense ? 108.0 : 118.0;
@@ -167,14 +165,19 @@ class _CriterionScoreBarState extends State<CriterionScoreBar> with SingleTicker
                 ),
               ),
               SizedBox(
-                width: 28,
-                child: Text(
-                  '$percent',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: kTextPrimary,
-                    fontSize: scoreSize,
-                    fontWeight: FontWeight.w800,
+                width: 78,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    available ? widget.criterion.displayScoreWithLabel : 'N/A',
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: kTextPrimary,
+                      fontSize: scoreSize,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),

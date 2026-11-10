@@ -123,14 +123,29 @@ def test_evaluate_photo_adds_insights_without_changing_criteria(include_auth: bo
                 payload = media_evaluator.evaluate_photo(content, include_authenticity=include_auth)
     assert payload is not None
     assert len(payload["criteria"]) == 7
-    before = round(sum(c["score"] for c in payload["criteria"]) / 7, 2)
-    assert payload["overall_score"] == before
+    names = [c["name"] for c in payload["criteria"]]
+    assert names == [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation",
+    ]
+    scored = [int(c["score"]) for c in payload["criteria"] if c.get("available") is not False and c.get("score") is not None]
+    assert scored
+    assert payload["overall_score"] == round(sum(scored) / len(scored), 2)
     assert "additional_quality_insights" in payload
     assert payload["additional_quality_insights"]["color_balance"]["status"] == "warm_cast"
 
 
 def test_evaluate_photo_without_insights_field_when_decode_fails() -> None:
-    with patch.object(media_evaluator, "_analyze_image", return_value=_stub_metrics()):
+    with patch.object(
+        media_evaluator,
+        "resolve_quality_engine_for_bytes",
+        return_value=(_stub_metrics(), "opencv", True),
+    ):
         with patch.object(media_evaluator, "detect_ai_generated", return_value={"verdict": "authentic"}):
             with patch.object(media_evaluator, "apply_integrity_evaluation_policy", side_effect=lambda p: p):
                 with patch(
@@ -140,6 +155,10 @@ def test_evaluate_photo_without_insights_field_when_decode_fails() -> None:
                     payload = media_evaluator.evaluate_photo(b"not-an-image", include_authenticity=False)
     assert payload is not None
     assert "additional_quality_insights" not in payload
+    # Color criteria still present (N/A when decode fails).
+    names = [c["name"] for c in payload["criteria"]]
+    assert "Color Balance" in names
+    assert "Color Saturation" in names
 
 
 def test_evaluate_video_adds_insights_uses_quality_frames_only() -> None:

@@ -4,12 +4,12 @@ import { completeForgotPasswordReset, sendForgotPasswordOtp } from '../api/auth'
 
 interface Props {
   open: boolean
-  initialEmail?: string
+  initialPhone?: string
   onClose: () => void
 }
 
-export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props) {
-  const [email, setEmail] = useState(initialEmail)
+export function ForgotPasswordDialog({ open, initialPhone = '', onClose }: Props) {
+  const [phone, setPhone] = useState(initialPhone)
   const [step, setStep] = useState<0 | 1 | 2>(0)
   const [code, setCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -17,10 +17,11 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [resendSeconds, setResendSeconds] = useState(0)
 
   useEffect(() => {
     if (open) {
-      setEmail(initialEmail)
+      setPhone(initialPhone)
       setStep(0)
       setCode('')
       setNewPassword('')
@@ -28,8 +29,15 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
       setError(null)
       setMessage(null)
       setLoading(false)
+      setResendSeconds(0)
     }
-  }, [open, initialEmail])
+  }, [open, initialPhone])
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return
+    const t = window.setTimeout(() => setResendSeconds((s) => Math.max(0, s - 1)), 1000)
+    return () => window.clearTimeout(t)
+  }, [resendSeconds])
 
   if (!open) return null
 
@@ -41,6 +49,7 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
     setCode('')
     setNewPassword('')
     setConfirmPassword('')
+    setResendSeconds(0)
   }
 
   function handleClose() {
@@ -48,41 +57,52 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
     onClose()
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  async function sendCode() {
     setError(null)
-    if (!email.trim()) {
-      setError('Enter the email address for your account.')
+    if (phone.trim().length < 10) {
+      setError('Enter your registered Philippine mobile number.')
       return
     }
     setLoading(true)
     try {
-      if (step === 0) {
-        const result = await sendForgotPasswordOtp(email)
-        setMessage(result.message)
-        if (result.dev_code) {
-          setCode(result.dev_code)
-          setMessage(
-            `Dev code: ${result.dev_code} (also printed in the backend terminal).`,
-          )
-        }
-        setStep(1)
-        return
+      const result = await sendForgotPasswordOtp(phone)
+      setMessage(result.message)
+      if (result.dev_code) {
+        setCode(result.dev_code)
+        setMessage(`Dev code: ${result.dev_code} (SMS_PROVIDER=log).`)
       }
-      if (code.trim().length !== 6) {
-        setError('Enter the 6-digit code from your email.')
-        return
-      }
-      if (newPassword.length < 6) {
-        setError('Password must be at least 6 characters.')
-        return
-      }
-      if (newPassword !== confirmPassword) {
-        setError('Passwords do not match.')
-        return
-      }
+      setResendSeconds(result.resend_after_seconds ?? 60)
+      setStep(1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not process request.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (step === 0) {
+      await sendCode()
+      return
+    }
+    if (code.trim().length !== 6) {
+      setError('Enter the 6-digit code from your SMS.')
+      return
+    }
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+    setLoading(true)
+    try {
       const done = await completeForgotPasswordReset({
-        email,
+        phone,
         code,
         newPassword,
       })
@@ -117,8 +137,10 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
             </h2>
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
               {step === 0
-                ? 'We email a 6-digit code to your account address.'
-                : 'Enter the code and your new password.'}
+                ? 'Enter your verified mobile number. We send a 6-digit SMS code.'
+                : step === 1
+                  ? 'Enter the SMS code and your new password.'
+                  : 'You can sign in with your new password.'}
             </p>
           </div>
           <button
@@ -133,18 +155,18 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
           <div>
-            <label htmlFor="forgot-email" className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]">
-              Email
+            <label htmlFor="forgot-phone" className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]">
+              Mobile number
             </label>
             <input
-              id="forgot-email"
-              type="email"
-              autoComplete="email"
+              id="forgot-phone"
+              type="tel"
+              autoComplete="tel"
               readOnly={step === 1}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm outline-none focus:border-[var(--color-accent-cyan)] focus:ring-2 focus:ring-cyan-100 read-only:opacity-80"
-              placeholder="you@example.com"
+              placeholder="09XX XXX XXXX"
             />
           </div>
 
@@ -163,6 +185,14 @@ export function ForgotPasswordDialog({ open, initialEmail = '', onClose }: Props
                   className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm tracking-widest outline-none focus:border-[var(--color-accent-cyan)] focus:ring-2 focus:ring-cyan-100"
                   placeholder="000000"
                 />
+                <button
+                  type="button"
+                  disabled={loading || resendSeconds > 0}
+                  onClick={() => void sendCode()}
+                  className="mt-2 text-xs font-semibold text-[var(--color-accent-blue)] disabled:opacity-50"
+                >
+                  {resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend code'}
+                </button>
               </div>
               <div>
                 <label htmlFor="forgot-new-pass" className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]">

@@ -1,4 +1,11 @@
-"""EfficientNet-B0 multi-criterion technical quality scorer (PyTorch)."""
+"""EfficientNet-B0 multi-criterion technical quality scorer (PyTorch).
+
+FROZEN (2026-11-09): Do not retrain, fine-tune, recalibrate, or replace weights.
+Active presentation uses five heads (sharpness, blur, brightness, contrast,
+blocking_artifacts). Noise/ringing heads remain in the checkpoint for continuity
+but are not shown in the active seven-criterion rubric. Scores are experimental
+estimates only; see tools/quality_validation/EFFICIENTNET_B0_FROZEN_STATUS.md.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +19,9 @@ from app.services.torch_runtime import get_torch, torch_available
 
 MODEL_ID = "efficientnet-b0"
 MODEL_VERSION = "1.0"
+# Freeze gate: set False only with explicit product approval to resume ENET work.
+ENET_DEVELOPMENT_FROZEN = True
+ESTIMATE_KIND = "experimental_estimate"
 CRITERION_KEYS = (
     "sharpness",
     "blur",
@@ -20,6 +30,14 @@ CRITERION_KEYS = (
     "contrast",
     "blocking_artifacts",
     "ringing_artifacts",
+)
+# Heads used for active photo quality presentation (Noise/Ringing not presented).
+ACTIVE_PRESENTATION_KEYS = (
+    "sharpness",
+    "blur",
+    "brightness",
+    "contrast",
+    "blocking_artifacts",
 )
 
 _WEIGHTS_PATH = Path(__file__).resolve().parents[2] / "ml" / "efficientnet_b0_heads.pt"

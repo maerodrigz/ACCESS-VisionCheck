@@ -165,3 +165,34 @@ def unarchive_request(db: Session, row: DocumentationRequest) -> DocumentationRe
     db.commit()
     db.refresh(row)
     return row
+
+
+_REQUESTOR_ARCHIVE_STATUSES = frozenset({"completed", "rejected"})
+
+
+def requestor_archive_request(
+    db: Session, row: DocumentationRequest
+) -> DocumentationRequest:
+    """Owner soft-hide for completed/declined requests. Does not change status."""
+    status = (row.status or "").strip().lower()
+    if status not in _REQUESTOR_ARCHIVE_STATUSES:
+        raise ValueError(
+            "Only completed or declined documentation requests can be archived."
+        )
+    if row.requestor_archived_at is None:
+        row.requestor_archived_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(row)
+    return row
+
+
+def requestor_restore_request(
+    db: Session, row: DocumentationRequest
+) -> DocumentationRequest:
+    """Clear requestor soft-hide. Idempotent if already active."""
+    if row.requestor_archived_at is None:
+        return row
+    row.requestor_archived_at = None
+    db.commit()
+    db.refresh(row)
+    return row

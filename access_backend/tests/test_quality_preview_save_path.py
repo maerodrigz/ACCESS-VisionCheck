@@ -14,11 +14,11 @@ def _quality_preview_metadata() -> str:
     names = (
         "Sharpness",
         "Blur",
-        "Noise",
         "Brightness",
         "Contrast",
         "Blocking Artifacts",
-        "Ringing Artifacts",
+        "Color Balance",
+        "Color Saturation",
     )
     payload = {
         "criteria": [{"name": n, "score": 4, "label": "Good"} for n in names],

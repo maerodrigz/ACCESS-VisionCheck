@@ -127,11 +127,13 @@ class MobileAuthScaffold extends StatelessWidget {
     }
 
     const formPadding = EdgeInsets.fromLTRB(24, 2, 24, 4);
+    // Room for IME + compact login toast clearance so password stays visible.
+    final keyboardPad = keyboardBottom > 0 ? keyboardBottom + 24 + 56 : 0.0;
 
     final scrollChild = SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       physics: const ClampingScrollPhysics(),
-      padding: EdgeInsets.only(bottom: keyboardBottom),
+      padding: EdgeInsets.only(bottom: keyboardPad),
       child: Padding(
         padding: formPadding,
         child: child,

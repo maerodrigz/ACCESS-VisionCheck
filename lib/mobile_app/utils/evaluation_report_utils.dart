@@ -29,25 +29,38 @@ AiDetectionResult _fallbackAiDetection(String? reviewStatus) {
   );
 }
 
+String _resolvedEvaluationMediaType(Evaluation ev, PhotoEvaluationResult parsed) {
+  if (isVideoPracticeEvaluation(ev) || parsed.isVideo) return 'video';
+  final mt = (ev.mediaType ?? parsed.mediaType).trim();
+  return mt.isEmpty ? 'photo' : mt;
+}
+
 /// Builds a [PhotoEvaluationResult] from a saved [Evaluation] row.
+///
+/// Notification and history navigation both use this helper so criteria/scores match.
 PhotoEvaluationResult? evaluationToPhotoResult(Evaluation ev) {
+  late final PhotoEvaluationResult base;
   if (ev.parsedEvaluation != null) {
-    return applyAdminReviewToPhotoResult(ev.parsedEvaluation!, ev.reviewStatus);
+    base = applyAdminReviewToPhotoResult(ev.parsedEvaluation!, ev.reviewStatus);
+  } else {
+    if (!ev.hasAiCriteria && ev.score <= 0) return null;
+    base = applyAdminReviewToPhotoResult(
+      PhotoEvaluationResult(
+        criteria: ev.criteria,
+        overallScore: ev.score <= 1.0 ? ev.score * 5 : ev.score,
+        qualityLevel: ev.qualityLevel ?? 'Fair',
+        feedback: ev.feedback,
+        improvementSuggestions: '',
+        recommendation: ev.recommendation ?? 'Needs Improvement',
+        aiDetection: _fallbackAiDetection(ev.reviewStatus),
+        mediaType: ev.mediaType ?? 'photo',
+        scoringModel: ev.scoringModel ?? 'efficientnet_b0',
+        geminiFeedback: ev.geminiFeedback,
+      ),
+      ev.reviewStatus,
+    );
   }
-  if (!ev.hasAiCriteria && ev.score <= 0) return null;
-  final fallback = PhotoEvaluationResult(
-    criteria: ev.criteria,
-    overallScore: ev.score <= 1.0 ? ev.score * 5 : ev.score,
-    qualityLevel: ev.qualityLevel ?? 'Fair',
-    feedback: ev.feedback,
-    improvementSuggestions: '',
-    recommendation: ev.recommendation ?? 'Needs Improvement',
-    aiDetection: _fallbackAiDetection(ev.reviewStatus),
-    mediaType: ev.mediaType ?? 'photo',
-    scoringModel: ev.scoringModel ?? 'efficientnet_b0',
-    geminiFeedback: ev.geminiFeedback,
-  );
-  return applyAdminReviewToPhotoResult(fallback, ev.reviewStatus);
+  return base.withMediaType(_resolvedEvaluationMediaType(ev, base));
 }
 
 /// Integrity explanation for a saved evaluation row (PROBE / review status only).

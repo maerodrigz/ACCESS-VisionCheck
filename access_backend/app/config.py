@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 10080
 
+    # Environment marker (development | testing | production). Used for fail-safe guards.
+    app_env: str = Field(default="development", alias="APP_ENV")
+    # Login lockout (5 failures / 30 min). Default ON. Set false only for local UI testing.
+    # Refuse AUTH_LOCKOUT_ENABLED=false when APP_ENV is production.
+    auth_lockout_enabled: bool = Field(default=True, alias="AUTH_LOCKOUT_ENABLED")
+
     # Bind address (0.0.0.0 = listen on all interfaces for LAN/mobile access)
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
     api_port: int = Field(default=3001, alias="API_PORT")
@@ -165,23 +171,48 @@ class Settings(BaseSettings):
     email_no_reply: str = Field(default="", alias="EMAIL_NO_REPLY")
     email_logo_path: str = Field(default="", alias="EMAIL_LOGO_PATH")
 
-    # Email OTP (registration + password reset)
+    # Email OTP (registration email verification only — not password reset)
     email_otp_expire_minutes: int = Field(
         default=10,
-        validation_alias=AliasChoices("EMAIL_OTP_EXPIRE_MINUTES", "SMS_OTP_EXPIRE_MINUTES"),
+        validation_alias=AliasChoices("EMAIL_OTP_EXPIRE_MINUTES"),
     )
     email_otp_token_minutes: int = Field(
         default=30,
-        validation_alias=AliasChoices("EMAIL_OTP_TOKEN_MINUTES", "SMS_OTP_TOKEN_MINUTES"),
+        validation_alias=AliasChoices("EMAIL_OTP_TOKEN_MINUTES"),
     )
     email_otp_resend_seconds: int = Field(
         default=60,
-        validation_alias=AliasChoices("EMAIL_OTP_RESEND_SECONDS", "SMS_OTP_RESEND_SECONDS"),
+        validation_alias=AliasChoices("EMAIL_OTP_RESEND_SECONDS"),
     )
     email_otp_max_attempts: int = Field(
         default=5,
-        validation_alias=AliasChoices("EMAIL_OTP_MAX_ATTEMPTS", "SMS_OTP_MAX_ATTEMPTS"),
+        validation_alias=AliasChoices("EMAIL_OTP_MAX_ATTEMPTS"),
     )
+
+    # SMS (TextBee gateway) — password reset + phone verification
+    sms_provider: str = Field(default="log", alias="SMS_PROVIDER")
+    textbee_base_url: str = Field(
+        default="https://api.textbee.dev/api/v1",
+        alias="TEXTBEE_BASE_URL",
+    )
+    textbee_api_key: str = Field(default="", alias="TEXTBEE_API_KEY")
+    textbee_device_id: str = Field(default="", alias="TEXTBEE_DEVICE_ID")
+    sms_reset_otp_expire_minutes: int = Field(
+        default=10,
+        validation_alias=AliasChoices("SMS_RESET_OTP_EXPIRE_MINUTES", "SMS_OTP_EXPIRE_MINUTES"),
+    )
+    sms_reset_otp_resend_seconds: int = Field(
+        default=60,
+        validation_alias=AliasChoices("SMS_RESET_OTP_RESEND_SECONDS", "SMS_OTP_RESEND_SECONDS"),
+    )
+    sms_reset_otp_max_attempts: int = Field(
+        default=5,
+        validation_alias=AliasChoices("SMS_RESET_OTP_MAX_ATTEMPTS", "SMS_OTP_MAX_ATTEMPTS"),
+    )
+    sms_daily_budget_per_phone: int = Field(default=5, alias="SMS_DAILY_BUDGET_PER_PHONE")
+    sms_daily_budget_global: int = Field(default=200, alias="SMS_DAILY_BUDGET_GLOBAL")
+    sms_rate_limit_per_ip_hour: int = Field(default=20, alias="SMS_RATE_LIMIT_PER_IP_HOUR")
+    sms_rate_limit_per_phone_hour: int = Field(default=8, alias="SMS_RATE_LIMIT_PER_PHONE_HOUR")
 
     @model_validator(mode="after")
     def _validate_probe_risk_thresholds(self) -> "Settings":
@@ -190,6 +221,19 @@ class Settings(BaseSettings):
         if not (0.0 <= low < high <= 1.0):
             raise ValueError("PROBE_LOW_RISK_THRESHOLD and PROBE_HIGH_RISK_THRESHOLD must satisfy 0 <= LOW < HIGH <= 1")
         return self
+
+    @model_validator(mode="after")
+    def _refuse_disable_lockout_in_production(self) -> "Settings":
+        if self.is_production and not self.auth_lockout_enabled:
+            raise ValueError(
+                "AUTH_LOCKOUT_ENABLED=false is not allowed when APP_ENV is production. "
+                "Remove AUTH_LOCKOUT_ENABLED=false or set APP_ENV to development/testing."
+            )
+        return self
+
+    @property
+    def is_production(self) -> bool:
+        return (self.app_env or "").strip().lower() in ("production", "prod")
 
     @model_validator(mode="after")
     def _load_supabase_service_role_from_file(self) -> "Settings":

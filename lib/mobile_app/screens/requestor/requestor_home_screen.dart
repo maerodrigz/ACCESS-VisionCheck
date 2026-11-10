@@ -9,6 +9,9 @@ import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
+/// Requestor Home scroll/page background only (Option 1 ice blue).
+const kRequestorHomeBg = Color(0xFFF2F9FD);
+
 /// Requestor home — light dashboard aligned with member mobile UI.
 class RequestorHomeScreen extends StatelessWidget {
   const RequestorHomeScreen({
@@ -52,7 +55,7 @@ class RequestorHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kBg,
+      color: kRequestorHomeBg,
       child: ListenableBuilder(
         listenable: Listenable.merge([appState, memberDataController]),
         builder: (context, _) {
@@ -70,6 +73,7 @@ class RequestorHomeScreen extends StatelessWidget {
 
           final recent = _recentRequests(requests);
           final upcoming = _upcomingApprovedRequests(requests);
+          final declined = _declinedRequests(requests);
           final feedbackCompletion =
               memberDataController.requestorFeedbackCompletion;
           final feedbackDue = requests
@@ -86,13 +90,11 @@ class RequestorHomeScreen extends StatelessWidget {
                   color: kCyan,
                   backgroundColor: Color(0xFF1E293B),
                 ),
-              RequestorTabHero(
-                title: 'Welcome back, $displayName!',
-                subtitle:
-                    'Track your documentation requests and upcoming coverage.',
-                titleFontWeight: FontWeight.w700,
+              RequestorHomeHeader(
+                displayName: displayName,
                 onNotifications: onNotificationsTap,
                 onProfileTap: onProfileTap,
+                showGreeting: false,
               ),
               Expanded(
                 child: RefreshIndicator(
@@ -105,22 +107,34 @@ class RequestorHomeScreen extends StatelessWidget {
                       parent: BouncingScrollPhysics(),
                     ),
                     slivers: [
+                      SliverToBoxAdapter(
+                        child: RequestorHomeGreeting(displayName: displayName),
+                      ),
                       SliverPadding(
                         padding: const EdgeInsets.fromLTRB(
                           kMemberDashboardPagePadding,
-                          18,
+                          4,
                           kMemberDashboardPagePadding,
                           56,
                         ),
                         sliver: SliverList(
                           delegate: SliverChildListDelegate([
                             _CreateRequestCard(onCreate: () => _openCreateForm(context)),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 12),
                             Text(
                               'Request Overview',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Your event documentation requests',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: memberDashboardSectionSubtitleStyle.copyWith(fontSize: 12),
+                            ),
+                            const SizedBox(height: 8),
                             _RequestStatsGrid(
                               total: total,
                               pending: pending,
@@ -131,10 +145,11 @@ class RequestorHomeScreen extends StatelessWidget {
                             const SizedBox(height: 22),
                             _SectionTitleRow(
                               title: 'Recent Requests',
+                              subtitle: 'Track your latest documentation requests',
                               actionLabel: requests.isNotEmpty ? 'View All' : null,
                               onAction: requests.isNotEmpty ? () => onOpenRequestTab() : null,
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             if (recent.isEmpty)
                               const _CompactEmptyCard(
                                 icon: Icons.inbox_outlined,
@@ -143,55 +158,46 @@ class RequestorHomeScreen extends StatelessWidget {
                                     'Create a request to start tracking documentation coverage.',
                               )
                             else
-                              ...recent.map(
-                                (req) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: _CompactRequestRow(
-                                    request: req,
-                                    onTap: () => _openDetails(context, req),
-                                  ),
-                                ),
+                              _RecentRequestsList(
+                                requests: recent,
+                                onOpen: (req) => _openDetails(context, req),
                               ),
-                            const SizedBox(height: 22),
-                            const _SectionTitleRow(title: 'Upcoming Documentation'),
-                            const SizedBox(height: 10),
-                            if (upcoming.isEmpty)
-                              const _CompactEmptyCard(
-                                icon: Icons.event_available_outlined,
-                                title: 'No upcoming coverage',
-                                message:
-                                    'Approved events with future dates will appear here once scheduled.',
-                              )
-                            else
-                              ...upcoming.map(
-                                (req) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: _UpcomingEventCard(
-                                    request: req,
-                                    calendar: _calendarForRequest(req.requestId),
-                                    onTap: () => _openDetails(context, req),
-                                  ),
-                                ),
+                            if (declined.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              const _SectionTitleRow(
+                                title: 'Action Required',
+                                subtitle: 'Declined requests you can review',
                               ),
-                            if (feedbackDue.isNotEmpty) ...[
-                              const SizedBox(height: 22),
-                              const _SectionTitleRow(title: 'Pending Feedback'),
-                              const SizedBox(height: 10),
-                              ...feedbackDue.map(
-                                (req) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: _FeedbackReminderCard(
-                                    request: req,
-                                    statusLabel: req.requestId == null
-                                        ? null
-                                        : feedbackCompletion
-                                            .statusLabel(req.requestId!),
-                                    onGiveFeedback: () =>
-                                        onOpenFeedback(requestId: req.requestId),
-                                  ),
-                                ),
+                              const SizedBox(height: 8),
+                              _ActionRequiredList(
+                                requests: declined,
+                                onOpen: (req) => _openDetails(context, req),
                               ),
                             ],
+                            const SizedBox(height: 16),
+                            const _SectionTitleRow(
+                              title: 'Upcoming Documentation',
+                              subtitle: 'Approved coverage still ahead',
+                            ),
+                            const SizedBox(height: 8),
+                            _UpcomingDocumentationSection(
+                              requests: upcoming,
+                              onOpen: (req) => _openDetails(context, req),
+                            ),
+                            const SizedBox(height: 16),
+                            const _SectionTitleRow(
+                              title: 'Pending Feedback',
+                              subtitle: 'Completed coverage waiting on you',
+                            ),
+                            const SizedBox(height: 8),
+                            _PendingFeedbackSection(
+                              requests: feedbackDue,
+                              statusLabel: (req) => req.requestId == null
+                                  ? null
+                                  : feedbackCompletion.statusLabel(req.requestId!),
+                              onGiveFeedback: (req) =>
+                                  onOpenFeedback(requestId: req.requestId),
+                            ),
                           ]),
                         ),
                       ),
@@ -223,6 +229,16 @@ List<ServiceRequest> _recentRequests(List<ServiceRequest> all) {
       return bd.compareTo(ad);
     });
   return sorted.take(3).toList();
+}
+
+List<ServiceRequest> _declinedRequests(List<ServiceRequest> all) {
+  final list = all.where((r) => r.requestStatus == RequestStatus.rejected).toList()
+    ..sort((a, b) {
+      final ad = a.updatedAt ?? a.submissionDate ?? a.eventDate;
+      final bd = b.updatedAt ?? b.submissionDate ?? b.eventDate;
+      return bd.compareTo(ad);
+    });
+  return list.take(3).toList();
 }
 
 List<ServiceRequest> _upcomingApprovedRequests(List<ServiceRequest> all) {
@@ -260,16 +276,6 @@ String? _scheduleLabel(ServiceRequest r, CalendarEvent? cal) {
   return date;
 }
 
-String? _documentersLabel(CalendarEvent? cal) {
-  if (cal == null) return null;
-  if (cal.documentationTeam.isNotEmpty) {
-    return cal.documentationTeam.join(', ');
-  }
-  final lead = cal.assignedMemberName?.trim();
-  if (lead != null && lead.isNotEmpty) return lead;
-  return null;
-}
-
 // ── Create request ───────────────────────────────────────────────────────────
 
 class _CreateRequestCard extends StatelessWidget {
@@ -279,125 +285,117 @@ class _CreateRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 360;
+    final iconBox = narrow ? 36.0 : 40.0;
+
     return MemberDashboardCard(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      child: Stack(
-        clipBehavior: Clip.none,
+      padding: EdgeInsets.fromLTRB(narrow ? 12 : 14, 12, narrow ? 12 : 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Positioned(
-            right: -28,
-            top: -32,
-            child: Container(
-              width: 112,
-              height: 112,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kCyan.withValues(alpha: 0.1),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 12,
-            bottom: -18,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kAccent.withValues(alpha: 0.06),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: _overviewTotalBg,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: kAccent.withValues(alpha: 0.18)),
-                    ),
-                    child: const Icon(
-                      Icons.event_available_rounded,
-                      color: kAccent,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Need event coverage?',
-                          style: memberDashboardCardTitleStyle.copyWith(
-                            fontSize: 16,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Book ACCESS photographers and videographers for your next event.',
-                          style: memberDashboardMetaStyle.copyWith(
-                            fontSize: 12,
-                            height: 1.35,
-                            color: kTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: const [
-                  _CoverageChip(
-                    icon: Icons.photo_camera_outlined,
-                    label: 'Photo',
-                    color: kAccent,
-                    background: _overviewTotalBg,
-                  ),
-                  _CoverageChip(
-                    icon: Icons.videocam_outlined,
-                    label: 'Video',
-                    color: kCyan,
-                    background: kCyanDim,
-                  ),
-                  _CoverageChip(
-                    icon: Icons.groups_outlined,
-                    label: 'Team',
-                    color: kGreen,
-                    background: kGreenDim,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onCreate,
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text(
-                  'Create Request',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              Container(
+                width: iconBox,
+                height: iconBox,
+                decoration: BoxDecoration(
+                  color: _overviewTotalBg,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: kMemberButtonPrimary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(46),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                child: Icon(
+                  Icons.event_available_rounded,
+                  color: kAccent,
+                  size: narrow ? 20 : 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Need event coverage?',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: memberDashboardCardTitleStyle.copyWith(
+                        fontSize: narrow ? 15 : 16,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Schedule your event in advance and request documentation coverage.',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: memberDashboardMetaStyle.copyWith(
+                        fontSize: narrow ? 11.5 : 12,
+                        height: 1.3,
+                        color: kTextSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          const Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _CoverageChip(
+                icon: Icons.photo_camera_outlined,
+                label: 'Photo',
+                color: kAccent,
+                background: _overviewTotalBg,
+              ),
+              _CoverageChip(
+                icon: Icons.videocam_outlined,
+                label: 'Video',
+                color: kCyan,
+                background: kCyanDim,
+              ),
+              _CoverageChip(
+                icon: Icons.groups_outlined,
+                label: 'Team',
+                color: kGreen,
+                background: kGreenDim,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          FilledButton(
+            onPressed: onCreate,
+            style: FilledButton.styleFrom(
+              backgroundColor: kMemberButtonPrimary,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(42),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              elevation: 0,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.add_rounded, size: 18),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Create Request',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: dashText(const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    )),
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_rounded, size: 18),
+              ],
+            ),
           ),
         ],
       ),
@@ -430,16 +428,18 @@ class _CoverageChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 5),
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: dashText(TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: color,
-              height: 1,
-            ),
+              height: 1.1,
+            )),
           ),
         ],
       ),
@@ -467,148 +467,166 @@ class _RequestStatsGrid extends StatelessWidget {
   final int completed;
   final void Function({RequestStatus? filter}) onOpenRequestTab;
 
-  static const _outerRadius = 16.0;
-  static const _tileRadius = 14.0;
-  static const _columnGap = 8.0;
-
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 360;
-    final rowH = compact ? 46.0 : 50.0;
-    final stackH = rowH * 3 + _columnGap * 2;
-
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(_outerRadius),
-        border: Border.all(color: kBorder),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: _OverviewTotalTile(
-              height: stackH,
-              total: total,
-              compact: compact,
-              onTap: () => onOpenRequestTab(),
-            ),
-          ),
-          const SizedBox(width: _columnGap),
-          Expanded(
-            flex: 3,
-            child: SizedBox(
-              height: stackH,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _OverviewStatusTile(
-                      label: 'Pending',
-                      count: pending,
-                      icon: Icons.schedule_rounded,
-                      background: kYellowDim,
-                      iconColor: kYellow,
-                      compact: compact,
-                      onTap: () => onOpenRequestTab(filter: RequestStatus.pending),
-                    ),
-                  ),
-                  const SizedBox(height: _columnGap),
-                  Expanded(
-                    child: _OverviewStatusTile(
-                      label: 'Approved',
-                      count: approved,
-                      icon: Icons.check_circle_outline_rounded,
-                      background: kGreenDim,
-                      iconColor: kGreen,
-                      compact: compact,
-                      onTap: () => onOpenRequestTab(filter: RequestStatus.approved),
-                    ),
-                  ),
-                  const SizedBox(height: _columnGap),
-                  Expanded(
-                    child: _OverviewStatusTile(
-                      label: 'Completed',
-                      count: completed,
-                      icon: Icons.done_all_rounded,
-                      background: kDashStatPurple,
-                      iconColor: kDashStatPurpleIcon,
-                      compact: compact,
-                      onTap: () => onOpenRequestTab(filter: RequestStatus.completed),
-                    ),
-                  ),
-                ],
+    return Column(
+      children: [
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _OverviewStatCard(
+                  count: total,
+                  label: 'Total Requests',
+                  detail: 'All submitted requests',
+                  icon: Icons.assignment_outlined,
+                  iconBackground: _overviewTotalBg,
+                  iconColor: kAccent,
+                  onTap: () => onOpenRequestTab(),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OverviewStatCard(
+                  count: pending,
+                  label: 'Pending',
+                  detail: 'Awaiting review',
+                  icon: Icons.schedule_rounded,
+                  iconBackground: kYellowDim,
+                  iconColor: kYellow,
+                  onTap: () => onOpenRequestTab(filter: RequestStatus.pending),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _OverviewStatCard(
+                  count: approved,
+                  label: 'Approved',
+                  detail: 'Accepted for coverage',
+                  icon: Icons.check_circle_rounded,
+                  iconBackground: kGreenDim,
+                  iconColor: kGreen,
+                  onTap: () => onOpenRequestTab(filter: RequestStatus.approved),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OverviewStatCard(
+                  count: completed,
+                  label: 'Completed',
+                  detail: 'Documentation finished',
+                  icon: Icons.done_all_rounded,
+                  iconBackground: kDashStatPurple,
+                  iconColor: kDashStatPurpleIcon,
+                  onTap: () => onOpenRequestTab(filter: RequestStatus.completed),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _OverviewTotalTile extends StatelessWidget {
-  const _OverviewTotalTile({
-    required this.height,
-    required this.total,
-    required this.compact,
+class _OverviewStatCard extends StatelessWidget {
+  const _OverviewStatCard({
+    required this.count,
+    required this.label,
+    required this.detail,
+    required this.icon,
+    required this.iconBackground,
+    required this.iconColor,
     required this.onTap,
   });
 
-  final double height;
-  final int total;
-  final bool compact;
+  final int count;
+  final String label;
+  final String detail;
+  final IconData icon;
+  final Color iconBackground;
+  final Color iconColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final valueSize = compact ? 28.0 : 32.0;
-    final labelSize = compact ? 11.0 : 12.0;
+    final narrow = MediaQuery.sizeOf(context).width < 360;
+    final iconBox = narrow ? 30.0 : 32.0;
 
-    return SizedBox(
-      height: height,
+    return Container(
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Material(
-        color: _overviewTotalBg,
-        borderRadius: BorderRadius.circular(_RequestStatsGrid._tileRadius),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(compact ? 10 : 12, compact ? 10 : 12, 8, 12),
+            padding: EdgeInsets.fromLTRB(narrow ? 10 : 12, 10, narrow ? 10 : 12, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.assignment_outlined,
-                  color: kAccent,
-                  size: compact ? 22 : 24,
-                ),
-                const Spacer(),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '$total',
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: valueSize,
-                      fontWeight: FontWeight.w800,
-                      height: 1,
-                      color: kTextPrimary,
-                      letterSpacing: -0.5,
-                    ),
+                Container(
+                  width: iconBox,
+                  height: iconBox,
+                  decoration: BoxDecoration(
+                    color: iconBackground,
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: Icon(icon, color: iconColor, size: narrow ? 16 : 17),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  'Total Requests',
+                  '$count',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: dashText(TextStyle(
+                    fontSize: narrow ? 20 : 22,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                    color: kTextPrimary,
+                    letterSpacing: -0.4,
+                  )),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: labelSize,
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
+                  style: dashText(TextStyle(
+                    fontSize: narrow ? 12 : 13,
+                    fontWeight: FontWeight.w700,
+                    height: 1.15,
+                    color: kTextPrimary,
+                  )),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardMetaStyle.copyWith(
+                    fontSize: narrow ? 10.5 : 11,
+                    height: 1.25,
                     color: kTextSecondary,
                   ),
                 ),
@@ -621,89 +639,46 @@ class _OverviewTotalTile extends StatelessWidget {
   }
 }
 
-class _OverviewStatusTile extends StatelessWidget {
-  const _OverviewStatusTile({
-    required this.label,
-    required this.count,
-    required this.icon,
-    required this.background,
-    required this.iconColor,
-    required this.compact,
-    required this.onTap,
-  });
-
-  final String label;
-  final int count;
-  final IconData icon;
-  final Color background;
-  final Color iconColor;
-  final bool compact;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(_RequestStatsGrid._tileRadius),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
-          child: Row(
-            children: [
-              Icon(icon, color: iconColor, size: compact ? 18 : 20),
-              SizedBox(width: compact ? 6 : 8),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: compact ? 11 : 12,
-                    fontWeight: FontWeight.w600,
-                    color: kTextPrimary,
-                  ),
-                ),
-              ),
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: compact ? 17 : 19,
-                  fontWeight: FontWeight.w800,
-                  color: kTextPrimary,
-                  height: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── Sections ─────────────────────────────────────────────────────────────────
 
 class _SectionTitleRow extends StatelessWidget {
   const _SectionTitleRow({
     required this.title,
+    this.subtitle,
     this.actionLabel,
     this.onAction,
   });
 
   final String title;
+  final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Text(
-            title,
-            style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
+              ),
+              if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardSectionSubtitleStyle.copyWith(fontSize: 12),
+                ),
+              ],
+            ],
           ),
         ),
         if (actionLabel != null && onAction != null)
@@ -717,7 +692,12 @@ class _SectionTitleRow extends StatelessWidget {
             ),
             child: Text(
               actionLabel!,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: dashText(const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              )),
             ),
           ),
       ],
@@ -764,72 +744,138 @@ class _CompactEmptyCard extends StatelessWidget {
   }
 }
 
-class _CompactRequestRow extends StatelessWidget {
-  const _CompactRequestRow({required this.request, required this.onTap});
+class _RecentRequestsList extends StatelessWidget {
+  const _RecentRequestsList({
+    required this.requests,
+    required this.onOpen,
+  });
+
+  final List<ServiceRequest> requests;
+  final ValueChanged<ServiceRequest> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < requests.length; i++) ...[
+            if (i > 0) const Divider(height: 1, thickness: 1, color: kBorder),
+            _RecentRequestRow(
+              request: requests[i],
+              onTap: () => onOpen(requests[i]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentRequestRow extends StatelessWidget {
+  const _RecentRequestRow({required this.request, required this.onTap});
 
   final ServiceRequest request;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 360;
     final status = request.requestStatus;
     final style = RequestStatusStyle.forStatus(status);
-    return MemberDashboardCard(
-      padding: EdgeInsets.zero,
+    final date = formatRequestShortDate(request.eventDate);
+
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      request.eventName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.event_rounded, size: 14, color: kAccent),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            _scheduleLabel(request, null) ??
-                                formatRequestShortDate(request.eventDate),
-                            style: memberDashboardMetaStyle.copyWith(fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: style.background,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: style.color.withValues(alpha: 0.25)),
-                ),
-                child: Text(
-                  status.label,
-                  style: TextStyle(
-                    color: style.color,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: narrow ? 10 : 12, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  width: narrow ? 32 : 34,
+                  height: narrow ? 32 : 34,
+                  decoration: BoxDecoration(
+                    color: _overviewTotalBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.event_rounded,
+                    color: kAccent,
+                    size: narrow ? 16 : 18,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        request.eventName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: memberDashboardCardTitleStyle.copyWith(
+                          fontSize: narrow ? 13 : 14,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        date,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: memberDashboardMetaStyle.copyWith(
+                          fontSize: narrow ? 11 : 12,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  flex: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: style.background,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      status.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: dashText(TextStyle(
+                        color: style.color,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      )),
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: kTextSecondary.withValues(alpha: 0.8),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -837,8 +883,124 @@ class _CompactRequestRow extends StatelessWidget {
   }
 }
 
-class _UpcomingEventCard extends StatelessWidget {
-  const _UpcomingEventCard({
+BoxDecoration _homeSectionCardDecoration() {
+  return BoxDecoration(
+    color: kSurface,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: kBorder),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.04),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+      ),
+    ],
+  );
+}
+
+class _Phase5EmptyCard extends StatelessWidget {
+  const _Phase5EmptyCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: _homeSectionCardDecoration(),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _overviewTotalBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: kAccent, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingDocumentationSection extends StatelessWidget {
+  const _UpcomingDocumentationSection({
+    required this.requests,
+    required this.onOpen,
+  });
+
+  final List<ServiceRequest> requests;
+  final ValueChanged<ServiceRequest> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    if (requests.isEmpty) {
+      return const _Phase5EmptyCard(
+        icon: Icons.event_available_outlined,
+        title: 'No upcoming coverage',
+        message: 'Approved events with future dates will appear here once scheduled.',
+      );
+    }
+
+    final nearest = requests.first;
+    final rest = requests.skip(1).toList();
+    return Container(
+      decoration: _homeSectionCardDecoration(),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          _UpcomingFeaturedCard(
+            request: nearest,
+            calendar: _calendarForRequest(nearest.requestId),
+            onTap: () => onOpen(nearest),
+          ),
+          for (final req in rest) ...[
+            const Divider(height: 1, thickness: 1, color: kBorder),
+            _UpcomingCompactRow(
+              request: req,
+              calendar: _calendarForRequest(req.requestId),
+              onTap: () => onOpen(req),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingFeaturedCard extends StatelessWidget {
+  const _UpcomingFeaturedCard({
     required this.request,
     required this.calendar,
     required this.onTap,
@@ -850,48 +1012,66 @@ class _UpcomingEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 360;
     final location = (calendar?.location.isNotEmpty == true
             ? calendar!.location
             : request.location?.trim()) ??
         '';
-    final documenters = _documentersLabel(calendar);
+    final when = _scheduleLabel(request, calendar) ?? formatRequestShortDate(request.eventDate);
+    final style = RequestStatusStyle.forStatus(request.requestStatus);
 
-    return MemberDashboardCard(
-      padding: EdgeInsets.zero,
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
+          padding: EdgeInsets.fromLTRB(narrow ? 10 : 12, 12, narrow ? 8 : 10, 12),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                request.eventName,
-                style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
-              ),
-              const SizedBox(height: 6),
-              _MetaLine(
-                icon: Icons.event_rounded,
-                iconColor: kAccent,
-                text: _scheduleLabel(request, calendar) ?? formatRequestShortDate(request.eventDate),
-              ),
-              if (location.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                _MetaLine(
-                  icon: Icons.location_on_outlined,
-                  iconColor: kCyan,
-                  text: location,
+              Container(
+                width: narrow ? 32 : 36,
+                height: narrow ? 32 : 36,
+                decoration: BoxDecoration(
+                  color: _overviewTotalBg,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-              if (documenters != null) ...[
-                const SizedBox(height: 4),
-                _MetaLine(
-                  icon: Icons.groups_outlined,
-                  iconColor: kGreen,
-                  text: documenters,
+                child: Icon(Icons.event_rounded, color: kAccent, size: narrow ? 16 : 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.eventName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: memberDashboardCardTitleStyle.copyWith(
+                        fontSize: narrow ? 14 : 15,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _MetaLine(icon: Icons.schedule_rounded, iconColor: kAccent, text: when),
+                    if (location.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      _MetaLine(
+                        icon: Icons.location_on_outlined,
+                        iconColor: kCyan,
+                        text: location,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
+              ),
+              const SizedBox(width: 6),
+              _StatusBadge(
+                label: request.requestStatus.label,
+                color: style.color,
+                background: style.background,
+              ),
+              Icon(Icons.chevron_right_rounded, size: 20, color: kTextSecondary.withValues(alpha: 0.8)),
             ],
           ),
         ),
@@ -900,8 +1080,103 @@ class _UpcomingEventCard extends StatelessWidget {
   }
 }
 
-class _FeedbackReminderCard extends StatelessWidget {
-  const _FeedbackReminderCard({
+class _UpcomingCompactRow extends StatelessWidget {
+  const _UpcomingCompactRow({
+    required this.request,
+    required this.calendar,
+    required this.onTap,
+  });
+
+  final ServiceRequest request;
+  final CalendarEvent? calendar;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final when = _scheduleLabel(request, calendar) ?? formatRequestShortDate(request.eventDate);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.event_rounded, size: 16, color: kAccent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        request.eventName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: memberDashboardCardTitleStyle.copyWith(fontSize: 13, height: 1.2),
+                      ),
+                      Text(
+                        when,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: memberDashboardMetaStyle.copyWith(fontSize: 11, height: 1.2),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, size: 20, color: kTextSecondary.withValues(alpha: 0.8)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PendingFeedbackSection extends StatelessWidget {
+  const _PendingFeedbackSection({
+    required this.requests,
+    required this.statusLabel,
+    required this.onGiveFeedback,
+  });
+
+  final List<ServiceRequest> requests;
+  final String? Function(ServiceRequest request) statusLabel;
+  final ValueChanged<ServiceRequest> onGiveFeedback;
+
+  @override
+  Widget build(BuildContext context) {
+    if (requests.isEmpty) {
+      return const _Phase5EmptyCard(
+        icon: Icons.rate_review_outlined,
+        title: 'No feedback due',
+        message: 'Finished documentation will show here when your response is still needed.',
+      );
+    }
+
+    return Container(
+      decoration: _homeSectionCardDecoration(),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < requests.length; i++) ...[
+            if (i > 0) const Divider(height: 1, thickness: 1, color: kBorder),
+            _FeedbackReminderRow(
+              request: requests[i],
+              statusLabel: statusLabel(requests[i]),
+              onGiveFeedback: () => onGiveFeedback(requests[i]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FeedbackReminderRow extends StatelessWidget {
+  const _FeedbackReminderRow({
     required this.request,
     required this.onGiveFeedback,
     this.statusLabel,
@@ -913,50 +1188,202 @@ class _FeedbackReminderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MemberDashboardCard(
-      padding: const EdgeInsets.all(14),
+    final narrow = MediaQuery.sizeOf(context).width < 360;
+    final due = (statusLabel == null || statusLabel == 'Complete')
+        ? 'Share feedback on the documentation.'
+        : statusLabel!;
+    final when = formatRequestShortDate(request.updatedAt ?? request.eventDate);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(narrow ? 10 : 12, 10, narrow ? 10 : 12, 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(Icons.rate_review_outlined, color: kAccent.withValues(alpha: 0.9), size: 22),
-          const SizedBox(width: 12),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: kGreenDim,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.rate_review_outlined, color: kGreen, size: 16),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   request.eventName,
-                  style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardCardTitleStyle.copyWith(fontSize: 13, height: 1.2),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  statusLabel == null || statusLabel == 'Complete'
-                      ? 'Coverage is complete. Share feedback on the documentation team.'
-                      : 'Still due: $statusLabel',
-                  style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.35),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.tonal(
-                    onPressed: onGiveFeedback,
-                    style: FilledButton.styleFrom(
-                      foregroundColor: kAccent,
-                      backgroundColor: kAccent.withValues(alpha: 0.12),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Text(
-                      'Give Feedback',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                    ),
-                  ),
+                  '$when · $due',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardMetaStyle.copyWith(fontSize: 11, height: 1.25),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: onGiveFeedback,
+            style: FilledButton.styleFrom(
+              backgroundColor: kMemberButtonPrimary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              'Give Feedback',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ActionRequiredList extends StatelessWidget {
+  const _ActionRequiredList({
+    required this.requests,
+    required this.onOpen,
+  });
+
+  final List<ServiceRequest> requests;
+  final ValueChanged<ServiceRequest> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _homeSectionCardDecoration(),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < requests.length; i++) ...[
+            if (i > 0) const Divider(height: 1, thickness: 1, color: kBorder),
+            _ActionRequiredRow(
+              request: requests[i],
+              onTap: () => onOpen(requests[i]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionRequiredRow extends StatelessWidget {
+  const _ActionRequiredRow({required this.request, required this.onTap});
+
+  final ServiceRequest request;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = request.rejectionReason?.trim();
+    final detail = (reason != null && reason.isNotEmpty)
+        ? reason
+        : 'Review the decline and reschedule if the event should move.';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: kRedDim,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.error_outline_rounded, color: kRed, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.eventName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: memberDashboardCardTitleStyle.copyWith(fontSize: 13, height: 1.2),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: memberDashboardMetaStyle.copyWith(fontSize: 11, height: 1.25),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'View request',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dashText(const TextStyle(
+                  color: kAccent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                )),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 18, color: kTextSecondary.withValues(alpha: 0.8)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: dashText(TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+        )),
       ),
     );
   }

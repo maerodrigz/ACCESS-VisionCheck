@@ -11,8 +11,12 @@ import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_gallery_header.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_tab_hero.dart';
 
 enum _GalleryFilter { all, photos, videos }
+
+enum _GallerySort { newestFirst, oldestFirst }
 
 /// Shared layout rhythm for the member gallery screen.
 const _kGallerySectionTop = 6.0;
@@ -20,6 +24,7 @@ const _kGalleryListGap = 10.0;
 const _kGalleryListBottom = 20.0;
 const _kGalleryEmptyTop = 20.0;
 const _kGalleryControlHeight = 36.0;
+const _kGalleryRequestorCyan = Color(0xFF00C4E8);
 
 /// Event album cover frame (16:9).
 const _kGalleryAlbumCoverAspectRatio = 16 / 9;
@@ -149,6 +154,7 @@ class GalleryScreen extends StatefulWidget {
 
 class _GalleryScreenState extends State<GalleryScreen> {
   _GalleryFilter _filter = _GalleryFilter.all;
+  _GallerySort _sort = _GallerySort.newestFirst;
   String _searchQuery = '';
   bool _myWorkOnly = false;
   late final TextEditingController _searchController;
@@ -227,12 +233,41 @@ class _GalleryScreenState extends State<GalleryScreen> {
       list = list.where(galleryAlbumIsPersonal).toList();
     }
     final q = _searchQuery.trim();
-    if (q.isEmpty) return list;
-    return list.where((a) => a.matchesSearch(q)).toList();
+    if (q.isNotEmpty) {
+      list = list.where((a) => a.matchesSearch(q)).toList();
+    }
+    return _sortedAlbums(list);
+  }
+
+  /// Overview totals for stats cards (not narrowed by search/filter).
+  List<EventGalleryAlbum> get _statsAlbums => buildEventGalleryAlbums(
+        _scopedEventGallery,
+        eventCategoriesByRequestId: _eventCategoriesByRequestId(),
+      );
+
+  DateTime _albumSortDate(EventGalleryAlbum album) {
+    // Album.date already prefers event date, then uploadedAt from media.
+    return album.date ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  List<EventGalleryAlbum> _sortedAlbums(List<EventGalleryAlbum> source) {
+    if (!widget.requestorMode) return source;
+    final list = [...source];
+    list.sort((a, b) {
+      final ad = _albumSortDate(a);
+      final bd = _albumSortDate(b);
+      final byDate = _sort == _GallerySort.newestFirst
+          ? bd.compareTo(ad)
+          : ad.compareTo(bd);
+      if (byDate != 0) return byDate;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return list;
   }
 
   List<EventGalleryAlbum> get _recentAlbums {
-    if (_hasActiveSearch) return const [];
+    // Requestor Phase 2 uses explicit event-date sorting instead of a Recent strip.
+    if (widget.requestorMode || _hasActiveSearch) return const [];
     return pickGalleryRecentAlbums(_albums);
   }
 
@@ -282,21 +317,30 @@ class _GalleryScreenState extends State<GalleryScreen> {
           ListenableBuilder(
             listenable: Listenable.merge([appState, memberDataController]),
             builder: (_, __) {
-              final albums = _albums;
-              final photos = albums.fold<int>(0, (sum, a) => sum + a.photoCount);
-              final videos = albums.fold<int>(0, (sum, a) => sum + a.videoCount);
+              final statsAlbums = widget.requestorMode ? _statsAlbums : _albums;
+              final photos =
+                  statsAlbums.fold<int>(0, (sum, a) => sum + a.photoCount);
+              final videos =
+                  statsAlbums.fold<int>(0, (sum, a) => sum + a.videoCount);
               final gallerySyncing = (memberDataController.eventGalleryLoading ||
                       memberDataController.galleryTabLoading) &&
                   appState.eventGallery.isNotEmpty;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _GalleryMemberHeader(
-                    subtitle: widget.subtitle,
-                    purposeBelowTitle: widget.purposeBelowTitle,
-                    onNotificationsTap: widget.onNotificationsTap,
-                    onProfileTap: widget.onProfileTap,
-                  ),
+                  if (widget.requestorMode)
+                    RequestorBrandAppBar(
+                      onNotifications: widget.onNotificationsTap,
+                      onProfileTap: widget.onProfileTap,
+                    )
+                  else
+                    _GalleryMemberHeader(
+                      requestorMode: false,
+                      subtitle: widget.subtitle,
+                      purposeBelowTitle: widget.purposeBelowTitle,
+                      onNotificationsTap: widget.onNotificationsTap,
+                      onProfileTap: widget.onProfileTap,
+                    ),
                   if (gallerySyncing)
                     LinearProgressIndicator(
                       minHeight: 3,
@@ -305,30 +349,33 @@ class _GalleryScreenState extends State<GalleryScreen> {
                           : kAccent,
                       backgroundColor: kBorder,
                     ),
-                  _GalleryStatsRow(
-                    albumCount: albums.length,
-                    photoCount: photos,
-                    videoCount: videos,
-                  ),
+                  if (!widget.requestorMode)
+                    _GalleryStatsRow(
+                      albumCount: statsAlbums.length,
+                      photoCount: photos,
+                      videoCount: videos,
+                      requestorMode: false,
+                    ),
                 ],
               );
             },
           ),
-          _GallerySearchBar(
-            controller: _searchController,
-            focusNode: _searchFocusNode,
-            onChanged: _onSearchChanged,
-            onClear: _clearSearch,
-            hasQuery: _hasActiveSearch,
-            hintText: widget.requestorMode
-                ? 'Search your documented events…'
-                : 'Search event albums...',
-          ),
-          _GalleryFilterTabs(
-            selected: _filter,
-            onSelected: (f) => setState(() => _filter = f),
-            requestorMode: widget.requestorMode,
-          ),
+          if (!widget.requestorMode) ...[
+            _GallerySearchBar(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              onChanged: _onSearchChanged,
+              onClear: _clearSearch,
+              hasQuery: _hasActiveSearch,
+              hintText: 'Search event albums...',
+              requestorMode: false,
+            ),
+            _GalleryFilterTabs(
+              selected: _filter,
+              onSelected: (f) => setState(() => _filter = f),
+              requestorMode: false,
+            ),
+          ],
           Expanded(
             child: ListenableBuilder(
               listenable: Listenable.merge([appState, memberDataController]),
@@ -337,8 +384,63 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         memberDataController.eventGalleryLoading) &&
                     appState.eventGallery.isEmpty;
                 final galleryError = memberDataController.eventGalleryError;
+                final statsAlbums =
+                    widget.requestorMode ? _statsAlbums : _albums;
+                final photoCount =
+                    statsAlbums.fold<int>(0, (sum, a) => sum + a.photoCount);
+                final videoCount =
+                    statsAlbums.fold<int>(0, (sum, a) => sum + a.videoCount);
+                final requestorChromeSlivers = widget.requestorMode
+                    ? <Widget>[
+                        const SliverToBoxAdapter(
+                          child: RequestorGalleryIllustratedHeader(
+                            includeTopActions: false,
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: _GalleryStatsRow(
+                            albumCount: statsAlbums.length,
+                            photoCount: photoCount,
+                            videoCount: videoCount,
+                            requestorMode: true,
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: _GallerySearchBar(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            onChanged: _onSearchChanged,
+                            onClear: _clearSearch,
+                            hasQuery: _hasActiveSearch,
+                            hintText: 'Search events or albums...',
+                            requestorMode: true,
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: _GalleryFilterTabs(
+                            selected: _filter,
+                            onSelected: (f) => setState(() => _filter = f),
+                            requestorMode: true,
+                          ),
+                        ),
+                      ]
+                    : const <Widget>[];
 
                 if (galleryLoading) {
+                  if (widget.requestorMode) {
+                    return CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      slivers: [
+                        ...requestorChromeSlivers,
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _GalleryLoadingSkeletonList(padding: padding),
+                        ),
+                      ],
+                    );
+                  }
                   return _GalleryLoadingSkeletonList(padding: padding);
                 }
 
@@ -351,6 +453,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         parent: BouncingScrollPhysics(),
                       ),
                       slivers: [
+                        ...requestorChromeSlivers,
                         _GalleryEmptyStateSliver(
                           padding: padding,
                           child: _GalleryLoadErrorState(
@@ -376,6 +479,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         parent: BouncingScrollPhysics(),
                       ),
                       slivers: [
+                        ...requestorChromeSlivers,
                         _GalleryEmptyStateSliver(
                           padding: padding,
                           top: searching ? 16 : _kGalleryEmptyTop,
@@ -400,16 +504,23 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                           ? _GalleryInlineEmptyState(
                                               icon: Icons.photo_library_outlined,
                                               iconAccent: kAccent,
-                                              title: 'No albums for your events yet',
+                                              title: 'No documented events yet',
                                               subtitle:
                                                   'Photos and videos appear here after ACCESS publishes coverage from your approved documentation requests.',
                                             )
                                           : _GalleryInlineEmptyState(
                                               icon: Icons.filter_alt_outlined,
                                               iconAccent: kCyan,
-                                              title: 'No media in this filter',
-                                              subtitle:
-                                                  'Try All, or switch to Photos or Videos for your documented events.',
+                                              title: _filter == _GalleryFilter.photos
+                                                  ? 'No photo albums'
+                                                  : _filter == _GalleryFilter.videos
+                                                      ? 'No video albums'
+                                                      : 'No media in this filter',
+                                              subtitle: _filter == _GalleryFilter.photos
+                                                  ? 'None of your documented events have published photos yet.'
+                                                  : _filter == _GalleryFilter.videos
+                                                      ? 'None of your documented events have published videos yet.'
+                                                      : 'Try All, or switch to Photos or Videos for your documented events.',
                                             ))
                               : _myWorkOnly
                                   ? _GalleryInlineEmptyState(
@@ -438,8 +549,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 }
 
                 final displayAlbums = _displayAlbums;
-                final sectionTitle =
-                    _hasActiveSearch ? 'Matching events' : 'Event albums';
+                final sectionTitle = widget.requestorMode
+                    ? (_hasActiveSearch ? 'Matching events' : 'Event Albums')
+                    : (_hasActiveSearch ? 'Matching events' : 'Event albums');
 
                 return RefreshIndicator(
                   color: kMemberDashboardAccent,
@@ -449,12 +561,18 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       parent: BouncingScrollPhysics(),
                     ),
                     slivers: [
+                      ...requestorChromeSlivers,
                       SliverToBoxAdapter(
                         child: _GalleryListSectionHeader(
                           padding: padding,
                           title: sectionTitle,
                           count: displayAlbums.length,
                           searching: _hasActiveSearch,
+                          requestorMode: widget.requestorMode,
+                          sort: _sort,
+                          onSortChanged: widget.requestorMode
+                              ? (value) => setState(() => _sort = value)
+                              : null,
                         ),
                       ),
                       _GalleryAlbumSliver(
@@ -507,12 +625,18 @@ class _GalleryListSectionHeader extends StatelessWidget {
     required this.title,
     required this.count,
     required this.searching,
+    this.requestorMode = false,
+    this.sort = _GallerySort.newestFirst,
+    this.onSortChanged,
   });
 
   final double padding;
   final String title;
   final int count;
   final bool searching;
+  final bool requestorMode;
+  final _GallerySort sort;
+  final ValueChanged<_GallerySort>? onSortChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -521,35 +645,175 @@ class _GalleryListSectionHeader extends StatelessWidget {
         ? '$count result${count == 1 ? '' : 's'}'
         : '$count album${count == 1 ? '' : 's'}';
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(padding, _kGallerySectionTop, padding, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: memberDashboardSectionTitleStyle.copyWith(
-                    fontSize: compact ? 15 : 16,
-                    letterSpacing: -0.25,
-                  ),
+    if (!requestorMode || onSortChanged == null) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(padding, _kGallerySectionTop, padding, 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: memberDashboardSectionTitleStyle.copyWith(
+                  fontSize: compact ? 15 : 16,
+                  letterSpacing: -0.25,
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                countLabel,
-                style: memberDashboardMetaStyle.copyWith(
-                  color: kAccent,
-                  fontWeight: FontWeight.w600,
-                  fontSize: compact ? 11 : 12,
-                ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              countLabel,
+              style: memberDashboardMetaStyle.copyWith(
+                color: kAccent,
+                fontWeight: FontWeight.w600,
+                fontSize: compact ? 11 : 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(padding, _kGallerySectionTop, padding, 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: dashText(TextStyle(
+                color: kTextPrimary,
+                fontSize: compact ? 15 : 16,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.25,
+              )),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  Text(
+                    countLabel,
+                    style: memberDashboardMetaStyle.copyWith(
+                      color: _kGalleryRequestorCyan,
+                      fontWeight: FontWeight.w700,
+                      fontSize: compact ? 11 : 12,
+                    ),
+                  ),
+                  _GallerySortMenu(
+                    value: sort,
+                    onChanged: onSortChanged!,
+                    compact: compact,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GallerySortMenu extends StatelessWidget {
+  const _GallerySortMenu({
+    required this.value,
+    required this.onChanged,
+    required this.compact,
+  });
+
+  final _GallerySort value;
+  final ValueChanged<_GallerySort> onChanged;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: PopupMenuButton<_GallerySort>(
+        tooltip: 'Sort albums',
+        onSelected: onChanged,
+        offset: const Offset(0, 36),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        itemBuilder: (_) => [
+          PopupMenuItem(
+            value: _GallerySort.newestFirst,
+            child: Text(
+              'Newest First',
+              style: dashText(TextStyle(
+                fontWeight: value == _GallerySort.newestFirst
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                color: kTextPrimary,
+                fontSize: 13,
+              )),
+            ),
+          ),
+          PopupMenuItem(
+            value: _GallerySort.oldestFirst,
+            child: Text(
+              'Oldest First',
+              style: dashText(TextStyle(
+                fontWeight: value == _GallerySort.oldestFirst
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                color: kTextPrimary,
+                fontSize: 13,
+              )),
+            ),
+          ),
+        ],
+        child: Container(
+          height: compact ? 32 : 34,
+          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: kBorder),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.sort_rounded,
+                size: compact ? 15 : 16,
+                color: _kGalleryRequestorCyan,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                value == _GallerySort.newestFirst ? 'Newest' : 'Oldest',
+                style: dashText(TextStyle(
+                  color: kTextPrimary,
+                  fontSize: compact ? 11.5 : 12,
+                  fontWeight: FontWeight.w700,
+                )),
+              ),
+              const SizedBox(width: 2),
+              const Icon(
+                Icons.expand_more_rounded,
+                size: 16,
+                color: kTextSecondary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -558,18 +822,29 @@ class _GalleryListSectionHeader extends StatelessWidget {
 class _GalleryMemberHeader extends StatelessWidget {
   const _GalleryMemberHeader({
     required this.subtitle,
+    this.requestorMode = false,
     this.purposeBelowTitle = false,
     this.onNotificationsTap,
     this.onProfileTap,
   });
 
   final String subtitle;
+  final bool requestorMode;
   final bool purposeBelowTitle;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
+    if (requestorMode) {
+      return RequestorGalleryIllustratedHeader(
+        title: 'Gallery',
+        subtitle: 'Relive your documented events.',
+        onNotificationsTap: onNotificationsTap,
+        onProfileTap: onProfileTap,
+      );
+    }
+
     final compact = MediaQuery.sizeOf(context).width < 360;
     final purpose = subtitle.trim();
 
@@ -596,8 +871,80 @@ class _GalleryMemberHeader extends StatelessWidget {
   }
 }
 
+const _kRequestorStatsBg = Color(0xFFEAF7FC);
+const _kRequestorStatsIcon = Color(0xFF079FC6);
+const _kRequestorStatsNumber = Color(0xFF173650);
+const _kRequestorStatsLabel = Color(0xFF617F91);
+const _kRequestorStatsBorder = Color(0xFFD0EBF5);
+const _kRequestorStatsDivider = Color(0xFFC6E1EC);
+
 class _GalleryStatsRow extends StatelessWidget {
   const _GalleryStatsRow({
+    required this.albumCount,
+    required this.photoCount,
+    required this.videoCount,
+    this.requestorMode = false,
+  });
+
+  final int albumCount;
+  final int photoCount;
+  final int videoCount;
+  final bool requestorMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final padding = mobilePagePaddingOf(context);
+
+    if (requestorMode) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(padding, 0, padding, 8),
+        child: _RequestorUnifiedGalleryStats(
+          albumCount: albumCount,
+          photoCount: photoCount,
+          videoCount: videoCount,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(padding, 0, padding, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: _GalleryStatCard(
+              value: '$albumCount',
+              label: 'Albums',
+              icon: Icons.photo_album_rounded,
+              iconColor: kAccent,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _GalleryStatCard(
+              value: '$photoCount',
+              label: 'Photos',
+              icon: Icons.photo_library_rounded,
+              iconColor: kGreen,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _GalleryStatCard(
+              value: '$videoCount',
+              label: 'Videos',
+              icon: Icons.videocam_rounded,
+              iconColor: kPurple,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact sky-blue stats bar: Albums | Photos | Videos (requestor Gallery).
+class _RequestorUnifiedGalleryStats extends StatelessWidget {
+  const _RequestorUnifiedGalleryStats({
     required this.albumCount,
     required this.photoCount,
     required this.videoCount,
@@ -609,37 +956,136 @@ class _GalleryStatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final padding = mobilePagePaddingOf(context);
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final tight = compact || textScale >= 1.2;
 
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: tight ? 2 : 4,
+        vertical: tight ? 8 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: _kRequestorStatsBg,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: _kRequestorStatsBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _RequestorUnifiedStatColumn(
+                value: '$albumCount',
+                label: 'Albums',
+                icon: Icons.photo_album_outlined,
+                tight: tight,
+              ),
+            ),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: _kRequestorStatsDivider,
+              indent: tight ? 2 : 4,
+              endIndent: tight ? 2 : 4,
+            ),
+            Expanded(
+              child: _RequestorUnifiedStatColumn(
+                value: '$photoCount',
+                label: 'Photos',
+                icon: Icons.image_outlined,
+                tight: tight,
+              ),
+            ),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: _kRequestorStatsDivider,
+              indent: tight ? 2 : 4,
+              endIndent: tight ? 2 : 4,
+            ),
+            Expanded(
+              child: _RequestorUnifiedStatColumn(
+                value: '$videoCount',
+                label: 'Videos',
+                icon: Icons.videocam_outlined,
+                tight: tight,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RequestorUnifiedStatColumn extends StatelessWidget {
+  const _RequestorUnifiedStatColumn({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.tight,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+  final bool tight;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(padding, 0, padding, 6),
-      child: Row(
+      padding: EdgeInsets.symmetric(horizontal: tight ? 4 : 6),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: _GalleryStatCard(
-              value: '$albumCount',
-              label: 'Albums',
-              icon: Icons.photo_album_outlined,
-              iconColor: kAccent,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: tight ? 16 : 18,
+                color: _kRequestorStatsIcon,
+              ),
+              SizedBox(width: tight ? 5 : 6),
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: dashText(TextStyle(
+                    color: _kRequestorStatsNumber,
+                    fontSize: tight ? 15 : 16,
+                    fontWeight: FontWeight.w800,
+                    height: 1.0,
+                    letterSpacing: -0.2,
+                  )),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _GalleryStatCard(
-              value: '$photoCount',
-              label: 'Photos',
-              icon: Icons.photo_library_outlined,
-              iconColor: kGreen,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _GalleryStatCard(
-              value: '$videoCount',
-              label: 'Videos',
-              icon: Icons.videocam_outlined,
-              iconColor: kDashStatPurpleIcon,
-            ),
+          SizedBox(height: tight ? 3 : 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: dashText(TextStyle(
+              color: _kRequestorStatsLabel,
+              fontSize: tight ? 10.5 : 11.5,
+              fontWeight: FontWeight.w500,
+              height: 1.05,
+            )),
           ),
         ],
       ),
@@ -665,11 +1111,16 @@ class _GalleryStatCard extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 360;
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8, vertical: compact ? 7 : 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 7 : 8,
+      ),
       decoration: BoxDecoration(
         color: iconColor.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: iconColor.withValues(alpha: 0.14)),
+        border: Border.all(
+          color: iconColor.withValues(alpha: 0.14),
+        ),
       ),
       child: Row(
         children: [
@@ -726,6 +1177,7 @@ class _GallerySearchBar extends StatelessWidget {
     required this.onClear,
     required this.hasQuery,
     this.hintText = 'Search event albums...',
+    this.requestorMode = false,
   });
 
   final TextEditingController controller;
@@ -734,62 +1186,88 @@ class _GallerySearchBar extends StatelessWidget {
   final VoidCallback onClear;
   final bool hasQuery;
   final String hintText;
+  final bool requestorMode;
 
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
     final compact = MediaQuery.sizeOf(context).width < 360;
+    final accent = requestorMode ? _kGalleryRequestorCyan : kAccent;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(padding, 0, padding, compact ? 8 : 10),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        onChanged: onChanged,
-        textInputAction: TextInputAction.search,
-        autocorrect: false,
-        enableSuggestions: false,
-        style: memberDashboardMetaStyle.copyWith(
-          fontSize: compact ? 13 : 14,
-          color: kTextPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: memberDashboardMetaStyle.copyWith(
-            fontSize: compact ? 13 : 14,
-            color: kTextSecondary,
-          ),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            color: kAccent.withValues(alpha: 0.85),
-            size: compact ? 20 : 22,
-          ),
-          suffixIcon: hasQuery
-              ? IconButton(
-                  onPressed: onClear,
-                  tooltip: 'Clear search',
-                  icon: Icon(Icons.close_rounded, color: kAccent.withValues(alpha: 0.7), size: compact ? 20 : 22),
-                )
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(requestorMode ? 14 : 12),
+          boxShadow: requestorMode
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
               : null,
-          filled: true,
-          fillColor: kSurface,
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 4,
-            vertical: compact ? 10 : 11,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBorder),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBorder),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: kAccent.withValues(alpha: 0.65), width: 1.5),
+        ),
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          onChanged: onChanged,
+          textInputAction: TextInputAction.search,
+          autocorrect: false,
+          enableSuggestions: false,
+          style: dashText(TextStyle(
+            fontSize: compact ? 13 : 14,
+            color: kTextPrimary,
+            fontWeight: FontWeight.w500,
+          )),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: dashText(TextStyle(
+              fontSize: compact ? 13 : 14,
+              color: kTextSecondary,
+              fontWeight: FontWeight.w500,
+            )),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: accent.withValues(alpha: 0.9),
+              size: compact ? 20 : 22,
+            ),
+            suffixIcon: hasQuery
+                ? IconButton(
+                    onPressed: onClear,
+                    tooltip: 'Clear search',
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: accent.withValues(alpha: 0.75),
+                      size: compact ? 20 : 22,
+                    ),
+                  )
+                : null,
+            filled: true,
+            fillColor: kSurface,
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: requestorMode
+                  ? (compact ? 11 : 12)
+                  : (compact ? 10 : 11),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(requestorMode ? 14 : 12),
+              borderSide: const BorderSide(color: kBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(requestorMode ? 14 : 12),
+              borderSide: const BorderSide(color: kBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(requestorMode ? 14 : 12),
+              borderSide: BorderSide(
+                color: accent.withValues(alpha: 0.7),
+                width: 1.5,
+              ),
+            ),
           ),
         ),
       ),
@@ -817,14 +1295,16 @@ class _GalleryAlbumSliver extends StatelessWidget {
     }
 
     final width = MediaQuery.sizeOf(context).width;
-    final columns = _galleryCollectionCrossAxisCount(width);
+    // Requestor Phase 3 uses compact horizontal cards in a single column.
+    final columns = requestorMode ? 1 : _galleryCollectionCrossAxisCount(width);
 
     if (columns == 1) {
       return SliverPadding(
         padding: EdgeInsets.fromLTRB(padding, 0, padding, _kGalleryListBottom),
         sliver: SliverList.separated(
           itemCount: albums.length,
-          separatorBuilder: (_, __) => const SizedBox(height: _kGalleryListGap),
+          separatorBuilder: (_, __) =>
+              SizedBox(height: requestorMode ? 8 : _kGalleryListGap),
           itemBuilder: (context, index) {
             final album = albums[index];
             return _GalleryAlbumCard(
@@ -914,6 +1394,34 @@ class _GalleryFilterTabs extends StatelessWidget {
     final padding = mobilePagePaddingOf(context);
     final compact = MediaQuery.sizeOf(context).width < 360;
 
+    if (requestorMode) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(padding, 0, padding, compact ? 6 : 8),
+        child: Row(
+          children: [
+            for (var i = 0; i < _GalleryFilter.values.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: _GalleryFilterTab(
+                  label: _labels[_GalleryFilter.values[i]]!,
+                  icon: selected == _GalleryFilter.values[i]
+                      ? _icons[_GalleryFilter.values[i]]!
+                      : _iconsInactive[_GalleryFilter.values[i]]!,
+                  inactiveIconColor:
+                      _inactiveIconColor(_GalleryFilter.values[i]),
+                  active: selected == _GalleryFilter.values[i],
+                  activeFillColor: _kGalleryRequestorCyan,
+                  compact: compact,
+                  requestorStyle: true,
+                  onTap: () => onSelected(_GalleryFilter.values[i]),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: EdgeInsets.fromLTRB(padding, 0, padding, compact ? 6 : 8),
       child: DecoratedBox(
@@ -934,8 +1442,7 @@ class _GalleryFilterTabs extends StatelessWidget {
                       : _iconsInactive[filter]!,
                   inactiveIconColor: _inactiveIconColor(filter),
                   active: selected == filter,
-                  activeFillColor:
-                      requestorMode ? kRequestorPrimaryAction : kAccent,
+                  activeFillColor: kAccent,
                   compact: compact,
                   onTap: () => onSelected(filter),
                 ),
@@ -957,6 +1464,7 @@ class _GalleryFilterTab extends StatelessWidget {
     required this.activeFillColor,
     required this.compact,
     required this.onTap,
+    this.requestorStyle = false,
   });
 
   final String label;
@@ -966,24 +1474,43 @@ class _GalleryFilterTab extends StatelessWidget {
   final Color activeFillColor;
   final bool compact;
   final VoidCallback onTap;
+  final bool requestorStyle;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
+      padding: EdgeInsets.symmetric(horizontal: requestorStyle ? 0 : 2),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(requestorStyle ? 12 : 10),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            height: _kGalleryControlHeight - 4,
+            height: requestorStyle
+                ? _kGalleryControlHeight
+                : _kGalleryControlHeight - 4,
             padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 6),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: active ? activeFillColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(requestorStyle ? 12 : 10),
+              color: active
+                  ? activeFillColor
+                  : (requestorStyle ? kSurface : Colors.transparent),
+              border: requestorStyle
+                  ? Border.all(
+                      color: active ? activeFillColor : kBorder,
+                    )
+                  : null,
+              boxShadow: requestorStyle && !active
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ]
+                  : null,
             ),
             alignment: Alignment.center,
             child: Row(
@@ -993,7 +1520,9 @@ class _GalleryFilterTab extends StatelessWidget {
                 Icon(
                   icon,
                   size: compact ? 15 : 16,
-                  color: active ? Colors.white : inactiveIconColor,
+                  color: active
+                      ? Colors.white
+                      : (requestorStyle ? kTextSecondary : inactiveIconColor),
                 ),
                 SizedBox(width: compact ? 4 : 6),
                 Flexible(
@@ -1231,12 +1760,133 @@ class _GalleryAlbumCard extends StatelessWidget {
   final bool showPersonalBadge;
   final bool requestorMode;
 
-  static const _facebookBlue = Color(0xFF1877F2);
+  static const _thumbSize = 84.0;
+  static const _thumbRadius = 12.0;
 
   @override
   Widget build(BuildContext context) {
+    if (requestorMode) {
+      return _buildRequestorHorizontalCard(context);
+    }
+    return _buildMemberVerticalCard(context);
+  }
+
+  Widget _buildRequestorHorizontalCard(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
-    final accent = requestorMode ? kAccent : (isPersonal ? kMemberPrimary : kAccent);
+    final thumb = compact ? 76.0 : _thumbSize;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: kBorder),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(compact ? 10 : 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(_thumbRadius),
+                  child: SizedBox(
+                    width: thumb,
+                    height: thumb,
+                    child: _AlbumCoverImage(
+                      url: album.coverUrl,
+                      compact: true,
+                    ),
+                  ),
+                ),
+                SizedBox(width: compact ? 10 : 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        album.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: dashText(TextStyle(
+                          color: kTextPrimary,
+                          fontSize: compact ? 14 : 15,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                          letterSpacing: -0.2,
+                        )),
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_month_rounded,
+                            size: 14,
+                            color: kAccent,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              album.dateLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: memberDashboardMetaStyle.copyWith(
+                                fontSize: compact ? 11.5 : 12,
+                                color: kTextSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _GalleryMediaCountChip(
+                            icon: Icons.photo_library_rounded,
+                            label:
+                                '${album.photoCount} photo${album.photoCount == 1 ? '' : 's'}',
+                            iconColor: kGreen,
+                            backgroundColor: kGreenDim,
+                            compact: true,
+                          ),
+                          _GalleryMediaCountChip(
+                            icon: Icons.videocam_rounded,
+                            label:
+                                '${album.videoCount} video${album.videoCount == 1 ? '' : 's'}',
+                            iconColor: _kGalleryRequestorCyan,
+                            backgroundColor: kCyanDim,
+                            compact: true,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberVerticalCard(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final accent = isPersonal ? kMemberPrimary : kAccent;
 
     return Material(
       color: kSurface,
@@ -1266,33 +1916,16 @@ class _GalleryAlbumCard extends StatelessWidget {
                         top: 10,
                         right: 10,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: kMemberPrimary.withValues(alpha: 0.92),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             personalLabel,
-                            style: dashText(const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            )),
-                          ),
-                        ),
-                      )
-                    else if (requestorMode)
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: kAccent.withValues(alpha: 0.92),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            'Your event',
                             style: dashText(const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -1325,7 +1958,7 @@ class _GalleryAlbumCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.event_outlined, size: 14, color: kAccent),
+                        const Icon(Icons.event_outlined, size: 14, color: kAccent),
                         const SizedBox(width: 5),
                         Expanded(
                           child: Text(
@@ -1345,35 +1978,20 @@ class _GalleryAlbumCard extends StatelessWidget {
                       children: [
                         _GalleryMediaCountChip(
                           icon: Icons.photo_library_outlined,
-                          label: '${album.photoCount} photo${album.photoCount == 1 ? '' : 's'}',
+                          label:
+                              '${album.photoCount} photo${album.photoCount == 1 ? '' : 's'}',
                           iconColor: kGreen,
                           backgroundColor: kGreenDim,
                         ),
                         _GalleryMediaCountChip(
                           icon: Icons.videocam_outlined,
-                          label: '${album.videoCount} video${album.videoCount == 1 ? '' : 's'}',
+                          label:
+                              '${album.videoCount} video${album.videoCount == 1 ? '' : 's'}',
                           iconColor: kCyan,
                           backgroundColor: kCyanDim,
                         ),
                       ],
                     ),
-                    if (requestorMode && album.hasFacebookPublish) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.facebook_rounded, size: 13, color: _facebookBlue),
-                          const SizedBox(width: 4),
-                          Text(
-                            'On Facebook',
-                            style: memberDashboardMetaStyle.copyWith(
-                              fontSize: 11,
-                              color: _facebookBlue,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -1391,32 +2009,37 @@ class _GalleryMediaCountChip extends StatelessWidget {
     required this.label,
     this.iconColor = kAccent,
     this.backgroundColor,
+    this.compact = false,
   });
 
   final IconData icon;
   final String label;
   final Color iconColor;
   final Color? backgroundColor;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? iconColor.withValues(alpha: 0.08);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 7 : 8,
+        vertical: compact ? 3 : 4,
+      ),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(compact ? 999 : 8),
         border: Border.all(color: iconColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: iconColor),
-          const SizedBox(width: 5),
+          Icon(icon, size: compact ? 12 : 14, color: iconColor),
+          SizedBox(width: compact ? 4 : 5),
           Text(
             label,
             style: memberDashboardMetaStyle.copyWith(
-              fontSize: 11,
+              fontSize: compact ? 10.5 : 11,
               color: kTextPrimary,
               fontWeight: FontWeight.w600,
             ),
@@ -1428,19 +2051,30 @@ class _GalleryMediaCountChip extends StatelessWidget {
 }
 
 class _AlbumCoverImage extends StatelessWidget {
-  const _AlbumCoverImage({required this.url});
+  const _AlbumCoverImage({
+    required this.url,
+    this.compact = false,
+  });
 
   final String url;
+  final bool compact;
+
+  Widget _placeholder({required bool failed}) {
+    return Container(
+      color: failed ? kSurfaceAlt : kBlueDim,
+      alignment: Alignment.center,
+      child: Icon(
+        failed ? Icons.photo_library_outlined : Icons.photo_library_outlined,
+        color: kAccent.withValues(alpha: failed ? 0.45 : 0.55),
+        size: compact ? 26 : 36,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     if (url.isEmpty) {
-      return Container(
-        color: kSurfaceAlt,
-        child: Center(
-          child: Icon(Icons.photo_library_outlined, color: kAccent.withValues(alpha: 0.55), size: 36),
-        ),
-      );
+      return _placeholder(failed: false);
     }
     return MemberNetworkImage(
       url: url,
@@ -1448,24 +2082,20 @@ class _AlbumCoverImage extends StatelessWidget {
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
         return Container(
-          color: kMemberDashboardAccentLight,
+          color: kBlueDim,
           alignment: Alignment.center,
           child: SizedBox(
-            width: 24,
-            height: 24,
+            width: compact ? 18 : 24,
+            height: compact ? 18 : 24,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: kMemberDashboardAccent.withValues(alpha: 0.7),
+              color: (compact ? _kGalleryRequestorCyan : kMemberDashboardAccent)
+                  .withValues(alpha: 0.7),
             ),
           ),
         );
       },
-      errorBuilder: (_, __, ___) => Container(
-        color: kSurfaceAlt,
-        child: Center(
-          child: Icon(Icons.broken_image_outlined, color: kYellow.withValues(alpha: 0.85), size: 32),
-        ),
-      ),
+      errorBuilder: (_, __, ___) => _placeholder(failed: true),
     );
   }
 }

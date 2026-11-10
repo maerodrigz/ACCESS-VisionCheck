@@ -292,6 +292,8 @@ class ProfileOut(BaseModel):
     status: str
     student_id: str | None = None
     contact_number: str | None = None
+    phone_verified: bool = False
+    phone_verified_at: datetime | None = None
     adviser_name: str | None = None
     profile_image: str | None = None
     skill_level: str | None = None

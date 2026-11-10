@@ -18,27 +18,35 @@ from app.services.integrity_evaluation_policy import (
 )
 from app.services.opencv_quality import analyze_image_bytes as opencv_analyze
 from app.services.opencv_quality import opencv_available
+from app.services.color_quality_criteria import (
+    analyze_color_criteria_bytes,
+    analyze_color_criteria_from_frames,
+)
+from app.services.video_temporal_quality_criteria import analyze_temporal_video_criteria
 from app.services.supplementary_quality_insights import (
     build_photo_supplementary_insights,
     build_video_supplementary_insights,
 )
 
 
-SCORING_ENGINE = "efficientnet-b0+ffmpeg"
+SCORING_ENGINE = "efficientnet-b0+ffmpeg+color-heuristics"
 QUALITY_ENGINE_EFFICIENTNET = "efficientnet-b0"
 QUALITY_ENGINE_OPENCV = "opencv"
 
 _PRACTICE_VIDEO_EXTENSIONS = frozenset(DEFAULT_VIDEO_EXTENSIONS)
+# Active photo rubric (Noise/Ringing removed from presentation; historical criteria_json retained).
 _PHOTO_CRITERION_NAMES = (
     "Sharpness",
     "Blur",
-    "Noise",
     "Brightness",
     "Contrast",
     "Blocking Artifacts",
-    "Ringing Artifacts",
+    "Color Balance",
+    "Color Saturation",
 )
 _VIDEO_EXTRA_CRITERION_NAMES = ("Flickering", "Motion Stability")
+# Legacy names still readable from historical payloads / DB joins.
+_LEGACY_PHOTO_CRITERION_NAMES = ("Noise", "Ringing Artifacts")
 
 
 def preferred_quality_engine() -> str | None:
@@ -159,7 +167,8 @@ def evaluate_photo(content: bytes, *, file_name: str = "", include_authenticity:
     metrics, engine, opencv_fallback = resolve_quality_engine_for_bytes(content)
     if metrics is None:
         return None
-    criteria = _photo_criteria(metrics)
+    color_balance, color_saturation = analyze_color_criteria_bytes(content)
+    criteria = _photo_criteria(metrics, color_balance=color_balance, color_saturation=color_saturation)
     warnings = _quality_warnings(metrics)
     supplementary = build_photo_supplementary_insights(content)
     return _build_payload(
@@ -173,6 +182,7 @@ def evaluate_photo(content: bytes, *, file_name: str = "", include_authenticity:
         quality_engine=engine,
         opencv_fallback=opencv_fallback,
         frames_analyzed=1,
+        enet_metrics=metrics,
     )
 
 
@@ -206,10 +216,12 @@ def evaluate_video(
         return None
 
     averaged = _average_metrics(frame_metrics)
+    color_balance, color_saturation = analyze_color_criteria_from_frames(frame_bytes)
+    flickering, motion_stability = analyze_temporal_video_criteria(frame_bytes)
     criteria = [
-        *_photo_criteria(averaged),
-        _flickering(frame_metrics),
-        _motion_stability(frame_metrics),
+        *_photo_criteria(averaged, color_balance=color_balance, color_saturation=color_saturation),
+        flickering,
+        motion_stability,
     ]
     warnings = _quality_warnings(averaged)
     supplementary = build_video_supplementary_insights(
@@ -240,6 +252,7 @@ def evaluate_video(
         quality_engine=engine,
         opencv_fallback=opencv_fallback,
         frames_analyzed=len(frame_metrics),
+        enet_metrics=averaged,
     )
     return payload
 
@@ -315,76 +328,22 @@ def preview_quality_complete(payload: dict[str, Any] | None) -> bool:
     return True
 
 
-def _photo_criteria(m: dict[str, Any]) -> list[dict[str, Any]]:
+def _photo_criteria(
+    m: dict[str, Any],
+    *,
+    color_balance: dict[str, Any],
+    color_saturation: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Five retained ENET/OpenCV heads + heuristic Color Balance / Color Saturation."""
     return [
         _criterion("Sharpness", _soft_score(m["sharpness"]), high_is_good=True),
         _criterion("Blur", _soft_score(1 - m["blur"]), high_is_good=False),
-        _criterion("Noise", _soft_score(1 - min(m["noise"], 0.85)), high_is_good=False),
         _criterion("Brightness", _soft_score(_brightness_metric(m["brightness"]))),
         _criterion("Contrast", _soft_score(min(m["contrast"], 1.0))),
         _criterion("Blocking Artifacts", _soft_score(1 - m["blocking_artifacts"]), high_is_good=False),
-        _criterion("Ringing Artifacts", _soft_score(1 - m["ringing_artifacts"]), high_is_good=False),
+        color_balance,
+        color_saturation,
     ]
-
-
-def _flickering(frames: list[dict[str, Any]]) -> dict[str, Any]:
-    if len(frames) < 2:
-        return _criterion(
-            "Flickering",
-            4,
-            explanation="Limited frame samples; no significant flicker detected.",
-            suggestion="Keep lighting consistent while recording.",
-        )
-    flicker = sum(abs(frames[i]["brightness"] - frames[i - 1]["brightness"]) for i in range(1, len(frames))) / (
-        len(frames) - 1
-    )
-    score = _soft_score(max(0.0, min(1.0, 1 - flicker * 3)))
-    return _criterion(
-        "Flickering",
-        score,
-        explanation=(
-            "Exposure remains stable across sampled frames."
-            if score >= 4
-            else "Minor brightness shifts detected between frames."
-            if score >= 3
-            else "Noticeable flicker may distract viewers."
-        ),
-        suggestion=(
-            "Maintain this stable lighting when recording."
-            if score >= 4
-            else "Use continuous lighting and lock exposure if your camera allows."
-        ),
-    )
-
-
-def _motion_stability(frames: list[dict[str, Any]]) -> dict[str, Any]:
-    if len(frames) < 2:
-        return _criterion(
-            "Motion Stability",
-            4,
-            explanation="Limited frame samples; motion appears acceptable.",
-            suggestion="Use a tripod or steady grip for longer clips.",
-        )
-    blur_delta = sum(abs(frames[i]["sharpness"] - frames[i - 1]["sharpness"]) for i in range(1, len(frames))) / (
-        len(frames) - 1
-    )
-    score = _soft_score(max(0.0, min(1.0, 1 - blur_delta * 2.5)))
-    return _criterion(
-        "Motion Stability",
-        score,
-        explanation=(
-            "Camera motion is smooth across the clip."
-            if score >= 4
-            else "Some handheld movement is visible."
-            if score >= 3
-            else "Shaky motion reduces professional documentation value."
-        ),
-        suggestion=(
-            "Keep this steady shooting technique."
-            if score >= 4
-            else "Brace your elbows, move slowly, or use a gimbal/tripod."
-        ),
-    )
 
 
 def _average_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
@@ -445,7 +404,26 @@ def _criterion(
         "label": labels.get(score, "Fair"),
         "explanation": explanation,
         "suggestion": suggestion,
+        "available": True,
+        "estimate_kind": "experimental_estimate",
+        "high_is_good": high_is_good,
     }
+
+
+def _scored_criteria(criteria: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for c in criteria:
+        if not isinstance(c, dict):
+            continue
+        if c.get("available") is False:
+            continue
+        try:
+            score = int(c.get("score"))
+        except (TypeError, ValueError):
+            continue
+        if 1 <= score <= 5:
+            out.append(c)
+    return out
 
 
 def _default_explanation(name: str, score: int, high_is_good: bool) -> str:
@@ -458,7 +436,6 @@ def _default_explanation(name: str, score: int, high_is_good: bool) -> str:
         "Blur": (
             "Minimal motion or focus blur detected." if score >= 4 else "Blur reduces clarity of the subject."
         ),
-        "Noise": ("Image noise/grain is low." if score >= 4 else "Visible noise affects clean documentation."),
         "Brightness": ("Exposure is well balanced." if score >= 4 else "Scene is slightly under- or over-exposed."),
         "Contrast": (
             "Good tonal separation between subjects and background."
@@ -468,10 +445,15 @@ def _default_explanation(name: str, score: int, high_is_good: bool) -> str:
         "Blocking Artifacts": (
             "Little compression blocking visible." if score >= 4 else "Compression blocks may appear in flat areas."
         ),
-        "Ringing Artifacts": (
-            "Minimal halo/ringing near edges."
+        "Color Balance": (
+            "Color cast looks acceptable for documentation."
             if score >= 4
-            else "Edge halos suggest sharpening or compression artifacts."
+            else "Color cast may affect natural subject appearance."
+        ),
+        "Color Saturation": (
+            "Color saturation looks suitable for documentation."
+            if score >= 4
+            else "Saturation may be too muted or too intense for documentation."
         ),
     }
     return explanations.get(
@@ -488,11 +470,11 @@ def _default_suggestion(name: str, score: int) -> str:
     tips = {
         "Sharpness": "Hold the camera steady and tap to focus on the subject.",
         "Blur": "Hold the camera steady and tap to focus on the subject.",
-        "Noise": "Use better lighting or lower ISO before capturing.",
         "Brightness": "Adjust exposure or shoot in more even lighting.",
         "Contrast": "Avoid flat backlight; add directional light when possible.",
         "Blocking Artifacts": "Export at higher quality and avoid heavy compression filters.",
-        "Ringing Artifacts": "Export at higher quality and avoid heavy compression filters.",
+        "Color Balance": "Adjust white balance if natural subject colors are required.",
+        "Color Saturation": "Adjust vibrance/saturation if documentation needs more natural color.",
     }
     return tips.get(name, "Review capture settings and try again.")
 
@@ -525,16 +507,21 @@ def _build_payload(
     quality_engine: str | None = None,
     opencv_fallback: bool = False,
     frames_analyzed: int | None = None,
+    enet_metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    overall = round(sum(c["score"] for c in criteria) / len(criteria), 2)
+    scored = _scored_criteria(criteria)
+    if scored:
+        overall = round(sum(int(c["score"]) for c in scored) / len(scored), 2)
+    else:
+        overall = 0.0
     quality_level = (
         "Excellent" if overall >= 4.5 else "Good" if overall >= 3.5 else "Fair" if overall >= 2.5 else "Needs Improvement"
     )
     recommendation = (
         "Accepted" if overall >= 3.6 else "Accepted with Suggestions" if overall >= 2.4 else "For Officer Review"
     )
-    strengths = [c["name"] for c in criteria if c["score"] >= 4]
-    weaknesses = [c["name"] for c in criteria if c["score"] <= 2]
+    strengths = [c["name"] for c in scored if int(c["score"]) >= 4]
+    weaknesses = [c["name"] for c in scored if int(c["score"]) <= 2]
 
     feedback = f"Overall quality: {quality_level} ({overall}/5)."
     if strengths:
@@ -542,14 +529,27 @@ def _build_payload(
     if weaknesses:
         feedback += f" Needs improvement: {', '.join(weaknesses)}."
     feedback += f" Recommendation: {recommendation}."
+    feedback += (
+        " Quality ratings are automated estimates and may not reflect artistic intent or human judgment."
+    )
     if quality_warnings:
         feedback = (
             "This media was accepted for evaluation, but some quality issues were detected. "
             "Please review the suggestions below.\n\n" + feedback
         )
 
-    suggestions = list({c["suggestion"] for c in criteria if c["score"] <= 3 and c["suggestion"]})
-    improvement = "\n".join(f"• {s}" for s in suggestions) if suggestions else "Keep practicing — every submission builds skill."
+    suggestions = list(
+        {
+            str(c.get("suggestion") or "")
+            for c in scored
+            if int(c["score"]) <= 3 and c.get("suggestion")
+        }
+    )
+    improvement = (
+        "\n".join(f"• {s}" for s in suggestions if s)
+        if suggestions
+        else "Keep practicing. Every submission builds skill."
+    )
 
     if ai_detection is None:
         if include_authenticity:
@@ -557,18 +557,24 @@ def _build_payload(
         else:
             ai_detection = deferred_authenticity_preview()
 
-    by_name = {c["name"]: c["score"] for c in criteria}
+    by_name = {c["name"]: int(c["score"]) for c in scored}
+    # Preserve DB legacy noise_score polarity from ENET/OpenCV noise metric (not Color Balance).
+    if enet_metrics is not None and "noise" in enet_metrics:
+        noise_amount = float(min(max(float(enet_metrics["noise"]), 0.0), 1.0))
+        legacy_noise = round(noise_amount, 3)  # stored high = more noise (historical)
+    else:
+        legacy_noise = None
     legacy = {
         "sharpness_score": round(by_name.get("Sharpness", 3) / 5, 3),
         "brightness_score": round(by_name.get("Brightness", 3) / 5, 3),
         "contrast_score": round(by_name.get("Contrast", 3) / 5, 3),
         "blur_score": round(by_name.get("Blur", 3) / 5, 3),
-        "noise_score": round(1 - by_name.get("Noise", 3) / 5, 3),
-        "overall_score": round(overall / 5, 3),
+        "noise_score": legacy_noise,
+        "overall_score": round(overall / 5, 3) if overall > 0 else None,
     }
 
     used_opencv = quality_engine == QUALITY_ENGINE_OPENCV
-    scoring_engine = QUALITY_ENGINE_OPENCV if used_opencv else SCORING_ENGINE
+    scoring_engine = ("opencv+color-heuristics" if used_opencv else SCORING_ENGINE)
     scoring_model = "opencv" if used_opencv else MODEL_ID
     payload = {
         "criteria": criteria,
@@ -584,6 +590,9 @@ def _build_payload(
         "strengths": strengths,
         "weaknesses": weaknesses,
         "quality_warnings": quality_warnings,
+        "quality_disclaimer": (
+            "Quality ratings are automated estimates and may not reflect artistic intent or human judgment."
+        ),
         "legacy": legacy,
         "evaluation_status": "ok",
         "evaluation_available": True,
@@ -592,8 +601,11 @@ def _build_payload(
             "model": scoring_model,
             "quality_engine": quality_engine,
             "efficientnet_used": quality_engine == QUALITY_ENGINE_EFFICIENTNET,
+            "efficientnet_development_frozen": True,
+            "quality_estimates": "experimental",
             "ffmpeg_used": ffmpeg_available() if media_type == "video" else False,
             "opencv_fallback": bool(opencv_fallback),
+            "color_heuristics": True,
             "frames_analyzed": frames_analyzed if frames_analyzed is not None else (1 if media_type == "photo" else None),
         },
     }

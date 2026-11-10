@@ -1395,6 +1395,7 @@ class MemberDataController extends ChangeNotifier {
       rescheduleHistory: (r['reschedule_history'] as List? ?? [])
           .map((e) => RescheduleHistoryEntry.fromApi(Map<String, dynamic>.from(e as Map)))
           .toList(),
+      requestorArchivedAt: _parseDateTime(r['requestor_archived_at'] as String?),
     );
   }
 
@@ -1589,11 +1590,19 @@ class MemberDataController extends ChangeNotifier {
     final evaluatedAt = evaluatedRaw != null ? DateTime.tryParse(evaluatedRaw) : null;
     final storageRemoved = e['storage_removed'] == true;
     final fileUrlRaw = e['file_url'] as String?;
-    final mediaType = parsed?.mediaType ??
-        _inferEvaluationMediaType(
-          e['file_name'] as String?,
-          e['file_url'] as String?,
-        );
+    final inferredType = _inferEvaluationMediaType(
+      e['file_name'] as String?,
+      e['file_url'] as String?,
+    );
+    // Prefer file/url inference for video so a missing/default criteria_json
+    // media_type of "photo" does not hide Motion Stability / Flickering.
+    final parsedType = parsed?.mediaType;
+    final mediaType = inferredType == 'video'
+        ? 'video'
+        : (parsedType ?? inferredType);
+    final parsedForRow = (parsed != null && mediaType != null && mediaType != parsed.mediaType)
+        ? parsed.withMediaType(mediaType)
+        : parsed;
     return Evaluation(
       id: 'MED-${e['media_id']}',
       title: practiceMediaDisplayTitle(
@@ -1603,18 +1612,18 @@ class MemberDataController extends ChangeNotifier {
       score: (e['overall_score'] as num?)?.toDouble() ?? 0,
       composition: _scoreLabel(e['contrast_score']),
       lighting: _scoreLabel(e['brightness_score']),
-      feedback: parsed?.feedback ?? e['feedback'] as String? ?? '',
+      feedback: parsedForRow?.feedback ?? e['feedback'] as String? ?? '',
       date: _formatIso(evaluatedRaw),
       evaluatedAt: evaluatedAt,
       imageUrl: storageRemoved ? null : fileUrlRaw,
       storageRemoved: storageRemoved,
-      criteria: parsed?.criteria ?? const [],
-      qualityLevel: parsed?.qualityLevel ?? e['quality_level'] as String?,
+      criteria: parsedForRow?.criteria ?? const [],
+      qualityLevel: parsedForRow?.qualityLevel ?? e['quality_level'] as String?,
       mediaType: mediaType,
-      geminiFeedback: parsed?.geminiFeedback,
-      recommendation: parsed?.recommendation,
-      scoringModel: parsed?.scoringModel,
-      parsedEvaluation: parsed,
+      geminiFeedback: parsedForRow?.geminiFeedback,
+      recommendation: parsedForRow?.recommendation,
+      scoringModel: parsedForRow?.scoringModel,
+      parsedEvaluation: parsedForRow,
       reviewStatus: e['review_status'] as String?,
       adminRemarks: e['admin_remarks'] as String?,
       chainRootMediaId: _jsonInt(e['chain_root_media_id']),

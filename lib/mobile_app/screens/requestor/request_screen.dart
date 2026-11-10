@@ -6,11 +6,19 @@ import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_list_skeleton.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_meta_icon_color.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_tab_hero.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_progress_tracker.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+
+const _requestorRequestsHeaderAsset =
+    'assets/images/requestor_requests_header.png';
+/// Cropped banner aspect (2102×528), aligned with Calendar header.
+const _requestorRequestsHeaderAspect = 2102 / 528;
+const _requestorRequestsHeaderUnderpaint = Color(0xFFC9E8F8);
+const _requestorRequestsHeaderRadius = 22.0;
 
 /// Requestor "My Requests" — track and manage documentation requests.
 class RequestScreen extends StatefulWidget {
@@ -37,6 +45,7 @@ class RequestScreen extends StatefulWidget {
 
 class _RequestScreenState extends State<RequestScreen> {
   RequestStatus? _filter;
+  bool _archivedOnly = false;
 
   static const _listBottomPadding = 72.0;
 
@@ -74,9 +83,16 @@ class _RequestScreenState extends State<RequestScreen> {
 
   List<ServiceRequest> _filtered(List<ServiceRequest> all) {
     final sorted = _sorted(all);
-    if (_filter == null) return sorted;
-    return sorted.where((r) => r.requestStatus == _filter).toList();
+    if (_archivedOnly) {
+      return sorted.where((r) => r.isRequestorArchived).toList();
+    }
+    final active = sorted.where((r) => !r.isRequestorArchived);
+    if (_filter == null) return active.toList();
+    return active.where((r) => r.requestStatus == _filter).toList();
   }
+
+  int _archivedCount(List<ServiceRequest> all) =>
+      all.where((r) => r.isRequestorArchived).length;
 
   Future<void> _openCreateForm() async {
     final created = await Navigator.push<bool>(
@@ -90,8 +106,23 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 
   bool _showFloatingNewRequest(List<ServiceRequest> all) {
+    if (_archivedOnly) return false;
     if (all.isEmpty && _filter == null) return false;
     return all.isNotEmpty;
+  }
+
+  void _selectStatusFilter(RequestStatus? value) {
+    setState(() {
+      _archivedOnly = false;
+      _filter = value;
+    });
+  }
+
+  void _toggleArchivedOnly() {
+    setState(() {
+      _archivedOnly = !_archivedOnly;
+      if (_archivedOnly) _filter = null;
+    });
   }
 
   @override
@@ -101,15 +132,9 @@ class _RequestScreenState extends State<RequestScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          RequestorFeatureTitleBar(
-            title: 'My Requests',
-            trailing: [
-              MemberPageNotificationButton(onTap: widget.onNotificationsTap),
-              MemberPageProfileAvatar(onTap: widget.onProfileTap),
-            ],
-          ),
-          const RequestorFeaturePurposeLine(
-            text: 'Manage and track your documentation requests.',
+          RequestorBrandAppBar(
+            onNotifications: widget.onNotificationsTap,
+            onProfileTap: widget.onProfileTap,
           ),
           Expanded(
             child: ListenableBuilder(
@@ -141,6 +166,9 @@ class _RequestScreenState extends State<RequestScreen> {
                           parent: BouncingScrollPhysics(),
                         ),
                         slivers: [
+                          const SliverToBoxAdapter(
+                            child: _RequestorRequestsIllustratedHeader(),
+                          ),
                           if (syncing)
                             const SliverToBoxAdapter(
                               child: LinearProgressIndicator(
@@ -151,8 +179,15 @@ class _RequestScreenState extends State<RequestScreen> {
                             ),
                           SliverToBoxAdapter(
                             child: _FilterBar(
-                              selected: _filter,
-                              onSelected: (value) => setState(() => _filter = value),
+                              selected: _archivedOnly ? null : _filter,
+                              onSelected: _selectStatusFilter,
+                            ),
+                          ),
+                          SliverToBoxAdapter(
+                            child: _ArchivedEntryChip(
+                              selected: _archivedOnly,
+                              count: _archivedCount(all),
+                              onTap: _toggleArchivedOnly,
                             ),
                           ),
                           if (requests.isNotEmpty)
@@ -165,7 +200,9 @@ class _RequestScreenState extends State<RequestScreen> {
                                   0,
                                 ),
                                 child: Text(
-                                  '${requests.length} request${requests.length == 1 ? '' : 's'}',
+                                  _archivedOnly
+                                      ? '${requests.length} archived request${requests.length == 1 ? '' : 's'}'
+                                      : '${requests.length} request${requests.length == 1 ? '' : 's'}',
                                   style: memberDashboardMetaStyle.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color: kTextPrimary,
@@ -187,12 +224,18 @@ class _RequestScreenState extends State<RequestScreen> {
                                 child: Center(
                                   child: _EmptyState(
                                     filter: _filter,
+                                    archivedOnly: _archivedOnly,
                                     hasAnyRequests: all.isNotEmpty,
-                                    onCreate:
-                                        _filter == null && all.isEmpty ? _openCreateForm : null,
-                                    onClearFilter: _filter != null && all.isNotEmpty
-                                        ? () => setState(() => _filter = null)
+                                    onCreate: !_archivedOnly &&
+                                            _filter == null &&
+                                            all.isEmpty
+                                        ? _openCreateForm
                                         : null,
+                                    onClearFilter: _archivedOnly
+                                        ? () => setState(() => _archivedOnly = false)
+                                        : (_filter != null && all.isNotEmpty
+                                            ? () => setState(() => _filter = null)
+                                            : null),
                                   ),
                                 ),
                               ),
@@ -444,41 +487,74 @@ class _RequestListCard extends StatelessWidget {
   final ServiceRequest request;
   final VoidCallback onTap;
 
+  static const _iconTile = Color(0xFFEAF3FF);
+  static const _cardRadius = 14.0;
+
   @override
   Widget build(BuildContext context) {
     final status = request.requestStatus;
     final style = RequestStatusStyle.forStatus(status);
-    final location = request.location?.trim();
+    final location = request.location?.trim() ?? '';
     final timeLabel = _eventTimeLabel(request);
+    final dateLabel = formatRequestDate(request.eventDate);
     final requestId = request.requestId;
+    final accent = status == RequestStatus.pending
+        ? kCyan
+        : style.color;
 
     return Material(
       color: kSurface,
       elevation: 0,
-      borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+      borderRadius: BorderRadius.circular(_cardRadius),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+        borderRadius: BorderRadius.circular(_cardRadius),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+            borderRadius: BorderRadius.circular(_cardRadius),
             border: Border.all(color: kBorder),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _iconTile,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    Icons.description_outlined,
+                    color: accent,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 3,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,7 +562,10 @@ class _RequestListCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               request.eventName,
-                              style: memberDashboardCardTitleStyle.copyWith(fontSize: 15),
+                              style: memberDashboardCardTitleStyle.copyWith(
+                                fontSize: 13.5,
+                                height: 1.2,
+                              ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -496,7 +575,7 @@ class _RequestListCard extends StatelessWidget {
                         ],
                       ),
                       if (requestId != null) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 3),
                         Text(
                           'Request #$requestId',
                           style: memberDashboardMetaStyle.copyWith(
@@ -506,39 +585,52 @@ class _RequestListCard extends StatelessWidget {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 8),
-                      _MetaRow(
-                        icon: Icons.event_rounded,
-                        iconColor: requestorMetaIconColor(Icons.event_rounded),
-                        text: formatRequestDate(request.eventDate),
+                      if (request.isRequestorArchived) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 13,
+                              color: kAccent.withValues(alpha: 0.85),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Archived',
+                              style: memberDashboardMetaStyle.copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: kAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _MetaChip(
+                            icon: Icons.event_rounded,
+                            text: dateLabel,
+                          ),
+                          if (timeLabel != null)
+                            _MetaChip(
+                              icon: Icons.schedule_rounded,
+                              text: timeLabel,
+                            ),
+                          if (location.isNotEmpty)
+                            _MetaChip(
+                              icon: Icons.location_on_outlined,
+                              text: location,
+                            ),
+                        ],
                       ),
-                      if (timeLabel != null) ...[
-                        const SizedBox(height: 3),
-                        _MetaRow(
-                          icon: Icons.schedule_rounded,
-                          iconColor: requestorMetaIconColor(Icons.schedule_rounded),
-                          text: timeLabel,
-                        ),
-                      ],
-                      if (location != null && location.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        _MetaRow(
-                          icon: Icons.location_on_outlined,
-                          iconColor: requestorMetaIconColor(Icons.location_on_outlined),
-                          text: location,
-                        ),
-                      ],
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       RequestProgressTracker(request: request, compact: true),
                     ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, top: 2),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    color: kAccent.withValues(alpha: 0.45),
-                    size: 22,
                   ),
                 ),
               ],
@@ -567,50 +659,118 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      constraints: const BoxConstraints(maxWidth: 92),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: style.background,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: style.color.withValues(alpha: 0.28)),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: TextStyle(
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: dashText(TextStyle(
           color: style.color,
           fontSize: 10,
           fontWeight: FontWeight.w700,
           height: 1.1,
-        ),
+        )),
       ),
     );
   }
 }
 
-class _MetaRow extends StatelessWidget {
-  const _MetaRow({
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({
     required this.icon,
     required this.text,
-    this.iconColor = kIconInactive,
   });
 
   final IconData icon;
   final String text;
-  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 15, color: iconColor),
-        const SizedBox(width: 6),
-        Expanded(
+        Icon(icon, size: 13, color: requestorMetaIconColor(icon)),
+        const SizedBox(width: 4),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 170),
           child: Text(
             text,
-            style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.35),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: memberDashboardMetaStyle.copyWith(
+              fontSize: 11.5,
+              height: 1.2,
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ArchivedEntryChip extends StatelessWidget {
+  const _ArchivedEntryChip({
+    required this.selected,
+    required this.count,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final padding = mobilePagePaddingOf(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(padding, 2, padding, 2),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Material(
+          color: selected ? kAccent.withValues(alpha: 0.12) : kSurface,
+          borderRadius: BorderRadius.circular(999),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: selected
+                      ? kAccent.withValues(alpha: 0.35)
+                      : kBorder.withValues(alpha: 0.95),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 15,
+                    color: selected ? kAccent : kTextSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    count > 0 ? 'Archived ($count)' : 'Archived',
+                    style: dashText(TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: selected ? kAccent : kTextSecondary,
+                    )),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -619,17 +779,26 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState({
     required this.filter,
     required this.hasAnyRequests,
+    this.archivedOnly = false,
     this.onCreate,
     this.onClearFilter,
   });
 
   final RequestStatus? filter;
   final bool hasAnyRequests;
+  final bool archivedOnly;
   final VoidCallback? onCreate;
   final VoidCallback? onClearFilter;
 
   @override
   Widget build(BuildContext context) {
+    final title = archivedOnly
+        ? 'No archived requests'
+        : emptyStateTitle(filter, hasAnyRequests: hasAnyRequests);
+    final subtitle = archivedOnly
+        ? 'Completed and declined requests you archive will appear here.'
+        : emptyStateSubtitle(filter, hasAnyRequests: hasAnyRequests);
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 340),
       child: Container(
@@ -658,17 +827,23 @@ class _EmptyState extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: kAccent.withValues(alpha: 0.15)),
               ),
-              child: const Icon(Icons.assignment_outlined, color: kAccent, size: 24),
+              child: Icon(
+                archivedOnly
+                    ? Icons.inventory_2_outlined
+                    : Icons.assignment_outlined,
+                color: kAccent,
+                size: 24,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
-              emptyStateTitle(filter, hasAnyRequests: hasAnyRequests),
+              title,
               style: memberDashboardCardTitleStyle.copyWith(fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
-              emptyStateSubtitle(filter, hasAnyRequests: hasAnyRequests),
+              subtitle,
               style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.4),
               textAlign: TextAlign.center,
             ),
@@ -769,6 +944,137 @@ class _ErrorState extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RequestorRequestsIllustratedHeader extends StatelessWidget {
+  const _RequestorRequestsIllustratedHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final padding = mobilePagePaddingOf(context);
+    final narrow = MediaQuery.sizeOf(context).width < 360;
+
+    final banner = LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final naturalHeight = width / _requestorRequestsHeaderAspect;
+                // Compact band matching Calendar: short enough for title+subtitle.
+                final minHeight = narrow ? 90.0 : 96.0;
+                final maxHeight = narrow ? 98.0 : 104.0;
+                final height = naturalHeight.clamp(minHeight, maxHeight);
+                final textWidthFactor = narrow ? 0.48 : 0.44;
+
+                return Container(
+                  width: double.infinity,
+                  height: height,
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        BorderRadius.circular(_requestorRequestsHeaderRadius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kCyan.withValues(alpha: 0.12),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: ClipRRect(
+                    borderRadius:
+                        BorderRadius.circular(_requestorRequestsHeaderRadius),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      clipBehavior: Clip.hardEdge,
+                      children: [
+                        const ColoredBox(
+                          color: _requestorRequestsHeaderUnderpaint,
+                        ),
+                        // Preserve aspect: scale to banner height, pin art to the right.
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Image.asset(
+                            _requestorRequestsHeaderAsset,
+                            height: height,
+                            fit: BoxFit.fitHeight,
+                            alignment: Alignment.centerRight,
+                            filterQuality: FilterQuality.high,
+                            gaplessPlayback: true,
+                            excludeFromSemantics: true,
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            narrow ? 14 : 16,
+                            narrow ? 8 : 10,
+                            narrow ? 10 : 12,
+                            narrow ? 8 : 10,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: FractionallySizedBox(
+                              widthFactor: textWidthFactor,
+                              alignment: Alignment.centerLeft,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: width * textWidthFactor,
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'My Requests',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: dashText(TextStyle(
+                                          color: kTextPrimary,
+                                          fontSize: narrow ? 21 : 23,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.4,
+                                          height: 1.08,
+                                        )),
+                                      ),
+                                      SizedBox(height: narrow ? 3 : 4),
+                                      Text(
+                                        'Manage and track your documentation requests.',
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: dashText(TextStyle(
+                                          color: kTextSecondary,
+                                          fontSize: narrow ? 11 : 12,
+                                          fontWeight: FontWeight.w500,
+                                          height: 1.28,
+                                        )),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(padding, 4, padding, 8),
+      child: banner,
     );
   }
 }

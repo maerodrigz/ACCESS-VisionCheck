@@ -94,11 +94,11 @@ def test_final_metadata_still_fast_path_when_not_deferred() -> None:
     names = (
         "Sharpness",
         "Blur",
-        "Noise",
         "Brightness",
         "Contrast",
         "Blocking Artifacts",
-        "Ringing Artifacts",
+        "Color Balance",
+        "Color Saturation",
     )
     preview = {
         "criteria": [{"name": n, "score": 4} for n in names],
@@ -123,11 +123,11 @@ def test_background_pipeline_runs_full_evaluate_when_metadata_deferred() -> None
     names = (
         "Sharpness",
         "Blur",
-        "Noise",
         "Brightness",
         "Contrast",
         "Blocking Artifacts",
-        "Ringing Artifacts",
+        "Color Balance",
+        "Color Saturation",
     )
     deferred_meta = json.dumps(
         {

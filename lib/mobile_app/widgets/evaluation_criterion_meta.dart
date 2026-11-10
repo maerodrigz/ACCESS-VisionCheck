@@ -12,42 +12,63 @@ class CriterionMeta {
   final String description;
 }
 
+/// Short member-facing note for technical quality sections.
+const kFiveLevelCriteriaIntro =
+    'Each criterion is a five-level experimental estimate (1 to 5), not a precise percentage.';
+
+/// Short note under overall /100 scores.
+const kOverallFromFiveLevelNote =
+    'Overall /100 is the average of available five-level criteria, shown on a 0–100 scale for compatibility.';
+
 const kCriterionMeta = <String, CriterionMeta>{
   'Sharpness': CriterionMeta(
     icon: Icons.center_focus_strong_rounded,
-    description: 'Measures how crisp and well-focused the subject appears.',
+    description: 'Estimates how crisp and well-focused the subject appears.',
   ),
   'Blur': CriterionMeta(
     icon: Icons.blur_off_rounded,
-    description: 'Detects motion or focus blur that reduces clarity.',
-  ),
-  'Noise': CriterionMeta(
-    icon: Icons.grain_rounded,
-    description: 'Evaluates visible grain or digital noise in the image.',
+    description: 'Estimates motion or focus blur that reduces clarity.',
   ),
   'Brightness': CriterionMeta(
     icon: Icons.wb_sunny_outlined,
-    description: 'Checks whether exposure is balanced across the scene.',
+    description: 'Estimates whether exposure is balanced across the scene.',
   ),
   'Contrast': CriterionMeta(
     icon: Icons.contrast_rounded,
-    description: 'Assesses tonal separation between light and dark areas.',
+    description: 'Estimates tonal separation between light and dark areas.',
   ),
   'Blocking Artifacts': CriterionMeta(
     icon: Icons.grid_view_rounded,
     description: 'Looks for compression block patterns from heavy encoding.',
   ),
+  'Color Balance': CriterionMeta(
+    icon: Icons.wb_twilight_rounded,
+    description:
+        'Experimental heuristic for color cast strength. Not a measure of artistic quality or perfect color.',
+  ),
+  'Color Saturation': CriterionMeta(
+    icon: Icons.palette_outlined,
+    description:
+        'Experimental heuristic for color intensity. Not artistic quality; muted or grayscale looks may show N/A.',
+  ),
+  // Historical criteria (older evaluations).
+  'Noise': CriterionMeta(
+    icon: Icons.grain_rounded,
+    description: 'Historical criterion. Evaluates visible grain or digital noise.',
+  ),
   'Ringing Artifacts': CriterionMeta(
     icon: Icons.waves_rounded,
-    description: 'Detects edge halos and ringing from sharpening or compression.',
+    description: 'Historical criterion. Detects edge halos from sharpening or compression.',
   ),
   'Motion Stability': CriterionMeta(
     icon: Icons.video_stable_rounded,
-    description: 'Measures how steady the camera movement is throughout the clip.',
+    description:
+        'Uses changes in frame sharpness as a proxy for camera steadiness. Experimental estimate.',
   ),
   'Flickering': CriterionMeta(
     icon: Icons.flare_rounded,
-    description: 'Detects unstable lighting or frame-to-frame brightness flicker.',
+    description:
+        'Uses changes in frame brightness as a proxy for lighting flicker. Experimental estimate.',
   ),
 };
 
@@ -80,9 +101,17 @@ Color qualityPercentBandColor(int percent) {
   return kRed;
 }
 
+/// Color for an individual 1–5 criterion (Poor / Fair / Good / Excellent bands).
+Color criterionLevelColor(int score) {
+  if (score >= 5) return kGreen;
+  if (score >= 4) return kBlue;
+  if (score >= 3) return kOrange;
+  return kRed;
+}
+
 const kQualityPercentLegend = [
-  (color: kRed, label: 'Needs Improvement', range: '0–49'),
-  (color: kOrange, label: 'Fair', range: '50–69'),
-  (color: kBlue, label: 'Good', range: '70–89'),
+  (color: kRed, label: 'Poor', range: '0–59'),
+  (color: kOrange, label: 'Fair', range: '60–74'),
+  (color: kBlue, label: 'Good', range: '75–89'),
   (color: kGreen, label: 'Excellent', range: '90–100'),
 ];

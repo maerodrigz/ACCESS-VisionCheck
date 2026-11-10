@@ -45,6 +45,7 @@ class ServiceRequestOut(BaseModel):
     original_event_date: date | None = None
     last_rescheduled_at: datetime | None = None
     reschedule_history: list[dict] = Field(default_factory=list)
+    requestor_archived_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -98,6 +99,7 @@ def _to_out(row: DocumentationRequest) -> ServiceRequestOut:
         original_event_date=row.original_event_date,
         last_rescheduled_at=row.last_rescheduled_at,
         reschedule_history=row.reschedule_history_list(),
+        requestor_archived_at=row.requestor_archived_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -369,4 +371,53 @@ def reschedule_service_request(
 
     row = req_crud.get(db, row.id)
     assert row is not None
+    return _to_out(row)
+
+
+def _assert_requestor_owner(row: DocumentationRequest, user: User) -> None:
+    if row.requestor_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the request owner can archive or restore this request",
+        )
+
+
+@router.post(
+    "/service-requests/{request_id}/requestor-archive",
+    response_model=ServiceRequestOut,
+)
+def requestor_archive_service_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    """Soft-hide a completed/declined request from the owner's active My Requests list."""
+    row = req_crud.get(db, request_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+    _assert_requestor_owner(row, current_user)
+    try:
+        row = req_crud.requestor_archive_request(db, row)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    row = req_crud.get(db, row.id) or row
+    return _to_out(row)
+
+
+@router.post(
+    "/service-requests/{request_id}/requestor-restore",
+    response_model=ServiceRequestOut,
+)
+def requestor_restore_service_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    """Restore a requestor-archived request to the owner's active My Requests list."""
+    row = req_crud.get(db, request_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+    _assert_requestor_owner(row, current_user)
+    row = req_crud.requestor_restore_request(db, row)
+    row = req_crud.get(db, row.id) or row
     return _to_out(row)

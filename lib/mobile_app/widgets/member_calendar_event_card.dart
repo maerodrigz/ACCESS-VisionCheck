@@ -115,7 +115,9 @@ class MemberCalendarEventCard extends StatelessWidget {
                           const SizedBox(height: 3),
                           _MetaRow(
                             icon: Icons.schedule_rounded,
-                            text: event.timeLabel ?? 'Time TBA',
+                            text: forRequestor
+                                ? _requestorSchedule(event)
+                                : (event.timeLabel ?? 'Time TBA'),
                             muted: muted,
                           ),
                           if (event.location.isNotEmpty) ...[
@@ -124,6 +126,29 @@ class MemberCalendarEventCard extends StatelessWidget {
                               icon: Icons.location_on_outlined,
                               text: event.location,
                               muted: muted,
+                            ),
+                          ],
+                          if (forRequestor && event.status.trim().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: event.statusColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  event.status,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: dashText(TextStyle(
+                                    color: event.statusColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  )),
+                                ),
+                              ),
                             ),
                           ],
                         ],
@@ -142,6 +167,25 @@ class MemberCalendarEventCard extends StatelessWidget {
   String _formatDate(DateTime d) {
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return '${weekdays[d.weekday - 1]}, ${_months[d.month - 1]} ${d.day}';
+  }
+
+  String _requestorSchedule(CalendarEvent event) {
+    final start = (event.timeLabel ?? '').trim();
+    final startShown = start.isEmpty ? 'Time TBA' : start;
+    final end = event.endDate;
+    if (end == null) return startShown;
+    final endLabel = _formatClock(end);
+    if (endLabel == 'Time TBA' || endLabel == startShown) return startShown;
+    if (startShown == 'Time TBA') return endLabel;
+    return '$startShown–$endLabel';
+  }
+
+  String _formatClock(DateTime dt) {
+    if (dt.hour == 0 && dt.minute == 0) return 'Time TBA';
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '$hour:$min $period';
   }
 }
 

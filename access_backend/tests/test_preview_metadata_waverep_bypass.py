@@ -20,11 +20,11 @@ def _complete_quality_fields() -> dict:
     names = (
         "Sharpness",
         "Blur",
-        "Noise",
         "Brightness",
         "Contrast",
         "Blocking Artifacts",
-        "Ringing Artifacts",
+        "Color Balance",
+        "Color Saturation",
     )
     return {
         "criteria": [{"name": n, "score": 4, "label": "Good"} for n in names],

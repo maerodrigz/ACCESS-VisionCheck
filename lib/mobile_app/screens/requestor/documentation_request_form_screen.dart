@@ -10,6 +10,11 @@ import 'package:access_mobile/shared/utils/schedule_time_utils.dart';
 import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
 
+const _kFormBg = Color(0xFFF2F9FD);
+const _kCardRadius = 14.0;
+const _kInputRadius = 12.0;
+const _kFieldGap = 12.0;
+
 /// Documentation request submission form for requestors.
 class DocumentationRequestFormScreen extends StatefulWidget {
   const DocumentationRequestFormScreen({super.key, this.initialEventDate});
@@ -22,12 +27,20 @@ class DocumentationRequestFormScreen extends StatefulWidget {
       _DocumentationRequestFormScreenState();
 }
 
-class _DocumentationRequestFormScreenState extends State<DocumentationRequestFormScreen> {
-  static const _inputRadius = 13.0;
-  static const _cardRadius = 16.0;
-  static const _fieldGap = 14.0;
-
+class _DocumentationRequestFormScreenState
+    extends State<DocumentationRequestFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+
+  final _eventNameKey = GlobalKey();
+  final _dateKey = GlobalKey();
+  final _startTimeKey = GlobalKey();
+  final _endTimeKey = GlobalKey();
+  final _venueKey = GlobalKey();
+  final _coverageKey = GlobalKey();
+  final _additionalKey = GlobalKey();
+  final _descriptionKey = GlobalKey();
+
   final _eventNameCtrl = TextEditingController();
   final _dateCtrl = TextEditingController();
   final _startTimeCtrl = TextEditingController();
@@ -42,16 +55,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
   bool _photoCoverage = false;
   bool _videoCoverage = false;
   String? _coverageError;
-
-  bool get _eventSectionReady =>
-      _eventNameCtrl.text.trim().isNotEmpty &&
-      _eventDate != null &&
-      _startTimeCtrl.text.trim().isNotEmpty &&
-      _endTimeCtrl.text.trim().isNotEmpty &&
-      _venueCtrl.text.trim().isNotEmpty &&
-      _descriptionCtrl.text.trim().isNotEmpty;
-
-  bool get _requirementsComplete => _photoCoverage || _videoCoverage;
+  bool _additionalExpanded = false;
 
   @override
   void initState() {
@@ -61,7 +65,12 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
       _eventDate = DateTime(initial.year, initial.month, initial.day);
       _dateCtrl.text = formatRequestDate(_eventDate!);
     }
-    for (final c in [_eventNameCtrl, _venueCtrl, _descriptionCtrl, _specialInstructionsCtrl]) {
+    for (final c in [
+      _eventNameCtrl,
+      _venueCtrl,
+      _descriptionCtrl,
+      _specialInstructionsCtrl,
+    ]) {
       c.addListener(_onFieldsChanged);
     }
     _startTimeCtrl.addListener(_onFieldsChanged);
@@ -69,16 +78,30 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
   }
 
   void _onFieldsChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // Keep Additional Details open once the user has typed into it.
+    if (!_additionalExpanded &&
+        (_descriptionCtrl.text.trim().isNotEmpty ||
+            _specialInstructionsCtrl.text.trim().isNotEmpty)) {
+      setState(() => _additionalExpanded = true);
+      return;
+    }
+    setState(() {});
   }
 
   @override
   void dispose() {
-    for (final c in [_eventNameCtrl, _venueCtrl, _descriptionCtrl, _specialInstructionsCtrl]) {
+    for (final c in [
+      _eventNameCtrl,
+      _venueCtrl,
+      _descriptionCtrl,
+      _specialInstructionsCtrl,
+    ]) {
       c.removeListener(_onFieldsChanged);
     }
     _startTimeCtrl.removeListener(_onFieldsChanged);
     _endTimeCtrl.removeListener(_onFieldsChanged);
+    _scrollController.dispose();
     _eventNameCtrl.dispose();
     _dateCtrl.dispose();
     _startTimeCtrl.dispose();
@@ -93,7 +116,8 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
     final coverageParts = <String>[];
     if (_photoCoverage) coverageParts.add('Photo');
     if (_videoCoverage) coverageParts.add('Video');
-    final buffer = StringBuffer('Coverage needed: ${coverageParts.join(' and ')}');
+    final buffer =
+        StringBuffer('Coverage needed: ${coverageParts.join(' and ')}');
     final instructions = _specialInstructionsCtrl.text.trim();
     if (instructions.isNotEmpty) {
       buffer.writeln();
@@ -143,24 +167,93 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
     }
   }
 
+  Future<void> _ensureVisible(GlobalKey key) async {
+    final ctx = key.currentContext;
+    if (ctx == null) return;
+    await Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      alignment: 0.12,
+    );
+  }
+
+  Future<void> _scrollToFirstIssue({
+    required bool coverageMissing,
+    required bool descriptionInvalid,
+  }) async {
+    if (_eventNameCtrl.text.trim().isEmpty) {
+      await _ensureVisible(_eventNameKey);
+      return;
+    }
+    if (_eventDate == null) {
+      await _ensureVisible(_dateKey);
+      return;
+    }
+    if (_startTimeCtrl.text.trim().isEmpty) {
+      await _ensureVisible(_startTimeKey);
+      return;
+    }
+    if (_endTimeCtrl.text.trim().isEmpty) {
+      await _ensureVisible(_endTimeKey);
+      return;
+    }
+    if (_venueCtrl.text.trim().isEmpty) {
+      await _ensureVisible(_venueKey);
+      return;
+    }
+    if (coverageMissing) {
+      await _ensureVisible(_coverageKey);
+      return;
+    }
+    if (descriptionInvalid) {
+      if (!_additionalExpanded) {
+        setState(() => _additionalExpanded = true);
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+      }
+      await _ensureVisible(_descriptionKey);
+    }
+  }
+
   Future<void> _submit() async {
     if (_submitting) return;
-    if (!_photoCoverage && !_videoCoverage) {
-      setState(() => _coverageError = 'Select at least one coverage type (Photo or Video).');
+
+    final coverageMissing = !_photoCoverage && !_videoCoverage;
+    if (coverageMissing) {
+      setState(
+        () => _coverageError =
+            'Select at least one coverage type (Photo or Video).',
+      );
     }
-    if (!_formKey.currentState!.validate()) return;
-    if (!_photoCoverage && !_videoCoverage) return;
+
+    final descriptionInvalid = _descriptionCtrl.text.trim().isEmpty;
+    if (descriptionInvalid && !_additionalExpanded) {
+      setState(() => _additionalExpanded = true);
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+    }
+
+    final formOk = _formKey.currentState!.validate();
+    if (!formOk || coverageMissing) {
+      await _scrollToFirstIssue(
+        coverageMissing: coverageMissing,
+        descriptionInvalid: descriptionInvalid,
+      );
+      return;
+    }
 
     if (_eventDate == null) {
       setState(() => _error = 'Please select the event date.');
+      await _ensureVisible(_dateKey);
       return;
     }
 
     final startTime = _startTimeCtrl.text.trim();
     final endTime = _endTimeCtrl.text.trim();
-    final timeError = validateRequestTimeFields(startTime: startTime, endTime: endTime);
+    final timeError =
+        validateRequestTimeFields(startTime: startTime, endTime: endTime);
     if (timeError != null) {
       setState(() => _error = timeError);
+      await _ensureVisible(_startTimeKey);
       return;
     }
 
@@ -169,7 +262,11 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
       startTime: startTime,
       endTime: endTime,
       campusEvents: appState.events.map((event) {
-        final day = DateTime(event.startDate.year, event.startDate.month, event.startDate.day);
+        final day = DateTime(
+          event.startDate.year,
+          event.startDate.month,
+          event.startDate.day,
+        );
         return (
           day: day,
           start: event.startDate,
@@ -180,6 +277,7 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
     );
     if (conflict != null) {
       setState(() => _error = conflict);
+      await _ensureVisible(_dateKey);
       return;
     }
 
@@ -225,9 +323,10 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
   @override
   Widget build(BuildContext context) {
     final hPad = mobilePagePaddingOf(context);
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: _kFormBg,
       appBar: AppBar(
         backgroundColor: kSurface,
         elevation: 0,
@@ -236,29 +335,41 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
           icon: const Icon(Icons.arrow_back_rounded, color: kTextPrimary),
           onPressed: _submitting ? null : () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'New Documentation Request',
-          style: TextStyle(
+          style: dashText(const TextStyle(
             color: kTextPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 17,
-          ),
+          )),
         ),
       ),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
+            controller: _scrollController,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
+            padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 20 + bottomInset),
             children: [
-              const _FormIntroStrip(),
-              const SizedBox(height: 14),
-              _TwoStepProgressIndicator(
-                eventComplete: _eventSectionReady,
-                requirementsComplete: _requirementsComplete,
+              Text(
+                'Event Details',
+                style: dashText(const TextStyle(
+                  color: kTextPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                )),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 4),
+              Text(
+                'Tell us when and where your event will happen.',
+                style: memberDashboardBodyStyle.copyWith(
+                  fontSize: 13,
+                  color: kTextSecondary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 12),
               if (_error != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -267,183 +378,201 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: kRed.withValues(alpha: 0.35)),
                   ),
-                  child: Text(_error!, style: const TextStyle(color: kRed, fontSize: 13)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: kRed, fontSize: 13),
+                  ),
                 ),
                 const SizedBox(height: 12),
               ],
-              _FormSectionHeading(
-                title: 'Event Information',
-                icon: Icons.event_rounded,
-                iconColor: kAccent,
-              ),
-              const SizedBox(height: 10),
-              _FormSectionCard(
-                radius: _cardRadius,
+              _FormCard(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _DocRequestFormField(
-                      label: 'Event Name',
-                      controller: _eventNameCtrl,
-                      hint: 'Leadership Seminar',
-                      icon: Icons.event_rounded,
-                      iconColor: kAccent,
-                      radius: _inputRadius,
-                      validator: (v) => RegistrationValidators.required(v, label: 'Event name'),
-                      textInputAction: TextInputAction.next,
+                    KeyedSubtree(
+                      key: _eventNameKey,
+                      child: _DocRequestFormField(
+                        label: 'Event Name',
+                        requiredMark: true,
+                        controller: _eventNameCtrl,
+                        hint: 'Enter event name',
+                        icon: Icons.event_rounded,
+                        iconColor: kAccent,
+                        validator: (v) => RegistrationValidators.required(
+                          v,
+                          label: 'Event name',
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ),
                     ),
-                    const SizedBox(height: _fieldGap),
-                    GestureDetector(
-                      onTap: _pickDate,
-                      child: AbsorbPointer(
-                        child: _DocRequestFormField(
-                          label: 'Event Date',
-                          controller: _dateCtrl,
-                          hint: 'Select event date',
-                          icon: Icons.calendar_month_rounded,
-                          iconColor: kAccent,
-                          radius: _inputRadius,
-                          validator: (_) => _eventDate == null ? 'Event date is required' : null,
+                    const SizedBox(height: _kFieldGap),
+                    KeyedSubtree(
+                      key: _dateKey,
+                      child: GestureDetector(
+                        onTap: _pickDate,
+                        child: AbsorbPointer(
+                          child: _DocRequestFormField(
+                            label: 'Event Date',
+                            requiredMark: true,
+                            controller: _dateCtrl,
+                            hint: 'Select event date',
+                            icon: Icons.calendar_month_rounded,
+                            iconColor: kAccent,
+                            validator: (_) => _eventDate == null
+                                ? 'Event date is required'
+                                : null,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: _fieldGap),
+                    const SizedBox(height: _kFieldGap),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: GestureDetector(
-                            onTap: () => _pickTime(_startTimeCtrl),
-                            child: AbsorbPointer(
-                              child: _DocRequestFormField(
-                                label: 'Start Time',
-                                controller: _startTimeCtrl,
-                                hint: '9:00 AM',
-                                icon: Icons.schedule_rounded,
-                                iconColor: kYellow,
-                                radius: _inputRadius,
-                                validator: (v) =>
-                                    (v == null || v.trim().isEmpty) ? 'Start time is required' : null,
+                          child: KeyedSubtree(
+                            key: _startTimeKey,
+                            child: GestureDetector(
+                              onTap: () => _pickTime(_startTimeCtrl),
+                              child: AbsorbPointer(
+                                child: _DocRequestFormField(
+                                  label: 'Start Time',
+                                  requiredMark: true,
+                                  controller: _startTimeCtrl,
+                                  hint: '9:00 AM',
+                                  icon: Icons.schedule_rounded,
+                                  iconColor: kYellow,
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Start time is required'
+                                          : null,
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _pickTime(_endTimeCtrl),
-                            child: AbsorbPointer(
-                              child: _DocRequestFormField(
-                                label: 'End Time',
-                                controller: _endTimeCtrl,
-                                hint: '5:00 PM',
-                                icon: Icons.schedule_rounded,
-                                iconColor: kYellow,
-                                radius: _inputRadius,
-                                validator: (v) =>
-                                    (v == null || v.trim().isEmpty) ? 'End time is required' : null,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: _fieldGap),
-                    _DocRequestFormField(
-                      label: 'Venue / Location',
-                      controller: _venueCtrl,
-                      hint: 'Main Auditorium',
-                      icon: Icons.location_on_outlined,
-                      iconColor: kCyan,
-                      radius: _inputRadius,
-                      validator: (v) => RegistrationValidators.required(v, label: 'Venue'),
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: _fieldGap),
-                    _DocRequestFormField(
-                      label: 'Event Description',
-                      controller: _descriptionCtrl,
-                      hint: 'Describe the event and its purpose...',
-                      icon: Icons.notes_rounded,
-                      iconColor: kAccent,
-                      maxLines: 4,
-                      minLines: 3,
-                      alignTop: true,
-                      radius: _inputRadius,
-                      validator: (v) => RegistrationValidators.required(v, label: 'Event description'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              _FormSectionHeading(
-                title: 'Documentation Requirements',
-                icon: Icons.assignment_outlined,
-                iconColor: kGreen,
-              ),
-              const SizedBox(height: 10),
-              _FormSectionCard(
-                radius: _cardRadius,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Coverage Needed',
-                      style: TextStyle(
-                        color: kTextSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CoverageOptionCard(
-                            label: 'Photo',
-                            icon: Icons.photo_camera_rounded,
-                            accentColor: kAccent,
-                            accentDim: kBlueDim,
-                            selected: _photoCoverage,
-                            onTap: _togglePhoto,
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _CoverageOptionCard(
-                            label: 'Video',
-                            icon: Icons.videocam_rounded,
-                            accentColor: kCyan,
-                            accentDim: kCyanDim,
-                            selected: _videoCoverage,
-                            onTap: _toggleVideo,
+                          child: KeyedSubtree(
+                            key: _endTimeKey,
+                            child: GestureDetector(
+                              onTap: () => _pickTime(_endTimeCtrl),
+                              child: AbsorbPointer(
+                                child: _DocRequestFormField(
+                                  label: 'End Time',
+                                  requiredMark: true,
+                                  controller: _endTimeCtrl,
+                                  hint: '5:00 PM',
+                                  icon: Icons.schedule_rounded,
+                                  iconColor: kYellow,
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'End time is required'
+                                          : null,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    if (_coverageError != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _coverageError!,
-                        style: const TextStyle(color: kRed, fontSize: 12, fontWeight: FontWeight.w500),
+                    const SizedBox(height: _kFieldGap),
+                    KeyedSubtree(
+                      key: _venueKey,
+                      child: _DocRequestFormField(
+                        label: 'Venue / Location',
+                        requiredMark: true,
+                        controller: _venueCtrl,
+                        hint: 'Enter event location',
+                        icon: Icons.location_on_outlined,
+                        iconColor: kCyan,
+                        validator: (v) =>
+                            RegistrationValidators.required(v, label: 'Venue'),
+                        textInputAction: TextInputAction.next,
                       ),
-                    ],
-                    const SizedBox(height: _fieldGap),
-                    _DocRequestFormField(
-                      label: 'Special Instructions (Optional)',
-                      controller: _specialInstructionsCtrl,
-                      hint:
-                          'e.g. Capture keynote speakers, audience participation, awarding ceremonies, group photos, and event highlights.',
-                      icon: Icons.tips_and_updates_outlined,
-                      iconColor: kYellow,
-                      maxLines: 4,
-                      minLines: 3,
-                      alignTop: true,
-                      radius: _inputRadius,
+                    ),
+                    const SizedBox(height: 14),
+                    KeyedSubtree(
+                      key: _coverageKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Coverage Needed',
+                                style: dashText(const TextStyle(
+                                  color: kTextPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                )),
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                '*',
+                                style: TextStyle(
+                                  color: kRed,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _CoverageOptionCard(
+                                  label: 'Photo',
+                                  icon: Icons.photo_camera_rounded,
+                                  accentColor: kAccent,
+                                  accentDim: kBlueDim,
+                                  selected: _photoCoverage,
+                                  onTap: _togglePhoto,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _CoverageOptionCard(
+                                  label: 'Video',
+                                  icon: Icons.videocam_rounded,
+                                  accentColor: kCyan,
+                                  accentDim: kCyanDim,
+                                  selected: _videoCoverage,
+                                  onTap: _toggleVideo,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_coverageError != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _coverageError!,
+                              style: const TextStyle(
+                                color: kRed,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 12),
+              KeyedSubtree(
+                key: _additionalKey,
+                child: _AdditionalDetailsSection(
+                  expanded: _additionalExpanded,
+                  onToggle: () =>
+                      setState(() => _additionalExpanded = !_additionalExpanded),
+                  descriptionKey: _descriptionKey,
+                  descriptionCtrl: _descriptionCtrl,
+                  specialInstructionsCtrl: _specialInstructionsCtrl,
+                ),
+              ),
+              const SizedBox(height: 18),
               _submitting
                   ? const Center(
                       child: Padding(
@@ -451,26 +580,33 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
                         child: SizedBox(
                           width: 26,
                           height: 26,
-                          child: CircularProgressIndicator(strokeWidth: 2.5, color: kAccent),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: kAccent,
+                          ),
                         ),
                       ),
                     )
                   : SizedBox(
                       width: double.infinity,
-                      height: 52,
+                      height: 50,
                       child: FilledButton.icon(
                         onPressed: _submit,
                         icon: const Icon(Icons.send_rounded, size: 18),
-                        label: const Text(
+                        label: Text(
                           'Submit Request',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                          style: dashText(const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            color: Colors.white,
+                          )),
                         ),
                         style: FilledButton.styleFrom(
-                          backgroundColor: kMemberButtonPrimary,
+                          backgroundColor: kCyan,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(_cardRadius),
+                            borderRadius: BorderRadius.circular(_kCardRadius),
                           ),
                         ),
                       ),
@@ -483,245 +619,24 @@ class _DocumentationRequestFormScreenState extends State<DocumentationRequestFor
   }
 }
 
-class _FormSectionHeading extends StatelessWidget {
-  const _FormSectionHeading({
-    required this.title,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  final String title;
-  final IconData icon;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: iconColor.withValues(alpha: 0.2)),
-          ),
-          child: Icon(icon, size: 18, color: iconColor),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: memberDashboardSectionTitleStyle.copyWith(fontSize: 15),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _FormIntroStrip extends StatelessWidget {
-  const _FormIntroStrip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: kBlueDim,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder.withValues(alpha: 0.9)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: kAccent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kAccent.withValues(alpha: 0.22)),
-            ),
-            child: const Icon(Icons.event_note_rounded, color: kAccent, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Request Event Coverage',
-                  style: memberDashboardSectionTitleStyle.copyWith(fontSize: 15, height: 1.2),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Provide your event details and documentation requirements.',
-                  style: TextStyle(
-                    color: kTextSecondary,
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TwoStepProgressIndicator extends StatelessWidget {
-  const _TwoStepProgressIndicator({
-    required this.eventComplete,
-    required this.requirementsComplete,
-  });
-
-  final bool eventComplete;
-  final bool requirementsComplete;
-
-  @override
-  Widget build(BuildContext context) {
-    final step2Active = eventComplete && !requirementsComplete;
-    final step2Done = requirementsComplete;
-
-    final step1State = eventComplete
-        ? _StepVisualState.done
-        : _StepVisualState.active;
-
-    return Row(
-      children: [
-        Expanded(child: _StepNode(stepIndex: 1, label: 'Event Details', state: step1State)),
-        _StepConnector(filled: eventComplete),
-        Expanded(
-          child: _StepNode(
-            stepIndex: 2,
-            label: 'Requirements',
-            state: step2Done
-                ? _StepVisualState.done
-                : (step2Active ? _StepVisualState.active : _StepVisualState.upcoming),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-enum _StepVisualState { done, active, upcoming }
-
-class _StepNode extends StatelessWidget {
-  const _StepNode({
-    required this.stepIndex,
-    required this.label,
-    required this.state,
-  });
-
-  final int stepIndex;
-  final String label;
-  final _StepVisualState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final labelColor = switch (state) {
-      _StepVisualState.done => kTextPrimary,
-      _StepVisualState.active => kAccent,
-      _StepVisualState.upcoming => kTextSecondary,
-    };
-
-    Widget dot;
-    if (state == _StepVisualState.done) {
-      dot = Container(
-        width: 22,
-        height: 22,
-        alignment: Alignment.center,
-        decoration: const BoxDecoration(color: kAccent, shape: BoxShape.circle),
-        child: const Icon(Icons.check_rounded, size: 14, color: Colors.white),
-      );
-    } else {
-      final isActive = state == _StepVisualState.active;
-      dot = Container(
-        width: 22,
-        height: 22,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isActive ? kAccent : kSurfaceAlt,
-          shape: BoxShape.circle,
-          border: Border.all(color: isActive ? kAccent : kBorder),
-        ),
-        child: Text(
-          '$stepIndex',
-          style: TextStyle(
-            color: isActive ? Colors.white : kIconInactive,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        dot,
-        const SizedBox(height: 6),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: labelColor,
-            fontSize: 11,
-            fontWeight: state == _StepVisualState.active || state == _StepVisualState.done
-                ? FontWeight.w700
-                : FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StepConnector extends StatelessWidget {
-  const _StepConnector({required this.filled});
-
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18, left: 6, right: 6),
-      child: SizedBox(
-        width: 32,
-        child: Divider(
-          height: 2,
-          thickness: 2,
-          color: filled ? kAccent : kBorder,
-        ),
-      ),
-    );
-  }
-}
-
-class _FormSectionCard extends StatelessWidget {
-  const _FormSectionCard({required this.child, required this.radius});
+class _FormCard extends StatelessWidget {
+  const _FormCard({required this.child});
 
   final Widget child;
-  final double radius;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
         color: kSurface,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: kBorder.withValues(alpha: 0.95)),
+        borderRadius: BorderRadius.circular(_kCardRadius),
+        border: Border.all(color: kBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -731,11 +646,115 @@ class _FormSectionCard extends StatelessWidget {
   }
 }
 
+class _AdditionalDetailsSection extends StatelessWidget {
+  const _AdditionalDetailsSection({
+    required this.expanded,
+    required this.onToggle,
+    required this.descriptionKey,
+    required this.descriptionCtrl,
+    required this.specialInstructionsCtrl,
+  });
+
+  final bool expanded;
+  final VoidCallback onToggle;
+  final GlobalKey descriptionKey;
+  final TextEditingController descriptionCtrl;
+  final TextEditingController specialInstructionsCtrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FormCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onToggle,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Additional Details (Optional)',
+                        style: dashText(const TextStyle(
+                          color: kTextPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        )),
+                      ),
+                    ),
+                    Icon(
+                      expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      color: kTextSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Keep fields mounted (preserves text + Form validation) without
+          // occupying space while collapsed.
+          ClipRect(
+            child: Align(
+              alignment: Alignment.topCenter,
+              heightFactor: expanded ? 1.0 : 0.0,
+              child: IgnorePointer(
+                ignoring: !expanded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 10),
+                    KeyedSubtree(
+                      key: descriptionKey,
+                      child: _DocRequestFormField(
+                        label: 'Event Description',
+                        requiredMark: true,
+                        controller: descriptionCtrl,
+                        hint: 'Describe the event and its purpose...',
+                        icon: Icons.notes_rounded,
+                        iconColor: kAccent,
+                        maxLines: 3,
+                        minLines: 2,
+                        alignTop: true,
+                        validator: (v) => RegistrationValidators.required(
+                          v,
+                          label: 'Event description',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: _kFieldGap),
+                    _DocRequestFormField(
+                      label: 'Special Instructions (Optional)',
+                      controller: specialInstructionsCtrl,
+                      hint:
+                          'e.g. Capture keynote speakers, audience participation, awarding ceremonies.',
+                      icon: Icons.tips_and_updates_outlined,
+                      iconColor: kYellow,
+                      maxLines: 3,
+                      minLines: 2,
+                      alignTop: true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DocRequestFormField extends StatelessWidget {
   const _DocRequestFormField({
     required this.label,
     required this.controller,
-    required this.radius,
+    this.requiredMark = false,
     this.hint,
     this.icon,
     this.iconColor = kTextSecondary,
@@ -748,13 +767,13 @@ class _DocRequestFormField extends StatelessWidget {
 
   final String label;
   final TextEditingController controller;
+  final bool requiredMark;
   final String? hint;
   final IconData? icon;
   final Color iconColor;
   final int maxLines;
   final int minLines;
   final bool alignTop;
-  final double radius;
   final String? Function(String?)? validator;
   final TextInputAction? textInputAction;
 
@@ -765,56 +784,85 @@ class _DocRequestFormField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: kTextSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dashText(const TextStyle(
+                  color: kTextSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                )),
+              ),
+            ),
+            if (requiredMark) ...[
+              const SizedBox(width: 3),
+              const Text(
+                '*',
+                style: TextStyle(color: kRed, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         TextFormField(
           controller: controller,
           maxLines: maxLines,
           minLines: minLines,
           validator: validator,
           textInputAction: textInputAction,
-          textAlignVertical: alignTop ? TextAlignVertical.top : TextAlignVertical.center,
+          textAlignVertical:
+              alignTop ? TextAlignVertical.top : TextAlignVertical.center,
+          style: dashText(const TextStyle(
+            color: kTextPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          )),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: kTextSecondary.withValues(alpha: 0.85), fontSize: 14),
+            hintStyle: TextStyle(
+              color: kTextSecondary.withValues(alpha: 0.85),
+              fontSize: 13.5,
+            ),
             prefixIcon: icon != null
                 ? Padding(
                     padding: const EdgeInsets.only(left: 4),
-                    child: Icon(icon, color: iconColor, size: 21),
+                    child: Icon(icon, color: iconColor, size: 20),
                   )
                 : null,
             prefixIconConstraints: icon != null
-                ? const BoxConstraints(minWidth: 44, minHeight: 44)
+                ? const BoxConstraints(minWidth: 42, minHeight: 42)
                 : null,
             filled: true,
             fillColor: kSurface,
+            isDense: true,
             contentPadding: EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: multiline ? 12 : 14,
+              horizontal: 12,
+              vertical: multiline ? 10 : 12,
             ),
-            constraints: multiline ? null : const BoxConstraints(minHeight: 52),
+            constraints: multiline ? null : const BoxConstraints(minHeight: 46),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(radius),
-              borderSide: BorderSide(color: kBorder.withValues(alpha: 0.95)),
+              borderRadius: BorderRadius.circular(_kInputRadius),
+              borderSide: const BorderSide(color: kBorder),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(radius),
-              borderSide: BorderSide(color: kBorder.withValues(alpha: 0.95)),
+              borderRadius: BorderRadius.circular(_kInputRadius),
+              borderSide: const BorderSide(color: kBorder),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(radius),
+              borderRadius: BorderRadius.circular(_kInputRadius),
               borderSide: const BorderSide(color: kAccent, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(radius),
+              borderRadius: BorderRadius.circular(_kInputRadius),
               borderSide: const BorderSide(color: kRed),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(_kInputRadius),
+              borderSide: const BorderSide(color: kRed, width: 1.5),
             ),
           ),
         ),
@@ -846,52 +894,52 @@ class _CoverageOptionCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
             color: selected ? accentColor.withValues(alpha: 0.08) : kSurface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? accentColor : kBorder.withValues(alpha: 0.95),
+              color: selected ? accentColor : kBorder,
               width: selected ? 1.5 : 1,
             ),
           ),
-          child: Column(
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: accentDim,
-                      borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: accentColor.withValues(alpha: 0.22)),
-                    ),
-                    child: Icon(icon, size: 22, color: accentColor),
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accentDim,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: accentColor.withValues(alpha: 0.22),
                   ),
-                  const Spacer(),
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    opacity: selected ? 1 : 0,
-                    child: Icon(Icons.check_circle_rounded, size: 18, color: accentColor),
-                  ),
-                ],
+                ),
+                child: Icon(icon, size: 18, color: accentColor),
               ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
+              const SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(
+                  style: dashText(TextStyle(
                     color: selected ? kTextPrimary : kTextSecondary,
                     fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
+                    fontSize: 13.5,
+                  )),
+                ),
+              ),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 150),
+                opacity: selected ? 1 : 0,
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  size: 18,
+                  color: accentColor,
                 ),
               ),
             ],

@@ -62,20 +62,47 @@ class LoginResponse(BaseModel):
 
 
 class ForgotPasswordSendRequest(BaseModel):
-    email: EmailStr
+    phone: str = Field(min_length=10, max_length=20, description="Philippine mobile (09… or +639…)")
 
 
 class ForgotPasswordSendResponse(BaseModel):
     message: str
-    """Present when SMTP is off (dev): code is also printed in the backend terminal."""
+    """Only when SMS_PROVIDER=log (local tests). Never set for TextBee."""
     dev_code: str | None = None
+    resend_after_seconds: int | None = None
 
 
 class ForgotPasswordCompleteRequest(BaseModel):
-    email: EmailStr
+    phone: str = Field(min_length=10, max_length=20)
     code: str = Field(min_length=4, max_length=8)
     new_password: str = Field(min_length=6)
 
 
 class ForgotPasswordCompleteResponse(BaseModel):
     message: str
+    """Masked email for the account that was updated (e.g. j***e@school.edu)."""
+    account_email_hint: str | None = None
+
+
+class PhoneVerifySendRequest(BaseModel):
+    phone: str = Field(min_length=10, max_length=20)
+
+
+class PhoneVerifySendResponse(BaseModel):
+    message: str
+    phone: str
+    phone_verified: bool = False
+    """Only when SMS_PROVIDER=log (local tests). Never set for TextBee."""
+    dev_code: str | None = None
+    resend_after_seconds: int | None = None
+
+
+class PhoneVerifyCompleteRequest(BaseModel):
+    phone: str = Field(min_length=10, max_length=20)
+    code: str = Field(min_length=4, max_length=8)
+
+
+class PhoneVerifyCompleteResponse(BaseModel):
+    message: str
+    phone: str
+    phone_verified: bool = True

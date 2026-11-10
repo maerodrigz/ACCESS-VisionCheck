@@ -21,6 +21,7 @@ from app.services.media_evaluator import (
 from app.services.media_pipeline import run_pipeline
 from app.services.quality_score_display import (
     failed_evaluation_payload,
+    quality_01_to_percent,
     quality_display_from_evaluation,
 )
 
@@ -28,11 +29,11 @@ from app.services.quality_score_display import (
 _PHOTO_NAMES = (
     "Sharpness",
     "Blur",
-    "Noise",
     "Brightness",
     "Contrast",
     "Blocking Artifacts",
-    "Ringing Artifacts",
+    "Color Balance",
+    "Color Saturation",
 )
 
 _METRICS = {
@@ -48,24 +49,25 @@ _METRICS = {
 }
 
 
-def _complete_payload(*, noise_score_1_5: int = 4) -> dict:
+def _complete_payload(*, noise_score_db: float = 0.2) -> dict:
     by_name = {n: 4 for n in _PHOTO_NAMES}
-    by_name["Noise"] = noise_score_1_5
-    criteria = [{"name": n, "score": s, "label": "Good"} for n, s in by_name.items()]
+    criteria = [
+        {"name": n, "score": s, "label": "Good", "available": True} for n, s in by_name.items()
+    ]
     overall = sum(by_name.values()) / len(by_name)
     return {
         "criteria": criteria,
         "overall_score": overall,
         "evaluation_status": "ok",
         "evaluation_available": True,
-        "scoring_engine": "efficientnet-b0+ffmpeg",
+        "scoring_engine": "efficientnet-b0+ffmpeg+color-heuristics",
         "scoring_model": "efficientnet-b0",
         "legacy": {
             "sharpness_score": 0.8,
             "brightness_score": 0.8,
             "contrast_score": 0.8,
             "blur_score": 0.8,
-            "noise_score": round(1 - noise_score_1_5 / 5, 3),
+            "noise_score": noise_score_db,
             "overall_score": round(overall / 5, 3),
         },
         "analysis": {"quality_engine": "efficientnet-b0", "opencv_fallback": False},
@@ -73,19 +75,20 @@ def _complete_payload(*, noise_score_1_5: int = 4) -> dict:
     }
 
 
-def test_noise_display_matches_member_higher_is_better() -> None:
-    payload = _complete_payload(noise_score_1_5=4)
+def test_legacy_noise_preserved_without_noise_criterion() -> None:
+    payload = _complete_payload(noise_score_db=0.2)
     scores = scores_from_payload(payload)
     assert scores is not None
-    assert scores["noise_score"] == round(1 - 4 / 5, 3)
+    assert scores["noise_score"] == 0.2
     display = quality_display_from_evaluation(
         criteria_json=json.dumps(payload),
         **scores,
     )
-    noise = next(c for c in display["criteria"] if c["name"] == "Noise")
-    assert noise["higher_is_better"] is True
-    assert noise["score"] == 4
-    assert noise["percent"] == 80.0
+    names = [c["name"] for c in display["criteria"]]
+    assert "Color Balance" in names
+    assert "Color Saturation" in names
+    assert "Noise" not in names
+    assert "Ringing Artifacts" not in names
     db_only = quality_display_from_evaluation(
         criteria_json=None,
         sharpness_score=0.8,
@@ -96,7 +99,7 @@ def test_noise_display_matches_member_higher_is_better() -> None:
         overall_score=0.8,
     )
     db_noise = next(c for c in db_only["criteria"] if c["name"] == "Noise")
-    assert db_noise["percent"] == noise["percent"]
+    assert db_noise["percent"] == quality_01_to_percent(1.0 - 0.2)
 
 
 def test_blur_display_higher_is_better() -> None:
@@ -203,7 +206,7 @@ def test_incomplete_preview_is_rejected() -> None:
 
 
 def test_preview_and_saved_scores_match_when_complete() -> None:
-    payload = _complete_payload(noise_score_1_5=5)
+    payload = _complete_payload(noise_score_db=0.0)
     preview_scores = scores_from_payload(payload)
     saved_display = quality_display_from_evaluation(criteria_json=json.dumps(payload), **preview_scores)
     preview_display = quality_display_from_evaluation(criteria_json=json.dumps(payload))

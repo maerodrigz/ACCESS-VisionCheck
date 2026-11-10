@@ -46,12 +46,36 @@ void main() {
     const names = [
       'Sharpness',
       'Blur',
-      'Noise',
       'Brightness',
       'Contrast',
       'Blocking Artifacts',
+      'Color Balance',
+      'Color Saturation',
+      'Noise',
       'Ringing Artifacts',
     ];
     expect(PhotoEvaluationResult.photoCriteriaOrder, names);
+  });
+
+  test('criterion UI prefers five-level display text over percent', () {
+    const scored = CriterionScore(
+      name: 'Sharpness',
+      score: 3,
+      explanation: 'Some softness',
+      suggestion: 'Hold steady',
+    );
+    expect(scored.displayScoreText, '3/5');
+    expect(scored.displayScoreWithLabel, '3/5 · Fair');
+    expect(scored.percentScore, 60);
+
+    const missing = CriterionScore(
+      name: 'Color Saturation',
+      score: 0,
+      explanation: 'Muted',
+      suggestion: '',
+      available: false,
+    );
+    expect(missing.displayScoreText, 'N/A');
+    expect(missing.displayScoreWithLabel, 'N/A');
   });
 }

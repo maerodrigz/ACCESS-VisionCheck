@@ -180,9 +180,44 @@ class ApiClient {
   Future<dynamic> post(String path, Map<String, dynamic> body) =>
       _request('POST', path, body: body);
 
-  /// Login must not failover across every LAN IP (wrong host → false "Invalid credentials").
-  Future<dynamic> postLogin(String path, Map<String, dynamic> body) =>
-      _request('POST', path, body: body, hosts: ApiConfig.loginBaseUrls());
+  /// Hosts for sign-in and password recovery.
+  ///
+  /// Prefer the pinned backend (last successful call, e.g. SMS reset) first, then
+  /// [ApiConfig.loginBaseUrls]. Login must not roam across every LAN IP — a
+  /// reachable wrong host returns 401 "Invalid credentials" without failover.
+  List<String> _authCriticalBaseUrls() {
+    final out = <String>[];
+    void add(String? raw) {
+      if (raw == null) return;
+      final normalized = raw.trim().replaceAll(RegExp(r'/+$'), '');
+      if (normalized.isEmpty || out.contains(normalized)) return;
+      out.add(normalized);
+    }
+
+    add(_pinnedBaseUrl);
+    for (final base in ApiConfig.loginBaseUrls()) {
+      add(base);
+    }
+    if (out.isEmpty) {
+      add(ApiConfig.baseUrl);
+    }
+    return out;
+  }
+
+  /// Login / SMS password reset / phone verify: same host policy.
+  ///
+  /// Uses a **single** authoritative host. Never fans the same password across
+  /// LAN fallbacks — a timeout after the server already counted a failure would
+  /// otherwise multiply lockout attempts.
+  Future<dynamic> postLogin(String path, Map<String, dynamic> body) {
+    final hosts = _authCriticalBaseUrls();
+    final primary = hosts.isEmpty ? ApiConfig.baseUrl : hosts.first;
+    return _request('POST', path, body: body, hosts: [primary]);
+  }
+
+  /// Alias for auth flows that must hit the same backend as login (password reset).
+  Future<dynamic> postAuthCritical(String path, Map<String, dynamic> body) =>
+      postLogin(path, body);
   Future<dynamic> patch(String path, Map<String, dynamic> body) =>
       _request('PATCH', path, body: body);
   Future<dynamic> delete(String path) => _request('DELETE', path);

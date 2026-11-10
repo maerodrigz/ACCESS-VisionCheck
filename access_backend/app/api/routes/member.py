@@ -46,6 +46,8 @@ def _profile_out(db: Session, user: User) -> ProfileOut:
         status=user.status,
         student_id=user.student_id,
         contact_number=user.contact_number,
+        phone_verified=bool(user.phone_verified_at),
+        phone_verified_at=user.phone_verified_at,
         adviser_name=user.adviser_name,
         profile_image=display_profile_image(user.profile_image),
         skill_level=effective,

@@ -181,13 +181,15 @@ class Evaluation {
     const priority = [
       'Sharpness',
       'Blur',
-      'Noise',
       'Brightness',
       'Contrast',
       'Blocking Artifacts',
-      'Ringing Artifacts',
+      'Color Balance',
+      'Color Saturation',
       'Flickering',
       'Motion Stability',
+      'Noise',
+      'Ringing Artifacts',
     ];
     final sorted = [...criteria];
     sorted.sort((a, b) {
@@ -526,6 +528,7 @@ class ServiceRequest {
   final DateTime? originalEventDate;
   final DateTime? lastRescheduledAt;
   final List<RescheduleHistoryEntry> rescheduleHistory;
+  final DateTime? requestorArchivedAt;
 
   ServiceRequest({
     required this.id,
@@ -546,6 +549,7 @@ class ServiceRequest {
     this.originalEventDate,
     this.lastRescheduledAt,
     this.rescheduleHistory = const [],
+    this.requestorArchivedAt,
   });
 
   /// Legacy alias used by older requestor UI code.
@@ -558,6 +562,44 @@ class ServiceRequest {
   String get date => _legacyFormatDate(eventDate);
 
   RequestStatus get requestStatus => RequestStatus.fromLegacyLabel(status);
+
+  bool get isRequestorArchived => requestorArchivedAt != null;
+
+  bool get canRequestorArchive {
+    if (isRequestorArchived) return false;
+    final s = requestStatus;
+    return s == RequestStatus.completed || s == RequestStatus.rejected;
+  }
+
+  ServiceRequest copyWith({
+    String? status,
+    DateTime? requestorArchivedAt,
+    bool clearRequestorArchivedAt = false,
+  }) {
+    return ServiceRequest(
+      id: id,
+      requestId: requestId,
+      eventName: eventName,
+      description: description,
+      eventDate: eventDate,
+      startTime: startTime,
+      endTime: endTime,
+      location: location,
+      requirements: requirements,
+      submissionDate: submissionDate,
+      updatedAt: updatedAt,
+      requesterName: requesterName,
+      requestType: requestType,
+      status: status ?? this.status,
+      rejectionReason: rejectionReason,
+      originalEventDate: originalEventDate,
+      lastRescheduledAt: lastRescheduledAt,
+      rescheduleHistory: rescheduleHistory,
+      requestorArchivedAt: clearRequestorArchivedAt
+          ? null
+          : (requestorArchivedAt ?? this.requestorArchivedAt),
+    );
+  }
 
   static String _legacyFormatDate(DateTime dt) {
     const months = [
@@ -765,6 +807,16 @@ class AppState extends ChangeNotifier {
     serviceRequests
       ..clear()
       ..addAll(rows);
+    notifyListeners();
+  }
+
+  void upsertServiceRequest(ServiceRequest row) {
+    final index = serviceRequests.indexWhere((r) => r.id == row.id);
+    if (index >= 0) {
+      serviceRequests[index] = row;
+    } else {
+      serviceRequests.insert(0, row);
+    }
     notifyListeners();
   }
 

@@ -7,17 +7,27 @@ class CriterionScore {
     required this.score,
     required this.explanation,
     required this.suggestion,
+    this.available = true,
   });
 
   final String name;
+  /// 1–5 when [available]; ignored when unavailable (N/A).
   final int score;
   final String explanation;
   final String suggestion;
+  final bool available;
 
-  String get label => scoreLabel(score);
+  String get label => available ? scoreLabel(score) : 'N/A';
 
-  /// 0–100 display score (internal 1–5 scale × 20).
-  int get percentScore => ((score / 5) * 100).round().clamp(0, 100);
+  /// Compact five-level display (e.g. `3/5`), or `N/A` when unavailable.
+  String get displayScoreText => available ? '$score/5' : 'N/A';
+
+  /// Five-level score with qualitative label (e.g. `3/5 · Fair`).
+  String get displayScoreWithLabel =>
+      available ? '$displayScoreText · $label' : 'N/A';
+
+  /// 0–100 derived display (internal 1–5 × 20). Prefer [displayScoreText] in UI.
+  int get percentScore => available ? ((score / 5) * 100).round().clamp(0, 100) : 0;
 
   static String scoreLabel(int score) => switch (score) {
         5 => 'Excellent',
@@ -29,18 +39,24 @@ class CriterionScore {
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'score': score,
+        'score': available ? score : null,
         'label': label,
         'explanation': explanation,
         'suggestion': suggestion,
+        'available': available,
       };
 
-  factory CriterionScore.fromJson(Map<String, dynamic> j) => CriterionScore(
-        name: j['name'] as String? ?? '',
-        score: (j['score'] as num?)?.round().clamp(1, 5) ?? 3,
-        explanation: j['explanation'] as String? ?? '',
-        suggestion: j['suggestion'] as String? ?? '',
-      );
+  factory CriterionScore.fromJson(Map<String, dynamic> j) {
+    final available = j['available'] != false && j['score'] != null;
+    final rawScore = (j['score'] as num?)?.round();
+    return CriterionScore(
+      name: j['name'] as String? ?? '',
+      score: available ? (rawScore?.clamp(1, 5) ?? 3) : 0,
+      explanation: j['explanation'] as String? ?? '',
+      suggestion: j['suggestion'] as String? ?? '',
+      available: available,
+    );
+  }
 }
 
 class AiDetectionResult {
@@ -599,17 +615,28 @@ class PhotoEvaluationResult {
   static const photoCriteriaOrder = [
     'Sharpness',
     'Blur',
-    'Noise',
     'Brightness',
     'Contrast',
     'Blocking Artifacts',
+    'Color Balance',
+    'Color Saturation',
+    // Historical criteria still ordered when present on older evaluations.
+    'Noise',
     'Ringing Artifacts',
   ];
 
   static const videoCriteriaOrder = [
-    ...photoCriteriaOrder,
+    'Sharpness',
+    'Blur',
+    'Brightness',
+    'Contrast',
+    'Blocking Artifacts',
+    'Color Balance',
+    'Color Saturation',
     'Motion Stability',
     'Flickering',
+    'Noise',
+    'Ringing Artifacts',
   ];
 
   /// Criteria in display order; video-only metrics omitted for photos.
@@ -629,6 +656,7 @@ class PhotoEvaluationResult {
     final noise = s('Noise', 'Technical Quality');
     final brightness = s('Brightness', 'Lighting and Exposure');
     final contrast = s('Contrast', 'Color and White Balance');
+    final hasNoise = criteria.any((c) => c.name == 'Noise' && c.available);
 
     return {
       'criteria': criteria.map((c) => c.toJson()).toList(),
@@ -642,6 +670,8 @@ class PhotoEvaluationResult {
       'scoring_model': scoringModel,
       'strengths': strengths,
       'weaknesses': weaknesses,
+      'quality_disclaimer':
+          'Quality ratings are automated estimates and may not reflect artistic intent or human judgment.',
       if (geminiFeedback != null) 'gemini_feedback': geminiFeedback!.toJson(),
       if (geminiFeedbackIsLocal) 'gemini_feedback_is_local': true,
       if (integrityTier != null) 'integrity_tier': integrityTier,
@@ -665,7 +695,8 @@ class PhotoEvaluationResult {
         'brightness_score': brightness / 5,
         'contrast_score': contrast / 5,
         'blur_score': blur / 5,
-        'noise_score': 1 - noise / 5,
+        // Historical field only when Noise criterion exists on older payloads.
+        if (hasNoise) 'noise_score': 1 - noise / 5,
         'overall_score': overallScore / 5,
       },
     };
@@ -725,7 +756,7 @@ class PhotoEvaluationResult {
         : raw is List
             ? raw
                 .whereType<Map>()
-                .where((e) => e['score'] != null)
+                .where(_keepCriterionMap)
                 .map((e) => CriterionScore.fromJson(Map<String, dynamic>.from(e)))
                 .toList()
             : <CriterionScore>[];
@@ -778,6 +809,41 @@ class PhotoEvaluationResult {
       evaluationAvailable: !failed,
       qualityEngine: analysis?['quality_engine'] as String? ?? j['scoring_engine'] as String?,
       opencvFallback: analysis?['opencv_fallback'] == true,
+    );
+  }
+
+  /// Prefer saved scores; only corrects [mediaType] for display/routing.
+  PhotoEvaluationResult withMediaType(String nextMediaType) {
+    final normalized = nextMediaType.trim().isEmpty ? mediaType : nextMediaType.trim();
+    if (normalized == mediaType) return this;
+    return PhotoEvaluationResult(
+      criteria: criteria,
+      overallScore: overallScore,
+      qualityLevel: qualityLevel,
+      feedback: feedback,
+      improvementSuggestions: improvementSuggestions,
+      recommendation: recommendation,
+      aiDetection: aiDetection,
+      mediaType: normalized,
+      scoringModel: scoringModel,
+      strengths: strengths,
+      weaknesses: weaknesses,
+      geminiFeedback: geminiFeedback,
+      geminiFeedbackIsLocal: geminiFeedbackIsLocal,
+      integrityTier: integrityTier,
+      showQualityFeedback: showQualityFeedback,
+      qualityProvisional: qualityProvisional,
+      xpEligible: xpEligible,
+      xpMultiplier: xpMultiplier,
+      memberIntegrityMessage: memberIntegrityMessage,
+      xpPending: xpPending,
+      xpPointsPreview: xpPointsPreview,
+      memberScoresReleased: memberScoresReleased,
+      reviewGateMessage: reviewGateMessage,
+      additionalQualityInsights: additionalQualityInsights,
+      evaluationAvailable: evaluationAvailable,
+      qualityEngine: qualityEngine,
+      opencvFallback: opencvFallback,
     );
   }
 
@@ -885,9 +951,23 @@ const _sourceUnverifiedIntegrityMessage =
 /// Canonical display order for AI criterion bars.
 const _videoOnlyCriteria = {'Motion Stability', 'Flickering'};
 
+bool _keepCriterionMap(Map<dynamic, dynamic> e) {
+  final name = (e['name'] as String?)?.trim() ?? '';
+  if (name.isEmpty) return false;
+  // Keep explicit N/A rows (available: false, score: null). Do not invent scores.
+  if (e['available'] == false) return true;
+  return e['score'] != null;
+}
+
 List<CriterionScore> orderCriteriaForDisplay(List<CriterionScore> criteria, {required bool isVideo}) {
-  final order = isVideo ? PhotoEvaluationResult.videoCriteriaOrder : PhotoEvaluationResult.photoCriteriaOrder;
-  final filtered = isVideo ? criteria : criteria.where((c) => !_videoOnlyCriteria.contains(c.name));
+  // If video-only criteria were saved, keep them visible even when media_type was
+  // missing/defaulted to photo (common for older rows and some notification paths).
+  final hasVideoOnlyCriteria = criteria.any((c) => _videoOnlyCriteria.contains(c.name));
+  final treatAsVideo = isVideo || hasVideoOnlyCriteria;
+  final order =
+      treatAsVideo ? PhotoEvaluationResult.videoCriteriaOrder : PhotoEvaluationResult.photoCriteriaOrder;
+  final filtered =
+      treatAsVideo ? criteria : criteria.where((c) => !_videoOnlyCriteria.contains(c.name));
   final sorted = filtered.toList()
     ..sort((a, b) {
       final ai = order.indexOf(a.name);

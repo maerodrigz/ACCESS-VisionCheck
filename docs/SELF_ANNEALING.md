@@ -248,6 +248,17 @@ When you hit a new bug:
 
 ---
 
+## Incident 14: AppCompat `abc_*` missing after `flutter clean`
+
+| | |
+|---|---|
+| **Symptom** | `processDebugResources` / AAPT2 fails: `error: resource layout/abc_alert_dialog_material not found` (and other `abc_*` anim/layout refs). |
+| **Cause** | Not a missing AppCompat dependency. `androidx.appcompat:appcompat:1.1.0` was present via Facebook Login / SharedPreferences. Cursor redirected `GRADLE_USER_HOME` to `Temp\cursor-sandbox-cache\...\gradle`; with `org.gradle.caching=true`, `mergeDebugResources` loaded a corrupt FROM-CACHE merge that kept AppCompat style refs without the matching layout/anim files. |
+| **Fix** | Rebuild with real Gradle home (`GRADLE_USER_HOME=%USERPROFILE%\.gradle`) and `:app:processDebugResources --no-build-cache --rerun-tasks`, then `flutter build apk --debug`. Removed duplicate migrator flags in `android/gradle.properties`. |
+| **Prevention** | Do not add AppCompat pins until `dependencyInsight` proves absence. Prefer invalidating the bad build-cache entry / using the real Gradle home over wiping the global cache or `flutter clean` loops. |
+
+---
+
 ## Database reminders
 
 - Database name: **`access`** (PostgreSQL on `localhost:5432`)

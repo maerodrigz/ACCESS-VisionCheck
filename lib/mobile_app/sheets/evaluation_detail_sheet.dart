@@ -6,6 +6,7 @@ import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
@@ -168,9 +169,25 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
             Center(
               child: ScoreRing(
                 score: ev.displayScore,
-                label: ev.isPending ? 'N/A' : '${ev.displayPercent}%',
+                label: ev.isPending ? 'N/A' : '${ev.displayPercent}/100',
               ),
             ),
+            if (!ev.isPending) ...[
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  kOverallFromFiveLevelNote,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: kTextSecondary,
+                    fontSize: 11,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
             if (ev.recommendation != null && ev.recommendation!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Center(
@@ -190,8 +207,13 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
             if (ev.criteria.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
-                'AI SCORES',
+                'TECHNICAL QUALITY',
                 style: TextStyle(color: kTextSecondary, fontSize: 11, letterSpacing: 0.8),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                kFiveLevelCriteriaIntro,
+                style: TextStyle(color: kTextSecondary, fontSize: 11, height: 1.35, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 10),
               CriterionScoresList(

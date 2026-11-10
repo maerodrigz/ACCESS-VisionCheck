@@ -111,6 +111,16 @@ class QualityBreakdownCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       )),
                     ),
+                    SizedBox(height: dense ? 6 : 8),
+                    Text(
+                      kOverallFromFiveLevelNote,
+                      style: TextStyle(
+                        color: kTextSecondary,
+                        fontSize: dense ? 10 : 11,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -129,6 +139,16 @@ class QualityBreakdownCard extends StatelessWidget {
             fontSize: dense ? 14 : 15,
             fontWeight: FontWeight.w800,
           )),
+        ),
+        SizedBox(height: dense ? 4 : 6),
+        Text(
+          kFiveLevelCriteriaIntro,
+          style: TextStyle(
+            color: kTextSecondary,
+            fontSize: dense ? 10 : 11,
+            height: 1.35,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         SizedBox(height: dense ? 10 : 14),
         CriterionScoresList(
@@ -163,19 +183,55 @@ class QualityBreakdownCard extends StatelessWidget {
 class _ScoreRangeLegend extends StatelessWidget {
   const _ScoreRangeLegend();
 
-  static const _items = [
+  static const _overallItems = [
     (color: kRed, label: 'Poor', range: '0–59'),
     (color: kOrange, label: 'Fair', range: '60–74'),
     (color: kBlue, label: 'Good', range: '75–89'),
     (color: kGreen, label: 'Excellent', range: '90–100'),
   ];
 
+  static const _levelItems = [
+    (color: kRed, label: 'Poor', range: '1–2'),
+    (color: kOrange, label: 'Fair', range: '3'),
+    (color: kBlue, label: 'Good', range: '4'),
+    (color: kGreen, label: 'Excellent', range: '5'),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Overall bands (/100)',
+          style: TextStyle(
+            color: kTextSecondary,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _legendWrap(_overallItems),
+        const SizedBox(height: 10),
+        Text(
+          'Criterion levels (/5)',
+          style: TextStyle(
+            color: kTextSecondary,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _legendWrap(_levelItems),
+      ],
+    );
+  }
+
+  Widget _legendWrap(List<({Color color, String label, String range})> items) {
     return Wrap(
       spacing: 14,
       runSpacing: 8,
-      children: _items.map((item) {
+      children: items.map((item) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -187,7 +243,7 @@ class _ScoreRangeLegend extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               '${item.label} (${item.range})',
-              style: TextStyle(
+              style: const TextStyle(
                 color: kTextSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,

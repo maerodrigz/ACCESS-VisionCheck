@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
+import 'package:access_mobile/shared/api/auth_service.dart';
 import 'package:access_mobile/shared/api/member_api_service.dart';
 import 'package:access_mobile/shared/constants/api_config.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
@@ -27,6 +31,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _uploadingAvatar = false;
+  bool _verifyingPhone = false;
+  bool _phoneVerified = false;
   String? _error;
   String? _profileImageUrl;
   bool _isMember = true;
@@ -77,6 +83,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _nameCtrl.text = profile['name'] as String? ?? '';
       _emailCtrl.text = profile['email'] as String? ?? '';
       _contactCtrl.text = profile['contact_number'] as String? ?? '';
+      _phoneVerified = profile['phone_verified'] as bool? ?? false;
       _initialName = _nameCtrl.text;
       _initialContact = _contactCtrl.text;
       final img = profile['profile_image'] as String?;
@@ -243,7 +250,68 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  bool get _busy => _saving || _uploadingAvatar;
+  bool get _busy => _saving || _uploadingAvatar || _verifyingPhone;
+
+  Future<void> _verifyPhoneFlow() async {
+    final phone = _contactCtrl.text.trim();
+    if (phone.length < 10) {
+      setState(() => _error = 'Enter a valid Philippine mobile number first.');
+      return;
+    }
+    setState(() {
+      _verifyingPhone = true;
+      _error = null;
+    });
+    try {
+      final sent = await authService.sendPhoneVerificationOtp(phone);
+      if (!mounted) return;
+
+      // Dialog owns its TextEditingController and disposes it in State.dispose
+      // after the route is fully removed. Disposing the controller here (right
+      // after showDialog returns) caused: '_dependents.isEmpty': is not true.
+      final code = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _PhoneVerifyCodeDialog(
+          phone: sent.phone,
+          initialMessage: sent.message,
+          initialDevCode: sent.devCode,
+          initialResendSeconds: sent.resendAfterSeconds ?? 60,
+        ),
+      );
+      if (!mounted) return;
+      if (code == null || code.length != 6) {
+        setState(() => _verifyingPhone = false);
+        return;
+      }
+      final done = await authService.completePhoneVerification(
+        phone: sent.phone,
+        code: code,
+      );
+      if (!mounted) return;
+      setState(() {
+        _verifyingPhone = false;
+        _phoneVerified = done.phoneVerified;
+        _contactCtrl.text = done.phone;
+        _initialContact = done.phone;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(done.message), backgroundColor: kGreen),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _verifyingPhone = false;
+        _error = _userFacingError(e.message);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _verifyingPhone = false;
+        _error = 'Could not verify mobile number. Please try again.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -353,12 +421,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       if (_canSave) _save();
                                     },
                                   ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        _phoneVerified &&
+                                                _contactCtrl.text.trim() == _initialContact.trim()
+                                            ? Icons.verified_rounded
+                                            : Icons.sms_outlined,
+                                        size: 18,
+                                        color: _phoneVerified &&
+                                                _contactCtrl.text.trim() == _initialContact.trim()
+                                            ? kGreen
+                                            : kTextSecondary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _phoneVerified &&
+                                                  _contactCtrl.text.trim() == _initialContact.trim()
+                                              ? 'Verified for SMS password recovery'
+                                              : 'Verify this number to enable SMS password recovery',
+                                          style: memberDashboardMetaStyle.copyWith(fontSize: 12),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: _busy ? null : _verifyPhoneFlow,
+                                        child: Text(_verifyingPhone ? 'Sending…' : 'Verify SMS'),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Email changes require an administrator.',
+                              'Email changes require an administrator. Changing your number clears SMS verification until you verify again.',
                               style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.4),
                             ),
                           ],
@@ -863,6 +961,173 @@ class _ActionBar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Owns [TextEditingController] for the SMS code field so it is disposed only
+/// after the dialog route is removed (avoids InheritedWidget/_dependents crash).
+class _PhoneVerifyCodeDialog extends StatefulWidget {
+  const _PhoneVerifyCodeDialog({
+    required this.phone,
+    required this.initialMessage,
+    this.initialDevCode,
+    this.initialResendSeconds = 60,
+  });
+
+  final String phone;
+  final String initialMessage;
+  final String? initialDevCode;
+  final int initialResendSeconds;
+
+  @override
+  State<_PhoneVerifyCodeDialog> createState() => _PhoneVerifyCodeDialogState();
+}
+
+class _PhoneVerifyCodeDialogState extends State<_PhoneVerifyCodeDialog> {
+  late final TextEditingController _codeCtrl;
+  late String _message;
+  String? _error;
+  bool _resending = false;
+  int _resendSeconds = 0;
+  Timer? _resendTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _codeCtrl = TextEditingController(text: widget.initialDevCode?.trim() ?? '');
+    _message = widget.initialMessage;
+    _startResendCountdown(widget.initialResendSeconds);
+  }
+
+  @override
+  void dispose() {
+    _resendTimer?.cancel();
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+
+  void _startResendCountdown(int seconds) {
+    _resendTimer?.cancel();
+    setState(() => _resendSeconds = seconds > 0 ? seconds : 60);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (_resendSeconds <= 1) {
+        t.cancel();
+        setState(() => _resendSeconds = 0);
+      } else {
+        setState(() => _resendSeconds -= 1);
+      }
+    });
+  }
+
+  Future<void> _resend() async {
+    if (_resending || _resendSeconds > 0) return;
+    setState(() {
+      _resending = true;
+      _error = null;
+    });
+    try {
+      final sent = await authService.sendPhoneVerificationOtp(widget.phone);
+      if (!mounted) return;
+      setState(() {
+        _resending = false;
+        _message = sent.message;
+        if (sent.devCode != null && sent.devCode!.trim().isNotEmpty) {
+          _codeCtrl.text = sent.devCode!.trim();
+          _message = 'Dev code: ${sent.devCode} (SMS_PROVIDER=log).';
+        }
+      });
+      _startResendCountdown(sent.resendAfterSeconds ?? 60);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _resending = false;
+        _error = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _resending = false;
+        _error = 'Could not resend code. Check your connection.';
+      });
+    }
+  }
+
+  void _submit() {
+    final code = _codeCtrl.text.trim();
+    if (code.length != 6) {
+      setState(() => _error = 'Enter the 6-digit code from your SMS.');
+      return;
+    }
+    Navigator.of(context).pop(code);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Verify mobile number', style: TextStyle(fontWeight: FontWeight.w800)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              _message,
+              style: const TextStyle(height: 1.45, fontSize: 14, color: kTextSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _codeCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              autofocus: true,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: '6-digit SMS code',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              onSubmitted: (_) => _submit(),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: (_resending || _resendSeconds > 0) ? null : _resend,
+                child: Text(
+                  _resending
+                      ? 'Sending…'
+                      : _resendSeconds > 0
+                          ? 'Resend code in ${_resendSeconds}s'
+                          : 'Resend code',
+                ),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _error!,
+                style: const TextStyle(color: kRed, fontSize: 13, height: 1.35),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _resending ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _resending ? null : _submit,
+          style: FilledButton.styleFrom(backgroundColor: kAccent),
+          child: const Text('Verify'),
+        ),
+      ],
     );
   }
 }

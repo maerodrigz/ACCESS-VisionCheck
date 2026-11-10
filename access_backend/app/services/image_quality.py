@@ -224,31 +224,35 @@ def _legacy_float(raw: Any) -> float | None:
 
 def legacy_scores_from_payload(payload: dict[str, Any]) -> dict[str, float] | None:
     """Measured 0–1 columns from a complete payload. None if scores cannot be derived."""
-    keys = (
+    required_keys = (
         "sharpness_score",
         "brightness_score",
         "contrast_score",
         "blur_score",
-        "noise_score",
         "overall_score",
     )
     legacy = payload.get("legacy")
     if isinstance(legacy, dict):
         out: dict[str, float] = {}
-        for key in keys:
+        missing = False
+        for key in required_keys:
             val = _legacy_float(legacy.get(key))
             if val is None:
+                missing = True
                 break
             out[key] = val
-        else:
-            if out["overall_score"] > 0:
-                return out
+        if not missing and out["overall_score"] > 0:
+            noise_val = _legacy_float(legacy.get("noise_score"))
+            out["noise_score"] = noise_val if noise_val is not None else 0.0
+            return out
 
     criteria = payload.get("criteria")
     if isinstance(criteria, list) and criteria:
         by_name: dict[Any, int] = {}
         for c in criteria:
             if not isinstance(c, dict) or not c.get("name"):
+                continue
+            if c.get("available") is False:
                 continue
             try:
                 by_name[c.get("name")] = int(round(float(c.get("score"))))
@@ -268,7 +272,8 @@ def legacy_scores_from_payload(payload: dict[str, Any]) -> dict[str, float] | No
         brightness = s("Brightness", "Lighting and Exposure")
         contrast = s("Contrast", "Color and White Balance")
         overall_raw = _legacy_float(payload.get("overall_score"))
-        if None in (sharpness, blur, noise, brightness, contrast, overall_raw):
+        # Noise is optional on the new seven-criterion rubric.
+        if None in (sharpness, blur, brightness, contrast, overall_raw):
             return None
         overall = float(overall_raw) / 5.0 if float(overall_raw) > 1 else float(overall_raw)
         if overall <= 0:
@@ -278,7 +283,7 @@ def legacy_scores_from_payload(payload: dict[str, Any]) -> dict[str, float] | No
             "brightness_score": round(brightness / 5, 3),
             "contrast_score": round(contrast / 5, 3),
             "blur_score": round(blur / 5, 3),
-            "noise_score": round(1 - noise / 5, 3),
+            "noise_score": round(1 - noise / 5, 3) if noise is not None else 0.0,
             "overall_score": round(overall, 3),
         }
     return None

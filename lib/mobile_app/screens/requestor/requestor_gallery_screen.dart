@@ -21,7 +21,7 @@ class RequestorGalleryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return GalleryScreen(
       requestorMode: true,
-      subtitle: 'Photos and videos from your documented events.',
+      subtitle: 'Relive your documented events.',
       purposeBelowTitle: true,
       onViewRequests: _openRequests,
       onNotificationsTap: onNotificationsTap,

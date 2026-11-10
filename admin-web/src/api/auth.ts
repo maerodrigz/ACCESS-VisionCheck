@@ -54,25 +54,26 @@ export function logout() {
 export interface ForgotPasswordSendResult {
   message: string
   dev_code?: string | null
+  resend_after_seconds?: number | null
 }
 
 export interface ForgotPasswordCompleteResult {
   message: string
 }
 
-export async function sendForgotPasswordOtp(email: string): Promise<ForgotPasswordSendResult> {
+export async function sendForgotPasswordOtp(phone: string): Promise<ForgotPasswordSendResult> {
   return apiRequest<ForgotPasswordSendResult>(
     '/auth/forgot-password/send',
     {
       method: 'POST',
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      body: JSON.stringify({ phone: phone.trim() }),
     },
     null,
   )
 }
 
 export async function completeForgotPasswordReset(input: {
-  email: string
+  phone: string
   code: string
   newPassword: string
 }): Promise<ForgotPasswordCompleteResult> {
@@ -81,11 +82,51 @@ export async function completeForgotPasswordReset(input: {
     {
       method: 'POST',
       body: JSON.stringify({
-        email: input.email.trim().toLowerCase(),
+        phone: input.phone.trim(),
         code: input.code.trim(),
         new_password: input.newPassword,
       }),
     },
     null,
+  )
+}
+
+export interface PhoneVerifySendResult {
+  message: string
+  phone: string
+  phone_verified?: boolean
+  dev_code?: string | null
+  resend_after_seconds?: number | null
+}
+
+export interface PhoneVerifyCompleteResult {
+  message: string
+  phone: string
+  phone_verified: boolean
+}
+
+export async function sendPhoneVerificationOtp(phone: string): Promise<PhoneVerifySendResult> {
+  return apiRequest<PhoneVerifySendResult>(
+    '/auth/phone/verify/send',
+    {
+      method: 'POST',
+      body: JSON.stringify({ phone: phone.trim() }),
+    },
+  )
+}
+
+export async function completePhoneVerification(input: {
+  phone: string
+  code: string
+}): Promise<PhoneVerifyCompleteResult> {
+  return apiRequest<PhoneVerifyCompleteResult>(
+    '/auth/phone/verify/complete',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        phone: input.phone.trim(),
+        code: input.code.trim(),
+      }),
+    },
   )
 }

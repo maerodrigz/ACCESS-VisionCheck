@@ -340,6 +340,30 @@ def upgrade_users_registration_schema() -> None:
             conn.execute(text(stmt))
 
 
+def upgrade_sms_password_recovery_schema() -> None:
+    """
+    Additive SMS recovery / phone verification schema.
+    Does NOT drop password_reset_email_otps (see migrations review SQL).
+    """
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ"
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_users_verified_contact_number
+                ON users (contact_number)
+                WHERE phone_verified_at IS NOT NULL
+                  AND contact_number IS NOT NULL
+                  AND btrim(contact_number) <> ''
+                """
+            )
+        )
+
+
 def upgrade_media_evaluation_schema() -> None:
     """Extended criteria breakdown for member photo evaluation."""
     with engine.begin() as conn:
@@ -509,8 +533,15 @@ def upgrade_documentation_requests_schema() -> None:
             "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS original_event_date DATE",
             "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS last_rescheduled_at TIMESTAMPTZ",
             "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS reschedule_history TEXT",
+            "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS requestor_archived_at TIMESTAMPTZ",
         ):
             conn.execute(text(stmt))
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_documentation_requests_requestor_archived_at "
+                "ON documentation_requests (requestor_archived_at)"
+            )
+        )
 
 
 def upgrade_request_assignments_schema() -> None:
@@ -567,6 +598,7 @@ def main() -> None:
     upgrade_documentation_requests_schema()
     upgrade_request_assignments_schema()
     upgrade_users_registration_schema()
+    upgrade_sms_password_recovery_schema()
     upgrade_users_removal_schema()
     upgrade_notification_schema()
     upgrade_media_evaluation_schema()

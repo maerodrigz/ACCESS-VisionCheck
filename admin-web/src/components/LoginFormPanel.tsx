@@ -127,7 +127,6 @@ export function LoginFormPanel({
 
       <ForgotPasswordDialog
         open={forgotOpen}
-        initialEmail={email}
         onClose={() => setForgotOpen(false)}
       />
     </div>

@@ -21,6 +21,54 @@ def get_by_email(db: Session, email: str) -> User | None:
     )
 
 
+def get_by_verified_phone(db: Session, phone_e164: str) -> User | None:
+    """Active user with this normalized contact number and phone_verified_at set."""
+    phone = (phone_e164 or "").strip()
+    if not phone:
+        return None
+    return db.scalar(
+        select(User)
+        .options(joinedload(User.role), joinedload(User.skill_level))
+        .where(
+            User.contact_number == phone,
+            User.phone_verified_at.is_not(None),
+            User.is_active.is_(True),
+        )
+    )
+
+
+def find_verified_phone_conflict(db: Session, phone_e164: str, *, exclude_user_id: int | None = None) -> User | None:
+    phone = (phone_e164 or "").strip()
+    if not phone:
+        return None
+    stmt = (
+        select(User)
+        .options(joinedload(User.role), joinedload(User.skill_level))
+        .where(
+            User.contact_number == phone,
+            User.phone_verified_at.is_not(None),
+            User.is_active.is_(True),
+        )
+    )
+    if exclude_user_id is not None:
+        stmt = stmt.where(User.id != exclude_user_id)
+    return db.scalar(stmt)
+
+
+def mark_phone_verified(db: Session, user: User, phone_e164: str) -> User:
+    user.contact_number = phone_e164
+    user.phone_verified_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def clear_phone_verification(db: Session, user: User) -> None:
+    user.phone_verified_at = None
+    db.commit()
+    db.refresh(user)
+
+
 def get_by_id(db: Session, user_id: int) -> User | None:
     return db.scalar(
         select(User)
@@ -212,8 +260,18 @@ def list_users(db: Session) -> list[User]:
     )
 
 
-def set_password(db: Session, user: User, new_password: str) -> User:
+def set_password(
+    db: Session,
+    user: User,
+    new_password: str,
+    *,
+    clear_lockout: bool = False,
+) -> User:
+    """Hash and store a new password. Optionally clear failed-login lockout in the same commit."""
     user.password = hash_password(new_password)
+    if clear_lockout:
+        user.failed_login_count = 0
+        user.locked_until = None
     db.commit()
     db.refresh(user)
     return user

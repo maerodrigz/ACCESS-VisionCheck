@@ -9,13 +9,16 @@ from typing import Any
 QUALITY_CRITERION_NAMES = (
     "Sharpness",
     "Blur",
-    "Noise",
     "Brightness",
     "Contrast",
     "Blocking Artifacts",
-    "Ringing Artifacts",
+    "Color Balance",
+    "Color Saturation",
     "Flickering",
     "Motion Stability",
+    # Historical names (still displayed when present in older criteria_json).
+    "Noise",
+    "Ringing Artifacts",
 )
 
 # media_evaluations.noise_score is stored as 1 - (Noise / 5). Other columns are criterion/5.
@@ -66,6 +69,8 @@ def criteria_by_name(payload: dict[str, Any] | None) -> dict[str, int]:
     for row in rows:
         if not isinstance(row, dict):
             continue
+        if row.get("available") is False:
+            continue
         name = str(row.get("name") or "").strip()
         if not name:
             continue
@@ -101,10 +106,37 @@ def quality_display_from_evaluation(
         }
 
     by_name = criteria_by_name(payload)
-    analysis = payload.get("analysis") if isinstance(payload, dict) and isinstance(payload.get("analysis"), dict) else {}
+    analysis = (
+        payload.get("analysis")
+        if isinstance(payload, dict) and isinstance(payload.get("analysis"), dict)
+        else {}
+    )
     criteria_out: list[dict[str, Any]] = []
-    if by_name:
+    raw_rows = (
+        payload.get("criteria")
+        if isinstance(payload, dict) and isinstance(payload.get("criteria"), list)
+        else []
+    )
+    raw_by_name = {
+        str(r.get("name")): r
+        for r in raw_rows
+        if isinstance(r, dict) and str(r.get("name") or "").strip()
+    }
+    if by_name or raw_by_name:
         for name in QUALITY_CRITERION_NAMES:
+            row = raw_by_name.get(name)
+            if row is not None and row.get("available") is False:
+                criteria_out.append(
+                    {
+                        "name": name,
+                        "score": None,
+                        "percent": None,
+                        "higher_is_better": True,
+                        "available": False,
+                        "label": "N/A",
+                    }
+                )
+                continue
             if name not in by_name:
                 continue
             score = by_name[name]
@@ -114,6 +146,7 @@ def quality_display_from_evaluation(
                     "score": score,
                     "percent": score_1_5_to_percent(score),
                     "higher_is_better": True,
+                    "available": True,
                 }
             )
         overall_percent = None

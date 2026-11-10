@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_approved
 from app.config import settings
 from app.core.security import create_access_token, verify_password
 from app.crud import session as session_crud
@@ -16,10 +16,12 @@ from app.services.security_policy import (
     assert_password_meets_policy,
     clear_login_failures,
     is_account_locked,
+    lockout_detail_message,
     record_failed_login,
     security_config,
 )
-from app.crud import password_reset_email_otp as reset_otp_crud
+from app.crud import password_reset_sms_otp as reset_otp_crud
+from app.crud import phone_verification_otp as phone_verify_otp_crud
 from app.crud import registration_email_otp as email_otp_crud
 from app.schemas.auth import (
     ForgotPasswordCompleteRequest,
@@ -28,6 +30,10 @@ from app.schemas.auth import (
     ForgotPasswordSendResponse,
     LoginRequest,
     LoginResponse,
+    PhoneVerifyCompleteRequest,
+    PhoneVerifyCompleteResponse,
+    PhoneVerifySendRequest,
+    PhoneVerifySendResponse,
     RegisterRequest,
     RegistrationOtpSendRequest,
     RegistrationOtpSendResponse,
@@ -37,6 +43,7 @@ from app.schemas.auth import (
 )
 from app.schemas.common import MessageResponse
 from app.services import registration_email
+from app.services import sms_rate_limit
 from app.services.email_delivery import is_email_configured
 from app.services.phone_normalize import normalize_ph_mobile
 
@@ -83,7 +90,7 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     if existing and is_account_locked(existing):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account temporarily locked due to too many failed sign-in attempts. Try again later.",
+            detail=lockout_detail_message(existing),
         )
 
     if existing and verify_password(body.password, existing.password) and not existing.is_active:
@@ -163,69 +170,222 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
 
 
 _GENERIC_RESET_SEND = (
-    "If an account exists for this email, a 6-digit reset code was sent. "
-    "Check your inbox (and spam folder)."
+    "If a verified account exists for this mobile number, a 6-digit reset code was sent by SMS."
 )
 
 
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+def _mask_email(email: str) -> str:
+    text = (email or "").strip()
+    if "@" not in text:
+        return "***"
+    local, _, domain = text.partition("@")
+    if len(local) <= 2:
+        masked_local = f"{local[:1]}*" if local else "*"
+    else:
+        masked_local = f"{local[0]}{'*' * (len(local) - 2)}{local[-1]}"
+    return f"{masked_local}@{domain}"
+
+
 @router.post("/forgot-password/send", response_model=ForgotPasswordSendResponse)
-def forgot_password_send(body: ForgotPasswordSendRequest, db: Session = Depends(get_db)):
-    """Email a 6-digit OTP for password reset (all approved roles). Dev: code on screen when SMTP is off."""
-    email = str(body.email).strip().lower()
-    _reject_non_deliverable_otp_email(email)
-    generic = ForgotPasswordSendResponse(message=_GENERIC_RESET_SEND, dev_code=None)
-    user = user_crud.get_by_email(db, email)
-    if not user or not user.is_active:
+def forgot_password_send(
+    body: ForgotPasswordSendRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """SMS a 6-digit OTP for password reset (verified phones only). Generic response always."""
+    try:
+        phone = normalize_ph_mobile(body.phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    ip = _client_ip(request)
+    generic = ForgotPasswordSendResponse(
+        message=_GENERIC_RESET_SEND,
+        dev_code=None,
+        resend_after_seconds=settings.sms_reset_otp_resend_seconds,
+    )
+    user = user_crud.get_by_verified_phone(db, phone)
+    if not user or not user.is_active or user.status != UserStatus.APPROVED:
+        # Still bill IP rate limit so unknown numbers cannot flood probes.
+        try:
+            sms_rate_limit.check_and_record(
+                key=f"ip:{ip or 'unknown'}",
+                limit=settings.sms_rate_limit_per_ip_hour,
+                window_s=3600.0,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
         return generic
-    if user.status != UserStatus.APPROVED:
-        return ForgotPasswordSendResponse(
-            message=(
-                "This account is not active for sign-in. "
-                "Contact your ACCESS administrator for help."
-            ),
-            dev_code=None,
-        )
 
     try:
         code = reset_otp_crud.send_otp(
             db,
-            user.email,
-            fullname=user.fullname or user.email,
+            phone,
+            fullname=user.fullname or "",
+            client_ip=ip,
+            actually_deliver=True,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
 
-    if is_email_configured():
-        return ForgotPasswordSendResponse(message=_GENERIC_RESET_SEND, dev_code=None)
-    return ForgotPasswordSendResponse(
-        message=(
-            "Development mode: your reset code is shown below on this screen "
-            "(and printed in the backend terminal)."
-        ),
-        dev_code=code,
-    )
+    provider = (settings.sms_provider or "log").strip().lower()
+    if provider == "log":
+        return ForgotPasswordSendResponse(
+            message=(
+                "Development mode (SMS_PROVIDER=log): reset code is shown below. "
+                "TextBee is not used."
+            ),
+            dev_code=code,
+            resend_after_seconds=settings.sms_reset_otp_resend_seconds,
+        )
+    return generic
 
 
 @router.post("/forgot-password/complete", response_model=ForgotPasswordCompleteResponse)
 def forgot_password_complete(body: ForgotPasswordCompleteRequest, db: Session = Depends(get_db)):
-    """Verify email OTP and set a new password."""
-    user = user_crud.get_by_email(db, body.email)
-    if not user or not user.is_active or user.status != UserStatus.APPROVED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not reset password. Check your email and code, or request a new code.",
-        )
+    """Verify SMS OTP and set a new password. Revokes existing sessions."""
     try:
-        reset_otp_crud.verify_and_consume(db, user.email, body.code)
+        phone = normalize_ph_mobile(body.phone)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    assert_password_meets_policy(db, body.new_password)
-    user_crud.set_password(db, user, body.new_password)
-    clear_login_failures(db, user)
-    session_crud.revoke_sessions_for_user(db, user.id)
+    new_password = (body.new_password or "").strip()
+    user = user_crud.get_by_verified_phone(db, phone)
+    if not user or not user.is_active or user.status != UserStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not reset password. Check your mobile number and code, or request a new code.",
+        )
+    try:
+        reset_otp_crud.verify_and_consume(db, phone, body.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    assert_password_meets_policy(db, new_password)
+    user_id = user.id
+    account_email = user.email
+    # Same commit clears failed-login counters / locked_until so a successful SMS
+    # reset is immediately usable (prior wrong-password lockouts must not linger).
+    user_crud.set_password(db, user, new_password, clear_lockout=True)
+    # Confirm the committed hash verifies before telling the client it succeeded.
+    fresh = user_crud.get_by_id(db, user_id)
+    if not fresh or not verify_password(new_password, fresh.password):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Password update did not persist. Please request a new code and try again.",
+        )
+    if is_account_locked(fresh) or int(getattr(fresh, "failed_login_count", 0) or 0) != 0:
+        clear_login_failures(db, fresh)
+        fresh = user_crud.get_by_id(db, user_id)
+    if not fresh or is_account_locked(fresh):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Password updated but account lockout could not be cleared. Try again later or contact an administrator.",
+        )
+    session_crud.revoke_sessions_for_user(db, user_id)
     return ForgotPasswordCompleteResponse(
         message="Password updated. Sign in with your new password.",
+        account_email_hint=_mask_email(account_email),
+    )
+
+
+@router.post("/phone/verify/send", response_model=PhoneVerifySendResponse)
+def phone_verify_send(
+    body: PhoneVerifySendRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    """Authenticated enrollment: SMS OTP to claim a recovery mobile number."""
+    try:
+        phone = normalize_ph_mobile(body.phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    conflict = user_crud.find_verified_phone_conflict(db, phone, exclude_user_id=current_user.id)
+    if conflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This mobile number is already verified on another account.",
+        )
+
+    user = user_crud.get_by_id(db, current_user.id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    previous = (user.contact_number or "").strip()
+    if phone != previous or user.phone_verified_at is None:
+        user.contact_number = phone
+        user.phone_verified_at = None
+        db.commit()
+        db.refresh(user)
+
+    try:
+        code = phone_verify_otp_crud.send_otp(
+            db,
+            user_id=user.id,
+            phone_e164=phone,
+            client_ip=_client_ip(request),
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        code_status = (
+            status.HTTP_429_TOO_MANY_REQUESTS
+            if "wait" in detail.lower() or "too many" in detail.lower() or "unavailable" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code_status, detail=detail) from exc
+
+    provider = (settings.sms_provider or "log").strip().lower()
+    return PhoneVerifySendResponse(
+        message="A 6-digit verification code was sent by SMS.",
+        phone=phone,
+        phone_verified=False,
+        dev_code=code if provider == "log" else None,
+        resend_after_seconds=settings.sms_reset_otp_resend_seconds,
+    )
+
+
+@router.post("/phone/verify/complete", response_model=PhoneVerifyCompleteResponse)
+def phone_verify_complete(
+    body: PhoneVerifyCompleteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    try:
+        phone = normalize_ph_mobile(body.phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    conflict = user_crud.find_verified_phone_conflict(db, phone, exclude_user_id=current_user.id)
+    if conflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This mobile number is already verified on another account.",
+        )
+
+    try:
+        phone_verify_otp_crud.verify_and_consume(
+            db,
+            user_id=current_user.id,
+            phone_e164=phone,
+            code=body.code,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    user = user_crud.get_by_id(db, current_user.id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user_crud.mark_phone_verified(db, user, phone)
+    return PhoneVerifyCompleteResponse(
+        message="Mobile number verified. You can use SMS password recovery.",
+        phone=phone,
+        phone_verified=True,
     )
 
 

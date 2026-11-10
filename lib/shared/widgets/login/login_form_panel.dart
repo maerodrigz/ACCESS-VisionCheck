@@ -11,7 +11,6 @@ class LoginFormPanel extends StatefulWidget {
     required this.obscurePassword,
     required this.rememberMe,
     required this.loading,
-    required this.error,
     required this.onToggleObscure,
     required this.onRememberMeChanged,
     required this.onSubmit,
@@ -27,7 +26,6 @@ class LoginFormPanel extends StatefulWidget {
   final bool obscurePassword;
   final bool rememberMe;
   final bool loading;
-  final String? error;
   final VoidCallback onToggleObscure;
   final ValueChanged<bool> onRememberMeChanged;
   final VoidCallback onSubmit;
@@ -45,8 +43,11 @@ class LoginFormPanel extends StatefulWidget {
 
 class _LoginFormPanelState extends State<LoginFormPanel> {
   static const _radius = 16.0;
+  static const _passwordScrollPadding = EdgeInsets.fromLTRB(20, 20, 20, 140);
+
   late final FocusNode _emailFocus;
   late final FocusNode _passwordFocus;
+  final GlobalKey _passwordFieldKey = GlobalKey();
 
   @override
   void initState() {
@@ -56,10 +57,12 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
     for (final node in [_emailFocus, _passwordFocus]) {
       node.addListener(_onSignInFieldFocus);
     }
+    _passwordFocus.addListener(_ensurePasswordVisible);
   }
 
   @override
   void dispose() {
+    _passwordFocus.removeListener(_ensurePasswordVisible);
     for (final node in [_emailFocus, _passwordFocus]) {
       node.removeListener(_onSignInFieldFocus);
       node.dispose();
@@ -72,6 +75,20 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
     final focused = _emailFocus.hasFocus || _passwordFocus.hasFocus;
     widget.onSignInFieldsFocused?.call(focused);
     if (widget.cardStyle) setState(() {});
+  }
+
+  void _ensurePasswordVisible() {
+    if (!_passwordFocus.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _passwordFieldKey.currentContext;
+      if (!mounted || ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        alignment: 0.35,
+      );
+    });
   }
 
   @override
@@ -99,12 +116,12 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ..._errorBlock(),
                     TextField(
                       controller: widget.emailController,
                       focusNode: _emailFocus,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
+                      scrollPadding: _passwordScrollPadding,
                       onSubmitted: (_) => _passwordFocus.requestFocus(),
                       decoration: _fieldDecoration('Email Address', Icons.email_outlined),
                     ),
@@ -232,12 +249,12 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
               ),
               const SizedBox(height: 16),
             ],
-            ..._errorBlock(spacing: compact ? 8 : 12),
             TextField(
               controller: widget.emailController,
               focusNode: _emailFocus,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              scrollPadding: _passwordScrollPadding,
               onSubmitted: (_) => _passwordFocus.requestFocus(),
               decoration: _fieldDecoration(
                 'Email Address',
@@ -310,37 +327,14 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
     );
   }
 
-  List<Widget> _errorBlock({double spacing = 16}) {
-    final error = widget.error;
-    if (error == null) return const [];
-    return [
-      Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFEE2E2),
-          borderRadius: BorderRadius.circular(_radius),
-          border: Border.all(color: const Color(0xFFFECACA)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(error, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
-            ),
-          ],
-        ),
-      ),
-      SizedBox(height: spacing),
-    ];
-  }
-
   Widget _passwordField({bool placeholder = false}) {
     return TextField(
+      key: _passwordFieldKey,
       controller: widget.passwordController,
       focusNode: _passwordFocus,
       obscureText: widget.obscurePassword,
       textInputAction: TextInputAction.done,
+      scrollPadding: _passwordScrollPadding,
       onSubmitted: (_) => widget.onSubmit(),
       decoration: _fieldDecoration(
         'Password',

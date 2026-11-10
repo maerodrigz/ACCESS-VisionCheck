@@ -26,6 +26,8 @@ class User(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="approved", index=True)
     student_id: Mapped[str | None] = mapped_column(String(40), index=True)
     contact_number: Mapped[str | None] = mapped_column(String(40))
+    # Set when the user completes SMS phone verification for recovery enrollment.
+    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     adviser_name: Mapped[str | None] = mapped_column(String(120))
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     approved_by: Mapped[int | None] = mapped_column(

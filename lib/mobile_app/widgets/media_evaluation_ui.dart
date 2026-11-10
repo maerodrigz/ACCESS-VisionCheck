@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
 import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/mobile_app/widgets/quality_breakdown_card.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
@@ -81,6 +82,7 @@ class EvaluationCriterionChip extends StatelessWidget {
   final CriterionScore criterion;
 
   Color get _color {
+    if (!criterion.available) return kTextSecondary;
     if (criterion.score >= 4) return kGreen;
     if (criterion.score == 3) return kAccent;
     if (criterion.score == 2) return kYellow;
@@ -105,7 +107,7 @@ class EvaluationCriterionChip extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${criterion.score}/5',
+            criterion.available ? '${criterion.score}/5' : 'N/A',
             style: TextStyle(color: _color, fontSize: 12, fontWeight: FontWeight.w800),
           ),
         ],
@@ -195,8 +197,18 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${result.overallPercent}% · ${result.recommendation}',
+                        '${result.overallPercent}/100 · ${result.recommendation}',
                         style: TextStyle(color: kTextPrimary, fontSize: compact ? 11 : 12, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        kOverallFromFiveLevelNote,
+                        style: TextStyle(
+                          color: kTextSecondary,
+                          fontSize: compact ? 10 : 11,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       if (mediaTypeLabel != null) ...[
                         const SizedBox(height: 4),
@@ -213,12 +225,22 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
             const SizedBox(height: 16),
           ],
           Text(
-            'AI SCORES',
+            'TECHNICAL QUALITY',
             style: TextStyle(
               color: kTextSecondary,
               fontSize: dense ? 9 : 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
+            ),
+          ),
+          SizedBox(height: dense ? 4 : 6),
+          Text(
+            kFiveLevelCriteriaIntro,
+            style: TextStyle(
+              color: kTextSecondary,
+              fontSize: dense ? 10 : 11,
+              height: 1.35,
+              fontWeight: FontWeight.w500,
             ),
           ),
           SizedBox(height: dense ? 6 : 10),

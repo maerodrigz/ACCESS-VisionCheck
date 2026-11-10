@@ -94,7 +94,23 @@ def update_profile(
     if email is not None:
         user.email = email.strip().lower()
     if contact_number is not None:
-        user.contact_number = contact_number.strip()
+        from app.services.phone_normalize import normalize_ph_mobile
+
+        raw = contact_number.strip()
+        if not raw:
+            user.contact_number = None
+            user.phone_verified_at = None
+        else:
+            try:
+                normalized = normalize_ph_mobile(raw)
+            except ValueError:
+                normalized = raw
+            previous = (user.contact_number or "").strip()
+            if normalized != previous:
+                user.contact_number = normalized
+                user.phone_verified_at = None
+            else:
+                user.contact_number = normalized
     if profile_image is not None:
         user.profile_image = profile_image
     if new_password:

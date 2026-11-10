@@ -18,6 +18,17 @@ List<Evaluation> skillEligibleEvaluations(Iterable<Evaluation> source) =>
     source.where(evaluationEligibleForSkillProgress).toList();
 
 bool isVideoPracticeEvaluation(Evaluation ev) {
-  final mt = (ev.mediaType ?? ev.parsedEvaluation?.mediaType ?? 'photo').toLowerCase();
-  return mt == 'video';
+  final mt = (ev.mediaType ?? '').trim().toLowerCase();
+  if (mt == 'video') return true;
+  final parsedMt = (ev.parsedEvaluation?.mediaType ?? '').trim().toLowerCase();
+  if (parsedMt == 'video') return true;
+
+  final url = (ev.imageUrl ?? '').split('?').first.toLowerCase();
+  final title = ev.title.toLowerCase();
+  for (final ext in ['.mp4', '.mov', '.webm', '.mkv', '.avi']) {
+    if (url.endsWith(ext) || title.endsWith(ext) || title.contains(ext)) return true;
+  }
+
+  final criteria = ev.parsedEvaluation?.criteria ?? ev.criteria;
+  return criteria.any((c) => c.name == 'Motion Stability' || c.name == 'Flickering');
 }

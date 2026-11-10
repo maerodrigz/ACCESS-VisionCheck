@@ -503,6 +503,22 @@ class MemberApiService {
     });
     return Map<String, dynamic>.from(data as Map);
   }
+
+  Future<Map<String, dynamic>> archiveServiceRequestForRequestor(int requestId) async {
+    final data = await apiClient.post(
+      '/service-requests/$requestId/requestor-archive',
+      const <String, dynamic>{},
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> restoreServiceRequestForRequestor(int requestId) async {
+    final data = await apiClient.post(
+      '/service-requests/$requestId/requestor-restore',
+      const <String, dynamic>{},
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
 }
 
 final memberApiService = MemberApiService();

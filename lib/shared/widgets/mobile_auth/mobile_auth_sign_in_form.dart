@@ -12,13 +12,11 @@ class MobileAuthSignInForm extends StatefulWidget {
     required this.obscurePassword,
     required this.rememberMe,
     required this.loading,
-    this.loginError,
     required this.onToggleObscure,
     required this.onRememberMeChanged,
     required this.onSubmit,
     required this.onForgotPassword,
     this.onCreateAccount,
-    this.onFixConnection,
   });
 
   final TextEditingController emailController;
@@ -26,13 +24,11 @@ class MobileAuthSignInForm extends StatefulWidget {
   final bool obscurePassword;
   final bool rememberMe;
   final bool loading;
-  final String? loginError;
   final VoidCallback onToggleObscure;
   final ValueChanged<bool> onRememberMeChanged;
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
   final VoidCallback? onCreateAccount;
-  final VoidCallback? onFixConnection;
 
   @override
   State<MobileAuthSignInForm> createState() => _MobileAuthSignInFormState();
@@ -41,22 +37,41 @@ class MobileAuthSignInForm extends StatefulWidget {
 class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
   late final FocusNode _emailFocus;
   late final FocusNode _passwordFocus;
+  final GlobalKey _passwordFieldKey = GlobalKey();
 
-  /// Small fixed padding only — large values fight the framework and steal focus.
-  static const _fieldScrollPadding = EdgeInsets.all(20);
+  /// Extra bottom padding keeps the password field above the Android keyboard.
+  static const _fieldScrollPadding = EdgeInsets.fromLTRB(20, 20, 20, 140);
 
   @override
   void initState() {
     super.initState();
     _emailFocus = FocusNode();
     _passwordFocus = FocusNode();
+    _passwordFocus.addListener(_ensurePasswordVisible);
   }
 
   @override
   void dispose() {
+    _passwordFocus.removeListener(_ensurePasswordVisible);
     _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
+  }
+
+  void _ensurePasswordVisible() {
+    if (!_passwordFocus.hasFocus) return;
+    // One soft scroll into view — avoid fighting the IME on every frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _passwordFieldKey.currentContext;
+      if (!mounted || ctx == null || !_passwordFocus.hasFocus) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        alignment: 0.25,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      );
+    });
   }
 
   @override
@@ -73,33 +88,6 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
           compact: true,
         ),
         const SizedBox(height: 12),
-        if (widget.loginError != null && widget.loginError!.isNotEmpty) ...[
-          Text(
-            widget.loginError!,
-            style: const TextStyle(color: kRed, fontSize: 12, height: 1.35),
-          ),
-          if (widget.onFixConnection != null) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: widget.onFixConnection,
-                style: TextButton.styleFrom(
-                  foregroundColor: kAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                icon: const Icon(Icons.dns_outlined, size: 16),
-                label: const Text(
-                  'Fix connection',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 10),
-        ],
         TextField(
           key: const ValueKey('mobile_sign_in_email'),
           controller: widget.emailController,
@@ -117,29 +105,32 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
           ),
         ),
         const SizedBox(height: 10),
-        TextField(
-          key: const ValueKey('mobile_sign_in_password'),
-          controller: widget.passwordController,
-          focusNode: _passwordFocus,
-          obscureText: widget.obscurePassword,
-          textInputAction: TextInputAction.done,
-          scrollPadding: _fieldScrollPadding,
-          cursorColor: kAccent,
-          enableInteractiveSelection: true,
-          onSubmitted: (_) => widget.onSubmit(),
-          decoration: mobileAuthInputDecoration(
-            hint: 'Password',
-            icon: Icons.lock_outline,
-            dense: true,
-            suffix: IconButton(
-              icon: Icon(
-                widget.obscurePassword
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-                color: kTextSecondary,
-                size: 20,
+        KeyedSubtree(
+          key: _passwordFieldKey,
+          child: TextField(
+            key: const ValueKey('mobile_sign_in_password'),
+            controller: widget.passwordController,
+            focusNode: _passwordFocus,
+            obscureText: widget.obscurePassword,
+            textInputAction: TextInputAction.done,
+            scrollPadding: _fieldScrollPadding,
+            cursorColor: kAccent,
+            enableInteractiveSelection: true,
+            onSubmitted: (_) => widget.onSubmit(),
+            decoration: mobileAuthInputDecoration(
+              hint: 'Password',
+              icon: Icons.lock_outline,
+              dense: true,
+              suffix: IconButton(
+                icon: Icon(
+                  widget.obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: kTextSecondary,
+                  size: 20,
+                ),
+                onPressed: widget.onToggleObscure,
               ),
-              onPressed: widget.onToggleObscure,
             ),
           ),
         ),
@@ -191,19 +182,30 @@ class _MobileAuthSignInFormState extends State<MobileAuthSignInForm> {
             onLinkTap: widget.onCreateAccount!,
           ),
         ],
-        SizedBox(height: keyboardOpen ? 10 : 14),
-        if (!keyboardOpen) ...[
-          const LegalFooterLinks(useLoginTokens: false),
-          const SizedBox(height: 4),
-          Text(
-            '© 2026 ACCESS VisionCheck · USTP Oroquieta',
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: kTextSecondary, fontSize: 10),
+        const SizedBox(height: 14),
+        // Keep footer mounted (opacity only) so keyboard open/close does not
+        // resize the form and jump the email/password fields.
+        Opacity(
+          opacity: keyboardOpen ? 0 : 1,
+          child: IgnorePointer(
+            ignoring: keyboardOpen,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const LegalFooterLinks(useLoginTokens: false),
+                const SizedBox(height: 4),
+                Text(
+                  '© 2026 ACCESS VisionCheck · USTP Oroquieta',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: kTextSecondary, fontSize: 10),
+                ),
+                SizedBox(height: bottomInset > 0 ? bottomInset : 8),
+              ],
+            ),
           ),
-          SizedBox(height: bottomInset > 0 ? bottomInset : 8),
-        ],
+        ),
       ],
     );
   }

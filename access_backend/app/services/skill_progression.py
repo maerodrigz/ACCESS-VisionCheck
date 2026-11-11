@@ -32,7 +32,11 @@ def active_skill_progression_policy() -> str:
 
 
 def resolve_effective_skill_progression_policy(db: Session) -> tuple[str, str | None]:
-    """Return (effective_policy, v2_blocked_reason). Falls back to v1 when v2 snapshots are incomplete."""
+    """Return (effective_policy, v2_blocked_reason).
+
+    Effective v2 requires configured v2, a sealed activation, and complete
+    protected-cohort grandfather floors. Otherwise fail closed to v1.
+    """
     from app.services.skill_progression_policy import configured_skill_progression_policy as configured_now
 
     configured = configured_now()

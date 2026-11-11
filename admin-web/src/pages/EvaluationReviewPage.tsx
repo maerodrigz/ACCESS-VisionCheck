@@ -8,7 +8,7 @@ import {
   updateEvaluationRemarks,
 } from '../api/admin'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
 import { EvaluationDetailDrawer } from '../components/evaluation-review/EvaluationDetailDrawer'
 import { EvaluationsTable } from '../components/evaluation-review/EvaluationsTable'
 import { PageLoader } from '../components/PageLoader'
@@ -138,9 +138,10 @@ export function EvaluationReviewPage() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <AdminFeatureHeader
+        icon={ClipboardCheck}
         title="Evaluation Review"
-        subtitle="Score and notes for member uploads. Use Media Integrity when AI flags an upload."
+        description="Score and notes for member uploads. Use Media Integrity when AI flags an upload."
         backTo="/"
         actions={<PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />}
       />

@@ -1,0 +1,6 @@
+rater_id,calibration_pack_id,session_date,criterion,mean_pairwise_within1,off_by_ge2_count,pass_fail,notes
+R1,FCCAL-2026xxxx,YYYY-MM-DD,sharpness,,,pending,fill after independent practice
+R1,FCCAL-2026xxxx,YYYY-MM-DD,blur,,,pending,
+R1,FCCAL-2026xxxx,YYYY-MM-DD,brightness,,,pending,emphasize under vs over
+R1,FCCAL-2026xxxx,YYYY-MM-DD,contrast,,,pending,
+R1,FCCAL-2026xxxx,YYYY-MM-DD,blocking_artifacts,,,pending,emphasize blocks vs grain

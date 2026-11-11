@@ -22,7 +22,14 @@ void main() {
     expect(find.text('ACCESS'), findsOneWidget);
     expect(find.text('VisionCheck'), findsOneWidget);
     expect(find.text(AppConstants.tagline), findsOneWidget);
-    expect(find.text(AppConstants.organization), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(AppConstants.organization),
+      findsOneWidget,
+    );
+    expect(
+      find.image(const AssetImage('assets/images/ustp-logo.png')),
+      findsOneWidget,
+    );
     expect(find.bySemanticsLabel('Loading'), findsOneWidget);
   });
 }

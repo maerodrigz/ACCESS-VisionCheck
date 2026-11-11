@@ -259,6 +259,17 @@ When you hit a new bug:
 
 ---
 
+## Incident 15: v2 activation seal TOCTOU vs Member approval
+
+| | |
+|---|---|
+| **Symptom** | Staging concurrency check: Member approved after under-lock `plan_seal()` and before seal `UPDATE` was omitted from the sealed cohort while seal still succeeded. |
+| **Cause** | `apply_seal` only `FOR UPDATE`’d the activation row; approval CRUD did not share that lock, so approval could commit in the validation→UPDATE gap. |
+| **Fix** | Shared `pg_advisory_xact_lock` in `skill_progression_activation_coord`; acquired by Member approval paths and by `apply_seal` before revalidate+UPDATE (no internal commit). |
+| **Prevention** | Run `tests/test_skill_progression_v2_seal_concurrency.py` on `access_waverep_test`. Do not approve Members by assigning `user.status` outside CRUD during a seal window. |
+
+---
+
 ## Database reminders
 
 - Database name: **`access`** (PostgreSQL on `localhost:5432`)

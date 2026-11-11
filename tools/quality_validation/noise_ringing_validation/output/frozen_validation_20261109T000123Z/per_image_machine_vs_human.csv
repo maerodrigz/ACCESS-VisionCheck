@@ -1,0 +1,16 @@
+media_id,human_noise_median,human_ringing_median,C-prod_available,C-prod_noise,C-prod_ringing,C-prod_reason,C-v2_available,C-v2_noise,C-v2_ringing,C-v2_reason,C-combined_available,C-combined_noise,C-combined_ringing,C-combined_reason,C-combined_note
+NR001,4.0,4.0,True,4,3,,True,5,5,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR002,5.0,5.0,True,3,4,,True,5,4,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR003,5.0,4.0,True,4,3,,True,5,4,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR004,2.0,2.0,True,4,3,,True,5,4,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR005,5.0,5.0,True,4,3,,True,4,2,,True,4,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR006,4.0,4.0,True,4,3,,True,5,4,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR007,4.0,4.0,True,4,3,,True,3,4,,True,3,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR008,5.0,5.0,True,4,3,,True,5,5,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR009,4.0,4.0,True,4,3,,True,5,4,,True,5,3,,Noise=v2; Ringing=v3 inside combined_v1
+NR010,5.0,5.0,True,4,3,,True,5,3,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR011,4.0,4.0,True,4,3,,True,5,4,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR012,5.0,5.0,True,4,3,,True,5,4,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR013,4.0,4.0,True,4,3,,True,5,4,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR014,4.0,2.0,True,3,4,,True,5,3,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1
+NR015,4.0,3.0,True,4,3,,True,5,4,,True,5,1,,Noise=v2; Ringing=v3 inside combined_v1

@@ -8,15 +8,20 @@ import 'package:access_mobile/mobile_app/sheets/event_detail_sheet.dart';
 import 'package:access_mobile/mobile_app/widgets/gallery_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_announcements.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
-import 'package:access_mobile/mobile_app/widgets/member_skill_progress_section.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_requestor_feedback.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 
 const _horizontalPad = 18.0;
+const _kHomeNavy = Color(0xFF103E56);
+const _kHomeMuted = Color(0xFF617F91);
+const _kHomeCardBorder = Color(0xFFD0EBF5);
+const _kHomeCardRadius = 15.0;
+const _kSectionGap = 12.0;
+const _kHomeCameraAsset = 'assets/images/requestor_greeting_illustration.png';
 
-/// Member home — dashboard with cyan hero (sign-in header) and white content sheet.
+/// Member home — transparent brand bar + Phase 2 upper content over global sky bg.
 class MemberHomeDashboard extends StatelessWidget {
   const MemberHomeDashboard({
     super.key,
@@ -24,6 +29,7 @@ class MemberHomeDashboard extends StatelessWidget {
     this.userName = '',
     this.onLogout,
     this.onViewPortfolio,
+    this.onViewAllRecentUploads,
     this.onViewEventGallery,
     this.onViewCalendar,
     this.onViewRankings,
@@ -37,6 +43,8 @@ class MemberHomeDashboard extends StatelessWidget {
   final String userName;
   final VoidCallback? onLogout;
   final VoidCallback? onViewPortfolio;
+  /// Recent Uploads → View All → Media Evaluation / All Evaluations.
+  final VoidCallback? onViewAllRecentUploads;
   final VoidCallback? onViewEventGallery;
   final VoidCallback? onViewCalendar;
   final VoidCallback? onViewRankings;
@@ -90,13 +98,13 @@ class MemberHomeDashboard extends StatelessWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([appState, memberDataController]),
       builder: (context, _) {
-        final assignment = memberActiveAssignment();
+        final assignment = memberNextAssignment();
         final taskCount = _activeTaskCount();
         final uploads = _uploadCount();
         final aiScore = _aiQualityScore();
 
         return ColoredBox(
-          color: kBg,
+          color: Colors.transparent,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -106,20 +114,21 @@ class MemberHomeDashboard extends StatelessWidget {
                   color: kCyan,
                   backgroundColor: Color(0xFF1E293B),
                 ),
-              _HomeDarkHero(
-                userName: userName,
-                onNotifications: onViewNotifications,
-                onProfileTap: onProfileTap,
-                assignment: assignment,
-                taskCount: taskCount,
-                uploadCount: uploads,
-                aiScore: aiScore,
-                onEventTap: assignment != null
-                    ? () => _openAssignment(context, assignment)
-                    : onViewCalendar,
-                onTasksTap: () => _openAllTasks(context),
-                onUploadsTap: onViewEventGallery,
-                onAiScoreTap: onViewPortfolio,
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _horizontalPad,
+                    0,
+                    _horizontalPad,
+                    4,
+                  ),
+                  child: _HomeTopBar(
+                    userName: userName,
+                    onNotifications: onViewNotifications,
+                    onProfileTap: onProfileTap,
+                  ),
+                ),
               ),
               Expanded(
                 child: RefreshIndicator(
@@ -131,37 +140,66 @@ class MemberHomeDashboard extends StatelessWidget {
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
                     ),
-                    padding: const EdgeInsets.fromLTRB(_horizontalPad, 18, _horizontalPad, 32),
+                    padding: const EdgeInsets.fromLTRB(
+                      0,
+                      0,
+                      0,
+                      28,
+                    ),
                     children: [
-                      if (_shouldShowGettingStarted())
-                        _MemberGettingStartedCard(
-                          onStartPractice: onViewPortfolio,
-                          onViewAssignments: () => _openAllTasks(context),
-                        ),
-                      if (_shouldShowGettingStarted()) const SizedBox(height: 20),
-                      _HomeMyTasksSection(
-                        onViewAll: () => _openAllTasks(context),
-                        onViewCalendar: onViewCalendar,
-                        onOpenTask: (task) => _openTask(context, task),
+                      _HomeUpperContent(
+                        assignment: assignment,
+                        taskCount: taskCount,
+                        uploadCount: uploads,
+                        aiScore: aiScore,
+                        onEventTap: assignment != null
+                            ? () => _openAssignment(context, assignment)
+                            : onViewCalendar,
+                        onTasksTap: () => _openAllTasks(context),
+                        onUploadsTap: onViewEventGallery,
+                        onAiScoreTap: onViewPortfolio,
                       ),
-                      const SizedBox(height: 24),
-                      _HomeRecentUploadsSection(
-                        onViewEventGallery: onViewEventGallery,
-                        onViewPortfolio: onViewPortfolio,
-                      ),
-                      const SizedBox(height: 22),
-                      _HomeAiEvaluationCard(onOpen: onViewPortfolio),
-                      const SizedBox(height: 22),
-                      if (onViewAllRequestorFeedback != null)
-                        MemberDashboardRequestorFeedbackSection(
-                          onViewAll: onViewAllRequestorFeedback!,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          _horizontalPad,
+                          12,
+                          _horizontalPad,
+                          0,
                         ),
-                      if (onViewAllRequestorFeedback != null) const SizedBox(height: 22),
-                      _HomeSkillProgressSection(onViewRankings: onViewRankings),
-                      const SizedBox(height: 16),
-                      const MemberSkillProgressSection(compact: true),
-                      const SizedBox(height: 22),
-                      const _HomeAnnouncementsSection(),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_shouldShowGettingStarted())
+                              _MemberGettingStartedCard(
+                                onStartPractice: onViewPortfolio,
+                                onViewAssignments: () => _openAllTasks(context),
+                              ),
+                            if (_shouldShowGettingStarted())
+                              const SizedBox(height: _kSectionGap),
+                            _HomeMyTasksSection(
+                              onViewAll: () => _openAllTasks(context),
+                              onViewCalendar: onViewCalendar,
+                              onOpenTask: (task) => _openTask(context, task),
+                            ),
+                            const SizedBox(height: _kSectionGap),
+                            _HomeRecentUploadsSection(
+                              onViewEventGallery: onViewEventGallery,
+                              onViewPortfolio: onViewPortfolio,
+                              onViewAllRecentUploads: onViewAllRecentUploads,
+                            ),
+                            const SizedBox(height: _kSectionGap),
+                            _HomeAiEvaluationCard(onOpen: onViewPortfolio),
+                            const SizedBox(height: _kSectionGap),
+                            _HomeSkillFeedbackPair(
+                              onViewRankings: onViewRankings,
+                              onViewAllFeedback: onViewAllRequestorFeedback,
+                            ),
+                            const SizedBox(height: _kSectionGap),
+                            const _HomeAnnouncementsSection(),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -210,13 +248,10 @@ class MemberHomeDashboard extends StatelessWidget {
   }
 }
 
-// ── Dark hero ─────────────────────────────────────────────────────────────────
+// ── Phase 2 upper content (greeting / camera / assignment / stats) ────────────
 
-class _HomeDarkHero extends StatelessWidget {
-  const _HomeDarkHero({
-    required this.userName,
-    this.onNotifications,
-    this.onProfileTap,
+class _HomeUpperContent extends StatelessWidget {
+  const _HomeUpperContent({
     this.assignment,
     required this.taskCount,
     required this.uploadCount,
@@ -227,9 +262,6 @@ class _HomeDarkHero extends StatelessWidget {
     this.onAiScoreTap,
   });
 
-  final String userName;
-  final VoidCallback? onNotifications;
-  final VoidCallback? onProfileTap;
   final Challenge? assignment;
   final int taskCount;
   final int uploadCount;
@@ -241,61 +273,97 @@ class _HomeDarkHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: kMemberDashboardHeroGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroBottomRadius),
-        ),
+    final narrow = MediaQuery.sizeOf(context).width < 360;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        _horizontalPad,
+        narrow ? 4 : 6,
+        _horizontalPad,
+        narrow ? 10 : 12,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(_horizontalPad, 0, _horizontalPad, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _HomeGreetingRow(narrow: narrow),
+          SizedBox(height: narrow ? 10 : 12),
+          _HomeNextAssignmentCard(
+            assignment: assignment,
+            onTap: onEventTap,
+          ),
+          SizedBox(height: narrow ? 8 : 10),
+          _HomeCompactStatsRow(
+            taskCount: taskCount,
+            uploadCount: uploadCount,
+            aiScore: aiScore,
+            onTasksTap: onTasksTap,
+            onUploadsTap: onUploadsTap,
+            onAiScoreTap: onAiScoreTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeGreetingRow extends StatelessWidget {
+  const _HomeGreetingRow({required this.narrow});
+
+  final bool narrow;
+
+  @override
+  Widget build(BuildContext context) {
+    final cameraWidth = narrow ? 92.0 : 108.0;
+    final cameraHeight = narrow ? 72.0 : 84.0;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HomeTopBar(
-                userName: userName,
-                onNotifications: onNotifications,
-                onProfileTap: onProfileTap,
-              ),
-              const SizedBox(height: 8),
               Text(
                 '${memberDashboardGreeting()}, ${memberDashboardFirstName()}!',
-                style: memberCyanHeroTitleTextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Here\'s what\'s happening with your documentation today.',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: memberCyanHeroSubtitleTextStyle(
-                  fontSize: 12,
+                style: dashText(TextStyle(
+                  color: _kHomeNavy,
+                  fontSize: narrow ? 20 : 22,
+                  fontWeight: FontWeight.w700,
+                  height: 1.15,
+                  letterSpacing: -0.3,
+                )),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Here\'s your documentation overview.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: dashText(TextStyle(
+                  color: _kHomeMuted,
+                  fontSize: narrow ? 12.5 : 13.5,
                   fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _HomeFeaturedEventCard(
-                assignment: assignment,
-                onTap: onEventTap,
-              ),
-              const SizedBox(height: 12),
-              _HomeHeroStats(
-                taskCount: taskCount,
-                uploadCount: uploadCount,
-                aiScore: aiScore,
-                onTasksTap: onTasksTap,
-                onUploadsTap: onUploadsTap,
-                onAiScoreTap: onAiScoreTap,
+                  height: 1.25,
+                )),
               ),
             ],
           ),
         ),
-      ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: cameraWidth,
+          height: cameraHeight,
+          child: Image.asset(
+            _kHomeCameraAsset,
+            fit: BoxFit.contain,
+            alignment: Alignment.centerRight,
+            filterQuality: FilterQuality.high,
+            gaplessPlayback: true,
+            excludeFromSemantics: true,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -336,7 +404,7 @@ class _HomeTopBar extends StatelessWidget {
               child: AccessBrandLockup(
                 markSize: 38,
                 compact: true,
-                onCyanHeader: true,
+                lightBackground: true,
               ),
             ),
             _HeroIconButton(
@@ -390,16 +458,18 @@ class _HeroIconButton extends StatelessWidget {
                   width: _buttonSize,
                   height: _buttonSize,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: kCyan.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.18),
+                      color: kCyan.withValues(alpha: 0.22),
                     ),
                   ),
                   child: Icon(
                     icon,
-                    color: Colors.white.withValues(alpha: 0.95),
-                    size: 24,
+                    color: badgeCount > 0
+                        ? kTextPrimary
+                        : kTextSecondary,
+                    size: 22,
                   ),
                 ),
                 if (badgeCount > 0)
@@ -410,9 +480,9 @@ class _HeroIconButton extends StatelessWidget {
                       constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
                       padding: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
-                        color: kDashStatPurpleIcon,
+                        color: const Color(0xFF139CD9),
                         shape: BoxShape.circle,
-                        border: Border.all(color: kMemberCyanHeroBadgeRing, width: 1.2),
+                        border: Border.all(color: kSurface, width: 1.2),
                       ),
                       child: Center(
                         child: Text(
@@ -468,14 +538,10 @@ class _HeroProfileAvatar extends StatelessWidget {
                   height: _avatarSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    border: Border.all(
+                      color: kCyan.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
                   ),
                   child: ClipOval(
                     child: imageUrl != null && imageUrl!.isNotEmpty
@@ -484,7 +550,8 @@ class _HeroProfileAvatar extends StatelessWidget {
                             fit: BoxFit.cover,
                             width: _avatarSize,
                             height: _avatarSize,
-                            errorBuilder: (_, __, ___) => _InitialsBadge(initials: initials),
+                            errorBuilder: (_, __, ___) =>
+                                _InitialsBadge(initials: initials),
                           )
                         : _InitialsBadge(initials: initials),
                   ),
@@ -498,7 +565,7 @@ class _HeroProfileAvatar extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: kGreen,
                       shape: BoxShape.circle,
-                      border: Border.all(color: kMemberCyanHeroBadgeRing, width: 1.4),
+                      border: Border.all(color: kSurface, width: 1.4),
                     ),
                   ),
                 ),
@@ -519,12 +586,12 @@ class _InitialsBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kCyan.withValues(alpha: 0.2),
+      color: kCyan.withValues(alpha: 0.12),
       child: Center(
         child: Text(
           initials,
           style: const TextStyle(
-            color: Colors.white,
+            color: kTextPrimary,
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),
@@ -534,8 +601,8 @@ class _InitialsBadge extends StatelessWidget {
   }
 }
 
-class _HomeFeaturedEventCard extends StatelessWidget {
-  const _HomeFeaturedEventCard({
+class _HomeNextAssignmentCard extends StatelessWidget {
+  const _HomeNextAssignmentCard({
     this.assignment,
     this.onTap,
   });
@@ -543,149 +610,185 @@ class _HomeFeaturedEventCard extends StatelessWidget {
   final Challenge? assignment;
   final VoidCallback? onTap;
 
-  Widget _statusPill(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
-        style: dashText(const TextStyle(
-          color: Colors.white,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-        )),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final narrow = MediaQuery.sizeOf(context).width < 380;
+    final narrow = MediaQuery.sizeOf(context).width < 360;
     final hasEvent = assignment != null;
-    final title = hasEvent ? assignment!.title : 'No upcoming event';
-    final schedule =
-        hasEvent ? memberAssignmentScheduleLine(assignment!) : 'Check the calendar';
-    final venue = hasEvent ? (assignment!.venue?.trim() ?? '') : '';
     final statusBadge = hasEvent
         ? memberAssignmentStatusBadge(assignment!.status)
-        : (label: 'Browse', color: Colors.white, bg: Colors.transparent);
+        : null;
+    final date = hasEvent ? (assignment!.eventDate?.trim() ?? '') : '';
+    final time = hasEvent
+        ? (assignment!.eventTimeRange?.trim().isNotEmpty == true
+            ? assignment!.eventTimeRange!.trim()
+            : (assignment!.eventTime?.trim() ?? ''))
+        : '';
+    final venue = hasEvent ? (assignment!.venue?.trim() ?? '') : '';
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(_kHomeCardRadius),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: kMemberBrandAccentGradient,
-            borderRadius: BorderRadius.circular(16),
+            color: kSurface,
+            borderRadius: BorderRadius.circular(_kHomeCardRadius),
+            border: Border.all(color: _kHomeCardBorder),
             boxShadow: [
               BoxShadow(
-                color: kCyan.withValues(alpha: 0.22),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+                color: kCyan.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.fromLTRB(
+              narrow ? 11 : 12,
+              narrow ? 9 : 10,
+              narrow ? 6 : 8,
+              narrow ? 9 : 10,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    color: kCyan.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: kCyan.withValues(alpha: 0.22)),
                   ),
                   child: Icon(
-                    hasEvent ? Icons.calendar_today_outlined : Icons.calendar_month_outlined,
-                    color: Colors.white,
-                    size: 20,
+                    hasEvent
+                        ? Icons.calendar_today_outlined
+                        : Icons.event_available_outlined,
+                    color: kCyan,
+                    size: 16,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 9),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        hasEvent ? 'Upcoming Event' : 'Calendar',
-                        style: dashText(TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
+                        'My Next Assignment',
+                        style: dashText(const TextStyle(
+                          color: _kHomeMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          height: 1.1,
                         )),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        title,
+                        hasEvent
+                            ? assignment!.title
+                            : 'No upcoming assignment',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: dashText(const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          height: 1.22,
-                        )),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        schedule,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: dashText(TextStyle(
-                          color: Colors.white.withValues(alpha: 0.88),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                          color: _kHomeNavy,
+                          fontSize: narrow ? 13.5 : 14,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
                         )),
                       ),
-                      if (venue.isNotEmpty) ...[
-                        const SizedBox(height: 2),
+                      if (hasEvent) ...[
+                        if (date.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            date,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: dashText(const TextStyle(
+                              color: _kHomeMuted,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              height: 1.2,
+                            )),
+                          ),
+                        ],
+                        if (time.isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            time,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: dashText(const TextStyle(
+                              color: _kHomeMuted,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              height: 1.2,
+                            )),
+                          ),
+                        ],
+                        if (venue.isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            venue,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: dashText(const TextStyle(
+                              color: _kHomeMuted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              height: 1.2,
+                            )),
+                          ),
+                        ],
+                      ] else ...[
+                        const SizedBox(height: 3),
                         Text(
-                          venue,
-                          maxLines: 1,
+                          'Check the calendar for new documentation tasks.',
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: dashText(TextStyle(
-                            color: Colors.white.withValues(alpha: 0.75),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w400,
+                          style: dashText(const TextStyle(
+                            color: _kHomeMuted,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            height: 1.25,
                           )),
-                        ),
-                      ],
-                      if (narrow && hasEvent) ...[
-                        const SizedBox(height: 6),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: _statusPill(statusBadge.label),
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (!narrow || !hasEvent)
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 92),
-                        child: _statusPill(statusBadge.label),
+                    if (statusBadge != null)
+                      Container(
+                        constraints: const BoxConstraints(maxWidth: 84),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusBadge.bg,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          statusBadge.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: dashText(TextStyle(
+                            color: statusBadge.color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          )),
+                        ),
                       ),
-                    if (!narrow || !hasEvent) const SizedBox(height: 6),
+                    const SizedBox(height: 6),
                     Icon(
                       Icons.chevron_right_rounded,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: _kHomeMuted.withValues(alpha: 0.85),
                       size: 18,
                     ),
                   ],
@@ -699,8 +802,8 @@ class _HomeFeaturedEventCard extends StatelessWidget {
   }
 }
 
-class _HomeHeroStats extends StatelessWidget {
-  const _HomeHeroStats({
+class _HomeCompactStatsRow extends StatelessWidget {
+  const _HomeCompactStatsRow({
     required this.taskCount,
     required this.uploadCount,
     required this.aiScore,
@@ -718,133 +821,103 @@ class _HomeHeroStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 380;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A1628).withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kCyan.withValues(alpha: 0.32)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _HeroStatCell(
-                icon: Icons.calendar_today_outlined,
-                value: '$taskCount',
-                label: 'My Tasks',
-                compact: compact,
-                onTap: onTasksTap,
-              ),
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _HomeCompactStatCard(
+              icon: Icons.assignment_outlined,
+              value: '$taskCount',
+              label: 'My Tasks',
+              onTap: onTasksTap,
             ),
-            _heroStatDivider,
-            Expanded(
-              child: _HeroStatCell(
-                icon: Icons.photo_outlined,
-                value: '$uploadCount',
-                label: 'My Uploads',
-                compact: compact,
-                onTap: onUploadsTap,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _HomeCompactStatCard(
+              icon: Icons.photo_outlined,
+              value: '$uploadCount',
+              label: 'Uploads',
+              onTap: onUploadsTap,
             ),
-            _heroStatDivider,
-            Expanded(
-              child: _HeroStatCell(
-                icon: Icons.star_outline_rounded,
-                value: aiScore,
-                label: compact ? 'Avg. Quality' : 'Avg. Quality Score',
-                compact: compact,
-                onTap: onAiScoreTap,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _HomeCompactStatCard(
+              icon: Icons.star_outline_rounded,
+              value: aiScore,
+              label: 'Avg. Quality',
+              onTap: onAiScoreTap,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-
-  static final _heroStatDivider = VerticalDivider(
-    width: 1,
-    thickness: 1,
-    indent: 12,
-    endIndent: 12,
-    color: kCyan.withValues(alpha: 0.22),
-  );
 }
 
-class _HeroStatCell extends StatelessWidget {
-  const _HeroStatCell({
+class _HomeCompactStatCard extends StatelessWidget {
+  const _HomeCompactStatCard({
     required this.icon,
     required this.value,
     required this.label,
-    this.compact = false,
     this.onTap,
   });
 
   final IconData icon;
   final String value;
   final String label;
-  final bool compact;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final child = Padding(
-      padding: EdgeInsets.fromLTRB(compact ? 5 : 7, 10, compact ? 4 : 5, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+    final narrow = MediaQuery.sizeOf(context).width < 360;
+
+    final child = Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: narrow ? 8 : 9,
+        vertical: narrow ? 8 : 9,
+      ),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(_kHomeCardRadius),
+        border: Border.all(color: _kHomeCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: compact ? 16 : 17,
-            color: kCyan.withValues(alpha: 0.92),
-          ),
-          SizedBox(width: compact ? 4 : 5),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    style: dashText(TextStyle(
-                      color: Colors.white,
-                      fontSize: compact ? 16 : 18,
-                      fontWeight: FontWeight.w700,
-                      height: 1.05,
-                      letterSpacing: -0.2,
-                    )),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: dashText(TextStyle(
-                    color: Colors.white.withValues(alpha: 0.58),
-                    fontSize: compact ? 8.5 : 9,
-                    fontWeight: FontWeight.w500,
-                    height: 1.12,
-                  )),
-                ),
-              ],
+          Icon(icon, size: narrow ? 16 : 17, color: kCyan),
+          SizedBox(height: narrow ? 6 : 7),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: dashText(TextStyle(
+                color: _kHomeNavy,
+                fontSize: narrow ? 20 : 21,
+                fontWeight: FontWeight.w800,
+                height: 1.05,
+                letterSpacing: -0.3,
+              )),
             ),
           ),
-          if (!compact)
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 15,
-              color: kCyan.withValues(alpha: 0.75),
-            ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: dashText(TextStyle(
+              color: _kHomeMuted,
+              fontSize: narrow ? 11 : 11.5,
+              fontWeight: FontWeight.w500,
+              height: 1.15,
+            )),
+          ),
         ],
       ),
     );
@@ -854,8 +927,7 @@ class _HeroStatCell extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        splashColor: kCyan.withValues(alpha: 0.08),
-        highlightColor: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(_kHomeCardRadius),
         child: child,
       ),
     );
@@ -895,14 +967,14 @@ class _HomeMyTasksSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.event_available_outlined, size: 20, color: kAccent),
-            const SizedBox(width: 8),
+            const Icon(Icons.event_available_outlined, size: 18, color: kCyan),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'My Tasks',
                 style: dashText(const TextStyle(
-                  color: kTextPrimary,
-                  fontSize: 16,
+                  color: _kHomeNavy,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   height: 1.2,
                 )),
@@ -911,7 +983,7 @@ class _HomeMyTasksSection extends StatelessWidget {
             TextButton(
               onPressed: onViewAll,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -920,19 +992,19 @@ class _HomeMyTasksSection extends StatelessWidget {
                 style: dashText(const TextStyle(
                   color: kAccent,
                   fontWeight: FontWeight.w700,
-                  fontSize: 13,
+                  fontSize: 12,
                 )),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         if (tasks.isEmpty)
           _HomeEmptyTasksCard(onViewCalendar: onViewCalendar)
         else
           ...tasks.map(
             (task) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 8),
               child: _HomeTaskRow(
                 task: task,
                 onTap: onOpenTask != null ? () => onOpenTask!(task) : null,
@@ -1037,7 +1109,7 @@ class _HomeTaskRow extends StatelessWidget {
 
     return Material(
       color: kSurface,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(_kHomeCardRadius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap ??
@@ -1049,30 +1121,30 @@ class _HomeTaskRow extends StatelessWidget {
             },
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: kBorder),
+            borderRadius: BorderRadius.circular(_kHomeCardRadius),
+            border: Border.all(color: _kHomeCardBorder),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
+                color: kCyan.withValues(alpha: 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
             child: Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: visual.bg,
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(visual.icon, color: visual.color, size: 20),
+                  child: Icon(visual.icon, color: visual.color, size: 17),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 9),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1095,9 +1167,9 @@ class _HomeTaskRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 92),
+                  constraints: const BoxConstraints(maxWidth: 88),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
                       color: status.bg,
                       borderRadius: BorderRadius.circular(999),
@@ -1116,7 +1188,7 @@ class _HomeTaskRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 2),
-                Icon(Icons.chevron_right_rounded, color: kTextSecondary, size: 18),
+                Icon(Icons.chevron_right_rounded, color: kTextSecondary, size: 17),
               ],
             ),
           ),
@@ -1126,22 +1198,23 @@ class _HomeTaskRow extends StatelessWidget {
   }
 }
 
-// ── Recent Uploads ────────────────────────────────────────────────────────────
+// ── Phase 5: Recent Uploads + Media Evaluation CTA ────────────────────────────
 
 class _HomeRecentUploadsSection extends StatelessWidget {
   const _HomeRecentUploadsSection({
     this.onViewEventGallery,
     this.onViewPortfolio,
+    this.onViewAllRecentUploads,
   });
 
   final VoidCallback? onViewEventGallery;
   final VoidCallback? onViewPortfolio;
+  final VoidCallback? onViewAllRecentUploads;
 
-  static const _tileWidth = 118.0;
-  static const _thumbSize = 118.0;
-  static const _textBlockHeight = 44.0;
-  static const _tileHeight = _thumbSize + 6 + _textBlockHeight;
   static const _maxRecent = 12;
+  static const _viewportThumbs = 3;
+  static const _thumbGap = 8.0;
+  static const _thumbRadius = 12.0;
 
   @override
   Widget build(BuildContext context) {
@@ -1151,136 +1224,160 @@ class _HomeRecentUploadsSection extends StatelessWidget {
         final recent = appState.gallery.take(_maxRecent).toList();
         final isLoading =
             memberDataController.evaluationsTabLoading && recent.isEmpty;
+        // Practice uploads belong on Media Evaluation → All Evaluations (not Gallery).
+        final viewAll =
+            onViewAllRecentUploads ?? onViewPortfolio ?? onViewEventGallery;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.photo_library_outlined, size: 20, color: kGreen),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Recent Uploads',
-                    style: dashText(const TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                    )),
-                  ),
-                ),
-                TextButton(
-                  onPressed: onViewPortfolio,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    'View Evaluation',
-                    style: dashText(const TextStyle(
-                      color: kAccent,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    )),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (isLoading)
-              SizedBox(
-                height: _tileHeight,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  primary: false,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: 3,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, __) => const SizedBox(
-                    width: _tileWidth,
-                    child: _HomeUploadSkeletonTile(),
-                  ),
-                ),
-              )
-            else if (recent.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: kSurface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: kBorder),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.photo_camera_outlined, size: 28, color: kAccent.withValues(alpha: 0.65)),
-                    const SizedBox(height: 8),
-                    Text(
-                      'No practice uploads yet',
-                      style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(_kHomeCardRadius),
+            border: Border.all(color: _kHomeCardBorder),
+            boxShadow: [
+              BoxShadow(
+                color: kCyan.withValues(alpha: 0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.photo_library_outlined, size: 17, color: kCyan),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Recent Uploads',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: dashText(const TextStyle(
+                        color: _kHomeNavy,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        height: 1.15,
+                      )),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Run an AI evaluation to build your portfolio.',
-                      textAlign: TextAlign.center,
-                      style: memberDashboardBodyStyle.copyWith(fontSize: 12),
-                    ),
-                    if (onViewPortfolio != null) ...[
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: onViewPortfolio,
-                          icon: const Icon(Icons.analytics_outlined, size: 18),
-                          label: const Text('Start Evaluation'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: kMemberButtonPrimary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(42),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
+                  ),
+                  if (viewAll != null)
+                    TextButton(
+                      onPressed: viewAll,
+                      style: TextButton.styleFrom(
+                        foregroundColor: kAccent,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        minimumSize: const Size(40, 34),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                    ],
-                  ],
-                ),
-              )
-            else
-              SizedBox(
-                height: _tileHeight,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  primary: false,
-                  clipBehavior: Clip.none,
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
-                  ),
-                  itemCount: recent.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, index) {
-                    final item = recent[index];
+                      child: Text(
+                        'View All',
+                        style: dashText(const TextStyle(
+                          color: kAccent,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        )),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (isLoading)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final thumb = _thumbSizeFor(constraints.maxWidth);
                     return SizedBox(
-                      width: _tileWidth,
-                      child: _HomeUploadTile(
-                        item: item,
-                        onTap: () => MemberHomeDashboard._openGalleryItem(
-                          context,
-                          item,
-                          onViewPortfolio: onViewPortfolio,
-                          onViewEventGallery: onViewEventGallery,
+                      height: thumb,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        primary: false,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: _viewportThumbs,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(width: _thumbGap),
+                        itemBuilder: (_, __) =>
+                            _HomeUploadSkeletonTile(size: thumb),
+                      ),
+                    );
+                  },
+                )
+              else if (recent.isEmpty)
+                const _HomeEmptyUploadsBody()
+              else
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final thumb = _thumbSizeFor(constraints.maxWidth);
+                    return SizedBox(
+                      height: thumb,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        primary: false,
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
                         ),
+                        itemCount: recent.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(width: _thumbGap),
+                        itemBuilder: (_, index) {
+                          final item = recent[index];
+                          return _HomeUploadTile(
+                            item: item,
+                            size: thumb,
+                            onTap: () => MemberHomeDashboard._openGalleryItem(
+                              context,
+                              item,
+                              onViewPortfolio: onViewPortfolio,
+                              onViewEventGallery: onViewEventGallery,
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
                 ),
-              ),
-          ],
+            ],
+          ),
         );
       },
+    );
+  }
+
+  /// Fit about [_viewportThumbs] squares in the card width on X695-class phones.
+  static double _thumbSizeFor(double maxWidth) {
+    final raw =
+        (maxWidth - _thumbGap * (_viewportThumbs - 1)) / _viewportThumbs;
+    return raw.clamp(78.0, 100.0);
+  }
+}
+
+class _HomeEmptyUploadsBody extends StatelessWidget {
+  const _HomeEmptyUploadsBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.photo_camera_outlined,
+          size: 18,
+          color: _kHomeMuted.withValues(alpha: 0.9),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'No practice uploads yet.',
+            style: dashText(const TextStyle(
+              color: _kHomeMuted,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            )),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1288,91 +1385,54 @@ class _HomeRecentUploadsSection extends StatelessWidget {
 class _HomeUploadTile extends StatelessWidget {
   const _HomeUploadTile({
     required this.item,
+    required this.size,
     this.onTap,
   });
 
   final GalleryItem item;
+  final double size;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final eventLabel = eventNameForUpload(item).trim();
-    final title = eventLabel.isNotEmpty ? eventLabel : item.title.trim();
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(_HomeRecentUploadsSection._thumbRadius),
         child: SizedBox(
-          width: _HomeRecentUploadsSection._tileWidth,
-          height: _HomeRecentUploadsSection._tileHeight,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: _HomeRecentUploadsSection._thumbSize,
-                height: _HomeRecentUploadsSection._thumbSize,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _HomeUploadImage(item: item),
-                      if (item.isVideo)
-                        Center(
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.35),
-                                width: 1,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                height: _HomeRecentUploadsSection._textBlockHeight,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Text(
-                          title.isNotEmpty ? title : 'Upload',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: memberDashboardCardTitleStyle.copyWith(
-                            fontSize: 11,
-                            height: 1.22,
-                          ),
+          width: size,
+          height: size,
+          child: ClipRRect(
+            borderRadius:
+                BorderRadius.circular(_HomeRecentUploadsSection._thumbRadius),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _HomeUploadImage(item: item),
+                if (item.isVideo)
+                  Center(
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.48),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.35),
+                          width: 1,
                         ),
                       ),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
-                    Text(
-                      item.date,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: memberDashboardMetaStyle.copyWith(fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1381,45 +1441,21 @@ class _HomeUploadTile extends StatelessWidget {
 }
 
 class _HomeUploadSkeletonTile extends StatelessWidget {
-  const _HomeUploadSkeletonTile();
+  const _HomeUploadSkeletonTile({required this.size});
+
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: _HomeRecentUploadsSection._tileWidth,
-      height: _HomeRecentUploadsSection._tileHeight,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: _HomeRecentUploadsSection._thumbSize,
-            height: _HomeRecentUploadsSection._thumbSize,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: kBorder.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            height: 10,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: kBorder.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            height: 8,
-            width: 48,
-            decoration: BoxDecoration(
-              color: kBorder.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-        ],
+      width: size,
+      height: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _kHomeCardBorder.withValues(alpha: 0.7),
+          borderRadius:
+              BorderRadius.circular(_HomeRecentUploadsSection._thumbRadius),
+        ),
       ),
     );
   }
@@ -1437,7 +1473,7 @@ class _HomeUploadImage extends StatelessWidget {
       isVideo: item.isVideo,
       memoryBytes: item.imageBytes,
       fallbackIconColor: item.color,
-      fallbackIconSize: 24,
+      fallbackIconSize: 22,
     );
   }
 }
@@ -1458,12 +1494,22 @@ class _HomeAiEvaluationCard extends StatelessWidget {
       children: [
         Text(
           'Media Evaluation',
-          style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+          style: dashText(const TextStyle(
+            color: _kHomeNavy,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            height: 1.15,
+          )),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
-          'Get instant feedback on your media quality.',
-          style: memberDashboardBodyStyle.copyWith(fontSize: 12, height: 1.35),
+          'Check your media quality and get instant feedback.',
+          style: dashText(const TextStyle(
+            color: _kHomeMuted,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
+            height: 1.3,
+          )),
         ),
       ],
     );
@@ -1471,11 +1517,11 @@ class _HomeAiEvaluationCard extends StatelessWidget {
     final action = FilledButton(
       onPressed: onOpen,
       style: FilledButton.styleFrom(
-        backgroundColor: kMemberButtonPrimary,
+        backgroundColor: kCyan,
         foregroundColor: Colors.white,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        minimumSize: narrow ? const Size.fromHeight(42) : Size.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        minimumSize: narrow ? const Size.fromHeight(38) : Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
@@ -1488,19 +1534,30 @@ class _HomeAiEvaluationCard extends StatelessWidget {
       child: const Text('Evaluate Media'),
     );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    final icon = Container(
+      width: 34,
+      height: 34,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            kCyan.withValues(alpha: 0.14),
-            kAccent.withValues(alpha: 0.06),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: kCyan.withValues(alpha: 0.28)),
+      ),
+      child: const Icon(Icons.auto_awesome_rounded, color: kCyan, size: 17),
+    );
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      decoration: BoxDecoration(
+        color: kCyanDim,
+        borderRadius: BorderRadius.circular(_kHomeCardRadius),
         border: Border.all(color: kCyan.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: kCyan.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: narrow
           ? Column(
@@ -1509,38 +1566,22 @@ class _HomeAiEvaluationCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: kCyan.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: const Icon(Icons.auto_awesome_outlined, color: kCyan, size: 20),
-                    ),
-                    const SizedBox(width: 12),
+                    icon,
+                    const SizedBox(width: 10),
                     Expanded(child: copy),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 action,
               ],
             )
           : Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: kCyan.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: const Icon(Icons.auto_awesome_outlined, color: kCyan, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: copy),
+                icon,
                 const SizedBox(width: 10),
+                Expanded(child: copy),
+                const SizedBox(width: 8),
                 action,
               ],
             ),
@@ -1566,14 +1607,14 @@ class _HomeAnnouncementsSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.campaign_outlined, size: 20, color: kAccent),
-                const SizedBox(width: 8),
+                const Icon(Icons.campaign_outlined, size: 18, color: kCyan),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Announcements',
                     style: dashText(const TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 16,
+                      color: _kHomeNavy,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
                     )),
@@ -1582,7 +1623,7 @@ class _HomeAnnouncementsSection extends StatelessWidget {
                 TextButton(
                   onPressed: () => showAllAnnouncementsSheet(context),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -1591,21 +1632,21 @@ class _HomeAnnouncementsSection extends StatelessWidget {
                     style: dashText(const TextStyle(
                       color: kAccent,
                       fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontSize: 12,
                     )),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
                 color: kSurface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: kBorder),
+                borderRadius: BorderRadius.circular(_kHomeCardRadius),
+                border: Border.all(color: _kHomeCardBorder),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: kCyan.withValues(alpha: 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1640,43 +1681,43 @@ class _HomeAnnouncementRow extends StatelessWidget {
       child: InkWell(
         onTap: () => showAnnouncementDetailSheet(context, announcement),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
-                  color: kAccent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
+                  color: kCyan.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(Icons.campaign_outlined, color: kAccent, size: 17),
+                child: const Icon(Icons.campaign_outlined, color: kCyan, size: 15),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 9),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(announcement.date, style: memberDashboardMetaStyle.copyWith(fontSize: 10)),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       announcement.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: memberDashboardCardTitleStyle.copyWith(fontSize: 13),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       announcement.preview,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: memberDashboardBodyStyle.copyWith(fontSize: 11, height: 1.35),
+                      style: memberDashboardBodyStyle.copyWith(fontSize: 11, height: 1.3),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, size: 18, color: kTextSecondary.withValues(alpha: 0.7)),
+              Icon(Icons.chevron_right_rounded, size: 17, color: kTextSecondary.withValues(alpha: 0.7)),
             ],
           ),
         ),
@@ -1685,10 +1726,145 @@ class _HomeAnnouncementRow extends StatelessWidget {
   }
 }
 
-// ── Skill / XP progress ───────────────────────────────────────────────────────
+// ── Skill Progress + Requestor Feedback (stacked full-width cards) ────────────
 
-class _HomeSkillProgressSection extends StatelessWidget {
-  const _HomeSkillProgressSection({this.onViewRankings});
+const _kPairNavy = Color(0xFF103E56);
+const _kPairMuted = Color(0xFF617F91);
+const _kPairBorder = Color(0xFFD0EBF5);
+const _kPairRadius = 15.0;
+const _kPairGap = 10.0;
+
+class _HomeSkillFeedbackPair extends StatelessWidget {
+  const _HomeSkillFeedbackPair({
+    this.onViewRankings,
+    this.onViewAllFeedback,
+  });
+
+  final VoidCallback? onViewRankings;
+  final VoidCallback? onViewAllFeedback;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _HomeSkillProgressCard(onViewRankings: onViewRankings),
+        const SizedBox(height: _kPairGap),
+        _HomeRequestorFeedbackCard(onViewAll: onViewAllFeedback),
+      ],
+    );
+  }
+}
+
+class _HomePairCardShell extends StatelessWidget {
+  const _HomePairCardShell({
+    required this.child,
+    this.onTap,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(_kPairRadius),
+        border: Border.all(color: _kPairBorder),
+        boxShadow: [
+          BoxShadow(
+            color: kCyan.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+
+    if (onTap == null) return card;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(_kPairRadius),
+        child: card,
+      ),
+    );
+  }
+}
+
+/// Compact title + cyan action that keeps full headings readable in half-width cards.
+class _HomePairCardHeader extends StatelessWidget {
+  const _HomePairCardHeader({
+    required this.icon,
+    required this.title,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final showAction = actionLabel != null && onAction != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: kCyan),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 2,
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                style: dashText(const TextStyle(
+                  color: _kPairNavy,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
+                )),
+              ),
+            ),
+          ],
+        ),
+        if (showAction)
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: onAction,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 1),
+                child: Text(
+                  actionLabel!,
+                  style: dashText(const TextStyle(
+                    color: kAccent,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
+                    height: 1.1,
+                  )),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _HomeSkillProgressCard extends StatelessWidget {
+  const _HomeSkillProgressCard({this.onViewRankings});
 
   final VoidCallback? onViewRankings;
 
@@ -1710,130 +1886,256 @@ class _HomeSkillProgressSection extends StatelessWidget {
       builder: (context, _) {
         final snapshot = MemberCompetencySnapshot.fromAppState();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.emoji_events_outlined, size: 20, color: kAccent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Skill tier (quality)',
-                    style: dashText(const TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                    )),
-                  ),
-                ),
-                if (onViewRankings != null)
-                  TextButton(
-                    onPressed: onViewRankings,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      'Rankings',
-                      style: dashText(const TextStyle(
-                        color: kAccent,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      )),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onViewRankings,
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: kSurface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: kBorder),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  snapshot.levelName,
-                                  style: memberDashboardCardTitleStyle.copyWith(
-                                    fontSize: 18,
-                                    color: kAccent,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${_formatXp(snapshot.points)} XP',
-                                  style: memberDashboardMetaStyle.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: kTextPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 20,
-                            color: kTextSecondary.withValues(alpha: 0.7),
-                          ),
-                        ],
-                      ),
-                      if (snapshot.progressUsesSkillScore) ...[
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: SizedBox(
-                            height: 8,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                ColoredBox(color: kBorder.withValues(alpha: 0.45)),
-                                FractionallySizedBox(
-                                  alignment: Alignment.centerLeft,
-                                  widthFactor: snapshot.progress.clamp(0.0, 1.0),
-                                  child: const ColoredBox(color: kAccent),
-                                ),
-                              ],
-                            ),
-                          ),
+        return _HomePairCardShell(
+          onTap: onViewRankings,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _HomePairCardHeader(
+                icon: Icons.emoji_events_outlined,
+                title: 'Skill Progress',
+                actionLabel: onViewRankings == null ? null : 'Rankings',
+                onAction: onViewRankings,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                snapshot.levelName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dashText(const TextStyle(
+                  color: kAccent,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                )),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${_formatXp(snapshot.points)} XP',
+                style: dashText(const TextStyle(
+                  color: _kPairNavy,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                )),
+              ),
+              if (snapshot.progressUsesSkillScore) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: SizedBox(
+                    height: 6,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ColoredBox(color: _kPairBorder.withValues(alpha: 0.7)),
+                        FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: snapshot.progress.clamp(0.0, 1.0),
+                          child: const ColoredBox(color: kCyan),
                         ),
                       ],
-                      const SizedBox(height: 8),
-                      Text(
-                        snapshot.progressSubtitle,
-                        style: memberDashboardMetaStyle.copyWith(fontSize: 11),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
+              ],
+              const SizedBox(height: 6),
+              Text(
+                snapshot.progressSubtitle,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: dashText(const TextStyle(
+                  color: _kPairMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  height: 1.28,
+                )),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
+    );
+  }
+}
+
+class _HomeRequestorFeedbackCard extends StatelessWidget {
+  const _HomeRequestorFeedbackCard({this.onViewAll});
+
+  final VoidCallback? onViewAll;
+
+  bool get _isMemberUser =>
+      authController.isLoggedIn &&
+      !(authController.user?.role.isOrganization ?? false);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isMemberUser) {
+      return _HomePairCardShell(
+        child: Text(
+          'Requestor feedback is available for documentation members.',
+          style: dashText(const TextStyle(
+            color: _kPairMuted,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
+            height: 1.3,
+          )),
+        ),
+      );
+    }
+
+    return ListenableBuilder(
+      listenable: memberDataController,
+      builder: (context, _) {
+        final loaded = memberDataController.requestorRatingsLoaded;
+        final loadError = memberDataController.requestorRatingsLoadError;
+        final loading = !loaded &&
+            loadError == null &&
+            (memberDataController.isLoading ||
+                !memberDataController.profileLoadAttempted);
+        final ratings = memberDataController.requestorRatings;
+        final hasFeedback =
+            loaded && memberDataController.requestorRatingCount > 0 && ratings.isNotEmpty;
+
+        return _HomePairCardShell(
+          onTap: onViewAll,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _HomePairCardHeader(
+                icon: Icons.star_rate_rounded,
+                title: 'Requestor Feedback',
+                actionLabel: onViewAll == null ? null : 'View All',
+                onAction: onViewAll,
+              ),
+              const SizedBox(height: 8),
+              if (loading)
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: kCyan,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Loading…',
+                        style: dashText(const TextStyle(
+                          color: _kPairMuted,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        )),
+                      ),
+                    ),
+                  ],
+                )
+              else if (loadError != null && !loaded)
+                Text(
+                  loadError,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: dashText(const TextStyle(
+                    color: kRed,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  )),
+                )
+              else if (!hasFeedback)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 16,
+                      color: _kPairMuted.withValues(alpha: 0.9),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No requestor feedback yet.',
+                        style: dashText(const TextStyle(
+                          color: _kPairMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        )),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                _HomeFeedbackPreview(row: ratings.first),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HomeFeedbackPreview extends StatelessWidget {
+  const _HomeFeedbackPreview({required this.row});
+
+  final Map<String, dynamic> row;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = ((row['rating'] as num?)?.toInt() ?? 0).clamp(0, 5);
+    final eventTitle = (row['event_title'] as String?)?.trim() ?? '';
+    final comment = (row['comment'] as String?)?.trim() ?? '';
+    final dateLabel = formatRequestorFeedbackDate(row['created_at'] as String?);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RequestorFeedbackStarRow(rating: rating, size: 14),
+        if (eventTitle.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            eventTitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: dashText(const TextStyle(
+              color: _kPairNavy,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            )),
+          ),
+        ],
+        if (comment.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            comment,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: dashText(const TextStyle(
+              color: _kPairMuted,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            )),
+          ),
+        ],
+        if (dateLabel.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            dateLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: dashText(TextStyle(
+              color: _kPairMuted.withValues(alpha: 0.9),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+            )),
+          ),
+        ],
+      ],
     );
   }
 }

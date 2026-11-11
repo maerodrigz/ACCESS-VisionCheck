@@ -225,8 +225,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       if (!mounted) return;
-      _initialContact = _contactCtrl.text.trim();
+      final savedContact =
+          (updated['contact_number'] as String?)?.trim() ?? contact;
+      _contactCtrl.text = savedContact;
+      if (_isMember) {
+        _nameCtrl.text = (updated['name'] as String?)?.trim() ?? _nameCtrl.text;
+      }
+      _initialContact = savedContact;
       _initialName = _nameCtrl.text.trim();
+      // Backend clears phone_verified_at when the number changes.
+      _phoneVerified = updated['phone_verified'] as bool? ?? false;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -251,6 +259,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   bool get _busy => _saving || _uploadingAvatar || _verifyingPhone;
+
+  /// Backend-backed verified status, invalidated when the typed number changes.
+  bool get _isPhoneCurrentlyVerified =>
+      _phoneVerified &&
+      _contactCtrl.text.trim().isNotEmpty &&
+      _contactCtrl.text.trim() == _initialContact.trim();
 
   Future<void> _verifyPhoneFlow() async {
     final phone = _contactCtrl.text.trim();
@@ -315,8 +329,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const skyBg = Color(0xFFF3F9FF);
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
-      backgroundColor: kMemberDashboardBg,
+      backgroundColor: skyBg,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: kSurface,
@@ -332,27 +349,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: kAccent))
+          ? const Center(child: CircularProgressIndicator(color: kCyan))
           : _error != null && _nameCtrl.text.isEmpty
               ? _LoadError(message: _error!, onRetry: _loadProfile)
               : Column(
                   children: [
-                    if (_isMember)
-                      _EditProfileHero(
-                        imageUrl: _profileImageUrl,
-                        initials: _initials(_nameCtrl.text),
-                        displayName: _nameCtrl.text.trim(),
-                        uploading: _uploadingAvatar,
-                        onChangePhoto: _pickAvatar,
-                      ),
                     Expanded(
                       child: Form(
                         key: _formKey,
                         child: ListView(
-                          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                          padding: mobileScrollPadding(context, top: _isMember ? 16 : 12),
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: EdgeInsets.fromLTRB(
+                            mobilePagePaddingOf(context),
+                            12,
+                            mobilePagePaddingOf(context),
+                            16 + bottomInset.clamp(0, 24),
+                          ),
                           children: [
-                            if (!_isMember) ...[
+                            if (_isMember)
+                              _EditProfileHero(
+                                imageUrl: _profileImageUrl,
+                                initials: _initials(_nameCtrl.text),
+                                displayName: _nameCtrl.text.trim(),
+                                uploading: _uploadingAvatar,
+                                onChangePhoto: _pickAvatar,
+                              )
+                            else
                               _OrganizationEditProfileCard(
                                 imageUrl: _profileImageUrl,
                                 initials: _initials(_nameCtrl.text),
@@ -360,104 +383,95 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 uploading: _uploadingAvatar,
                                 onChangePhoto: _pickAvatar,
                               ),
-                              const SizedBox(height: 16),
-                            ],
+                            const SizedBox(height: 12),
                             if (_error != null) ...[
                               _ErrorBanner(message: _error!),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                             ],
                             MemberDashboardCard(
-                              padding: const EdgeInsets.all(18),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Text(
-                                    _isMember ? 'Personal details' : 'Organization Details',
-                                    style: memberDashboardCardTitleStyle.copyWith(fontSize: 15),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _isMember
-                                        ? 'Update your name and contact information.'
-                                        : 'Update your organization contact number.',
-                                    style: memberDashboardMetaStyle,
-                                  ),
-                                  const SizedBox(height: 18),
-                                  if (_isMember) ...[
-                                    RegistrationFormField(
-                                      label: 'Full Name',
-                                      controller: _nameCtrl,
-                                      icon: Icons.person_outline,
-                                      validator: _EditProfileValidators.fullName,
-                                      textInputAction: TextInputAction.next,
-                                    ),
-                                    const SizedBox(height: 14),
-                                  ] else ...[
-                                    _ReadOnlyField(
-                                      label: 'Organization Name',
-                                      value: _nameCtrl.text,
-                                      icon: Icons.business_outlined,
-                                      hint: 'Managed by your organization account',
-                                    ),
-                                    const SizedBox(height: 14),
-                                  ],
-                                  _ReadOnlyField(
-                                    label: 'Email Address',
-                                    value: _emailCtrl.text,
-                                    icon: Icons.email_outlined,
-                                    hint: 'Contact an admin to change your email',
-                                  ),
-                                  const SizedBox(height: 14),
-                                  RegistrationFormField(
-                                    label: 'Contact Number',
-                                    controller: _contactCtrl,
-                                    icon: Icons.phone_outlined,
-                                    keyboardType: TextInputType.phone,
-                                    validator: _isMember
-                                        ? _EditProfileValidators.contactNumber
-                                        : _EditProfileValidators.philippineContactNumber,
-                                    textInputAction: TextInputAction.done,
-                                    onFieldSubmitted: (_) {
-                                      if (_canSave) _save();
-                                    },
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        _phoneVerified &&
-                                                _contactCtrl.text.trim() == _initialContact.trim()
-                                            ? Icons.verified_rounded
-                                            : Icons.sms_outlined,
-                                        size: 18,
-                                        color: _phoneVerified &&
-                                                _contactCtrl.text.trim() == _initialContact.trim()
-                                            ? kGreen
-                                            : kTextSecondary,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _phoneVerified &&
-                                                  _contactCtrl.text.trim() == _initialContact.trim()
-                                              ? 'Verified for SMS password recovery'
-                                              : 'Verify this number to enable SMS password recovery',
-                                          style: memberDashboardMetaStyle.copyWith(fontSize: 12),
+                              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  inputDecorationTheme: Theme.of(context)
+                                      .inputDecorationTheme
+                                      .copyWith(
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 14,
                                         ),
                                       ),
-                                      TextButton(
-                                        onPressed: _busy ? null : _verifyPhoneFlow,
-                                        child: Text(_verifyingPhone ? 'Sending…' : 'Verify SMS'),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      _isMember
+                                          ? 'Personal Information'
+                                          : 'Organization Details',
+                                      style: memberDashboardCardTitleStyle.copyWith(
+                                        fontSize: 15,
+                                        color: kTextPrimary,
                                       ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (_isMember) ...[
+                                      RegistrationFormField(
+                                        label: 'Full Name',
+                                        controller: _nameCtrl,
+                                        icon: Icons.person_outline_rounded,
+                                        validator: _EditProfileValidators.fullName,
+                                        textInputAction: TextInputAction.next,
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ] else ...[
+                                      _ReadOnlyField(
+                                        label: 'Organization Name',
+                                        value: _nameCtrl.text,
+                                        icon: Icons.business_outlined,
+                                        hint: 'Managed by your organization account',
+                                      ),
+                                      const SizedBox(height: 12),
                                     ],
-                                  ),
-                                ],
+                                    _ReadOnlyField(
+                                      label: 'Email Address',
+                                      value: _emailCtrl.text,
+                                      icon: Icons.email_outlined,
+                                      hint: 'Contact an admin to change your email',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    RegistrationFormField(
+                                      label: 'Mobile Number',
+                                      controller: _contactCtrl,
+                                      icon: Icons.phone_outlined,
+                                      keyboardType: TextInputType.phone,
+                                      validator: _isMember
+                                          ? _EditProfileValidators.contactNumber
+                                          : _EditProfileValidators.philippineContactNumber,
+                                      textInputAction: TextInputAction.done,
+                                      onFieldSubmitted: (_) {
+                                        if (_canSave) _save();
+                                      },
+                                    ),
+                                    const SizedBox(height: 12),
+                                    EditProfilePhoneStatus(
+                                      verified: _isPhoneCurrentlyVerified,
+                                      verifying: _verifyingPhone,
+                                      enabled: !_busy,
+                                      onVerify: _verifyPhoneFlow,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             Text(
                               'Email changes require an administrator. Changing your number clears SMS verification until you verify again.',
-                              style: memberDashboardMetaStyle.copyWith(fontSize: 12, height: 1.4),
+                              style: memberDashboardMetaStyle.copyWith(
+                                fontSize: 11.5,
+                                height: 1.4,
+                              ),
                             ),
                           ],
                         ),
@@ -620,6 +634,112 @@ class _OrganizationEditProfileCard extends StatelessWidget {
   }
 }
 
+/// Compact SMS verification status for Edit Profile (backend is source of truth).
+class EditProfilePhoneStatus extends StatelessWidget {
+  const EditProfilePhoneStatus({
+    super.key,
+    required this.verified,
+    required this.verifying,
+    required this.enabled,
+    required this.onVerify,
+  });
+
+  final bool verified;
+  final bool verifying;
+  final bool enabled;
+  final VoidCallback onVerify;
+
+  @override
+  Widget build(BuildContext context) {
+    if (verified) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: kGreenDim,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kGreen.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.verified_rounded, color: kGreen, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Phone Verified',
+                    style: dashText(const TextStyle(
+                      color: kTextPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    )),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Enabled for SMS password recovery.',
+                    style: memberDashboardMetaStyle.copyWith(fontSize: 11.5),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: kSurfaceAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBorder),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.sms_outlined, color: kTextSecondary.withValues(alpha: 0.9), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Phone Not Verified',
+                  style: dashText(const TextStyle(
+                    color: kTextPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  )),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Verify to enable SMS password recovery.',
+                  style: memberDashboardMetaStyle.copyWith(fontSize: 11.5),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: enabled ? onVerify : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: kCyan,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: kCyan.withValues(alpha: 0.35),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: const Size(0, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              textStyle: dashText(const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            ),
+            child: Text(verifying ? 'Sending…' : 'Verify Number'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EditProfileHero extends StatelessWidget {
   const _EditProfileHero({
     required this.imageUrl,
@@ -637,116 +757,138 @@ class _EditProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final padding = mobilePagePaddingOf(context);
+    const radius = 46.0;
 
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: kMemberDashboardHeroGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(padding, 4, padding, 18),
-        child: Column(
-          children: [
-            Stack(
-              alignment: Alignment.center,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: uploading ? null : onChangePhoto,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: kMemberDashboardHeroGradient,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: kCyan.withValues(alpha: 0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 2.5),
-                  ),
-                  child: CircleAvatar(
-                    radius: 44,
-                    backgroundColor: Colors.white.withValues(alpha: 0.14),
-                    backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
-                    child: imageUrl == null
-                        ? Text(
-                            initials,
-                            style: dashText(const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                            )),
-                          )
-                        : null,
-                  ),
-                ),
-                if (uploading)
-                  Container(
-                    width: 94,
-                    height: 94,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: const SizedBox(
-                      width: 26,
-                      height: 26,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-                    ),
-                  ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Material(
-                    color: kAccent,
-                    shape: const CircleBorder(),
-                    elevation: 2,
-                    shadowColor: kAccent.withValues(alpha: 0.35),
-                    child: InkWell(
-                      onTap: uploading ? null : onChangePhoto,
-                      customBorder: const CircleBorder(),
-                      child: const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 17),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(2.5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: radius,
+                        backgroundColor: Colors.white.withValues(alpha: 0.16),
+                        backgroundImage:
+                            imageUrl != null ? NetworkImage(imageUrl!) : null,
+                        child: imageUrl == null
+                            ? Text(
+                                initials,
+                                style: dashText(TextStyle(
+                                  color: Colors.white,
+                                  fontSize: radius * 0.55,
+                                  fontWeight: FontWeight.w800,
+                                )),
+                              )
+                            : null,
                       ),
                     ),
+                    if (uploading)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Material(
+                        color: kAccent,
+                        shape: const CircleBorder(),
+                        elevation: 2,
+                        shadowColor: kAccent.withValues(alpha: 0.3),
+                        child: InkWell(
+                          onTap: uploading ? null : onChangePhoto,
+                          customBorder: const CircleBorder(),
+                          child: Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 1.5),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              color: Colors.white,
+                              size: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (displayName.isNotEmpty)
+                        Text(
+                          displayName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: dashText(const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                            letterSpacing: -0.2,
+                          )),
+                        ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Tap photo to change',
+                        style: dashText(TextStyle(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        )),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            if (displayName.isNotEmpty)
-              Text(
-                displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: memberCyanHeroTitleTextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            const SizedBox(height: 6),
-            TextButton.icon(
-              onPressed: uploading ? null : onChangePhoto,
-              icon: Icon(
-                Icons.photo_outlined,
-                size: 16,
-                color: kMemberCyanHeroSubtitleColor.withValues(
-                  alpha: uploading ? 0.45 : 1,
-                ),
-              ),
-              label: Text(
-                'Change photo',
-                style: memberCyanHeroIdentityMetaStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ).copyWith(
-                  color: kMemberCyanHeroSubtitleColor.withValues(
-                    alpha: uploading ? 0.45 : 1,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

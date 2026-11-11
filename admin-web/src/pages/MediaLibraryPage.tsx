@@ -27,7 +27,8 @@ import {
 } from '../api/eventMedia'
 import { AdminCard } from '../components/AdminCard'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { pageToolbarBtnClass } from '../components/PageToolbar'
 import { AdminConfirmDialog } from '../components/AdminConfirmDialog'
 import { MoveAlbumModal } from '../components/media-library/MoveAlbumModal'
@@ -757,9 +758,10 @@ export function MediaLibraryPage() {
 
   return (
     <div className="space-y-4 pb-24">
-      <AdminPageHeader
-        title="Media Gallery"
-        subtitle="Event documentation photos and videos. Star best picks, then publish to your org page."
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.mediaGallery.icon}
+        title={FEATURE_HEADERS.mediaGallery.title}
+        description={FEATURE_HEADERS.mediaGallery.description}
         backTo="/"
         actions={
           <>

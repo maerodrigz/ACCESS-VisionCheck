@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:access_mobile/mobile_app/screens/requestor/documentation_request_form_screen.dart';
 import 'package:access_mobile/mobile_app/screens/requestor/request_detail_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
@@ -8,10 +9,17 @@ import 'package:access_mobile/mobile_app/widgets/requestor/requestor_meta_icon_c
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_tab_hero.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_progress_tracker.dart';
+import 'package:access_mobile/shared/api/member_api_service.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+
+const _kSky = Color(0xFFEAF7FC);
+const _kSkyBorder = Color(0xFFD0EBF5);
+const _kCyan = Color(0xFF079FC6);
+const _kNavy = Color(0xFF173650);
+const _kMeta = Color(0xFF617F91);
 
 const _requestorRequestsHeaderAsset =
     'assets/images/requestor_requests_header.png';
@@ -71,6 +79,192 @@ class _RequestScreenState extends State<RequestScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _showRequestActions(ServiceRequest req) async {
+    HapticFeedback.mediumImpact();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _RequestActionsSheet(
+        request: req,
+        onViewDetails: () {
+          Navigator.pop(ctx);
+          _openDetails(req);
+        },
+        onArchive: req.canRequestorArchive
+            ? () {
+                Navigator.pop(ctx);
+                _confirmArchive(req);
+              }
+            : null,
+        onRestore: req.isRequestorArchived
+            ? () {
+                Navigator.pop(ctx);
+                _confirmRestore(req);
+              }
+            : null,
+      ),
+    );
+  }
+
+  Future<void> _confirmArchive(ServiceRequest req) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Archive this request?',
+          style: dashText(const TextStyle(
+            color: kTextPrimary,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          )),
+        ),
+        content: Text(
+          'This request will be hidden from your active requests. You can restore it anytime from Archived.',
+          style: dashText(const TextStyle(
+            color: kTextSecondary,
+            fontSize: 14,
+            height: 1.4,
+          )),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: dashText(const TextStyle(
+                color: kTextSecondary,
+                fontWeight: FontWeight.w600,
+              )),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: kAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Archive Request',
+              style: dashText(const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _runArchive(req);
+  }
+
+  Future<void> _confirmRestore(ServiceRequest req) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Restore this request?',
+          style: dashText(const TextStyle(
+            color: kTextPrimary,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          )),
+        ),
+        content: Text(
+          'This request will return to your active My Requests list with its original status.',
+          style: dashText(const TextStyle(
+            color: kTextSecondary,
+            fontSize: 14,
+            height: 1.4,
+          )),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: dashText(const TextStyle(
+                color: kTextSecondary,
+                fontWeight: FontWeight.w600,
+              )),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: kAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Restore Request',
+              style: dashText(const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _runRestore(req);
+  }
+
+  Future<void> _runArchive(ServiceRequest req) async {
+    final id = req.requestId;
+    if (id == null) return;
+    try {
+      final raw = await memberApiService.archiveServiceRequestForRequestor(id);
+      final updated = memberDataController.serviceRequestFromApi(raw);
+      appState.upsertServiceRequest(updated);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Request archived.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to archive this request. Please try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _runRestore(ServiceRequest req) async {
+    final id = req.requestId;
+    if (id == null) return;
+    try {
+      final raw = await memberApiService.restoreServiceRequestForRequestor(id);
+      final updated = memberDataController.serviceRequestFromApi(raw);
+      appState.upsertServiceRequest(updated);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Request restored.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to restore this request. Please try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   List<ServiceRequest> _sorted(List<ServiceRequest> all) {
     final copy = [...all]
       ..sort((a, b) {
@@ -128,7 +322,7 @@ class _RequestScreenState extends State<RequestScreen> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kBg,
+      color: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -254,6 +448,8 @@ class _RequestScreenState extends State<RequestScreen> {
                                 itemBuilder: (_, i) => _RequestListCard(
                                   request: requests[i],
                                   onTap: () => _openDetails(requests[i]),
+                                  onLongPress: () =>
+                                      _showRequestActions(requests[i]),
                                 ),
                               ),
                             ),
@@ -482,10 +678,15 @@ class _SegmentFilterItem extends StatelessWidget {
 }
 
 class _RequestListCard extends StatelessWidget {
-  const _RequestListCard({required this.request, required this.onTap});
+  const _RequestListCard({
+    required this.request,
+    required this.onTap,
+    required this.onLongPress,
+  });
 
   final ServiceRequest request;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   static const _iconTile = Color(0xFFEAF3FF);
   static const _cardRadius = 14.0;
@@ -509,6 +710,7 @@ class _RequestListCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(_cardRadius),
         child: Ink(
           decoration: BoxDecoration(
@@ -1075,6 +1277,200 @@ class _RequestorRequestsIllustratedHeader extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.fromLTRB(padding, 4, padding, 8),
       child: banner,
+    );
+  }
+}
+
+class _RequestActionsSheet extends StatelessWidget {
+  const _RequestActionsSheet({
+    required this.request,
+    required this.onViewDetails,
+    this.onArchive,
+    this.onRestore,
+  });
+
+  final ServiceRequest request;
+  final VoidCallback onViewDetails;
+  final VoidCallback? onArchive;
+  final VoidCallback? onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = request.requestStatus;
+    final style = RequestStatusStyle.forStatus(status);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+      padding: EdgeInsets.fromLTRB(14, 10, 14, 12 + bottomInset),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kSkyBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _kSkyBorder,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            request.eventName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: memberDashboardCardTitleStyle.copyWith(
+              fontSize: 15,
+              color: _kNavy,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: style.background,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status.label,
+                  style: dashText(TextStyle(
+                    color: style.color,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  )),
+                ),
+              ),
+              if (request.isRequestorArchived) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'Archived',
+                  style: memberDashboardMetaStyle.copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _kCyan,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          _RequestActionRow(
+            icon: Icons.visibility_outlined,
+            label: 'View Details',
+            subtitle: 'Open the full request summary',
+            onTap: onViewDetails,
+          ),
+          if (onArchive != null) ...[
+            const SizedBox(height: 6),
+            _RequestActionRow(
+              icon: Icons.inventory_2_outlined,
+              label: 'Archive Request',
+              subtitle: 'Hide from active My Requests',
+              onTap: onArchive!,
+            ),
+          ],
+          if (onRestore != null) ...[
+            const SizedBox(height: 6),
+            _RequestActionRow(
+              icon: Icons.unarchive_outlined,
+              label: 'Restore Request',
+              subtitle: 'Return to active My Requests',
+              onTap: onRestore!,
+              accent: _kCyan,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RequestActionRow extends StatelessWidget {
+  const _RequestActionRow({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+    this.accent = kAccent,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _kSky,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kSkyBorder),
+                ),
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: memberDashboardCardTitleStyle.copyWith(
+                        fontSize: 14,
+                        color: _kNavy,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: memberDashboardMetaStyle.copyWith(
+                        fontSize: 11.5,
+                        color: _kMeta,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: _kMeta.withValues(alpha: 0.85),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

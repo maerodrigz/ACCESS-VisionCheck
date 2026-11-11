@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.crud import member_profile as profile_crud
 from app.models.ai_detection_result import AiDetectionResult
 from app.models.enums import RoleName, UserStatus
-from app.models.media_evaluation import MediaEvaluation
 from app.models.media_file import MediaFile
 from app.models.role import Role
+from app.models.submission_chain import SubmissionChain
 from app.models.user import User
 from app.services.supabase_storage import apply_display_profile_images
 from app.services.skill_evaluation_eligibility import eligible_skill_evaluation_stats
@@ -199,17 +199,27 @@ def _month_start_utc() -> datetime:
 
 
 def monthly_points_for_user(db: Session, user_id: int) -> int:
-    """XP earned this calendar month from evaluations (same formula as media_pipeline)."""
+    """XP awarded this UTC calendar month from submission-chain awards.
+
+    Attribution policy: use ``submission_chains.xp_awarded_at`` (when XP was
+    actually credited), including delayed admin releases that cross a month
+    boundary. Amount is ``xp_awarded_total`` (already rounded at award time).
+
+    Chains with awarded points but a missing ``xp_awarded_at`` are excluded
+    (cannot attribute safely). Legacy awards without a chain row are not
+    reconstructed from evaluation scores; they remain in all-time
+    ``member_rankings.total_points`` only.
+    """
     month_start = _month_start_utc()
-    scores = db.scalars(
-        select(MediaEvaluation.overall_score)
-        .join(MediaFile, MediaEvaluation.media_id == MediaFile.id)
-        .where(
-            MediaFile.uploaded_by == user_id,
-            MediaEvaluation.evaluated_at >= month_start,
+    total = db.scalar(
+        select(func.coalesce(func.sum(SubmissionChain.xp_awarded_total), 0)).where(
+            SubmissionChain.member_id == user_id,
+            SubmissionChain.xp_awarded_total > 0,
+            SubmissionChain.xp_awarded_at.is_not(None),
+            SubmissionChain.xp_awarded_at >= month_start,
         )
-    ).all()
-    return sum(int(score * 100) for score in scores)
+    )
+    return int(total or 0)
 
 
 def list_rankings(db: Session) -> list[dict]:
@@ -303,12 +313,32 @@ def list_rankings(db: Session) -> list[dict]:
             }
         )
 
+    # Skill-oriented order for admin/competency surfaces (unchanged).
     result.sort(key=lambda x: (x["skill_score"], x["points"], x["uploads"]), reverse=True)
     for idx, row in enumerate(result, start=1):
         row["rank"] = idx
         row["rank_position"] = idx
+
+    assign_xp_rank_positions(result)
     apply_display_profile_images(result)
     return result
+
+
+def assign_xp_rank_positions(rows: list[dict]) -> None:
+    """Set ``xp_rank_position`` from all-time awarded XP (points), independent of skill sort.
+
+    Ordering: XP descending, name ascending (case-insensitive), user_id ascending.
+    """
+    xp_ordered = sorted(
+        rows,
+        key=lambda x: (
+            -int(x.get("points") or 0),
+            str(x.get("name") or "").lower(),
+            int(x.get("user_id") or 0),
+        ),
+    )
+    for idx, row in enumerate(xp_ordered, start=1):
+        row["xp_rank_position"] = idx
 
 
 def rankings_summary(rows: list[dict]) -> dict:

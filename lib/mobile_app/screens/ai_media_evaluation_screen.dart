@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 import 'package:access_mobile/mobile_app/screens/evaluation_result_screen.dart';
+import 'package:access_mobile/mobile_app/screens/practice_video_capture_support.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_practice_analyzing_view.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_upload_illustration.dart';
@@ -259,10 +260,42 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
   }
 
   Future<void> _pickFromCamera() async {
-    if (kIsWeb || _isVideo) return;
+    if (kIsWeb) return;
+    if (_isVideo) {
+      await _recordPracticeVideo();
+      return;
+    }
     final picked = await _picker.pickImage(source: ImageSource.camera);
     if (picked == null) return;
     await _applyPickedFile(name: picked.name, bytes: await picked.readAsBytes(), filePath: picked.path);
+  }
+
+  /// Phase 0: in-app mute recording → existing [_applyPickedFile] pipeline.
+  Future<void> _recordPracticeVideo() async {
+    if (!_isVideo || kIsWeb) return;
+    final result = await Navigator.of(context).push<PracticeVideoCaptureResult>(
+      MaterialPageRoute(
+        builder: (_) => PracticeVideoCaptureScreen(maxDuration: _maxVideoDuration),
+      ),
+    );
+    if (result == null || !mounted) return;
+    try {
+      final xfile = XFile(result.filePath);
+      final bytes = await xfile.readAsBytes();
+      if (!mounted) return;
+      if (bytes.isEmpty) {
+        setState(() => _error = 'Recorded video file was empty. Please record again.');
+        return;
+      }
+      await _applyPickedFile(
+        name: result.fileName,
+        bytes: bytes,
+        filePath: result.filePath,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Recorded video file was not found. Please record again.');
+    }
   }
 
   Future<void> _pickFromFileChooser() async {
@@ -477,11 +510,11 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
     final atLimit = appState.evaluationsTodayAtLimitConfirmed;
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: Colors.transparent,
       appBar: _busy
           ? null
           : AppBar(
-              backgroundColor: kBg,
+              backgroundColor: Colors.transparent,
               foregroundColor: kTextPrimary,
               elevation: 0,
               scrolledUnderElevation: 0,
@@ -601,15 +634,19 @@ class _UploadPageBody extends StatelessWidget {
   final VoidCallback onGallery;
   final VoidCallback onCamera;
 
-  bool get _cameraEnabled => !kIsWeb && !isVideo;
+  bool get _cameraEnabled => !kIsWeb;
 
-  String get _heroTitle => isVideo ? 'Select a video to upload' : 'Select a photo to upload';
+  String get _heroTitle => isVideo
+      ? 'Record a video or upload from Gallery'
+      : 'Select a photo to upload';
 
   String get _heroSubtitle {
     if (kIsWeb) {
       return webDragging ? 'Drop your file here' : 'Tap to browse or drag and drop a file';
     }
-    return 'Tap to browse files on your device';
+    return isVideo
+        ? 'Use Record Video for an in-app capture, or Gallery for an existing file'
+        : 'Tap to browse files on your device';
   }
 
   @override
@@ -724,15 +761,15 @@ class _UploadPageBody extends StatelessWidget {
             Expanded(
               child: _CompactSourceButton(
                 icon: Icons.collections_rounded,
-                label: 'Gallery',
+                label: isVideo ? 'Upload from Gallery' : 'Gallery',
                 onTap: onGallery,
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _CompactSourceButton(
-                icon: Icons.photo_camera_rounded,
-                label: 'Camera',
+                icon: isVideo ? Icons.videocam_rounded : Icons.photo_camera_rounded,
+                label: isVideo ? 'Record Video' : 'Camera',
                 onTap: _cameraEnabled ? onCamera : null,
                 enabled: _cameraEnabled,
               ),
@@ -832,13 +869,18 @@ class _CompactSourceButton extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: fg),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: dashText(TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: fg,
-            )),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: dashText(TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: fg,
+              )),
+            ),
           ),
         ],
       ),

@@ -11,7 +11,6 @@ import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/models/reschedule_models.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-const _kDetailBg = Color(0xFFF2F9FD);
 const _kCardRadius = 14.0;
 
 /// Detailed documentation request view for requestors.
@@ -279,7 +278,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final support = _supportLine(status);
 
     return Scaffold(
-      backgroundColor: _kDetailBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: kSurface,
         elevation: 0,

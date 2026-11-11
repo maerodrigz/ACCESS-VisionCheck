@@ -69,6 +69,11 @@ class RegistrationFormField extends StatelessWidget {
             suffixIcon: suffix,
             filled: true,
             fillColor: mobileAuthStyle ? kSurface : kSurfaceAlt,
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: mobileAuthStyle ? 14 : 13,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(radius),
               borderSide: const BorderSide(color: kBorder),
@@ -210,6 +215,23 @@ class RegistrationValidators {
     final req = required(v, label: 'Confirm password');
     if (req != null) return req;
     if (v != password) return 'Passwords do not match';
+    return null;
+  }
+
+  /// Philippine mobile: 09XXXXXXXXX, +639XXXXXXXXX, or 9XXXXXXXXX.
+  static String? philippineMobile(String? v) {
+    final req = required(v, label: 'Mobile number');
+    if (req != null) return req;
+    final digits = v!.replaceAll(RegExp(r'\D'), '');
+    var local = digits;
+    if (local.startsWith('63')) {
+      local = local.substring(2);
+    } else if (local.startsWith('0')) {
+      local = local.substring(1);
+    }
+    if (!local.startsWith('9') || local.length != 10) {
+      return 'Enter a valid Philippine mobile number (09XX XXX XXXX)';
+    }
     return null;
   }
 }

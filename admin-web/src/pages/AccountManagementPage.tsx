@@ -12,7 +12,8 @@ import {
   updateUser,
   updateUserRole,
 } from '../api/admin'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { AccountActionModal, type AccountActionState } from '../components/account-management/AccountActionModal'
 import { DeactivateMemberDialog } from '../components/DeactivateMemberDialog'
 import { DeleteMemberAccountDialog } from '../components/DeleteMemberAccountDialog'
@@ -56,7 +57,7 @@ export function AccountManagementPage() {
   )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
@@ -356,9 +357,10 @@ export function AccountManagementPage() {
   return (
     <div className="account-mgmt" data-account-management>
       <div className="account-mgmt__page">
-        <AdminPageHeader
-          title="Account Management"
-          subtitle="Manage users, roles, and account access."
+        <AdminFeatureHeader
+          icon={FEATURE_HEADERS.accounts.icon}
+          title={FEATURE_HEADERS.accounts.title}
+          description={FEATURE_HEADERS.accounts.description}
           backTo="/"
           actions={
             <>

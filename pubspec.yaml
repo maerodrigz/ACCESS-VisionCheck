@@ -57,6 +57,7 @@ dependencies:
   permission_handler: ^11.4.0
   gal: ^2.3.3
   flutter_local_notifications: ^22.3.1
+  camera: 0.11.2
 
 dev_dependencies:
   flutter_test:
@@ -105,6 +106,7 @@ flutter:
     - assets/images/access_logo.png
     - assets/images/access-brand-a.png
     - assets/images/access-org-seal.jpg
+    - assets/images/ustp-logo.png
     - assets/images/access_app_icon.png
     - assets/images/access_launcher_foreground.png
     - assets/images/access_login_hero.png
@@ -117,6 +119,13 @@ flutter:
     - assets/images/requestor_requests_header.png
     - assets/images/requestor_gallery_header.png
     - assets/images/requestor_feedback_header.png
+    - assets/images/access_global_background.png
+    - assets/images/member_global_background.png
+    - assets/images/rankings/rankings_rank_badge.png
+    - assets/images/rankings/rankings_rank_badge_blank.png
+    - assets/images/rankings/rankings_trophy.png
+    - assets/images/rankings/rankings_podium.png
+    - assets/images/evaluation/media_evaluation_bg.png
     - config/firebase.json
     - config/api.json
 

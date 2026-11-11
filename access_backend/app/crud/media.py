@@ -325,7 +325,11 @@ REMOVED_STORAGE_FILE_URL = "/uploads/__storage_removed__"
 
 
 def remove_practice_storage_only(db: Session, media: MediaFile) -> MediaFile:
-    """Delete Supabase/disk bytes only. Keeps media + evaluation rows (scores, XP, averages)."""
+    """Delete Supabase/disk bytes only. Keeps media + evaluation rows (scores, XP, averages).
+
+    Allowed for completed practice evaluations, including admin-verified human.
+    Members free cloud space; integrity review history and scores remain.
+    """
     if media.media_category != MEDIA_CATEGORY_EVALUATION:
         raise ValueError("Only practice evaluation uploads can use remove storage.")
     if media.storage_removed_at is not None:

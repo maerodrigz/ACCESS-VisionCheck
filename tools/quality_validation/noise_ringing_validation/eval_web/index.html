@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>ACCESS VisionCheck — Noise &amp; Ringing Human Evaluation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>ACCESS VisionCheck — Human Evaluation</h1>
+        <p>Noise and Ringing Artifacts · Research only · Offline</p>
+      </div>
+      <div class="pill" id="session-pill">
+        Evaluator: <strong id="active-rater">not selected</strong>
+      </div>
+    </header>
+
+    <div class="banner">
+      Rate what you see using the locked rubric. Do not use machine scores, other raters’ answers,
+      or facilitator collection notes. Use a separate browser profile or device per evaluator.
+      LocalStorage is not secure isolation between people sharing one profile.
+    </div>
+
+    <!-- Start -->
+    <section id="screen-start" class="card">
+      <div class="start-grid">
+        <div>
+          <h2 style="margin-top:0">Select evaluator</h2>
+          <p class="lede" style="color:var(--muted);font-size:.9rem;line-height:1.45">
+            Each of R1, R2, and R3 must rate independently. Progress is saved only in this browser
+            under the selected evaluator ID.
+          </p>
+          <div class="rater-options" role="radiogroup" aria-label="Evaluator">
+            <label class="rater-option">
+              <input type="radio" name="rater" value="R1">
+              <span><strong>R1</strong><br><small style="color:var(--muted)">Independent session</small></span>
+            </label>
+            <label class="rater-option">
+              <input type="radio" name="rater" value="R2">
+              <span><strong>R2</strong><br><small style="color:var(--muted)">Independent session</small></span>
+            </label>
+            <label class="rater-option">
+              <input type="radio" name="rater" value="R3">
+              <span><strong>R3</strong><br><small style="color:var(--muted)">Independent session</small></span>
+            </label>
+          </div>
+          <p id="resume-info" class="status-line">Select an evaluator to see saved progress.</p>
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-start" disabled>Start new session</button>
+            <button type="button" class="btn secondary" id="btn-resume" disabled>Resume saved session</button>
+          </div>
+        </div>
+        <div>
+          <h2 style="margin-top:0">Viewing reminders</h2>
+          <ul style="margin:0;padding-left:1.1rem;color:var(--muted);font-size:.86rem;line-height:1.45">
+            <li>Fit-to-window first, then 100% crops.</li>
+            <li>Noise: inspect flat midtones and shadows.</li>
+            <li>Ringing: inspect high-contrast edges for halos.</li>
+            <li>200% only to confirm faint defects.</li>
+            <li>Higher scores mean cleaner / freer of the defect.</li>
+            <li>Keyboard: ← → navigate; 1–5 Noise; Shift+1–5 Ringing; F fit; Alt+1 / Alt+2 zoom.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Evaluation -->
+    <section id="screen-eval" class="hidden">
+      <div class="main-layout">
+        <div class="card viewer-card">
+          <div class="viewer-meta">
+            <div>
+              <h2 id="image-id">NR001</h2>
+              <div style="color:var(--muted);font-size:.82rem" id="image-pos">Image 1 of 15</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:.82rem;color:var(--muted)" id="progress-label">0 of 15 complete</div>
+            </div>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="viewport" id="viewport" aria-label="Photograph viewer">
+            <img id="photo" alt="Evaluation photograph">
+            <div id="load-error" class="load-error hidden"></div>
+          </div>
+          <div class="zoom-bar">
+            <button type="button" class="btn secondary" data-zoom="fit" aria-pressed="true">Fit</button>
+            <button type="button" class="btn secondary" data-zoom="x1" aria-pressed="false">100%</button>
+            <button type="button" class="btn secondary" data-zoom="x2" aria-pressed="false">200%</button>
+            <span class="hint">Zoom: <strong id="zoom-label">Fit</strong> · drag to pan when zoomed</span>
+          </div>
+          <div class="nav-row">
+            <button type="button" class="btn secondary" id="btn-prev">Previous</button>
+            <button type="button" class="btn secondary" id="btn-next">Next</button>
+          </div>
+          <div class="thumb-strip" id="thumb-strip" aria-label="Image progress"></div>
+        </div>
+
+        <aside class="card panel">
+          <h3>Ratings</h3>
+          <p class="lede">Both criteria required. Definitions are from <code>NOISE_RINGING_RUBRIC.md</code>.</p>
+
+          <div class="criterion noise">
+            <header>
+              <strong>Noise</strong>
+              <span style="font-size:.75rem;color:var(--noise)">Freedom from grain / chroma noise</span>
+            </header>
+            <p class="meaning">
+              Visible sensor grain / luminance speckles or chroma (color) blotches that are not part of
+              the real scene texture and that reduce clean tonal areas or subject readability.
+              Typical places: shadows, under-exposed walls, night sky, smooth skin, flat painted surfaces.
+            </p>
+            <div class="score-grid" id="noise-scores" role="group" aria-label="Noise score"></div>
+            <ol class="score-defs" id="noise-defs"></ol>
+          </div>
+
+          <div class="criterion ringing">
+            <header>
+              <strong>Ringing Artifacts</strong>
+              <span style="font-size:.75rem;color:var(--ring)">Freedom from edge halos</span>
+            </header>
+            <p class="meaning">
+              Light/dark halos, ghost ridges, or oscillatory fringes along high-contrast edges,
+              usually from oversharpening or codec/compression edge ringing. Looks like a bright or
+              dark outline that does not belong to the object.
+            </p>
+            <div class="score-grid" id="ringing-scores" role="group" aria-label="Ringing score"></div>
+            <ol class="score-defs" id="ringing-defs"></ol>
+          </div>
+
+          <div class="notes-box">
+            <label for="notes"><strong>Notes</strong> <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+            <textarea id="notes" maxlength="1000" placeholder="Odd cases only. Do not mention machines or other raters."></textarea>
+          </div>
+          <p id="item-status" class="status-line">Select Noise and Ringing ratings (1–5).</p>
+
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-finish" disabled>Completion screen</button>
+            <button type="button" class="btn secondary" id="btn-export-inline" disabled>Export CSV</button>
+            <button type="button" class="btn secondary" id="btn-switch-rater">Switch evaluator</button>
+            <button type="button" class="btn danger" id="btn-reset">Reset this evaluator</button>
+          </div>
+
+          <details class="help-details">
+            <summary>Confusion reminders (from rubric)</summary>
+            <ul>
+              <li>Random sand-like speckles → Noise, not Ringing.</li>
+              <li>Structured fabric/foliage weave → texture, not Noise.</li>
+              <li>8×8 squares in flat areas → Blocking, not Ringing or Noise.</li>
+              <li>Bright/dark halo along an edge → Ringing.</li>
+              <li>Clean high-contrast edge without a companion ridge → not Ringing.</li>
+            </ul>
+          </details>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Complete -->
+    <section id="screen-complete" class="card complete-card hidden">
+      <h2>Session complete</h2>
+      <p id="complete-summary" style="color:var(--muted)"></p>
+      <p style="color:var(--muted);font-size:.9rem;max-width:36rem;margin:0.75rem auto 0;line-height:1.45">
+        Export writes <code>R#_noise_ringing_ratings.csv</code> compatible with the validation templates.
+        Empty ratings are never fabricated. Give each evaluator’s file to the facilitator separately.
+      </p>
+      <div class="btn-row" style="justify-content:center">
+        <button type="button" class="btn" id="btn-export-complete">Export CSV</button>
+        <button type="button" class="btn secondary" id="btn-back-eval">Back to images</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

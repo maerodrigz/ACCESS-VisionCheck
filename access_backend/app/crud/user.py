@@ -124,6 +124,19 @@ def create_user(
     else:
         account_status = status.strip().lower()
 
+    from app.services.skill_progression_activation_coord import (
+        acquire_member_approval_seal_coordination_lock,
+        member_approval_requires_activation_coord_lock,
+    )
+
+    # Creating an already-approved Member can race with activation sealing.
+    if member_approval_requires_activation_coord_lock(
+        previous_status=None,
+        new_status=account_status,
+        role_name=role,
+    ):
+        acquire_member_approval_seal_coordination_lock(db)
+
     user = User(
         fullname=name.strip(),
         email=email.lower(),
@@ -293,6 +306,12 @@ def update_user_by_admin(
     if other and other.id != user.id:
         raise ValueError("Email already registered")
 
+    from app.services.skill_progression_activation_coord import (
+        acquire_member_approval_seal_coordination_lock,
+        member_approval_requires_activation_coord_lock,
+    )
+
+    previous_status = user.status
     user.fullname = name.strip()
     user.email = email.lower().strip()
     user.role_id = _role_id_for_name(db, role)
@@ -301,6 +320,13 @@ def update_user_by_admin(
         user.skill_level_id = skill_id
 
     normalized = status.strip().lower()
+    if member_approval_requires_activation_coord_lock(
+        previous_status=previous_status,
+        new_status=normalized,
+        role_name=role,
+    ):
+        acquire_member_approval_seal_coordination_lock(db)
+
     user.status = normalized
     if normalized == UserStatus.APPROVED:
         user.rejection_reason = None
@@ -351,7 +377,25 @@ def update_status(
     rejection_reason: str | None = None,
     approved_by: int | None = None,
 ) -> User:
+    from app.services.skill_progression_activation_coord import (
+        acquire_member_approval_seal_coordination_lock,
+        member_approval_requires_activation_coord_lock,
+    )
+
     normalized = status.strip().lower()
+    previous_status = user.status
+    role_name = user.role.role_name if user.role else None
+    if role_name is None and user.role_id is not None:
+        role_row = db.get(Role, user.role_id)
+        role_name = role_row.role_name if role_row else None
+    if member_approval_requires_activation_coord_lock(
+        previous_status=previous_status,
+        new_status=normalized,
+        role_name=role_name,
+    ):
+        # Serialize with Skill Progression v2 activation sealing.
+        acquire_member_approval_seal_coordination_lock(db)
+
     user.status = normalized
     if normalized == UserStatus.REJECTED:
         user.rejection_reason = (rejection_reason or "").strip() or None

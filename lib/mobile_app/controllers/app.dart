@@ -29,6 +29,7 @@ import 'package:access_mobile/mobile_app/screens/requestor/requestor_profile_scr
 import 'package:access_mobile/mobile_app/screens/requestor/documentation_request_form_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_bottom_nav.dart';
 import 'package:access_mobile/mobile_app/sheets/notifications_sheet.dart';
+import 'package:access_mobile/mobile_app/widgets/access_global_background.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/navigation/mobile_onboarding_navigator.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_splash_gate.dart';
@@ -49,7 +50,7 @@ class _AccessAppState extends State<AccessApp> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: appState,
+      listenable: Listenable.merge([appState, authController]),
       builder: (context, _) => MaterialApp(
         navigatorKey: rootNavigatorKey,
         debugShowCheckedModeBanner: false,
@@ -59,14 +60,21 @@ class _AccessAppState extends State<AccessApp> {
         // Mobile uses the clean light ACCESS palette (matches design tokens).
         themeMode: kIsWeb ? appState.themeMode : ThemeMode.light,
         builder: (context, child) {
-          if (kIsWeb || child == null) return child ?? const SizedBox.shrink();
+          final content = child ?? const SizedBox.shrink();
+          if (kIsWeb) return content;
           final media = MediaQuery.of(context);
-          return MediaQuery(
+          final scaled = MediaQuery(
             data: media.copyWith(
-              textScaler: media.textScaler.clamp(minScaleFactor: 0.92, maxScaleFactor: 1.12),
+              textScaler: media.textScaler.clamp(
+                minScaleFactor: 0.92,
+                maxScaleFactor: 1.12,
+              ),
             ),
-            child: child,
+            child: content,
           );
+          // One viewport-locked background behind the authenticated navigator.
+          if (!authController.isLoggedIn) return scaled;
+          return AccessGlobalBackground(child: scaled);
         },
         home: MobileSplashGate(
           key: const ValueKey('access_mobile_splash_gate'),
@@ -108,6 +116,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _navIndex = 0;
+  bool _scrollEvaluationsToAll = false;
 
   @override
   void initState() {
@@ -117,6 +126,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     MemberShellNavigation.openHome = () => _goToTab(0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      unawaited(AccessGlobalBackground.precache(context));
       memberDataController.seedHomeFromSession();
       unawaited(memberDataController.bootstrapMemberApp());
     });
@@ -138,8 +148,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   void _goToTab(int index) {
     if (_navIndex == index) return;
-    setState(() => _navIndex = index);
+    setState(() {
+      _navIndex = index;
+      if (index != 1) _scrollEvaluationsToAll = false;
+    });
     unawaited(memberDataController.ensureMemberTabData(index));
+  }
+
+  void _openEvaluationsAll() {
+    setState(() {
+      _navIndex = 1;
+      _scrollEvaluationsToAll = true;
+    });
+    unawaited(memberDataController.ensureMemberTabData(1));
   }
 
   void _openGallery({int? requestId}) {
@@ -207,6 +228,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           userName: widget.userName,
           onLogout: widget.onLogout,
           onViewPortfolio: () => _goToTab(1),
+          onViewAllRecentUploads: _openEvaluationsAll,
           onViewEventGallery: () => _goToTab(3),
           onViewCalendar: () => _goToTab(2),
           onViewRankings: () => _goToTab(5),
@@ -217,6 +239,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     1 => EvaluationScreen(
           onNotificationsTap: () => showNotifications(context),
           onProfileTap: _openProfile,
+          scrollToAllEvaluations: _scrollEvaluationsToAll,
+          onDidScrollToAllEvaluations: () {
+            if (!_scrollEvaluationsToAll || !mounted) return;
+            setState(() => _scrollEvaluationsToAll = false);
+          },
         ),
     2 => CalendarScreen(
           onViewGallery: () => _goToTab(3),
@@ -245,7 +272,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.colors.bg,
+      backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: false,
       body: MobilePageWrapper(
         child: AnimatedSwitcher(
@@ -297,6 +324,7 @@ class _RequesterShellState extends State<RequesterShell> {
     RequestorShellNavigation.openRequests = _openRequestTab;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      unawaited(AccessGlobalBackground.precache(context));
       memberDataController.seedHomeFromSession();
       unawaited(memberDataController.bootstrapMemberApp());
     });
@@ -390,7 +418,7 @@ class _RequesterShellState extends State<RequesterShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.colors.bg,
+      backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: true,
       body: MobilePageWrapper(
         child: IndexedStack(

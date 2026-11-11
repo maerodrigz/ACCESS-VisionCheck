@@ -141,7 +141,7 @@ class _RescheduleCalendarScreenState extends State<RescheduleCalendarScreen> {
     final canContinue = _selectedDay != null && _selectedSlot != null;
 
     return Scaffold(
-      backgroundColor: kMemberDashboardBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: kSurface,
         elevation: 0,

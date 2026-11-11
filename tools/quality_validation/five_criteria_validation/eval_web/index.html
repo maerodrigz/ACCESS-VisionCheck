@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>ACCESS VisionCheck — Five Criteria Human Evaluation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>ACCESS VisionCheck — Human Evaluation</h1>
+        <p>Sharpness · Blur · Brightness · Contrast · Blocking · Research only · Offline</p>
+      </div>
+      <div class="pill" id="session-pill">
+        Evaluator: <strong id="active-rater">not selected</strong>
+      </div>
+    </header>
+
+    <div class="banner">
+      Rate what you see using the locked five-criteria rubric. Do not use machine scores, other raters’
+      answers, or facilitator notes. Use a separate browser profile per evaluator.
+    </div>
+
+    <section id="screen-start" class="card">
+      <div class="start-grid">
+        <div>
+          <h2 style="margin-top:0">Select evaluator</h2>
+          <p class="lede" style="color:var(--muted);font-size:.9rem;line-height:1.45">
+            R1, R2, and R3 must rate independently. Progress is saved only in this browser under the selected ID.
+          </p>
+          <div class="rater-options" role="radiogroup" aria-label="Evaluator">
+            <label class="rater-option"><input type="radio" name="rater" value="R1"><span><strong>R1</strong></span></label>
+            <label class="rater-option"><input type="radio" name="rater" value="R2"><span><strong>R2</strong></span></label>
+            <label class="rater-option"><input type="radio" name="rater" value="R3"><span><strong>R3</strong></span></label>
+          </div>
+          <p id="resume-info" class="status-line">Select an evaluator to see saved progress.</p>
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-start" disabled>Start new session</button>
+            <button type="button" class="btn secondary" id="btn-resume" disabled>Resume saved session</button>
+          </div>
+        </div>
+        <div>
+          <h2 style="margin-top:0">Viewing reminders</h2>
+          <ul style="margin:0;padding-left:1.1rem;color:var(--muted);font-size:.86rem;line-height:1.45">
+            <li>Fit first, then 100% crops as needed.</li>
+            <li>Brightness: under- and over-exposure both lower the score.</li>
+            <li>Blocking: look for mosaic tiles in flats, not grain.</li>
+            <li>Do not force Blur = 6 − Sharpness.</li>
+            <li>Images appear only after collection is approved and files are placed in <code>images/</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-eval" class="hidden">
+      <div class="main-layout">
+        <div class="card viewer-card">
+          <div class="viewer-meta">
+            <div>
+              <h2 id="image-id">FC001</h2>
+              <div style="color:var(--muted);font-size:.82rem" id="image-pos">Image 1 of 40</div>
+            </div>
+            <div style="text-align:right;font-size:.82rem;color:var(--muted)" id="progress-label">0 of 40 complete</div>
+          </div>
+          <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="viewport" id="viewport" aria-label="Photograph viewer">
+            <img id="photo" alt="Evaluation photograph">
+            <div id="load-error" class="load-error hidden"></div>
+          </div>
+          <div class="zoom-bar">
+            <button type="button" class="btn secondary" data-zoom="fit" aria-pressed="true">Fit</button>
+            <button type="button" class="btn secondary" data-zoom="x1" aria-pressed="false">100%</button>
+            <button type="button" class="btn secondary" data-zoom="x2" aria-pressed="false">200%</button>
+            <span class="hint">Zoom: <strong id="zoom-label">Fit</strong></span>
+          </div>
+          <div class="nav-row">
+            <button type="button" class="btn secondary" id="btn-prev">Previous</button>
+            <button type="button" class="btn secondary" id="btn-next">Next</button>
+          </div>
+          <div class="thumb-strip" id="thumb-strip" aria-label="Image progress"></div>
+        </div>
+
+        <aside class="card panel">
+          <h3>Ratings</h3>
+          <p class="lede">All five criteria required. Definitions from <code>FIVE_CRITERIA_RUBRIC.md</code>.</p>
+          <div id="criteria-root"></div>
+          <label style="display:block;margin-top:1rem;font-size:.85rem;color:var(--muted)">Notes (optional)</label>
+          <textarea id="notes" rows="3" style="width:100%;margin-top:.35rem"></textarea>
+          <div class="btn-row" style="margin-top:1rem">
+            <button type="button" class="btn" id="btn-export" disabled>Export CSV</button>
+            <button type="button" class="btn secondary" id="btn-home">Change evaluator</button>
+          </div>
+          <p id="export-status" class="status-line"></p>
+        </aside>
+      </div>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

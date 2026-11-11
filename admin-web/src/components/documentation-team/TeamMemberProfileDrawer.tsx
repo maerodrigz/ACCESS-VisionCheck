@@ -92,7 +92,9 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
                 type="button"
                 onClick={() => {
                   onClose()
-                  navigate(`/competency?q=${encodeURIComponent(member.name)}`)
+                  navigate(
+                    `/competency?tab=skills&q=${encodeURIComponent(member.name)}&member=${member.id}`,
+                  )
                 }}
                 className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-2 text-sm font-semibold"
               >
@@ -167,7 +169,9 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
                 type="button"
                 onClick={() => {
                   onClose()
-                  navigate(`/competency?q=${encodeURIComponent(member.name)}`)
+                  navigate(
+                    `/competency?tab=skills&q=${encodeURIComponent(member.name)}&member=${member.id}`,
+                  )
                 }}
                 className="mt-3 rounded-lg bg-[var(--color-accent-blue)] px-3 py-2 text-xs font-semibold text-white hover:opacity-95"
               >

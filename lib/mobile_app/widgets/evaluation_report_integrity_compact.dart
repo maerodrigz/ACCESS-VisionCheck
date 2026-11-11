@@ -12,11 +12,15 @@ class EvaluationReportIntegrityCompact extends StatelessWidget {
     required this.result,
     this.adminReviewStatus,
     this.adminRemarks,
+    this.showXpOutcome = true,
   });
 
   final PhotoEvaluationResult result;
   final String? adminReviewStatus;
   final String? adminRemarks;
+
+  /// When false, XP line is omitted (shown in a higher-level summary card).
+  final bool showXpOutcome;
 
   @override
   Widget build(BuildContext context) {
@@ -82,16 +86,18 @@ class EvaluationReportIntegrityCompact extends StatelessWidget {
                   style: evalBodyStyle.copyWith(fontSize: 12, height: 1.45),
                 ),
               ],
-              const SizedBox(height: 10),
-              Text(
-                decision.xpOutcomeLine,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 12,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
+              if (showXpOutcome) ...[
+                const SizedBox(height: 10),
+                Text(
+                  decision.xpOutcomeLine,
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

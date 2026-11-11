@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEscapeToDismiss } from '../../hooks/useEscapeToDismiss'
 import {
   approveMemberRegistration,
   approveOrganizationRegistration,
@@ -41,6 +42,8 @@ export function RegistrationApprovalsPanel({ initialTab = 'all', onBack, onTabCh
   const [requestors, setRequestors] = useState<PendingOrganizationRegistration[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEscapeToDismiss(true, onBack, { skipWhenModalOpen: true })
 
   const load = useCallback(async () => {
     setLoading(true)

@@ -12,7 +12,6 @@ import 'package:access_mobile/mobile_app/widgets/requestor/requestor_meta_icon_c
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_tab_hero.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 
-const _requestorCalendarBg = Color(0xFFF2F9FD);
 const _requestorAgendaStrip = Color(0xFFE8F6FB);
 const _requestorCalendarHeaderAsset =
     'assets/images/requestor_calendar_header.png';
@@ -154,14 +153,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ..sort((a, b) => a.startDate.compareTo(b.startDate));
   }
 
-  bool _dayHasMyAssignment(DateTime day) {
-    return appState.myCalendarEvents.any((e) => _sameDay(e.startDate, day));
-  }
-
-  bool _dayHasGeneralEvent(DateTime day) {
-    if (_myAssignmentsOnly) return false;
-    return appState.events.any((e) => _sameDay(e.startDate, day));
-  }
 
   bool _canPlanRequestOnDay(DateTime day) {
     final today = _dayOnly(DateTime.now());
@@ -330,44 +321,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final rowCount = ((startWeekday + daysInMonth) / 7).ceil();
     final primaryAction = kMemberButtonPrimary;
 
+    // Shared Requestor calendar chrome for both roles; actions stay role-gated.
+    final primaryTabLabel =
+        widget.forRequestor ? 'My Requests' : 'My Assignments';
+    final secondaryTabLabel = 'All Events';
+    final primaryTabIcon = widget.forRequestor
+        ? Icons.description_outlined
+        : Icons.assignment_ind_outlined;
+    final headerSubtitle = widget.subtitle ??
+        (widget.forRequestor
+            ? 'Campus events and your documentation schedule.'
+            : 'Your assignments and campus documentation schedule.');
+
     return ColoredBox(
-      color: widget.forRequestor ? _requestorCalendarBg : kBg,
+      color: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (widget.forRequestor)
-            RequestorBrandAppBar(
-              onNotifications: widget.onNotificationsTap,
-              onProfileTap: widget.onProfileTap,
-            )
-          else
-            _CalendarPageHeader(
-              onNotificationsTap: widget.onNotificationsTap,
-              onProfileTap: widget.onProfileTap,
-            ),
-          if (!widget.forRequestor) ...[
-            _CalendarFilterTabs(
-              myAssignmentsOnly: _myAssignmentsOnly,
-              onChanged: (value) => setState(() => _myAssignmentsOnly = value),
-              onSearchTap: _toggleSearch,
-              searchActive: _hasActiveSearch || _searchExpanded,
-              primaryTabLabel: 'My Assignments',
-              secondaryTabLabel: 'All Events',
-              accentColor: primaryAction,
-              forRequestor: false,
-              primaryIcon: Icons.assignment_ind_outlined,
-              secondaryIcon: Icons.event_note_rounded,
-            ),
-            if (_searchExpanded)
-              _CalendarSearchBar(
-                controller: _searchController,
-                focusNode: _searchFocusNode,
-                onChanged: _onSearchChanged,
-                onClear: _clearSearch,
-                showClear: _hasActiveSearch,
-                accentColor: primaryAction,
-              ),
-          ],
+          RequestorBrandAppBar(
+            onNotifications: widget.onNotificationsTap,
+            onProfileTap: widget.onProfileTap,
+          ),
           Expanded(
             child: ListenableBuilder(
               listenable: Listenable.merge([appState, memberDataController]),
@@ -390,11 +364,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         parent: BouncingScrollPhysics(),
                       ),
                       children: [
-                        if (widget.forRequestor)
-                          _RequestorCalendarIllustratedHeader(
-                            subtitle: widget.subtitle ??
-                                'Campus events and your documentation schedule.',
-                          ),
+                        _RequestorCalendarIllustratedHeader(
+                          subtitle: headerSubtitle,
+                        ),
                         SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),
                         MobileEmptyState(
                           icon: Icons.cloud_off_outlined,
@@ -422,40 +394,37 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       parent: BouncingScrollPhysics(),
                     ),
                     slivers: [
-                      if (widget.forRequestor) ...[
-                        SliverToBoxAdapter(
-                          child: _RequestorCalendarIllustratedHeader(
-                            subtitle: widget.subtitle ??
-                                'Campus events and your documentation schedule.',
-                          ),
+                      SliverToBoxAdapter(
+                        child: _RequestorCalendarIllustratedHeader(
+                          subtitle: headerSubtitle,
                         ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: _CalendarFilterTabs(
+                          myAssignmentsOnly: _myAssignmentsOnly,
+                          onChanged: (value) =>
+                              setState(() => _myAssignmentsOnly = value),
+                          onSearchTap: _toggleSearch,
+                          searchActive: _hasActiveSearch || _searchExpanded,
+                          primaryTabLabel: primaryTabLabel,
+                          secondaryTabLabel: secondaryTabLabel,
+                          accentColor: primaryAction,
+                          forRequestor: true,
+                          primaryIcon: primaryTabIcon,
+                          secondaryIcon: Icons.event_note_rounded,
+                        ),
+                      ),
+                      if (_searchExpanded)
                         SliverToBoxAdapter(
-                          child: _CalendarFilterTabs(
-                            myAssignmentsOnly: _myAssignmentsOnly,
-                            onChanged: (value) =>
-                                setState(() => _myAssignmentsOnly = value),
-                            onSearchTap: _toggleSearch,
-                            searchActive: _hasActiveSearch || _searchExpanded,
-                            primaryTabLabel: 'My Requests',
-                            secondaryTabLabel: 'All Events',
+                          child: _CalendarSearchBar(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            onChanged: _onSearchChanged,
+                            onClear: _clearSearch,
+                            showClear: _hasActiveSearch,
                             accentColor: primaryAction,
-                            forRequestor: true,
-                            primaryIcon: Icons.description_outlined,
-                            secondaryIcon: Icons.event_note_rounded,
                           ),
                         ),
-                        if (_searchExpanded)
-                          SliverToBoxAdapter(
-                            child: _CalendarSearchBar(
-                              controller: _searchController,
-                              focusNode: _searchFocusNode,
-                              onChanged: _onSearchChanged,
-                              onClear: _clearSearch,
-                              showClear: _hasActiveSearch,
-                              accentColor: primaryAction,
-                            ),
-                          ),
-                      ],
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: EdgeInsets.fromLTRB(padding, 0, padding, 8),
@@ -470,37 +439,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             },
                             child: Container(
                               decoration: BoxDecoration(
-                                color: widget.forRequestor
-                                    ? kSurface
-                                    : kBlueDim.withValues(alpha: 0.35),
-                                borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
-                                border: Border.all(
-                                  color: widget.forRequestor
-                                      ? kBorder
-                                      : kAccent.withValues(alpha: 0.12),
+                                color: kSurface,
+                                borderRadius: BorderRadius.circular(
+                                  kMemberDashboardCardRadius,
                                 ),
+                                border: Border.all(color: kBorder),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: widget.forRequestor
-                                        ? Colors.black.withValues(alpha: 0.04)
-                                        : kMemberCyan.withValues(alpha: 0.06),
-                                    blurRadius: widget.forRequestor ? 8 : 20,
-                                    offset: Offset(0, widget.forRequestor ? 2 : 8),
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
-                                  if (!widget.forRequestor)
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.04),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
                                 ],
                               ),
-                              padding: EdgeInsets.fromLTRB(
-                                widget.forRequestor ? 8 : 10,
-                                widget.forRequestor ? 8 : 10,
-                                widget.forRequestor ? 8 : 10,
-                                widget.forRequestor ? 8 : 10,
-                              ),
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                               child: Column(
                                 children: [
                                   Row(
@@ -512,22 +464,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       ),
                                       Expanded(
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
-                                            if (widget.forRequestor) ...[
-                                              Icon(
-                                                Icons.calendar_month_rounded,
-                                                size: 15,
-                                                color: primaryAction.withValues(alpha: 0.8),
+                                            Icon(
+                                              Icons.calendar_month_rounded,
+                                              size: 15,
+                                              color: primaryAction.withValues(
+                                                alpha: 0.8,
                                               ),
-                                              const SizedBox(width: 5),
-                                            ],
+                                            ),
+                                            const SizedBox(width: 5),
                                             Flexible(
                                               child: Text(
                                                 '${_monthNames[_focusedMonth.month - 1]} ${_focusedMonth.year}',
-                                                style: memberDashboardSectionTitleStyle.copyWith(
-                                                  fontSize: widget.forRequestor ? 15 : 16,
-                                                ),
+                                                style:
+                                                    memberDashboardSectionTitleStyle
+                                                        .copyWith(fontSize: 15),
                                                 textAlign: TextAlign.center,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
@@ -548,7 +501,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: widget.forRequestor ? 6 : 8),
+                                  const SizedBox(height: 6),
                                   Row(
                                     children: _weekdays
                                         .map(
@@ -556,7 +509,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                             child: Center(
                                               child: Text(
                                                 d,
-                                                style: memberDashboardMetaStyle.copyWith(
+                                                style: memberDashboardMetaStyle
+                                                    .copyWith(
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.w600,
                                                   color: kTextSecondary,
@@ -567,23 +521,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         )
                                         .toList(),
                                   ),
-                                  SizedBox(height: widget.forRequestor ? 2 : 4),
+                                  const SizedBox(height: 2),
                                   ...List.generate(rowCount, (row) {
                                     return Padding(
-                                      padding: EdgeInsets.only(
-                                        bottom: widget.forRequestor ? 2 : 2,
-                                      ),
+                                      padding: const EdgeInsets.only(bottom: 2),
                                       child: Row(
                                         children: List.generate(7, (col) {
                                           final dayOffset =
                                               row * 7 + col - startWeekday + 1;
-                                          if (!widget.forRequestor &&
-                                              (dayOffset < 1 ||
-                                                  dayOffset > daysInMonth)) {
-                                            return const Expanded(
-                                              child: SizedBox(height: 40),
-                                            );
-                                          }
                                           final date = DateTime(
                                             _focusedMonth.year,
                                             _focusedMonth.month,
@@ -594,133 +539,70 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           final isSelected =
                                               _sameDay(_selectedDay, date);
                                           final isToday = _sameDay(today, date);
-                                          if (widget.forRequestor) {
-                                            final events = _eventsForDay(date);
-                                            final palette = events.isEmpty
-                                                ? const _RequestorChipPalette(
-                                                    accent: kBorder,
-                                                    fill: kSurfaceAlt,
-                                                    icon: Icons.event_rounded,
-                                                  )
-                                                : _requestorChipPalette(
-                                                    events.first,
-                                                  );
-                                            return Expanded(
-                                              child: _RequestorCalendarDayCell(
-                                                day: date.day,
-                                                isSelected: isSelected,
-                                                isToday: isToday,
-                                                inMonth: inMonth,
-                                                events: events,
-                                                shortTitle: events.isEmpty
-                                                    ? ''
-                                                    : _requestorShortTitle(
-                                                        events.first.title,
-                                                      ),
-                                                palette: palette,
-                                                onTap: () => setState(() {
-                                                  _selectedDay = _dayOnly(date);
-                                                  if (!inMonth) {
-                                                    _focusedMonth = DateTime(
-                                                      date.year,
-                                                      date.month,
-                                                    );
-                                                  }
-                                                }),
-                                              ),
-                                            );
-                                          }
+                                          final events = _eventsForDay(date);
+                                          final palette = events.isEmpty
+                                              ? const _RequestorChipPalette(
+                                                  accent: kBorder,
+                                                  fill: kSurfaceAlt,
+                                                  icon: Icons.event_rounded,
+                                                )
+                                              : _requestorChipPalette(
+                                                  events.first,
+                                                );
                                           return Expanded(
-                                            child: _CalendarDayCell(
+                                            child: _RequestorCalendarDayCell(
                                               day: date.day,
                                               isSelected: isSelected,
                                               isToday: isToday,
-                                              hasMyAssignment:
-                                                  _dayHasMyAssignment(date),
-                                              hasGeneralEvent:
-                                                  _dayHasGeneralEvent(date),
-                                              onTap: () => setState(
-                                                () => _selectedDay = date,
-                                              ),
+                                              inMonth: inMonth,
+                                              events: events,
+                                              shortTitle: events.isEmpty
+                                                  ? ''
+                                                  : _requestorShortTitle(
+                                                      events.first.title,
+                                                    ),
+                                              palette: palette,
+                                              onTap: () => setState(() {
+                                                _selectedDay = _dayOnly(date);
+                                                if (!inMonth) {
+                                                  _focusedMonth = DateTime(
+                                                    date.year,
+                                                    date.month,
+                                                  );
+                                                }
+                                              }),
                                             ),
                                           );
                                         }),
                                       ),
                                     );
                                   }),
-                                  if (!widget.forRequestor) ...[
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const _CalendarLegendDot(
-                                          color: kCyan,
-                                          label: 'Event',
-                                        ),
-                                        const SizedBox(width: 12),
-                                        const _CalendarLegendDot(
-                                          color: kAccent,
-                                          label: 'Assigned',
-                                        ),
-                                      ],
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),
                           ),
                         ),
                       ),
-                      if (widget.forRequestor)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(padding, 6, padding, 8),
-                            child: _RequestorAgendaHeader(
-                              dateLabel: _formatSelectedDate(_selectedDay),
-                              eventCount: dayEvents.length,
-                            ),
-                          ),
-                        )
-                      else
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(padding, 8, padding, 10),
-                            child: Row(
-                              children: [
-                                Icon(Icons.event_rounded, size: 17, color: kAccent),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _formatSelectedDate(_selectedDay),
-                                        style: memberDashboardSectionTitleStyle
-                                            .copyWith(fontSize: 15),
-                                      ),
-                                      Text(
-                                        dayEvents.isEmpty
-                                            ? 'No events scheduled'
-                                            : '${dayEvents.length} event${dayEvents.length == 1 ? '' : 's'}',
-                                        style: memberDashboardMetaStyle
-                                            .copyWith(fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(padding, 6, padding, 8),
+                          child: _RequestorAgendaHeader(
+                            dateLabel: _formatSelectedDate(_selectedDay),
+                            eventCount: dayEvents.length,
                           ),
                         ),
+                      ),
                       if (dayEvents.isEmpty)
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: EdgeInsets.fromLTRB(padding, 4, padding, 16),
+                            padding:
+                                EdgeInsets.fromLTRB(padding, 4, padding, 16),
                             child: _searchQuery.trim().isNotEmpty
                                 ? MobileEmptyState(
                                     icon: Icons.search_off_rounded,
                                     title: 'No matching events',
-                                    subtitle: 'Try a different search or date.',
+                                    subtitle:
+                                        'Try a different search or date.',
                                   )
                                 : _CalendarNoEventsEmptyState(
                                     forRequestor: widget.forRequestor,
@@ -735,29 +617,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           sliver: SliverList.separated(
                             itemCount: dayEvents.length,
                             separatorBuilder: (_, __) =>
-                                SizedBox(height: widget.forRequestor ? 6 : 8),
+                                const SizedBox(height: 6),
                             itemBuilder: (_, i) {
-                              if (widget.forRequestor) {
-                                final event = dayEvents[i];
-                                final palette = _requestorChipPalette(event);
-                                return _RequestorAgendaEventCard(
-                                  title: event.title,
-                                  schedule: _requestorScheduleLabel(event),
-                                  location: event.location,
-                                  statusLabel: _requestorStatusLabel(event),
-                                  statusColor: _requestorStatusColor(event),
-                                  statusBackground:
-                                      _requestorStatusBackground(event),
-                                  accent: palette.accent,
-                                  icon: palette.icon,
-                                  onTap: () => _openEventDetail(context, event),
-                                );
-                              }
-                              return MemberCalendarEventCard(
-                                event: dayEvents[i],
-                                forRequestor: false,
-                                onTap: () =>
-                                    _openEventDetail(context, dayEvents[i]),
+                              final event = dayEvents[i];
+                              final palette = _requestorChipPalette(event);
+                              return _RequestorAgendaEventCard(
+                                title: event.title,
+                                schedule: _requestorScheduleLabel(event),
+                                location: event.location,
+                                statusLabel: _requestorStatusLabel(event),
+                                statusColor: _requestorStatusColor(event),
+                                statusBackground:
+                                    _requestorStatusBackground(event),
+                                accent: palette.accent,
+                                icon: palette.icon,
+                                onTap: () => _openEventDetail(context, event),
                               );
                             },
                           ),
@@ -1585,97 +1459,6 @@ class _RequestorAgendaMetaChip extends StatelessWidget {
   }
 }
 
-class _CalendarDayCell extends StatelessWidget {
-  const _CalendarDayCell({
-    required this.day,
-    required this.isSelected,
-    required this.isToday,
-    required this.hasMyAssignment,
-    required this.hasGeneralEvent,
-    required this.onTap,
-  });
-
-  final int day;
-  final bool isSelected;
-  final bool isToday;
-  final bool hasMyAssignment;
-  final bool hasGeneralEvent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final showDots = hasMyAssignment || hasGeneralEvent;
-    final assignedDot = isSelected ? Colors.white : kAccent;
-    final generalDot = isSelected ? Colors.white.withValues(alpha: 0.85) : kCyan;
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        height: 40,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? kMemberButtonPrimary.withValues(alpha: 0.88)
-              : isToday
-                  ? kMemberButtonPrimary.withValues(alpha: 0.1)
-                  : Colors.white.withValues(alpha: 0.65),
-          borderRadius: BorderRadius.circular(10),
-          border: isToday && !isSelected
-              ? Border.all(color: kMemberButtonPrimary.withValues(alpha: 0.45))
-              : hasMyAssignment && !isSelected
-                  ? Border.all(color: kAccent.withValues(alpha: 0.25))
-                  : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '$day',
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : isToday
-                        ? kMemberButtonPrimary
-                        : kTextPrimary,
-                fontSize: 13,
-                fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w500,
-                height: 1.1,
-              ),
-            ),
-            SizedBox(
-              height: 8,
-              child: showDots
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (hasGeneralEvent)
-                          Container(
-                            width: 4,
-                            height: 4,
-                            margin: const EdgeInsets.symmetric(horizontal: 1),
-                            decoration: BoxDecoration(color: generalDot, shape: BoxShape.circle),
-                          ),
-                        if (hasMyAssignment)
-                          Container(
-                            width: 4,
-                            height: 4,
-                            margin: const EdgeInsets.symmetric(horizontal: 1),
-                            decoration: BoxDecoration(color: assignedDot, shape: BoxShape.circle),
-                          ),
-                      ],
-                    )
-                  : null,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TodayPill extends StatelessWidget {
   const _TodayPill({
     required this.onTap,
@@ -1706,71 +1489,6 @@ class _TodayPill extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _CalendarPageHeader extends StatelessWidget {
-  const _CalendarPageHeader({
-    this.onNotificationsTap,
-    this.onProfileTap,
-  });
-
-  final VoidCallback? onNotificationsTap;
-  final VoidCallback? onProfileTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final padding = mobilePagePaddingOf(context);
-    final titleStyle = dashText(const TextStyle(
-      color: kTextPrimary,
-      fontSize: 24,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -0.4,
-      height: 1.15,
-    ));
-
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(padding, 4, padding, 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text('Calendar', style: titleStyle),
-            ),
-            MemberPageNotificationButton(onTap: onNotificationsTap),
-            MemberPageProfileAvatar(onTap: onProfileTap),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CalendarLegendDot extends StatelessWidget {
-  const _CalendarLegendDot({required this.color, required this.label});
-
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: memberDashboardMetaStyle.copyWith(fontSize: 10, fontWeight: FontWeight.w600),
-        ),
-      ],
     );
   }
 }

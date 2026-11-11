@@ -799,7 +799,9 @@ export function ActiveDocumentersPanel({ snapshot }: { snapshot: ActiveDocumente
           color="var(--color-accent-purple)"
           title="Active Documenters"
           subtitle="Competency mix of members."
-          trailing={<TextLink label="Members" onClick={() => navigate('/members')} />}
+          trailing={
+            <TextLink label="Members" onClick={() => navigate('/competency?tab=directory')} />
+          }
         />
       </div>
       <div className="px-4 pb-2.5 pt-0.5 sm:px-5">

@@ -10,7 +10,6 @@ import 'package:access_mobile/mobile_app/screens/event_album_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
-import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_gallery_header.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_tab_hero.dart';
 
@@ -251,7 +250,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   List<EventGalleryAlbum> _sortedAlbums(List<EventGalleryAlbum> source) {
-    if (!widget.requestorMode) return source;
     final list = [...source];
     list.sort((a, b) {
       final ad = _albumSortDate(a);
@@ -266,9 +264,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   List<EventGalleryAlbum> get _recentAlbums {
-    // Requestor Phase 2 uses explicit event-date sorting instead of a Recent strip.
-    if (widget.requestorMode || _hasActiveSearch) return const [];
-    return pickGalleryRecentAlbums(_albums);
+    // Shared Requestor-style list: no separate Recent strip.
+    return const [];
   }
 
   List<EventGalleryAlbum> get _catalogAlbums {
@@ -310,72 +307,33 @@ class _GalleryScreenState extends State<GalleryScreen> {
     final padding = mobilePagePaddingOf(context);
 
     return ColoredBox(
-      color: kBg,
+      color: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ListenableBuilder(
             listenable: Listenable.merge([appState, memberDataController]),
             builder: (_, __) {
-              final statsAlbums = widget.requestorMode ? _statsAlbums : _albums;
-              final photos =
-                  statsAlbums.fold<int>(0, (sum, a) => sum + a.photoCount);
-              final videos =
-                  statsAlbums.fold<int>(0, (sum, a) => sum + a.videoCount);
               final gallerySyncing = (memberDataController.eventGalleryLoading ||
                       memberDataController.galleryTabLoading) &&
                   appState.eventGallery.isNotEmpty;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.requestorMode)
-                    RequestorBrandAppBar(
-                      onNotifications: widget.onNotificationsTap,
-                      onProfileTap: widget.onProfileTap,
-                    )
-                  else
-                    _GalleryMemberHeader(
-                      requestorMode: false,
-                      subtitle: widget.subtitle,
-                      purposeBelowTitle: widget.purposeBelowTitle,
-                      onNotificationsTap: widget.onNotificationsTap,
-                      onProfileTap: widget.onProfileTap,
-                    ),
+                  RequestorBrandAppBar(
+                    onNotifications: widget.onNotificationsTap,
+                    onProfileTap: widget.onProfileTap,
+                  ),
                   if (gallerySyncing)
-                    LinearProgressIndicator(
+                    const LinearProgressIndicator(
                       minHeight: 3,
-                      color: widget.requestorMode
-                          ? kRequestorPrimaryAction
-                          : kAccent,
+                      color: kCyan,
                       backgroundColor: kBorder,
-                    ),
-                  if (!widget.requestorMode)
-                    _GalleryStatsRow(
-                      albumCount: statsAlbums.length,
-                      photoCount: photos,
-                      videoCount: videos,
-                      requestorMode: false,
                     ),
                 ],
               );
             },
           ),
-          if (!widget.requestorMode) ...[
-            _GallerySearchBar(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              onChanged: _onSearchChanged,
-              onClear: _clearSearch,
-              hasQuery: _hasActiveSearch,
-              hintText: 'Search event albums...',
-              requestorMode: false,
-            ),
-            _GalleryFilterTabs(
-              selected: _filter,
-              onSelected: (f) => setState(() => _filter = f),
-              requestorMode: false,
-            ),
-          ],
           Expanded(
             child: ListenableBuilder(
               listenable: Listenable.merge([appState, memberDataController]),
@@ -390,58 +348,56 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     statsAlbums.fold<int>(0, (sum, a) => sum + a.photoCount);
                 final videoCount =
                     statsAlbums.fold<int>(0, (sum, a) => sum + a.videoCount);
-                final requestorChromeSlivers = widget.requestorMode
-                    ? <Widget>[
-                        const SliverToBoxAdapter(
-                          child: RequestorGalleryIllustratedHeader(
-                            includeTopActions: false,
-                          ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: _GalleryStatsRow(
-                            albumCount: statsAlbums.length,
-                            photoCount: photoCount,
-                            videoCount: videoCount,
-                            requestorMode: true,
-                          ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: _GallerySearchBar(
-                            controller: _searchController,
-                            focusNode: _searchFocusNode,
-                            onChanged: _onSearchChanged,
-                            onClear: _clearSearch,
-                            hasQuery: _hasActiveSearch,
-                            hintText: 'Search events or albums...',
-                            requestorMode: true,
-                          ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: _GalleryFilterTabs(
-                            selected: _filter,
-                            onSelected: (f) => setState(() => _filter = f),
-                            requestorMode: true,
-                          ),
-                        ),
-                      ]
-                    : const <Widget>[];
+                final galleryChromeSlivers = <Widget>[
+                  SliverToBoxAdapter(
+                    child: RequestorGalleryIllustratedHeader(
+                      includeTopActions: false,
+                      subtitle: widget.requestorMode
+                          ? 'Relive your documented events.'
+                          : 'Browse published event documentation.',
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _GalleryStatsRow(
+                      albumCount: statsAlbums.length,
+                      photoCount: photoCount,
+                      videoCount: videoCount,
+                      requestorMode: true,
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _GallerySearchBar(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      onChanged: _onSearchChanged,
+                      onClear: _clearSearch,
+                      hasQuery: _hasActiveSearch,
+                      hintText: 'Search events or albums...',
+                      requestorMode: true,
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _GalleryFilterTabs(
+                      selected: _filter,
+                      onSelected: (f) => setState(() => _filter = f),
+                      requestorMode: true,
+                    ),
+                  ),
+                ];
 
                 if (galleryLoading) {
-                  if (widget.requestorMode) {
-                    return CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
+                  return CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    slivers: [
+                      ...galleryChromeSlivers,
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _GalleryLoadingSkeletonList(padding: padding),
                       ),
-                      slivers: [
-                        ...requestorChromeSlivers,
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _GalleryLoadingSkeletonList(padding: padding),
-                        ),
-                      ],
-                    );
-                  }
-                  return _GalleryLoadingSkeletonList(padding: padding);
+                    ],
+                  );
                 }
 
                 if (galleryError != null && appState.eventGallery.isEmpty) {
@@ -453,7 +409,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         parent: BouncingScrollPhysics(),
                       ),
                       slivers: [
-                        ...requestorChromeSlivers,
+                        ...galleryChromeSlivers,
                         _GalleryEmptyStateSliver(
                           padding: padding,
                           child: _GalleryLoadErrorState(
@@ -479,7 +435,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         parent: BouncingScrollPhysics(),
                       ),
                       slivers: [
-                        ...requestorChromeSlivers,
+                        ...galleryChromeSlivers,
                         _GalleryEmptyStateSliver(
                           padding: padding,
                           top: searching ? 16 : _kGalleryEmptyTop,
@@ -549,9 +505,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 }
 
                 final displayAlbums = _displayAlbums;
-                final sectionTitle = widget.requestorMode
-                    ? (_hasActiveSearch ? 'Matching events' : 'Event Albums')
-                    : (_hasActiveSearch ? 'Matching events' : 'Event albums');
+                final sectionTitle =
+                    _hasActiveSearch ? 'Matching events' : 'Event Albums';
 
                 return RefreshIndicator(
                   color: kMemberDashboardAccent,
@@ -561,24 +516,24 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       parent: BouncingScrollPhysics(),
                     ),
                     slivers: [
-                      ...requestorChromeSlivers,
+                      ...galleryChromeSlivers,
                       SliverToBoxAdapter(
                         child: _GalleryListSectionHeader(
                           padding: padding,
                           title: sectionTitle,
                           count: displayAlbums.length,
                           searching: _hasActiveSearch,
-                          requestorMode: widget.requestorMode,
+                          requestorMode: true,
                           sort: _sort,
-                          onSortChanged: widget.requestorMode
-                              ? (value) => setState(() => _sort = value)
-                              : null,
+                          onSortChanged: (value) =>
+                              setState(() => _sort = value),
                         ),
                       ),
                       _GalleryAlbumSliver(
                         padding: padding,
                         albums: displayAlbums,
-                        requestorMode: widget.requestorMode,
+                        // Visual parity with Requestor; album open keeps role mode.
+                        requestorMode: true,
                         onOpenAlbum: _openAlbum,
                       ),
                     ],
@@ -814,58 +769,6 @@ class _GallerySortMenu extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _GalleryMemberHeader extends StatelessWidget {
-  const _GalleryMemberHeader({
-    required this.subtitle,
-    this.requestorMode = false,
-    this.purposeBelowTitle = false,
-    this.onNotificationsTap,
-    this.onProfileTap,
-  });
-
-  final String subtitle;
-  final bool requestorMode;
-  final bool purposeBelowTitle;
-  final VoidCallback? onNotificationsTap;
-  final VoidCallback? onProfileTap;
-
-  @override
-  Widget build(BuildContext context) {
-    if (requestorMode) {
-      return RequestorGalleryIllustratedHeader(
-        title: 'Gallery',
-        subtitle: 'Relive your documented events.',
-        onNotificationsTap: onNotificationsTap,
-        onProfileTap: onProfileTap,
-      );
-    }
-
-    final compact = MediaQuery.sizeOf(context).width < 360;
-    final purpose = subtitle.trim();
-
-    return ColoredBox(
-      color: kBg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          RequestorFeatureTitleBar(
-            title: 'Gallery',
-            titleFontSize: compact ? 24 : 26,
-            lightBand: false,
-            trailing: [
-              const SizedBox(width: 6),
-              MemberPageNotificationButton(onTap: onNotificationsTap),
-              MemberPageProfileAvatar(onTap: onProfileTap),
-            ],
-          ),
-          if (purpose.isNotEmpty && purposeBelowTitle)
-            RequestorFeaturePurposeLine(text: purpose),
-        ],
       ),
     );
   }
@@ -2375,7 +2278,7 @@ class _GalleryNoEventMediaEmptyState extends StatelessWidget {
             _GalleryPrimaryButton(
               label: 'View my requests',
               icon: Icons.description_rounded,
-              backgroundColor: kRequestorPrimaryAction,
+              backgroundColor: kCyan,
               onPressed: onViewRequests!,
             ),
             const SizedBox(height: 8),

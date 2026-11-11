@@ -538,6 +538,100 @@ def notify_media_evaluated(db: Session, user_id: int, media_id: int, file_name: 
     )
 
 
+def classify_integrity_review_alert(
+    ai_info: dict | None,
+    *,
+    detection_label: str = "",
+    file_name: str = "",
+    uploader: str = "",
+) -> tuple[str, str, str, str]:
+    """Map visual risk + provenance policy to admin alert title/priority/copy.
+
+    Returns (title, priority, admin_message, member_message).
+    Never claims AI-generated solely from missing provenance.
+    """
+    info = ai_info if isinstance(ai_info, dict) else {}
+    risk = str(info.get("visual_risk_level") or info.get("risk_level") or "").strip().lower()
+    outcome = str(info.get("provenance_policy_outcome") or "").strip().lower()
+    driver = str(info.get("primary_review_driver") or "").strip().lower()
+    label = (detection_label or str(info.get("verdict") or "")).strip().lower()
+    name = (file_name or "upload").strip() or "upload"
+    who = (uploader or "Member").strip() or "Member"
+
+    provenance_hold = outcome in (
+        "source_unverified",
+        "source_partially_verified",
+    ) or driver.startswith("provenance_") or driver in (
+        "filename_reexport",
+        "provenance_download_resave",
+        "provenance_absent",
+        "provenance_partial_android",
+        "provenance_partial_other",
+    )
+
+    high_ai = risk == "high" or label in ("ai_generated", "ai") or driver == "visual_high"
+    # B before A when explicitly suspicious
+    if risk == "suspicious" or label == "suspicious" or driver == "visual_suspicious":
+        return (
+            "Suspicious Media: Review Required",
+            "high",
+            (
+                f'Suspicious indicators found on "{name}" by {who}. '
+                "This is not a confirmed AI determination. Review recommended."
+            ),
+            (
+                f'Your upload "{name}" flagged suspicious indicators and needs admin review. '
+                "This is not a final AI decision."
+            ),
+        )
+
+    # A. High visual AI risk
+    if high_ai:
+        return (
+            "AI Risk Alert",
+            "high",
+            (
+                f'High AI-generation risk detected on "{name}" by {who}. '
+                "Administrator review required."
+            ),
+            f'Your upload "{name}" shows high AI-generation risk and needs admin review.',
+        )
+
+    # C. Low AI risk with absent/partial provenance
+    if (risk in ("", "low") or label in ("human", "authentic", "")) and provenance_hold:
+        return (
+            "Source Verification Required",
+            "normal",
+            (
+                f'Camera capture provenance could not be confirmed for "{name}" by {who}. '
+                "Administrator verification required."
+            ),
+            (
+                f'Your upload "{name}" needs administrator verification of capture source. '
+                "This is not treated as AI-generated content."
+            ),
+        )
+
+    # D. Other review-required cases
+    if driver == "detector_unavailable":
+        reason = "Automated authenticity analysis was incomplete."
+    elif driver == "security_ai_metadata":
+        reason = "AI-related metadata indicators require verification."
+    elif driver == "combined":
+        reason = "Multiple integrity signals require administrator verification."
+    elif outcome in ("elevated_ai_risk", "high_ai_risk"):
+        reason = "Elevated integrity signals require administrator verification."
+    else:
+        reason = "Administrator verification is required before release."
+
+    return (
+        "Media Pending Verification",
+        "normal",
+        f'{reason} File "{name}" uploaded by {who}.',
+        f'Your upload "{name}" is pending administrator verification.',
+    )
+
+
 def notify_ai_detection_alert(
     db: Session,
     media_id: int,
@@ -546,30 +640,36 @@ def notify_ai_detection_alert(
     *,
     member_id: int | None = None,
     detection_label: str = "ai_generated",
+    ai_info: dict | None = None,
 ) -> None:
     if not settings_crud.is_notification_enabled(db, "notify_system_alerts"):
         return
-    label = (detection_label or "ai_generated").lower()
-    if label == "suspicious":
-        admin_msg = f'Suspicious content detected on "{file_name}" by {uploader}. Review recommended.'
-        member_msg = f'Your upload "{file_name}" flagged suspicious indicators and needs admin review.'
-    else:
-        admin_msg = f'AI-generated content detected on "{file_name}" by {uploader}.'
-        member_msg = f'Your upload "{file_name}" is under AI review. Please wait for admin verification.'
-    notify_admins(
-        db,
-        title="AI detection alert",
-        message=admin_msg,
-        category="ai_detection",
-        priority="high",
-        action_type="review_media",
-        action_ref_id=media_id,
+    title, priority, admin_msg, member_msg = classify_integrity_review_alert(
+        ai_info,
+        detection_label=detection_label,
+        file_name=file_name,
+        uploader=uploader,
     )
+    # One row per admin + media; skip if an integrity review alert already exists.
+    ids = _admin_user_ids(db)
+    for admin_id in ids:
+        if not member_pref_crud.allows_category(db, admin_id, "ai_detection"):
+            continue
+        notification_crud.create_media_integrity_alert_once(
+            db,
+            admin_id,
+            title=title,
+            message=admin_msg,
+            priority=priority,
+            media_id=media_id,
+        )
     if member_id:
         notify_user(
             db,
             member_id,
-            title="Media under AI review",
+            title="Media pending verification"
+            if title != "AI Risk Alert" and "Suspicious" not in title
+            else "Media under review",
             message=member_msg,
             category="ai_detection",
             priority="normal",

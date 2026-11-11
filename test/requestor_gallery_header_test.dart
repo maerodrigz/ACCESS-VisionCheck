@@ -49,7 +49,7 @@ void main() {
     expect(find.text('Search events or albums...'), findsOneWidget);
   });
 
-  testWidgets('member gallery keeps plain title bar without gallery asset',
+  testWidgets('member gallery matches requestor illustrated header chrome',
       (tester) async {
     tester.view.physicalSize = const Size(390, 1600);
     tester.view.devicePixelRatio = 1.0;
@@ -65,7 +65,20 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byType(RequestorGalleryIllustratedHeader), findsNothing);
+    expect(find.byType(RequestorGalleryIllustratedHeader), findsOneWidget);
     expect(find.text('Gallery'), findsOneWidget);
+    expect(find.text('Browse published event documentation.'), findsOneWidget);
+    expect(find.text('Search events or albums...'), findsOneWidget);
+
+    final image = tester.widget<Image>(
+      find.descendant(
+        of: find.byType(RequestorGalleryIllustratedHeader),
+        matching: find.byType(Image),
+      ),
+    );
+    expect(
+      (image.image as AssetImage).assetName,
+      kRequestorGalleryHeaderAsset,
+    );
   });
 }

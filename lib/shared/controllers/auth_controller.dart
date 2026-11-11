@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show ChangeNotifier, kIsWeb, visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:access_mobile/shared/api/api_client.dart';
@@ -56,6 +57,13 @@ class AuthController extends ChangeNotifier {
   AuthUser? _user;
   AuthUser? get user => _user;
   bool get isLoggedIn => _user != null;
+
+  /// Widget-test helper: inject a session without calling the API.
+  @visibleForTesting
+  void debugSetUserForTest(AuthUser? user) {
+    _user = user;
+    notifyListeners();
+  }
 
   /// Shown on [VisionLoginScreen] after forced logout (deleted / deactivated account).
   String? consumeSessionEndMessage() {

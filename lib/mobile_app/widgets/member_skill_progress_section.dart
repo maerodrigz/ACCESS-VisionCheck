@@ -10,21 +10,47 @@ import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 
 enum _MediaFilter { all, photo, video }
 
+/// Presentation for [MemberSkillProgressSection].
+enum MemberSkillProgressLayout {
+  /// Profile: filters + expanded chart sections.
+  standard,
+
+  /// Member Home: one compact Performance Overview card (View Details).
+  homeOverview,
+}
+
+const _kOverviewNavy = Color(0xFF103E56);
+const _kOverviewMuted = Color(0xFF617F91);
+const _kOverviewBorder = Color(0xFFD0EBF5);
+const _kOverviewRadius = 15.0;
+
 /// Eligible released practice quality over time (Home / Profile / Rankings).
 class MemberSkillProgressSection extends StatefulWidget {
   const MemberSkillProgressSection({
     super.key,
     this.compact = false,
+    this.layout = MemberSkillProgressLayout.standard,
+    this.onViewDetails,
   });
 
   final bool compact;
 
+  /// Home uses [MemberSkillProgressLayout.homeOverview] for the consolidated card.
+  final MemberSkillProgressLayout layout;
+
+  /// Opens the existing evaluation / performance surface (Member Home View Details).
+  final VoidCallback? onViewDetails;
+
   @override
-  State<MemberSkillProgressSection> createState() => _MemberSkillProgressSectionState();
+  State<MemberSkillProgressSection> createState() =>
+      _MemberSkillProgressSectionState();
 }
 
 class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection> {
   _MediaFilter _filter = _MediaFilter.all;
+
+  bool get _isHomeOverview =>
+      widget.layout == MemberSkillProgressLayout.homeOverview;
 
   bool? get _videoFilter => switch (_filter) {
         _MediaFilter.all => null,
@@ -37,14 +63,17 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
     return ListenableBuilder(
       listenable: Listenable.merge([appState, memberDataController]),
       builder: (context, _) {
+        // Home overview always uses All; Photo/Video filters stay on Profile.
+        final videoOnly = _isHomeOverview ? null : _videoFilter;
         final chronological = chronologicalEligibleEvaluations(
           appState.evaluations,
-          videoOnly: _videoFilter,
+          videoOnly: videoOnly,
         );
         final trend = computeSkillProgressTrend(chronological);
         final compare = latestVersusPrevious(chronological);
         final pendingCount = appState.evaluations
-            .where((e) => MemberReviewStatus.isReviewPending(e.reviewStatus) || e.isPending)
+            .where((e) =>
+                MemberReviewStatus.isReviewPending(e.reviewStatus) || e.isPending)
             .length;
         final withheldCount = appState.evaluations
             .where((e) => !evaluationEligibleForSkillProgress(e))
@@ -54,8 +83,19 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
             !memberDataController.evaluationsTabSynced &&
             memberDataController.evaluationsTabError == null;
         final historyError = memberDataController.evaluationsTabError;
-
         final emptyCopy = _emptyStateCopy();
+
+        if (_isHomeOverview) {
+          return _buildHomeOverviewCard(
+            chronological: chronological,
+            trend: trend,
+            compare: compare,
+            historyError: historyError,
+            historyLoading: historyLoading,
+            emptyHeading: emptyCopy.heading,
+            emptyDescription: emptyCopy.description,
+          );
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,6 +162,7 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
                   emptyHeading: emptyCopy.heading,
                   emptyDescription: emptyCopy.description,
                   maxWidth: constraints.maxWidth,
+                  nestedCard: true,
                 );
               },
             ),
@@ -145,19 +186,144 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
     );
   }
 
+  Widget _buildHomeOverviewCard({
+    required List<Evaluation> chronological,
+    required SkillProgressTrend trend,
+    required ({Evaluation? latest, Evaluation? previous, double? deltaPoints})
+        compare,
+    required String? historyError,
+    required bool historyLoading,
+    required String emptyHeading,
+    required String emptyDescription,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(_kOverviewRadius),
+        border: Border.all(color: _kOverviewBorder),
+        boxShadow: [
+          BoxShadow(
+            color: kCyan.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: kCyan.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(
+                  Icons.analytics_outlined,
+                  size: 15,
+                  color: kCyan,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Performance Overview',
+                  style: dashText(const TextStyle(
+                    color: _kOverviewNavy,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  )),
+                ),
+              ),
+              if (widget.onViewDetails != null)
+                TextButton(
+                  onPressed: widget.onViewDetails,
+                  style: TextButton.styleFrom(
+                    foregroundColor: kAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    minimumSize: const Size(40, 34),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'View Details',
+                    style: dashText(const TextStyle(
+                      color: kAccent,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    )),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _OverviewQualitySummary(compare: compare),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return _buildChartArea(
+                historyError: historyError,
+                historyLoading: historyLoading,
+                chronological: chronological,
+                emptyHeading: emptyHeading,
+                emptyDescription: emptyDescription,
+                maxWidth: constraints.maxWidth,
+                nestedCard: false,
+                compactHome: true,
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          _TrendBadge(trend: trend, homeCopy: true),
+          if (compare.latest?.feedback.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Latest feedback',
+              style: dashText(const TextStyle(
+                color: _kOverviewNavy,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              )),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              compare.latest!.feedback.trim(),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: dashText(const TextStyle(
+                color: _kOverviewMuted,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                height: 1.3,
+              )),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   ({String heading, String description}) _emptyStateCopy() {
     return switch (_filter) {
       _MediaFilter.video => (
           heading: 'Not enough video evaluations yet',
-          description: 'Complete at least 2 eligible video evaluations to see your progress.',
+          description:
+              'Complete at least 2 eligible video evaluations to see your progress.',
         ),
       _MediaFilter.photo => (
           heading: 'Not enough photo evaluations yet',
-          description: 'Complete at least 2 eligible photo evaluations to see your progress.',
+          description:
+              'Complete at least 2 eligible photo evaluations to see your progress.',
         ),
       _MediaFilter.all => (
           heading: 'Not enough evaluations yet',
-          description: 'Complete at least 2 eligible practice evaluations to see your progress.',
+          description:
+              'Complete at least 2 eligible practice evaluations to see your progress.',
         ),
     };
   }
@@ -180,6 +346,8 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
     required String emptyHeading,
     required String emptyDescription,
     required double maxWidth,
+    required bool nestedCard,
+    bool compactHome = false,
   }) {
     if (historyError != null && appState.evaluations.isEmpty) {
       return _SkillProgressMessageCard(
@@ -187,13 +355,13 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
         heading: 'Could not load history',
         description: 'Pull to refresh or open Evaluations.',
         iconColor: kOrange,
-        compact: widget.compact,
+        compact: widget.compact || compactHome,
       );
     }
 
     if (historyLoading) {
       return Padding(
-        padding: EdgeInsets.symmetric(vertical: widget.compact ? 28 : 36),
+        padding: EdgeInsets.symmetric(vertical: compactHome ? 22 : (widget.compact ? 28 : 36)),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -221,12 +389,23 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
         heading: emptyHeading,
         description: emptyDescription,
         iconColor: kAccent,
-        compact: widget.compact,
+        compact: widget.compact || compactHome,
       );
     }
 
     final width = maxWidth > 0 ? maxWidth : 320.0;
-    final height = (width * 0.48).clamp(140.0, widget.compact ? 210.0 : 260.0);
+    final height = compactHome
+        ? (width * 0.32).clamp(108.0, 148.0)
+        : (width * 0.48).clamp(140.0, widget.compact ? 210.0 : 260.0);
+
+    if (!nestedCard) {
+      return SizedBox(
+        height: height,
+        width: width,
+        child: _QualityLineChart(points: chronological),
+      );
+    }
+
     return Container(
       height: height,
       width: width,
@@ -237,6 +416,124 @@ class _MemberSkillProgressSectionState extends State<MemberSkillProgressSection>
         boxShadow: memberDashboardCardShadows(),
       ),
       child: _QualityLineChart(points: chronological),
+    );
+  }
+}
+
+class _OverviewQualitySummary extends StatelessWidget {
+  const _OverviewQualitySummary({required this.compare});
+
+  final ({Evaluation? latest, Evaluation? previous, double? deltaPoints}) compare;
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = compare.latest;
+    final previous = compare.previous;
+    final delta = compare.deltaPoints;
+
+    String deltaLabel;
+    Color deltaColor;
+    if (latest == null) {
+      deltaLabel = 'N/A';
+      deltaColor = _kOverviewMuted;
+    } else if (previous == null || delta == null) {
+      deltaLabel = 'N/A';
+      deltaColor = _kOverviewMuted;
+    } else if (delta == 0) {
+      deltaLabel = '0 pts';
+      deltaColor = kAccent;
+    } else if (delta > 0) {
+      deltaLabel = '+${delta.round()} pts';
+      deltaColor = delta >= SkillProgressTrendThresholds.improvingMinDelta
+          ? kGreen
+          : kAccent;
+    } else {
+      deltaLabel = '${delta.round()} pts';
+      deltaColor = delta <= SkillProgressTrendThresholds.decliningMaxDelta
+          ? kOrange
+          : kAccent;
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: _OverviewMetricBlock(
+            label: 'Latest Quality',
+            value: latest == null ? 'N/A' : '${latest.displayPercent}%',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _OverviewMetricBlock(
+            label: 'Previous',
+            value: previous == null ? 'N/A' : '${previous.displayPercent}%',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _OverviewMetricBlock(
+            label: 'Change',
+            value: deltaLabel,
+            valueColor: deltaColor,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OverviewMetricBlock extends StatelessWidget {
+  const _OverviewMetricBlock({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3FAFD),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: _kOverviewBorder.withValues(alpha: 0.85)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: dashText(const TextStyle(
+              color: _kOverviewMuted,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              height: 1.1,
+            )),
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: dashText(TextStyle(
+                color: valueColor ?? _kOverviewNavy,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                height: 1.05,
+                letterSpacing: -0.2,
+              )),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -259,17 +556,17 @@ class _SkillProgressMessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = compact ? 52.0 : 64.0;
+    final iconSize = compact ? 34.0 : 64.0;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 16 : 20,
-        vertical: compact ? 18 : 24,
+        horizontal: compact ? 12 : 20,
+        vertical: compact ? 10 : 24,
       ),
       decoration: BoxDecoration(
         color: kSurfaceAlt,
         borderRadius: BorderRadius.circular(kMemberDashboardCardRadius),
-        boxShadow: memberDashboardCardShadows(),
+        boxShadow: compact ? null : memberDashboardCardShadows(),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -283,20 +580,20 @@ class _SkillProgressMessageCard extends StatelessWidget {
             ),
             child: Icon(icon, size: iconSize * 0.46, color: iconColor),
           ),
-          SizedBox(height: compact ? 10 : 14),
+          SizedBox(height: compact ? 6 : 14),
           Text(
             heading,
             textAlign: TextAlign.center,
-            style: memberDashboardCardTitleStyle.copyWith(fontSize: compact ? 13 : 14),
+            style: memberDashboardCardTitleStyle.copyWith(fontSize: compact ? 12.5 : 14),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             description,
             textAlign: TextAlign.center,
             style: memberDashboardBodyStyle.copyWith(
-              fontSize: compact ? 12 : 13,
+              fontSize: compact ? 11 : 13,
               color: kDashTextSecondary,
-              height: 1.4,
+              height: 1.35,
             ),
           ),
         ],
@@ -343,48 +640,92 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _TrendBadge extends StatelessWidget {
-  const _TrendBadge({required this.trend});
+  const _TrendBadge({
+    required this.trend,
+    this.homeCopy = false,
+  });
 
   final SkillProgressTrend trend;
+  final bool homeCopy;
 
   @override
   Widget build(BuildContext context) {
     final (Color bg, Color fg, IconData icon) = switch (trend) {
-      SkillProgressTrend.improving => (kGreen.withValues(alpha: 0.12), kGreen, Icons.trending_up_rounded),
-      SkillProgressTrend.declining => (kOrange.withValues(alpha: 0.12), kOrange, Icons.trending_down_rounded),
-      SkillProgressTrend.stable => (kAccent.withValues(alpha: 0.1), kAccent, Icons.trending_flat_rounded),
-      SkillProgressTrend.insufficientData => (kBorder.withValues(alpha: 0.5), kTextSecondary, Icons.help_outline_rounded),
+      SkillProgressTrend.improving => (
+          kGreen.withValues(alpha: 0.12),
+          kGreen,
+          Icons.trending_up_rounded
+        ),
+      SkillProgressTrend.declining => (
+          kOrange.withValues(alpha: 0.12),
+          kOrange,
+          Icons.trending_down_rounded
+        ),
+      SkillProgressTrend.stable => (
+          kAccent.withValues(alpha: 0.1),
+          kAccent,
+          Icons.trending_flat_rounded
+        ),
+      SkillProgressTrend.insufficientData => (
+          kBorder.withValues(alpha: 0.5),
+          kTextSecondary,
+          Icons.help_outline_rounded
+        ),
     };
-    final hint = switch (trend) {
-      SkillProgressTrend.improving => 'Your recent scores are moving up',
-      SkillProgressTrend.declining => 'Recent scores dipped a little',
-      SkillProgressTrend.stable => 'Scores are holding steady',
-      SkillProgressTrend.insufficientData => 'Add more eligible practice to see a trend',
-    };
+    final hint = homeCopy
+        ? switch (trend) {
+            SkillProgressTrend.improving =>
+              'Your recent quality scores are moving up.',
+            SkillProgressTrend.declining =>
+              'Your recent quality scores are moving down.',
+            SkillProgressTrend.stable =>
+              'Your recent quality scores are relatively consistent.',
+            SkillProgressTrend.insufficientData =>
+              'More eligible evaluations are needed to show a trend.',
+          }
+        : switch (trend) {
+            SkillProgressTrend.improving => 'Your recent scores are moving up',
+            SkillProgressTrend.declining => 'Recent scores dipped a little',
+            SkillProgressTrend.stable => 'Scores are holding steady',
+            SkillProgressTrend.insufficientData =>
+              'Add more eligible practice to see a trend',
+          };
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: homeCopy ? 10 : 14,
+        vertical: homeCopy ? 8 : 12,
+      ),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(homeCopy ? 11 : 14),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: fg),
-          const SizedBox(width: 10),
+          Icon(icon, size: homeCopy ? 16 : 20, color: fg),
+          SizedBox(width: homeCopy ? 8 : 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   trend.label,
-                  style: dashText(TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: fg)),
+                  style: dashText(TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: homeCopy ? 12 : 13,
+                    color: fg,
+                  )),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   hint,
-                  style: dashText(TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.88), height: 1.3)),
+                  style: dashText(TextStyle(
+                    fontSize: homeCopy ? 11 : 11,
+                    color: fg.withValues(alpha: 0.88),
+                    height: 1.28,
+                  )),
                 ),
               ],
             ),
@@ -485,7 +826,10 @@ class _QualityLineChart extends StatelessWidget {
           show: true,
           drawVerticalLine: false,
           horizontalInterval: 20,
-          getDrawingHorizontalLine: (_) => FlLine(color: kBorder, strokeWidth: 1),
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: kBorder.withValues(alpha: 0.7),
+            strokeWidth: 1,
+          ),
         ),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
@@ -507,6 +851,10 @@ class _QualityLineChart extends StatelessWidget {
               getTitlesWidget: (v, _) {
                 final i = v.round();
                 if (i < 0 || i >= points.length) return const SizedBox.shrink();
+                // Avoid overcrowding on many points.
+                if (points.length > 6 && i != 0 && i != points.length - 1 && i % 2 != 0) {
+                  return const SizedBox.shrink();
+                }
                 return Text(
                   '${i + 1}',
                   style: dashText(TextStyle(fontSize: 10, color: kTextSecondary)),
@@ -527,7 +875,7 @@ class _QualityLineChart extends StatelessWidget {
             dotData: FlDotData(
               show: true,
               getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                radius: 4,
+                radius: 3.5,
                 color: kAccent,
                 strokeWidth: 2,
                 strokeColor: kSurface,
@@ -535,7 +883,7 @@ class _QualityLineChart extends StatelessWidget {
             ),
             belowBarData: BarAreaData(
               show: true,
-              color: kAccent.withValues(alpha: 0.08),
+              color: kAccent.withValues(alpha: 0.10),
             ),
           ),
         ],

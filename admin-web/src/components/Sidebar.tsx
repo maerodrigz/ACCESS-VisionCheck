@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LogOut, Smartphone } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 import { sidebarSections } from '../config/navigation'
@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext'
 
 import { AccessBrand } from './AccessBrand'
 import { LogoutConfirmDialog } from './LogoutConfirmDialog'
-import { PhoneVerifyDialog } from './PhoneVerifyDialog'
 
 interface SidebarNavProps {
   onNavigate?: () => void
@@ -21,25 +20,9 @@ export function SidebarBrand({ compact = false }: { compact?: boolean }) {
   )
 }
 
-function SidebarSignOutFooter({
-  onSignOutClick,
-  onVerifyPhoneClick,
-}: {
-  onSignOutClick: () => void
-  onVerifyPhoneClick: () => void
-}) {
+function SidebarSignOutFooter({ onSignOutClick }: { onSignOutClick: () => void }) {
   return (
-    <div className="mt-2 shrink-0 border-t border-[var(--color-sidebar-border)] px-1.5 pt-2 pb-1 space-y-0.5">
-      <button
-        type="button"
-        onClick={onVerifyPhoneClick}
-        className="group flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-[12px] font-semibold leading-tight tracking-tight text-[var(--color-sidebar-text-muted)] transition-all hover:bg-white/45 hover:text-[var(--color-sidebar-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white/50"
-      >
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/25 text-[var(--color-sidebar-text-muted)] transition-colors group-hover:bg-white/35">
-          <Smartphone size={14} strokeWidth={2} aria-hidden />
-        </span>
-        <span className="min-w-0 flex-1 truncate text-left">Verify phone (SMS reset)</span>
-      </button>
+    <div className="mt-2 shrink-0 border-t border-[var(--color-sidebar-border)] px-1.5 pt-2 pb-1">
       <button
         type="button"
         onClick={onSignOutClick}
@@ -57,7 +40,6 @@ function SidebarSignOutFooter({
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const { logout } = useAuth()
   const [logoutOpen, setLogoutOpen] = useState(false)
-  const [phoneVerifyOpen, setPhoneVerifyOpen] = useState(false)
 
   const confirmLogout = () => {
     setLogoutOpen(false)
@@ -88,7 +70,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                           'flex items-center gap-2 rounded-lg px-1.5 py-1.5 text-[12px] font-semibold leading-tight tracking-tight transition-all',
                           isActive
                             ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active-text)] shadow-sm'
-                            : 'text-[var(--color-sidebar-text)] hover:bg-white/45 hover:text-[var(--color-sidebar-text)]',
+                            : 'text-[var(--color-sidebar-text)] hover:bg-[#F4FBFF]/80 hover:text-[var(--color-sidebar-text)]',
                         ].join(' ')
                       }
                     >
@@ -116,10 +98,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             </div>
           ))}
         </div>
-        <SidebarSignOutFooter
-          onSignOutClick={() => setLogoutOpen(true)}
-          onVerifyPhoneClick={() => setPhoneVerifyOpen(true)}
-        />
+        <SidebarSignOutFooter onSignOutClick={() => setLogoutOpen(true)} />
       </nav>
 
       <LogoutConfirmDialog
@@ -127,7 +106,6 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         onCancel={() => setLogoutOpen(false)}
         onConfirm={confirmLogout}
       />
-      <PhoneVerifyDialog open={phoneVerifyOpen} onClose={() => setPhoneVerifyOpen(false)} />
     </>
   )
 }

@@ -40,7 +40,7 @@ class RegisterRequest(BaseModel):
         None,
         min_length=16,
         max_length=128,
-        description="Required for Member and Organization self-registration",
+        description="Deprecated: ignored. Email OTP is no longer required for self-registration.",
     )
 
 

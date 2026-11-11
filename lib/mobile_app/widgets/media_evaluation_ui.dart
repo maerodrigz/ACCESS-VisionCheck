@@ -128,6 +128,7 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
     this.showOverallHeader = true,
     this.showFeedbackCard = true,
     this.useBreakdownCard = false,
+    this.showBreakdownOverallScore = true,
     this.feedbackIsLocalFallback = false,
     this.mergeSupplementaryInsights = false,
   });
@@ -140,6 +141,8 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
   final bool showOverallHeader;
   final bool showFeedbackCard;
   final bool useBreakdownCard;
+  /// Forwarded to [QualityBreakdownCard.showOverallScoreHeader].
+  final bool showBreakdownOverallScore;
   final bool feedbackIsLocalFallback;
   final bool mergeSupplementaryInsights;
 

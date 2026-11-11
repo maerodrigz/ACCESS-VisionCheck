@@ -47,9 +47,10 @@ def _announcement_audience_roles(audience: str | None) -> tuple[RoleName, ...]:
 @router.get("/notifications")
 def list_all_notifications(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
-    rows = notification_crud.list_for_admin_inbox(db, limit=200)
+    """Current admin's inbox only (avoids N-admin duplicate visible rows)."""
+    rows = notification_crud.list_for_admin_inbox(db, limit=200, admin_user_id=admin.id)
     return [
         {
             "id": n.id,
@@ -72,10 +73,10 @@ def list_all_notifications(
 def admin_mark_notification_read(
     notification_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
     row = notification_crud.get_by_id(db, notification_id)
-    if not row:
+    if not row or row.user_id != admin.id:
         raise HTTPException(status_code=404, detail="Notification not found")
     updated = notification_crud.mark_read(db, row)
     return notification_crud.notification_to_dict(updated)
@@ -84,18 +85,18 @@ def admin_mark_notification_read(
 @router.post("/notifications/read-all", response_model=MessageResponse)
 def admin_mark_all_notifications_read(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
-    count = notification_crud.mark_all_read_admin_inbox(db)
+    count = notification_crud.mark_all_read_admin_inbox(db, admin_user_id=admin.id)
     return MessageResponse(message=f"Marked {count} notifications as read")
 
 
 @router.delete("/notifications/read", response_model=MessageResponse)
 def admin_clear_read_notifications(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
-    count = notification_crud.delete_read_admin_inbox(db)
+    count = notification_crud.delete_read_admin_inbox(db, admin_user_id=admin.id)
     return MessageResponse(message=f"Cleared {count} read notifications")
 
 

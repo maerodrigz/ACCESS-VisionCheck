@@ -1,0 +1,4 @@
+media_id,rater_id,media_type,sharpness,blur,brightness,contrast,blocking_artifacts,noise,ringing_artifacts,flickering,motion_stability,overall_visual_quality,notes
+FC001,R1,photo,4,4,5,4,5,N/A,N/A,N/A,N/A,N/A,example row — replace; focused study requires sharpness blur brightness contrast blocking_artifacts
+FC001,R2,photo,4,5,4,4,5,N/A,N/A,N/A,N/A,N/A,
+FC001,R3,photo,5,4,5,3,4,N/A,N/A,N/A,N/A,N/A,

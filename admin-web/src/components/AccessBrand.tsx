@@ -37,8 +37,8 @@ export function AccessBrand({
         : 'text-[2rem] font-extrabold tracking-tight text-[var(--color-accent-cyan)] sm:text-[2.125rem]'
       : onCyanBackground
         ? compact
-          ? 'text-[12px] font-extrabold tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.22)]'
-          : 'text-[17px] font-extrabold tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.22)]'
+          ? 'text-[12px] font-extrabold tracking-tight text-[var(--color-sidebar-text,#123653)]'
+          : 'text-[17px] font-extrabold tracking-tight text-[var(--color-sidebar-text,#123653)]'
         : compact
           ? 'text-[13px] font-extrabold tracking-tight text-[var(--color-accent-cyan)]'
           : 'text-[17px] font-extrabold tracking-tight text-[var(--color-accent-cyan)]'
@@ -50,8 +50,8 @@ export function AccessBrand({
         : 'text-xl font-semibold text-white sm:text-[1.35rem]'
       : onCyanBackground
         ? compact
-          ? 'text-[10px] font-extrabold text-[var(--color-accent-primary)] drop-shadow-[0_1px_1px_rgba(255,255,255,0.35)]'
-          : 'text-[15px] font-extrabold text-[var(--color-accent-primary)] drop-shadow-[0_1px_1px_rgba(255,255,255,0.35)]'
+          ? 'text-[10px] font-extrabold text-[var(--nav-active-text,#0057c2)]'
+          : 'text-[15px] font-extrabold text-[var(--nav-active-text,#0057c2)]'
         : compact
           ? 'text-[11px] font-semibold text-white/90'
           : 'text-[15px] font-semibold text-white/90'

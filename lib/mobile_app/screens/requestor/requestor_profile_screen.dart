@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:access_mobile/mobile_app/screens/change_password_screen.dart';
 import 'package:access_mobile/mobile_app/screens/edit_profile_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
@@ -12,11 +13,16 @@ import 'package:access_mobile/shared/legal/access_legal_content.dart';
 import 'package:access_mobile/shared/screens/legal_document_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-const _kCardRadius = 18.0;
-const _kSectionGap = 20.0;
-const _kRowDivider = Color(0xFFF1F5F9);
+const _kCardRadius = 16.0;
+const _kSectionGap = 16.0;
+const _kRowDivider = Color(0xFFEAF0F5);
+const _kSky = Color(0xFFEAF7FC);
+const _kSkyBorder = Color(0xFFD0EBF5);
+const _kCyan = Color(0xFF079FC6);
+const _kNavy = Color(0xFF173650);
+const _kMeta = Color(0xFF617F91);
 
-/// Requestor profile — compact app bar, organization card, security, legal, logout.
+/// Requestor profile — compact sky-blue identity card, settings, Sign Out.
 class RequestorProfileScreen extends StatefulWidget {
   const RequestorProfileScreen({super.key});
 
@@ -49,122 +55,205 @@ class _RequestorProfileScreenState extends State<RequestorProfileScreen> {
       listenable: Listenable.merge([appState, memberDataController]),
       builder: (context, _) {
         final pagePadding = mobilePagePaddingOf(context);
-
         final profileLoadFailed = memberDataController.profileLoadError != null &&
             !memberDataController.isLoading &&
             !memberDataController.profileLoaded;
         final profileLoading = !memberDataController.profileLoaded &&
             !profileLoadFailed &&
-            (memberDataController.isLoading || !memberDataController.profileLoadAttempted);
-
-        final Widget fixedHeader;
-        if (profileLoading) {
-          fixedHeader = const RequestorProfileHeroSkeleton();
-        } else if (profileLoadFailed) {
-          fixedHeader = const _RequestorProfileHeaderShell();
-        } else {
-          fixedHeader = _RequestorProfileHeader(onEdit: _openEditProfile);
-        }
-
-        final scrollChildren = <Widget>[
-          if (profileLoadFailed)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: MemberProfileLoadError(
-                onRetry: memberDataController.refreshProfile,
-              ),
-            )
-          else if (profileLoading) ...[
-            const Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: MemberProfileActionRowSkeleton(),
-            ),
-          ] else ...[
-            const SizedBox(height: _kSectionGap),
-            const _RequestorSectionTitle(title: 'Account & Security'),
-            const SizedBox(height: 8),
-            MemberDashboardCard(
-              padding: EdgeInsets.zero,
-              child: _RequestorSettingsRow(
-                icon: Icons.lock_outline_rounded,
-                title: 'Change Password',
-                subtitle: 'Update your sign-in credentials',
-                onTap: () => Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen(),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: _kSectionGap),
-            const _RequestorSectionTitle(title: 'Legal & Policies'),
-            const SizedBox(height: 8),
-            MemberDashboardCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  _RequestorSettingsRow(
-                    icon: Icons.description_outlined,
-                    title: 'Terms & Conditions',
-                    showSubtitle: false,
-                    onTap: () => _openLegal(AccessLegalDocument.terms),
-                  ),
-                  const Divider(height: 1, thickness: 1, color: _kRowDivider),
-                  _RequestorSettingsRow(
-                    icon: Icons.privacy_tip_outlined,
-                    title: 'Privacy Policy',
-                    showSubtitle: false,
-                    onTap: () => _openLegal(AccessLegalDocument.privacy),
-                  ),
-                  const Divider(height: 1, thickness: 1, color: _kRowDivider),
-                  _RequestorSettingsRow(
-                    icon: Icons.policy_outlined,
-                    title: 'Content Standards',
-                    showSubtitle: false,
-                    onTap: () => _openLegal(AccessLegalDocument.contentStandards),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            const _RequestorLogoutButton(),
-          ],
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 16, 0, 36),
-            child: Center(
-              child: Text(
-                '${brandingController.appName} · ${brandingController.organization}',
-                textAlign: TextAlign.center,
-                style: memberDashboardMetaStyle.copyWith(fontSize: 10),
-              ),
-            ),
-          ),
-        ];
+            (memberDataController.isLoading ||
+                !memberDataController.profileLoadAttempted);
 
         return Scaffold(
-          backgroundColor: kBg,
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              fixedHeader,
-              Expanded(
-                child: RefreshIndicator(
-                  color: kAccent,
-                  onRefresh: () => memberDataController.refreshAll(),
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _RequestorProfileAppBar(
+                  padding: pagePadding,
+                ),
+                Expanded(
+                  child: RefreshIndicator(
+                    color: kAccent,
+                    onRefresh: () => memberDataController.refreshAll(),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          padding: EdgeInsets.fromLTRB(
+                            pagePadding,
+                            8,
+                            pagePadding,
+                            12,
+                          ),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight - 20,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (profileLoadFailed) ...[
+                                      const _RequestorProfileCardShell(),
+                                      const SizedBox(height: 12),
+                                      MemberProfileLoadError(
+                                        onRetry:
+                                            memberDataController.refreshProfile,
+                                      ),
+                                    ] else if (profileLoading) ...[
+                                      const _RequestorProfileCardSkeleton(),
+                                      const SizedBox(height: _kSectionGap),
+                                      const MemberProfileActionRowSkeleton(),
+                                    ] else ...[
+                                      _RequestorProfileCard(
+                                        onEdit: _openEditProfile,
+                                      ),
+                                      const SizedBox(height: _kSectionGap),
+                                      const _RequestorSectionTitle(
+                                        title: 'Account & Security',
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _RequestorSettingsCard(
+                                        child: _RequestorSettingsRow(
+                                          icon: Icons.lock_outline_rounded,
+                                          title: 'Change Password',
+                                          subtitle:
+                                              'Update your sign-in credentials',
+                                          onTap: () => Navigator.push<void>(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const ChangePasswordScreen(),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: _kSectionGap),
+                                      const _RequestorSectionTitle(
+                                        title: 'Legal & Policies',
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _RequestorSettingsCard(
+                                        child: Column(
+                                          children: [
+                                            _RequestorSettingsRow(
+                                              icon: Icons.description_outlined,
+                                              title: 'Terms & Conditions',
+                                              showSubtitle: false,
+                                              onTap: () => _openLegal(
+                                                AccessLegalDocument.terms,
+                                              ),
+                                            ),
+                                            const Divider(
+                                              height: 1,
+                                              thickness: 1,
+                                              color: _kRowDivider,
+                                            ),
+                                            _RequestorSettingsRow(
+                                              icon: Icons.privacy_tip_outlined,
+                                              title: 'Privacy Policy',
+                                              showSubtitle: false,
+                                              onTap: () => _openLegal(
+                                                AccessLegalDocument.privacy,
+                                              ),
+                                            ),
+                                            const Divider(
+                                              height: 1,
+                                              thickness: 1,
+                                              color: _kRowDivider,
+                                            ),
+                                            _RequestorSettingsRow(
+                                              icon: Icons.policy_outlined,
+                                              title: 'Content Standards',
+                                              showSubtitle: false,
+                                              onTap: () => _openLegal(
+                                                AccessLegalDocument
+                                                    .contentStandards,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (!profileLoading) ...[
+                                  const SizedBox(height: 24),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      const _RequestorSignOutButton(),
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          0,
+                                          14,
+                                          0,
+                                          8,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '${brandingController.appName} · ${brandingController.organization}',
+                                            textAlign: TextAlign.center,
+                                            style: memberDashboardMetaStyle
+                                                .copyWith(fontSize: 10),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: pagePadding),
-                    children: scrollChildren,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+class _RequestorProfileAppBar extends StatelessWidget {
+  const _RequestorProfileAppBar({required this.padding});
+
+  final double padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(padding - 8, 4, padding, 4),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            color: _kNavy,
+            onPressed: () => Navigator.maybePop(context),
+            style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+          ),
+          Expanded(
+            child: Text(
+              'Profile',
+              style: memberDashboardSectionTitleStyle.copyWith(
+                fontSize: 17,
+                color: _kNavy,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -178,62 +267,97 @@ class _RequestorSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: memberDashboardSectionTitleStyle.copyWith(fontSize: 15),
+      style: memberDashboardSectionTitleStyle.copyWith(
+        fontSize: 14,
+        color: _kNavy,
+      ),
     );
   }
 }
 
-class _RequestorProfileHeaderShell extends StatelessWidget {
-  const _RequestorProfileHeaderShell();
+class _RequestorProfileCardShell extends StatelessWidget {
+  const _RequestorProfileCardShell();
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 360;
-    final padding = mobilePagePaddingOf(context);
-
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: kMemberDashboardHeroGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-        ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      decoration: BoxDecoration(
+        color: _kSky,
+        borderRadius: BorderRadius.circular(_kCardRadius),
+        border: Border.all(color: _kSkyBorder),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(compact ? 4 : 6, 4, padding - 4, 14),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                color: kMemberCyanHeroSubtitleColor,
-                onPressed: () => Navigator.maybePop(context),
-                style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
-              ),
-              Expanded(
-                child: Text(
-                  'Profile',
-                  style: memberCyanHeroNavLabelStyle(),
-                ),
-              ),
-            ],
-          ),
-        ),
+      child: Text(
+        'Profile unavailable',
+        style: memberDashboardMetaStyle.copyWith(color: _kMeta),
       ),
     );
   }
 }
 
-class _RequestorProfileHeader extends StatelessWidget {
-  const _RequestorProfileHeader({required this.onEdit});
+class _RequestorProfileCardSkeleton extends StatelessWidget {
+  const _RequestorProfileCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      decoration: BoxDecoration(
+        color: _kSky,
+        borderRadius: BorderRadius.circular(_kCardRadius),
+        border: Border.all(color: _kSkyBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 14,
+                  width: 140,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 11,
+                  width: 110,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequestorProfileCard extends StatelessWidget {
+  const _RequestorProfileCard({required this.onEdit});
 
   final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
-    final padding = mobilePagePaddingOf(context);
     final displayName = appState.profileName.trim().isNotEmpty
         ? appState.profileName.trim()
         : (authController.user?.name ?? 'Organization');
@@ -243,151 +367,138 @@ class _RequestorProfileHeader extends StatelessWidget {
     final imageUrl = appState.profileImageUrl;
     final initials = memberDisplayInitials(displayName);
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: kMemberDashboardHeroGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-          bottomRight: Radius.circular(kMemberDarkHeroMiniBottomRadius),
-        ),
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+        compact ? 12 : 14,
+        compact ? 12 : 14,
+        compact ? 12 : 14,
+        compact ? 12 : 14,
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(compact ? 4 : 6, 4, padding - 4, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    color: kMemberCyanHeroSubtitleColor,
-                    onPressed: () => Navigator.maybePop(context),
-                    style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+      decoration: BoxDecoration(
+        color: _kSky,
+        borderRadius: BorderRadius.circular(_kCardRadius),
+        border: Border.all(color: _kSkyBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _RequestorAvatar(
+            initials: initials,
+            imageUrl: imageUrl,
+            size: compact ? 52 : 56,
+          ),
+          SizedBox(width: compact ? 10 : 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardCardTitleStyle.copyWith(
+                    fontSize: compact ? 15 : 16,
+                    color: _kNavy,
                   ),
-                  Expanded(
-                    child: Text(
-                      'Profile',
-                      style: memberCyanHeroNavLabelStyle(),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.apartment_rounded,
+                      size: 14,
+                      color: _kCyan.withValues(alpha: 0.95),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(padding, 8, padding, 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _RequestorAvatar(
-                    initials: initials,
-                    imageUrl: imageUrl,
-                    size: compact ? 56 : 64,
-                    onDarkHero: true,
-                  ),
-                  SizedBox(width: compact ? 12 : 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        'Organization Requestor',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: memberDashboardMetaStyle.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _kMeta,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Icon(
+                          Icons.mail_outline_rounded,
+                          size: 14,
+                          color: _kCyan.withValues(alpha: 0.95),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          email,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: memberCyanHeroIdentityNameStyle(compact: compact),
+                          style: memberDashboardMetaStyle.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _kMeta,
+                          ),
                         ),
-                        const SizedBox(height: 6),
-                        Row(
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      onTap: onEdit,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 10 : 12,
+                          vertical: compact ? 7 : 8,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _kSkyBorder),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.apartment_rounded,
-                              size: 14,
-                              color: kMemberCyanHeroMetaIconColor,
+                            Icon(
+                              Icons.edit_outlined,
+                              size: compact ? 15 : 16,
+                              color: _kCyan,
                             ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                'Organization Requestor',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: memberCyanHeroIdentityMetaStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Edit Profile',
+                              style: dashText(TextStyle(
+                                color: _kNavy,
+                                fontWeight: FontWeight.w700,
+                                fontSize: compact ? 12.5 : 13,
+                              )),
                             ),
                           ],
                         ),
-                        if (email.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.only(top: 1),
-                                child: Icon(
-                                  Icons.mail_outline_rounded,
-                                  size: 15,
-                                  color: kMemberCyanHeroMetaIconColor,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  email,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: memberCyanHeroIdentityMetaStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        Material(
-                          color: kSurface.withValues(alpha: 0.94),
-                          borderRadius: BorderRadius.circular(10),
-                          child: InkWell(
-                            onTap: onEdit,
-                            borderRadius: BorderRadius.circular(10),
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: compact ? 12 : 14,
-                                vertical: compact ? 8 : 9,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.edit_outlined,
-                                    size: compact ? 16 : 17,
-                                    color: kMemberButtonPrimary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Edit Profile',
-                                    style: dashText(const TextStyle(
-                                      color: kTextPrimary,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    )),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -398,13 +509,11 @@ class _RequestorAvatar extends StatelessWidget {
     required this.initials,
     required this.size,
     this.imageUrl,
-    this.onDarkHero = false,
   });
 
   final String initials;
   final double size;
   final String? imageUrl;
-  final bool onDarkHero;
 
   @override
   Widget build(BuildContext context) {
@@ -413,10 +522,14 @@ class _RequestorAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: onDarkHero ? Colors.white.withValues(alpha: 0.78) : kBorder,
-          width: onDarkHero ? 2 : 1,
-        ),
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: ClipOval(
         child: imageUrl != null && imageUrl!.isNotEmpty
@@ -425,35 +538,60 @@ class _RequestorAvatar extends StatelessWidget {
                 fit: BoxFit.cover,
                 width: size,
                 height: size,
-                errorBuilder: (_, __, ___) =>
-                    _InitialsPlate(initials: initials, onDarkHero: onDarkHero),
+                errorBuilder: (_, __, ___) => _InitialsPlate(initials: initials),
               )
-            : _InitialsPlate(initials: initials, onDarkHero: onDarkHero),
+            : _InitialsPlate(initials: initials),
       ),
     );
   }
 }
 
 class _InitialsPlate extends StatelessWidget {
-  const _InitialsPlate({required this.initials, this.onDarkHero = false});
+  const _InitialsPlate({required this.initials});
 
   final String initials;
-  final bool onDarkHero;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: onDarkHero ? kAccent.withValues(alpha: 0.35) : kAccent.withValues(alpha: 0.08),
+      color: kAccent.withValues(alpha: 0.12),
       child: Center(
         child: Text(
           initials,
           style: TextStyle(
-            color: onDarkHero ? Colors.white : kAccent,
+            color: kAccent,
             fontWeight: FontWeight.w800,
-            fontSize: initials.length > 2 ? 18 : 22,
+            fontSize: initials.length > 2 ? 16 : 20,
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RequestorSettingsCard extends StatelessWidget {
+  const _RequestorSettingsCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(_kCardRadius),
+        border: Border.all(color: _kSkyBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: child,
     );
   }
 }
@@ -479,36 +617,43 @@ class _RequestorSettingsRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(_kCardRadius),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           child: Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: kAccent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _kSky,
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(icon, color: kAccent, size: 21),
+                child: Icon(icon, color: _kCyan, size: 19),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+                      style: memberDashboardCardTitleStyle.copyWith(
+                        fontSize: 13.5,
+                        color: _kNavy,
+                      ),
                     ),
-                    if (showSubtitle && subtitle != null && subtitle!.isNotEmpty) ...[
+                    if (showSubtitle &&
+                        subtitle != null &&
+                        subtitle!.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
                         subtitle!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: memberDashboardMetaStyle.copyWith(fontSize: 11),
+                        style: memberDashboardMetaStyle.copyWith(
+                          fontSize: 11,
+                          color: _kMeta,
+                        ),
                       ),
                     ],
                   ],
@@ -516,8 +661,8 @@ class _RequestorSettingsRow extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: kTextSecondary.withValues(alpha: 0.75),
-                size: 22,
+                color: _kMeta.withValues(alpha: 0.8),
+                size: 20,
               ),
             ],
           ),
@@ -527,21 +672,21 @@ class _RequestorSettingsRow extends StatelessWidget {
   }
 }
 
-class _RequestorLogoutButton extends StatelessWidget {
-  const _RequestorLogoutButton();
+class _RequestorSignOutButton extends StatelessWidget {
+  const _RequestorSignOutButton();
 
-  static Future<bool> _confirmLogout(BuildContext context) async {
+  static Future<bool> _confirmSignOut(BuildContext context) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Log Out?',
+          'Sign Out?',
           style: memberDashboardSectionTitleStyle.copyWith(fontSize: 18),
         ),
         content: Text(
-          'Are you sure you want to log out of your account?',
+          'Are you sure you want to sign out of your account?',
           style: memberDashboardMetaStyle.copyWith(height: 1.45, fontSize: 13),
         ),
         actions: [
@@ -559,7 +704,7 @@ class _RequestorLogoutButton extends StatelessWidget {
               foregroundColor: Colors.white,
             ),
             child: Text(
-              'Log Out',
+              'Sign Out',
               style: dashText(const TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
@@ -576,13 +721,17 @@ class _RequestorLogoutButton extends StatelessWidget {
       height: kMobileMinTouch,
       child: OutlinedButton.icon(
         onPressed: () async {
-          final confirmed = await _confirmLogout(context);
+          final confirmed = await _confirmSignOut(context);
           if (!confirmed || !context.mounted) return;
           await authController.logout();
         },
-        icon: Icon(Icons.logout_rounded, color: kRed.withValues(alpha: 0.9), size: 20),
+        icon: Icon(
+          Icons.logout_rounded,
+          color: kRed.withValues(alpha: 0.95),
+          size: 20,
+        ),
         label: Text(
-          'Log Out',
+          'Sign Out',
           style: dashText(const TextStyle(
             color: kRed,
             fontWeight: FontWeight.w700,
@@ -591,8 +740,8 @@ class _RequestorLogoutButton extends StatelessWidget {
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: kRed,
-          side: BorderSide(color: kRed.withValues(alpha: 0.35)),
-          backgroundColor: kSurface,
+          side: BorderSide(color: kRed.withValues(alpha: 0.4)),
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_kCardRadius),
           ),

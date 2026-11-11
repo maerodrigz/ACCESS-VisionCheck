@@ -1,0 +1,7 @@
+media_id,rater_id,pack_id,noise,ringing_artifacts,notes
+NRC-101,R1,NR_CAL_PACK_A,5,5,practice only — not validation
+NRC-101,R2,NR_CAL_PACK_A,5,4,
+NRC-101,R3,NR_CAL_PACK_A,4,5,
+NRC-102,R1,NR_CAL_PACK_A,2,5,
+NRC-102,R2,NR_CAL_PACK_A,2,4,
+NRC-102,R3,NR_CAL_PACK_A,3,5,

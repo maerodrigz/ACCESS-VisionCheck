@@ -13,8 +13,10 @@ const DocumentationRequestsPage = lazy(() =>
 const EventCalendarPage = lazy(() =>
   import('./pages/EventCalendarPage').then((m) => ({ default: m.EventCalendarPage })),
 )
-const DocumentationTeamPage = lazy(() =>
-  import('./pages/DocumentationTeamPage').then((m) => ({ default: m.DocumentationTeamPage })),
+const MembersToCompetencyRedirect = lazy(() =>
+  import('./pages/MembersToCompetencyRedirect').then((m) => ({
+    default: m.MembersToCompetencyRedirect,
+  })),
 )
 const MediaLibraryPage = lazy(() =>
   import('./pages/MediaLibraryPage').then((m) => ({ default: m.MediaLibraryPage })),
@@ -60,7 +62,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="documentation-requests" element={<DocumentationRequestsPage />} />
           <Route path="event-calendar" element={<EventCalendarPage />} />
-          <Route path="members" element={<DocumentationTeamPage />} />
+          <Route path="members" element={<MembersToCompetencyRedirect />} />
           <Route path="media" element={<MediaLibraryPage />} />
           <Route path="media/member-uploads" element={<LegacyMediaRedirect />} />
           <Route path="media-integrity" element={<MediaIntegrityPage />} />

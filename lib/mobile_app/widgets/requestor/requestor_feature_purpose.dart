@@ -95,7 +95,7 @@ class RequestorFeaturePurposeLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final horizontal = mobilePagePaddingOf(context);
     return ColoredBox(
-      color: kBg,
+      color: Colors.transparent,
       child: Padding(
         padding: padding ??
             EdgeInsets.fromLTRB(

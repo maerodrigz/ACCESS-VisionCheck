@@ -1,6 +1,6 @@
 import { Bell } from 'lucide-react'
 import type { AdminNotification } from '../../lib/notifications'
-import { categoryLabel } from '../../lib/notifications'
+import { categoryLabel, isIntegrityReviewAlert } from '../../lib/notifications'
 
 const adminBadgeWarningClass =
   'rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--color-warning-text)]'
@@ -85,13 +85,27 @@ export function NotificationsTable({ items, onOpen }: Props) {
                   <PriorityBadge priority={n.priority} />
                 </td>
                 <td className="whitespace-nowrap px-4 py-3.5">
-                  {n.unread ? (
-                    <span className="rounded-full bg-[var(--color-accent-blue)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--color-accent-blue)]">
-                      Unread
-                    </span>
-                  ) : (
-                    <span className="text-[var(--color-text-secondary)]">Read</span>
-                  )}
+                  <div className="flex flex-col gap-1">
+                    {n.unread ? (
+                      <span className="w-fit rounded-full bg-[var(--color-accent-blue)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--color-accent-blue)]">
+                        Unread
+                      </span>
+                    ) : n.resolved || isIntegrityReviewAlert(n) ? (
+                      <span className="w-fit rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                        Resolved
+                      </span>
+                    ) : (
+                      <span className="text-[var(--color-text-secondary)]">Read</span>
+                    )}
+                    {n.historicalMisleadingCopy ? (
+                      <span
+                        className="w-fit text-[10px] font-semibold text-[var(--color-text-muted)]"
+                        title="Stored before AI risk and source provenance were separated. Record unchanged."
+                      >
+                        Historical wording
+                      </span>
+                    ) : null}
+                  </div>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3.5 text-[var(--color-text-secondary)]">{n.timeAgo}</td>
                 <td className="px-4 py-3.5 text-right">

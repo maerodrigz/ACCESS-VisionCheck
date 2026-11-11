@@ -121,9 +121,9 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
   Widget build(BuildContext context) {
     final showQuality = widget.result.showQualityFeedbackEffective;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: kBg,
+        backgroundColor: Colors.transparent,
         foregroundColor: kTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,

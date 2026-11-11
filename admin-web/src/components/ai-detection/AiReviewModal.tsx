@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Archive, ChevronDown, Loader2, Maximize2 } from 'lucide-react'
 import { DrawerBackButton } from '../AdminBackButton'
 import { AdminConfirmDialog } from '../AdminConfirmDialog'
 import { MediaLightbox } from '../MediaLightbox'
+import { useEscapeToDismiss } from '../../hooks/useEscapeToDismiss'
 import {
   archiveAiDetectionMedia,
   fetchAiReviewHistory,
@@ -143,6 +144,21 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
       .catch(() => setHistory([]))
   }, [row.id])
 
+  const dismissOverlay = useCallback(() => {
+    if (saving) return
+    if (confirm) {
+      setConfirm(null)
+      return
+    }
+    if (showFullMedia) {
+      setShowFullMedia(false)
+      return
+    }
+    onClose()
+  }, [saving, confirm, showFullMedia, onClose])
+
+  useEscapeToDismiss(true, dismissOverlay)
+
   async function save(nextStatus: ReviewStatus, nextRemarks: string) {
     setSaving(true)
     setError(null)
@@ -270,8 +286,20 @@ export function AiReviewModal({ row, onClose, onSaved, onOpenRelatedMedia }: Pro
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 md:p-5">
-        <div className="flex max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-content-bg)] shadow-xl">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 md:p-5"
+        role="presentation"
+        onClick={() => {
+          if (!saving && !confirm && !showFullMedia) onClose()
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Review scan"
+          className="flex max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-[var(--card-radius)] border border-[var(--color-border)] bg-[var(--color-content-bg)] shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
             <DrawerBackButton onClick={onClose} label="Back" />
             <div className="min-w-0 flex-1">

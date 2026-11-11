@@ -71,7 +71,7 @@ void main() {
     expect(profileTapped, isTrue);
   });
 
-  testWidgets('Requestor home screen uses white header and keeps body sections', (tester) async {
+  testWidgets('Requestor home screen uses transparent header and keeps body sections', (tester) async {
     tester.view.physicalSize = const Size(390, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -97,6 +97,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(RequestorHomeHeader), findsOneWidget);
+    expect(find.byType(RequestorBrandAppBar), findsOneWidget);
     expect(find.byType(RequestorTabHero), findsNothing);
     expect(find.text('Lin Ti Partner!'), findsOneWidget);
     expect(find.text('Need event coverage?'), findsOneWidget);
@@ -123,13 +124,13 @@ void main() {
     );
     expect(find.text('Upcoming Documentation'), findsOneWidget);
 
-    final pageBg = tester.widget<ColoredBox>(
+    final brandBar = tester.widget<ColoredBox>(
       find.descendant(
-        of: find.byType(RequestorHomeScreen),
+        of: find.byType(RequestorBrandAppBar),
         matching: find.byType(ColoredBox),
       ).first,
     );
-    expect(pageBg.color, kRequestorHomeBg);
+    expect(brandBar.color, Colors.transparent);
   });
 }
 

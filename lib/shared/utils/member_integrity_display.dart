@@ -46,6 +46,87 @@ String memberAutomatedAiRiskTierLabel(AiDetectionResult automated) {
   return 'Low AI Risk';
 }
 
+/// Source provenance label from existing backend outcome/strength only.
+/// Does not treat Android version, codec, timestamps, or make/model tags as proof
+/// of original capture. "Partially Verified" / "Unverified" are metadata states.
+String memberSourceProvenanceStatusLabel(AiDetectionResult automated) {
+  final outcome = (automated.provenancePolicyOutcome ?? '').toLowerCase();
+  final strength = (automated.cameraProvenanceStrength ?? '').toLowerCase();
+
+  if (outcome == 'source_partially_verified' || strength == 'partial') {
+    return 'Partially Verified';
+  }
+  if (outcome == 'source_unverified' || strength == 'absent') {
+    return 'Unverified';
+  }
+  if (strength == 'strong' || outcome == 'low_ai_risk') {
+    // Claimed container/EXIF device tags only — not confirmed original capture.
+    return 'Device metadata present';
+  }
+  return 'Unknown';
+}
+
+/// Admin workflow label for the separated integrity strip (display only).
+String memberAdminVerificationStatusLabel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return 'Re-upload Required';
+  }
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus) ||
+      MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    return 'Rejected';
+  }
+  if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus) ||
+      MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    return 'Verified';
+  }
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus) &&
+      !memberShowOverallMediaUnderReview(
+        automated: automated,
+        adminReviewStatus: adminReviewStatus,
+      )) {
+    return 'Not required';
+  }
+  if (memberShowOverallMediaUnderReview(
+        automated: automated,
+        adminReviewStatus: adminReviewStatus,
+      ) ||
+      automated.isAiAnalysisUnavailable ||
+      automated.isDeferredAuthenticity) {
+    return 'Pending Verification';
+  }
+  return 'Not required';
+}
+
+/// Separated AI risk / source provenance / admin verification (existing fields only).
+class MemberSeparatedIntegrityStatus {
+  const MemberSeparatedIntegrityStatus({
+    required this.aiRiskLabel,
+    required this.sourceProvenanceLabel,
+    required this.adminVerificationLabel,
+  });
+
+  final String aiRiskLabel;
+  final String sourceProvenanceLabel;
+  final String adminVerificationLabel;
+}
+
+MemberSeparatedIntegrityStatus memberSeparatedIntegrityStatus({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  return MemberSeparatedIntegrityStatus(
+    aiRiskLabel: memberAutomatedAiRiskTierLabel(automated),
+    sourceProvenanceLabel: memberSourceProvenanceStatusLabel(automated),
+    adminVerificationLabel: memberAdminVerificationStatusLabel(
+      automated: automated,
+      adminReviewStatus: adminReviewStatus,
+    ),
+  );
+}
+
 /// Member-facing automated integrity tier (copy only; thresholds unchanged).
 String memberAutomatedIntegrityTierLabel(AiDetectionResult automated) {
   return memberAutomatedAiRiskTierLabel(automated);
@@ -338,13 +419,15 @@ MemberIntegrityPanelModel memberCameraProvenancePanelModel({
   if (automated.isCameraProvenancePartial) {
     final detail = isVideo
         ? 'Recording metadata was detected (such as timestamp or Android version), but camera manufacturer and model are not available in this file. '
-            'Incomplete metadata does not mean the video is AI-generated.'
+            'Incomplete metadata does not mean the video is AI-generated. '
+            'Android version, codec, and timestamps are not proof of original camera capture.'
         : 'Some camera metadata is present, but manufacturer and model information is incomplete or missing in this file. '
-            'Incomplete metadata does not mean the photo is AI-generated.';
+            'Incomplete metadata does not mean the photo is AI-generated. '
+            'Timestamps and software tags are not proof of original camera capture.';
     if (reviewPending && !adminComplete) {
       return MemberIntegrityPanelModel(
         sectionTitle: sectionTitle,
-        tierLabel: 'Partial metadata · verification pending',
+        tierLabel: 'Partially Verified',
         detail: '$detail Administrator verification is still required.',
         colorKind: MemberIntegrityColorKind.yellow,
         iconKind: MemberIntegrityIconKind.warning,
@@ -353,7 +436,7 @@ MemberIntegrityPanelModel memberCameraProvenancePanelModel({
     }
     return MemberIntegrityPanelModel(
       sectionTitle: sectionTitle,
-      tierLabel: 'Partial camera metadata',
+      tierLabel: 'Partially Verified',
       detail: detail,
       colorKind: MemberIntegrityColorKind.yellow,
       iconKind: MemberIntegrityIconKind.warning,
@@ -364,10 +447,10 @@ MemberIntegrityPanelModel memberCameraProvenancePanelModel({
   if (automated.isCameraProvenanceStrong) {
     return MemberIntegrityPanelModel(
       sectionTitle: sectionTitle,
-      tierLabel: 'Strong camera metadata',
+      tierLabel: 'Device metadata present',
       detail:
-          'Original capture metadata met automated provenance checks. '
-          'This supports authenticity screening but is not a substitute for officer review when required.',
+          'Device make/model tags and creation time were present in this file. '
+          'These are unverified metadata claims and do not by themselves prove original camera capture.',
       colorKind: MemberIntegrityColorKind.green,
       iconKind: MemberIntegrityIconKind.verified,
       evidenceLines: evidenceLines,
@@ -379,7 +462,7 @@ MemberIntegrityPanelModel memberCameraProvenancePanelModel({
       'This is not a claim that the media is AI-generated.';
   return MemberIntegrityPanelModel(
     sectionTitle: sectionTitle,
-    tierLabel: 'No reliable camera provenance',
+    tierLabel: 'Unverified',
     detail: reviewPending && !adminComplete
         ? '$absentDetail Administrator verification is still required.'
         : absentDetail,
@@ -463,9 +546,8 @@ MemberIntegrityPanelModel memberAiAuthenticityPanelModel({
       sectionTitle: sectionTitle,
       tierLabel: 'Consistent with Camera-Captured Media',
       detail:
-          'The media shows characteristics consistent with camera-captured content. '
-          'AI analysis indicates low AI-generation risk, and the available camera metadata '
-          'supports its reported origin.',
+          'AI analysis indicates low AI-generation risk, and device metadata tags were present. '
+          'Metadata tags are unverified claims and do not by themselves prove original camera capture.',
       colorKind: MemberIntegrityColorKind.green,
       iconKind: MemberIntegrityIconKind.verified,
       statsLine: memberFacingAiScoreLine(automated),
@@ -643,7 +725,8 @@ MemberIntegrityBannerModel memberIntegrityBannerModel({
       heading: 'Low AI authenticity risk',
       subtitle: 'Auto-cleared',
       detail:
-          'Automated screening found low AI-generation risk with acceptable provenance. '
+          'Automated screening found low AI-generation risk under current policy. '
+          'Device metadata tags, when present, are unverified claims and are not proof of original capture. '
           'No administrator review is required for this submission.',
       colorKind: MemberIntegrityColorKind.green,
       iconKind: MemberIntegrityIconKind.verified,

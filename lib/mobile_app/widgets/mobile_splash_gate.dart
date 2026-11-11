@@ -277,35 +277,31 @@ class _SplashUstpFooter extends StatelessWidget {
 
   final bool compact;
 
+  static const _asset = 'assets/images/ustp-logo.png';
+
   @override
   Widget build(BuildContext context) {
-    final markSize = compact ? 32.0 : 36.0;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        AccessOrgSealLogo(
-          size: markSize,
-          showShadow: false,
-          showWhitePlate: false,
-          paddingFraction: 0.02,
-        ),
-        SizedBox(width: compact ? 8 : 10),
-        Flexible(
-          child: Text(
+    final height = compact ? 72.0 : 84.0;
+    return Center(
+      child: Semantics(
+        label: AppConstants.organization,
+        image: true,
+        child: Image.asset(
+          _asset,
+          height: height,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, __, ___) => Text(
             AppConstants.organization,
-            textAlign: TextAlign.left,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: MobileAuthConstants.midnightScaffoldColor.withValues(alpha: 0.82),
-              fontSize: compact ? 10.5 : 11.5,
+              fontSize: compact ? 11 : 12,
               fontWeight: FontWeight.w700,
-              height: 1.25,
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

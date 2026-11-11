@@ -58,6 +58,12 @@ void main() {
     test('verified_human is final admin human', () {
       expect(MemberReviewStatus.isFinalAdminDecision('verified_human'), isTrue);
       expect(MemberReviewStatus.isAdminConfirmedHuman('verified_human'), isTrue);
+      expect(MemberReviewStatus.isAdminVerified('verified_human'), isTrue);
+    });
+
+    test('accepted_with_warning counts as admin verified', () {
+      expect(MemberReviewStatus.isAdminVerified('accepted_with_warning'), isTrue);
+      expect(MemberReviewStatus.isAdminVerified('pending_review'), isFalse);
     });
   });
 
@@ -250,7 +256,7 @@ void main() {
       expect(find.text('Pending Verification'), findsOneWidget);
       expect(find.text('Admin Verification Status'), findsOneWidget);
       expect(find.text('Low AI Risk'), findsOneWidget);
-      expect(find.text('Partial metadata · verification pending'), findsOneWidget);
+      expect(find.text('Partially Verified'), findsOneWidget);
       expect(find.text('Camera Metadata / Provenance'), findsOneWidget);
       expect(find.text('AI Score: 0.6%'), findsOneWidget);
       expect(find.textContaining('20/20'), findsNothing);
@@ -342,7 +348,7 @@ void main() {
         );
         expect(find.text('Consistent with Camera-Captured Media'), findsOneWidget);
         expect(find.text('AI Score: 5.6%'), findsOneWidget);
-        expect(find.textContaining('supports its reported origin'), findsOneWidget);
+        expect(find.textContaining('unverified metadata claims'), findsOneWidget);
         await tester.pumpWidget(const SizedBox.shrink());
       }
     });
@@ -597,7 +603,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('No reliable camera provenance'), findsOneWidget);
+      expect(find.text('Unverified'), findsOneWidget);
       expect(find.text('Camera identity unavailable'), findsOneWidget);
     });
 
@@ -632,7 +638,7 @@ void main() {
         ),
       );
       expect(find.text('Verified as human'), findsOneWidget);
-      expect(find.text('Partial camera metadata'), findsOneWidget);
+      expect(find.text('Partially Verified'), findsOneWidget);
       expect(find.text('Pending Verification'), findsNothing);
     });
 
@@ -749,6 +755,96 @@ void main() {
       );
       expect(banner.heading, 'Pending Verification');
       expect(banner.detail, contains('not treated as AI-generated'));
+    });
+  });
+
+  group('memberSeparatedIntegrityStatus', () {
+    test('low AI + partial provenance + pending admin stay separated', () {
+      const ai = AiDetectionResult(
+        verdict: 'authentic',
+        confidence: 0.99,
+        probability: 0.01,
+        riskLevel: 'low',
+        visualRiskLevel: 'low',
+        requiresReviewFlag: true,
+        provenancePolicyOutcome: 'source_partially_verified',
+        cameraProvenanceStrength: 'partial',
+        isFinal: true,
+        detail: 'partial',
+      );
+      final status = memberSeparatedIntegrityStatus(
+        automated: ai,
+        adminReviewStatus: 'needs_further_review',
+      );
+      expect(status.aiRiskLabel, 'Low AI Risk');
+      expect(status.sourceProvenanceLabel, 'Partially Verified');
+      expect(status.adminVerificationLabel, 'Pending Verification');
+    });
+
+    test('low AI + missing provenance + pending admin', () {
+      const ai = AiDetectionResult(
+        verdict: 'authentic',
+        confidence: 0.99,
+        probability: 0.02,
+        riskLevel: 'low',
+        visualRiskLevel: 'low',
+        requiresReviewFlag: true,
+        provenancePolicyOutcome: 'source_unverified',
+        cameraProvenanceStrength: 'absent',
+        isFinal: true,
+        detail: 'absent',
+      );
+      final status = memberSeparatedIntegrityStatus(
+        automated: ai,
+        adminReviewStatus: 'needs_further_review',
+      );
+      expect(status.aiRiskLabel, 'Low AI Risk');
+      expect(status.sourceProvenanceLabel, 'Unverified');
+      expect(status.adminVerificationLabel, 'Pending Verification');
+    });
+
+    test('high AI risk stays high while admin pending', () {
+      const ai = AiDetectionResult(
+        verdict: 'ai_generated',
+        confidence: 0.9,
+        probability: 0.8,
+        riskLevel: 'high',
+        visualRiskLevel: 'high',
+        requiresReviewFlag: true,
+        provenancePolicyOutcome: 'source_unverified',
+        cameraProvenanceStrength: 'absent',
+        isFinal: true,
+        detail: 'high',
+      );
+      final status = memberSeparatedIntegrityStatus(
+        automated: ai,
+        adminReviewStatus: 'pending_review',
+      );
+      expect(status.aiRiskLabel, 'High AI Risk');
+      expect(status.sourceProvenanceLabel, 'Unverified');
+      expect(status.adminVerificationLabel, 'Pending Verification');
+    });
+
+    test('admin approved does not rewrite AI risk or provenance labels', () {
+      const ai = AiDetectionResult(
+        verdict: 'authentic',
+        confidence: 0.99,
+        probability: 0.01,
+        riskLevel: 'low',
+        visualRiskLevel: 'low',
+        requiresReviewFlag: true,
+        provenancePolicyOutcome: 'source_partially_verified',
+        cameraProvenanceStrength: 'partial',
+        isFinal: true,
+        detail: 'partial',
+      );
+      final status = memberSeparatedIntegrityStatus(
+        automated: ai,
+        adminReviewStatus: 'verified_human',
+      );
+      expect(status.aiRiskLabel, 'Low AI Risk');
+      expect(status.sourceProvenanceLabel, 'Partially Verified');
+      expect(status.adminVerificationLabel, 'Verified');
     });
   });
 }

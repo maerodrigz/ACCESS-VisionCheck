@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401
 
@@ -34,12 +35,53 @@ from app.services.skill_progression_grandfather import (
     v2_activation_blocked_reason,
 )
 from app.services.skill_progression_policy import POLICY_V2
+from app.services.skill_progression_v2_activation import list_approved_members
+from app.models.skill_progression_v2_activation import (
+    ACTIVATION_STATUS_DRAFT,
+    ACTIVATION_STATUS_SEALED,
+    SkillProgressionV2Activation,
+    SkillProgressionV2CohortMember,
+)
 from main import app
+
+
+def _enroll_and_seal_preserving_floors(db: Session) -> None:
+    """Seal using existing ranking floors without recomputing (test helper)."""
+    now = datetime.now(timezone.utc)
+    draft = SkillProgressionV2Activation(
+        status=ACTIVATION_STATUS_DRAFT,
+        cohort_member_count=0,
+    )
+    db.add(draft)
+    db.flush()
+    members = list_approved_members(db)
+    for user in members:
+        ranking = user.member_ranking
+        assert ranking is not None
+        floor = ranking.skill_tier_grandfather_floor
+        assert floor, f"missing floor for user_id={user.id}"
+        db.add(
+            SkillProgressionV2CohortMember(
+                activation_id=draft.id,
+                user_id=user.id,
+                ranking_id=ranking.id,
+                floor_at_capture=str(floor),
+                captured_at=now,
+            )
+        )
+    draft.status = ACTIVATION_STATUS_SEALED
+    draft.sealed_at = now
+    draft.cohort_member_count = len(members)
+    db.commit()
 
 
 @pytest.fixture()
 def db() -> Session:
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
@@ -47,6 +89,7 @@ def db() -> Session:
         yield session
     finally:
         session.close()
+        engine.dispose()
 
 
 @pytest.fixture(autouse=True)
@@ -216,6 +259,7 @@ def test_participation_contract_v2_isolated_when_ready(
     assert ranking is not None
     ranking.skill_tier_grandfather_floor = "Beginner"
     db.commit()
+    _enroll_and_seal_preserving_floors(db)
     base = datetime(2026, 2, 1, 10, 0, tzinfo=timezone.utc)
     for i in range(2):
         _practice_eval(
@@ -242,7 +286,7 @@ def test_participation_configured_v2_blocked_without_snapshots(
     assert body["skill_progression_policy_configured"] == "v2"
     assert body["skill_progression_policy_version"] == "v1"
     assert body["skill_progression_v2_blocked_reason"] is not None
-    assert "grandfather" in body["skill_progression_v2_blocked_reason"].lower()
+    assert "sealed" in body["skill_progression_v2_blocked_reason"].lower()
 
 
 def test_participation_backward_compat_defaults(client: TestClient, db: Session, monkeypatch) -> None:
@@ -263,6 +307,7 @@ def test_grandfathered_advanced_member_v2_floor(db: Session, monkeypatch) -> Non
     assert ranking is not None
     ranking.skill_tier_grandfather_floor = "Advanced"
     db.commit()
+    _enroll_and_seal_preserving_floors(db)
     for i in range(5):
         _practice_eval(
             db,
@@ -283,6 +328,7 @@ def test_grandfathered_expert_quality_drop_not_floored(db: Session, monkeypatch)
     assert ranking is not None
     ranking.skill_tier_grandfather_floor = "Expert"
     db.commit()
+    _enroll_and_seal_preserving_floors(db)
     _practice_eval(
         db,
         user.id,
@@ -302,6 +348,7 @@ def test_admin_downward_override_precedence(db: Session, monkeypatch) -> None:
     ranking.skill_tier_grandfather_floor = "Expert"
     ranking.competency_level_override = "Intermediate"
     db.commit()
+    _enroll_and_seal_preserving_floors(db)
     for i in range(12):
         _practice_eval(
             db,
@@ -361,14 +408,22 @@ def test_manila_upload_day_uses_uploaded_at_not_evaluated_at(db: Session) -> Non
     assert stats.distinct_upload_days == 1
 
 
-def test_grandfather_snapshots_complete_after_floor(db: Session) -> None:
+def test_grandfather_snapshots_complete_requires_seal(db: Session) -> None:
     user = _member(db)
     assert grandfather_snapshots_complete(db) is False
     ranking = db.scalar(select(MemberRanking).where(MemberRanking.user_id == user.id))
     ranking.skill_tier_grandfather_floor = "Beginner"
     db.commit()
-    assert grandfather_snapshots_complete(db) is True
-    assert v2_activation_blocked_reason(db) is None
+    # Floor alone is not enough — sealed activation is required for v2 readiness.
+    assert grandfather_snapshots_complete(db) is False
+    with patch(
+        "app.services.skill_progression_policy.configured_skill_progression_policy",
+        return_value=POLICY_V2,
+    ):
+        reason = v2_activation_blocked_reason(db)
+    assert reason is not None
+    assert "sealed" in reason.lower()
+    assert user.id is not None
 
 
 def test_override_member_earned_floor_snapshot(db: Session) -> None:
@@ -476,6 +531,7 @@ def test_tier_fields_carlos_strict_v2_beginner_grandfather_intermediate(
     monkeypatch.setattr(settings, "skill_progression_active_policy", "v2")
     user = _member(db, email="carlos-like@test.local")
     _set_grandfather_floor(db, user.id, "Intermediate")
+    _enroll_and_seal_preserving_floors(db)
     base = datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc)
     for i in range(3):
         _practice_eval(db, user.id, overall=0.81, uploaded_at=base.replace(hour=10 + i))
@@ -503,6 +559,7 @@ def test_tier_fields_admin_override_beats_grandfather(
     assert ranking is not None
     ranking.competency_level_override = "Intermediate"
     db.commit()
+    _enroll_and_seal_preserving_floors(db)
 
     body = _participation(client, user)
     assert body["skill_admin_competency_override"] == "Intermediate"
@@ -519,6 +576,7 @@ def test_tier_fields_stored_legacy_exposed(
     assert expert is not None
     user.skill_level_id = expert.id
     db.commit()
+    _enroll_and_seal_preserving_floors(db)
 
     body = _participation(client, user)
     assert body["skill_tier_stored_legacy"] == "Expert"
@@ -535,6 +593,7 @@ def test_profile_effective_tier_matches_participation(
     assert expert is not None
     user.skill_level_id = expert.id
     db.commit()
+    _enroll_and_seal_preserving_floors(db)
 
     part = _participation(client, user)
     prof = client.get(

@@ -346,6 +346,9 @@ class ParticipationOut(BaseModel):
     skill_progression_policy_version: str = "v1"
     skill_progression_policy_configured: str = "v1"
     skill_progression_v2_blocked_reason: str | None = None
+    skill_progression_v2_activation_sealed: bool = False
+    skill_progression_v2_activation_sealed_at: datetime | None = None
+    skill_progression_grandfather_cohort_member: bool = False
     total_points: int
     rank_position: int | None = None
 

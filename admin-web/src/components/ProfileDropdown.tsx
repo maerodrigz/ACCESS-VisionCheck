@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight, KeyRound, Settings, User } from 'lucide-react'
+import { ChevronDown, ChevronRight, KeyRound, Settings, Smartphone, User } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../types/auth'
 import { roleDisplayLabel } from '../lib/roles'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { MyProfileDialog } from './MyProfileDialog'
+import { PhoneVerifyDialog } from './PhoneVerifyDialog'
 import { MemberAvatar } from './documentation-team/TeamMemberBadges'
 import './profile-dropdown.css'
 
@@ -65,6 +66,7 @@ export function ProfileDropdown({ user }: ProfileDropdownProps) {
   const [open, setOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [phoneVerifyOpen, setPhoneVerifyOpen] = useState(false)
   const role = roleDisplayLabel(user.role)
   const isAdmin = user.role === 'Admin'
 
@@ -211,6 +213,22 @@ export function ProfileDropdown({ user }: ProfileDropdownProps) {
                   <span className="profile-dropdown__label">Change password</span>
                 </button>
               </li>
+              <li className="profile-dropdown__item" role="none">
+                <button
+                  type="button"
+                  className="profile-dropdown__link profile-dropdown__link--account"
+                  role="menuitem"
+                  onClick={() => {
+                    closeDropdown()
+                    setPhoneVerifyOpen(true)
+                  }}
+                >
+                  <span className="profile-dropdown__icon" aria-hidden="true">
+                    <Smartphone size={18} strokeWidth={2} />
+                  </span>
+                  <span className="profile-dropdown__label">Verify phone (SMS reset)</span>
+                </button>
+              </li>
             </ul>
           </section>
 
@@ -233,9 +251,19 @@ export function ProfileDropdown({ user }: ProfileDropdownProps) {
         </div>
       </div>
 
-      <MyProfileDialog open={profileOpen} user={user} onClose={() => setProfileOpen(false)} />
+      <MyProfileDialog
+        open={profileOpen}
+        user={user}
+        onClose={() => setProfileOpen(false)}
+        onVerifyPhone={() => {
+          setProfileOpen(false)
+          setPhoneVerifyOpen(true)
+        }}
+      />
 
       <ChangePasswordDialog open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
+
+      <PhoneVerifyDialog open={phoneVerifyOpen} onClose={() => setPhoneVerifyOpen(false)} />
     </>
   )
 }

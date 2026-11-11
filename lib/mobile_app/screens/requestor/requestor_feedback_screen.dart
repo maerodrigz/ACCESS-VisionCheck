@@ -30,6 +30,13 @@ const _kRequestorFeedbackTypes = [
     accentColor: kGreen,
   ),
   _FeedbackTypeOption(
+    label: 'Overall satisfaction',
+    subtitle: 'General satisfaction with documentation coverage',
+    icon: Icons.sentiment_satisfied_alt_rounded,
+    accentColor: kCyan,
+  ),
+  // Kept for historical feedback compatibility (stored comment prefixes).
+  _FeedbackTypeOption(
     label: 'Team responsiveness',
     subtitle: 'Communication, timeliness, and coordination',
     icon: Icons.groups_rounded,
@@ -67,6 +74,8 @@ class _FeedbackTypeOption {
           'How was the photo and video quality for your event?',
         'Coverage completeness' =>
           'Did the team capture the important moments and deliverables?',
+        'Overall satisfaction' =>
+          'How satisfied are you with the documentation coverage overall?',
         'Team responsiveness' =>
           'How was communication and coordination with the ACCESS team?',
         'Suggestion' => 'What would you like us to improve next time?',
@@ -283,7 +292,7 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kBg,
+      color: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -828,14 +837,21 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       return;
     }
 
-    final needsTeam = !teamDone && _teamTargets.isNotEmpty;
-    if (needsTeam) {
-      for (final t in _teamTargets) {
+    final needsEvent = !eventDone;
+    final hasOverall = widget.rating > 0;
+
+    final pendingTargets =
+        _teamTargets.where((t) => !t.rated).toList(growable: false);
+    final needsDocumenters = !teamDone && pendingTargets.isNotEmpty;
+    if (needsDocumenters) {
+      for (final t in pendingTargets) {
         final stars = _memberRatings[t.assignmentId] ?? 0;
-        if (stars == 0) {
+        if (stars <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Please rate ${t.memberName} (${t.roleLabel})'),
+              content: Text(
+                'Please rate ${t.memberName} (${t.roleLabel}) before submitting',
+              ),
               backgroundColor: kRed,
             ),
           );
@@ -844,18 +860,16 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       }
     }
 
-    final needsEvent = !eventDone;
-    final hasOverall = widget.rating > 0;
-    if (needsEvent && !hasOverall && !needsTeam) {
+    if (needsEvent && !hasOverall) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Add an overall star rating for this event'),
+          content: Text('Add an overall star rating for Event Coverage Feedback'),
           backgroundColor: kRed,
         ),
       );
       return;
     }
-    if (!needsEvent && !needsTeam) {
+    if (!needsEvent && !needsDocumenters) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Nothing left to submit for this event'),
@@ -868,14 +882,16 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
     widget.onSubmittingChanged(true);
     try {
       var didSubmit = false;
-      if (needsTeam) {
+      // Submit documenter ratings first so a partial failure does not leave
+      // event feedback saved without the required per-documenter set.
+      if (needsDocumenters) {
         await memberApiService.submitMemberRatings(
           requestId: requestId,
           ratings: _teamTargets.map((t) {
             final assignmentId = t.assignmentId;
             return {
               'assignment_id': assignmentId,
-              'rating': _memberRatings[assignmentId],
+              'rating': _memberRatings[assignmentId] ?? t.existingRating ?? 0,
               'comment': _memberCommentCtrls[assignmentId]?.text.trim(),
             };
           }).toList(),
@@ -897,7 +913,7 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Add team ratings or overall service feedback to submit'),
+              content: Text('Add Event Coverage Feedback to submit'),
               backgroundColor: kRed,
             ),
           );
@@ -924,7 +940,6 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
     final eventDone = requestId != null &&
         (widget.completion.eventDone(requestId) || widget.submittedOverall != null);
     final teamDone = requestId != null && widget.completion.teamDone(requestId);
-    final overallRequired = requestId != null && !eventDone && teamDone;
     final lockedParts = widget.submittedOverall == null
         ? null
         : _submittedOverallParts(widget.submittedOverall!);
@@ -949,20 +964,6 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
             requestKey: widget.requestKey,
             onEventChanged: widget.onEventChanged,
           ),
-          if (widget.selectedRequest != null) ...[
-            const SizedBox(height: 10),
-            _SelectedEventPreview(request: widget.selectedRequest!),
-            const SizedBox(height: 20),
-            MemberTeamRatingSection(
-              targets: _teamTargets,
-              ratings: _memberRatings,
-              commentControllers: _memberCommentCtrls,
-              onRatingChanged: (assignmentId, rating) {
-                setState(() => _memberRatings[assignmentId] = rating);
-              },
-              loading: _loadingTeam,
-            ),
-          ],
           if (widget.selectedRequest == null) ...[
             const SizedBox(height: 16),
             Text(
@@ -970,28 +971,39 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
               style: memberDashboardMetaStyle,
             ),
           ] else ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            _SelectedEventPreview(request: widget.selectedRequest!),
+            const SizedBox(height: 18),
             Text(
-              eventDone
-                  ? 'Overall event feedback'
-                  : overallRequired
-                      ? 'Overall event feedback'
-                      : 'Overall event feedback (optional)',
-              style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
+              'Event Coverage Feedback',
+              style: memberDashboardMetaStyle.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: const Color(0xFF173650),
+              ),
             ),
             const SizedBox(height: 3),
             Text(
               eventDone
                   ? 'Locked. This rating was already submitted.'
-                  : overallRequired
-                      ? 'Required once team ratings are done.'
-                      : 'Optional comments about this event.',
+                  : 'How satisfied are you with the documentation coverage of your event?',
               style: memberDashboardMetaStyle.copyWith(
                 fontSize: 11,
-                color: eventDone ? kTextSecondary : null,
-                fontWeight: eventDone ? FontWeight.w600 : null,
+                color: eventDone ? kTextSecondary : const Color(0xFF617F91),
+                fontWeight: eventDone ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
+            if (!eventDone) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Required',
+                style: memberDashboardMetaStyle.copyWith(
+                  fontSize: 11,
+                  color: const Color(0xFF079FC6),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             if (eventDone)
               _LockedOverallFeedback(
@@ -1009,7 +1021,7 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Overall rating',
+                'Overall event rating',
                 style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -1022,7 +1034,7 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Your message',
+                'Your message (optional)',
                 style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
@@ -1061,30 +1073,40 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
                 ),
               ),
             ],
+            const SizedBox(height: 18),
+            MemberTeamRatingSection(
+              targets: _teamTargets,
+              ratings: _memberRatings,
+              commentControllers: _memberCommentCtrls,
+              onRatingChanged: (assignmentId, rating) {
+                setState(() => _memberRatings[assignmentId] = rating);
+              },
+              loading: _loadingTeam,
+            ),
           ],
           if (requestId != null && !(eventDone && teamDone)) ...[
-          const SizedBox(height: 14),
-          widget.submitting
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Color(0xFF079FC6),
+            const SizedBox(height: 14),
+            widget.submitting
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Color(0xFF079FC6),
+                        ),
                       ),
                     ),
+                  )
+                : MemberDashboardPrimaryButton(
+                    label: 'Submit Feedback',
+                    icon: Icons.send_rounded,
+                    color: const Color(0xFF079FC6),
+                    minHeight: 48,
+                    onPressed: _submit,
                   ),
-                )
-              : MemberDashboardPrimaryButton(
-                  label: 'Submit Feedback',
-                  icon: Icons.send_rounded,
-                  color: const Color(0xFF079FC6),
-                  minHeight: 48,
-                  onPressed: _submit,
-                ),
           ],
         ],
       ),
@@ -1348,6 +1370,7 @@ class _FeedbackTypeTile extends StatelessWidget {
     return switch (option.label) {
       'Documentation quality' => Icons.photo_camera_outlined,
       'Coverage completeness' => Icons.checklist_outlined,
+      'Overall satisfaction' => Icons.sentiment_satisfied_alt_outlined,
       'Team responsiveness' => Icons.groups_outlined,
       'Suggestion' => Icons.lightbulb_outline_rounded,
       _ => Icons.chat_bubble_outline_rounded,
@@ -1629,8 +1652,8 @@ class _PastTeamRatingsCardState extends State<_PastTeamRatingsCard> {
   Widget build(BuildContext context) {
     final group = widget.group;
     final previewName = group.rows.isEmpty
-        ? 'Team member ratings'
-        : (group.rows.first['member_name'] as String? ?? 'Team member');
+        ? 'Documenter ratings'
+        : (group.rows.first['member_name'] as String? ?? 'Documenter');
     final previewRating =
         group.rows.isEmpty ? 0 : (group.rows.first['rating'] as num?)?.toInt() ?? 0;
 
@@ -1666,11 +1689,11 @@ class _PastTeamRatingsCardState extends State<_PastTeamRatingsCard> {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.groups_outlined, size: 14, color: _kHistoryCyan),
+              const Icon(Icons.photo_camera_outlined, size: 14, color: _kHistoryCyan),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Team member ratings · ${group.rows.length}',
+                  'Documenter Ratings · ${group.rows.length}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: memberDashboardMetaStyle.copyWith(
@@ -1746,7 +1769,7 @@ class _PastMemberRatingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = row['member_name'] as String? ?? 'Team member';
+    final name = row['member_name'] as String? ?? 'Documenter';
     final rating = (row['rating'] as num?)?.toInt() ?? 0;
     final comment = (row['comment'] as String?)?.trim() ?? '';
     final role = row['task_role'] as String? ?? '';
@@ -1754,7 +1777,7 @@ class _PastMemberRatingRow extends StatelessWidget {
         ? 'Videographer'
         : role.toLowerCase().contains('photo')
             ? 'Photographer'
-            : 'Documentation member';
+            : 'Documenter';
 
     return Container(
       width: double.infinity,
@@ -1789,6 +1812,15 @@ class _PastMemberRatingRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
+          Text(
+            'Individual rating',
+            style: memberDashboardMetaStyle.copyWith(
+              fontSize: 10,
+              color: _kHistoryMeta,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
           _CompactStarRow(rating: rating, size: 14),
           if (comment.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -1861,15 +1893,15 @@ class _PastFeedbackCardState extends State<_PastFeedbackCard> {
           const SizedBox(height: 6),
           Row(
             children: [
-              Icon(
-                _FeedbackTypeOption.iconForLabel(feedback.type),
+              const Icon(
+                Icons.event_available_outlined,
                 size: 14,
                 color: _kHistoryCyan,
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  feedback.type,
+                  'Event Coverage Rating',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: memberDashboardMetaStyle.copyWith(
@@ -1887,6 +1919,29 @@ class _PastFeedbackCardState extends State<_PastFeedbackCard> {
                     fontSize: 11,
                   ),
                 ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(
+                _FeedbackTypeOption.iconForLabel(feedback.type),
+                size: 13,
+                color: _kHistoryMeta,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Category: ${feedback.type}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardMetaStyle.copyWith(
+                    color: _kHistoryMeta,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),

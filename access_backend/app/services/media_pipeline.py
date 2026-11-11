@@ -333,6 +333,7 @@ def run_pipeline(
                 uploader_name,
                 member_id=media.uploaded_by,
                 detection_label=ai_label,
+                ai_info=ai_info if isinstance(ai_info, dict) else None,
             )
 
     return evaluation, ai_row

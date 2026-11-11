@@ -24,10 +24,9 @@ from app.services.skill_progression_policy import (
 
 
 def test_configured_policy_defaults_v1(monkeypatch) -> None:
-    monkeypatch.delenv("SKILL_PROGRESSION_ACTIVE_POLICY", raising=False)
     from app.config import settings
 
-    assert settings.skill_progression_active_policy == "v1"
+    monkeypatch.setattr(settings, "skill_progression_active_policy", "v1")
     assert configured_skill_progression_policy() == POLICY_V1
 
 
@@ -85,20 +84,20 @@ def test_snapshot_v1_uses_v1_progress_fields(monkeypatch) -> None:
     assert snap.remaining_distinct_upload_days == 0
 
 
-def test_v2_env_blocked_without_grandfather_snapshots(monkeypatch) -> None:
+def test_v2_env_blocked_without_activation_seal(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.services.skill_progression_policy.configured_skill_progression_policy",
         lambda: POLICY_V2,
     )
     db = MagicMock()
     with patch(
-        "app.services.skill_progression_grandfather.members_missing_grandfather_snapshot",
-        return_value=[77, 88],
+        "app.services.skill_progression_v2_activation.get_sealed_activation",
+        return_value=None,
     ):
         policy, reason = resolve_effective_skill_progression_policy(db)
     assert policy == POLICY_V1
     assert reason is not None
-    assert "grandfather" in reason.lower()
+    assert "sealed" in reason.lower()
 
 
 def test_build_snapshot_fails_open_to_v1_when_v2_blocked(monkeypatch) -> None:
@@ -134,14 +133,21 @@ def test_grandfather_missing_includes_admin_override_without_floor() -> None:
     user = MagicMock(id=5)
     db.scalars.return_value.all.return_value = [user]
     db.scalar.return_value = ranking
-    missing = members_missing_grandfather_snapshot(db)
+    with patch(
+        "app.services.skill_progression_v2_activation.get_sealed_activation",
+        return_value=None,
+    ):
+        missing = members_missing_grandfather_snapshot(db)
     assert missing == [5]
 
 
 def test_grandfather_snapshots_complete_empty_when_all_captured() -> None:
     db = MagicMock()
     with patch(
-        "app.services.skill_progression_grandfather.members_missing_grandfather_snapshot",
+        "app.services.skill_progression_v2_activation.get_sealed_activation",
+        return_value=MagicMock(id=1),
+    ), patch(
+        "app.services.skill_progression_v2_activation.protected_cohort_members_missing_floors",
         return_value=[],
     ):
         assert grandfather_snapshots_complete(db) is True

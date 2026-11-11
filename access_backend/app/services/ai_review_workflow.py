@@ -155,6 +155,13 @@ def apply_ai_review(
 
             archive_crud.create_if_not_exists(db, row.media_id, reviewed_by)
 
+        # Resolve outstanding admin integrity alerts for this media (mark read; keep history).
+        # Runs for any terminal or in-progress admin decision that leaves pending status.
+        if row.media_id and _is_reviewed_status(review_status):
+            from app.crud import notification as notification_crud
+
+            notification_crud.mark_media_integrity_alerts_resolved(db, row.media_id)
+
         if member_id:
             from app.services import notification_events as notify_events
 

@@ -67,7 +67,8 @@ void main() {
     expect(find.text('Your Submissions'), findsOneWidget);
     expect(find.text('1'), findsWidgets);
     expect(find.text('Faculty Meeting'), findsOneWidget);
-    expect(find.text('Documentation quality'), findsOneWidget);
+    expect(find.text('Event Coverage Rating'), findsOneWidget);
+    expect(find.text('Category: Documentation quality'), findsOneWidget);
     expect(find.text('Nov 10, 14:30'), findsOneWidget);
     expect(find.text('View details'), findsOneWidget);
     expect(find.text('ACCESS team response'), findsNothing);

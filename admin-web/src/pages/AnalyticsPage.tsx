@@ -4,7 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AnalyticsOverviewDashboard } from '../components/analytics/AnalyticsOverviewDashboard'
 import { RecentActivityFullPanel } from '../components/analytics/AnalyticsCharts'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { pageToolbarBtnClass, PageToolbarRefreshButton } from '../components/PageToolbar'
 import { useToast } from '../context/ToastContext'
 import {
@@ -26,23 +27,7 @@ import {
   dateRangeForPeriod,
   type ReportingPeriod,
 } from '../lib/analyticsOverview'
-import {
-  AnalyticsOverviewSection,
-  ReportingPeriodSelect,
-} from '../components/analytics/AnalyticsOverviewSection'
-
-const ANALYTICS_PAGE_SUBTITLE =
-  'Monitor documentation activities, media evaluations, and member performance.'
-
-const TAB_SUBTITLES: Record<AnalyticsTab, string> = {
-  overview: ANALYTICS_PAGE_SUBTITLE,
-  participation: 'Member participation, uploads, and quality scores.',
-  rankings: 'Leaderboard summary and top performers.',
-  feedback: 'Requester ratings and satisfaction trends.',
-  media: 'Upload volume, format mix, and AI detection.',
-  events: 'Calendar events and completion status.',
-  activity: 'Recent actions across the platform.',
-}
+import { ReportingPeriodSelect } from '../components/analytics/AnalyticsOverviewSection'
 
 export function AnalyticsPage() {
   const navigate = useNavigate()
@@ -116,10 +101,11 @@ export function AnalyticsPage() {
 
   return (
     <div className={`pb-8 ${tab === 'overview' ? 'space-y-2' : 'space-y-5'}`}>
-      <AdminPageHeader
-        subtitle={tab === 'overview' ? ANALYTICS_PAGE_SUBTITLE : TAB_SUBTITLES[tab]}
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.analytics.icon}
+        title={FEATURE_HEADERS.analytics.title}
+        description={FEATURE_HEADERS.analytics.description}
         backTo="/"
-        compact={tab === 'overview'}
         actions={
           <>
             <ReportingPeriodSelect
@@ -148,16 +134,6 @@ export function AnalyticsPage() {
       {error && (
         <AdminErrorBanner>{error}</AdminErrorBanner>
       )}
-
-      {tab === 'overview' ? (
-        <AnalyticsOverviewSection
-          data={data}
-          range={range}
-          period={reportingPeriod}
-          loading={loading || loadingDetails}
-          unavailable={Boolean(error) && !data}
-        />
-      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {ANALYTICS_TABS.map((t) => (
@@ -197,7 +173,7 @@ export function AnalyticsPage() {
             <AnalyticsOverviewDashboard
               data={data}
               range={range}
-              onViewAllMembers={() => navigate('/members')}
+              onViewAllMembers={() => navigate('/competency?tab=directory')}
               onViewAllActivity={() => setTab('activity')}
             />
           )}

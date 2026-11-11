@@ -126,6 +126,8 @@ class Evaluation {
     return int.tryParse(id.substring(prefix.length));
   }
 
+  /// Member may free cloud storage for completed practice uploads.
+  /// Score, XP, and evaluation history stay on the account.
   bool get canRemovePracticeStorage =>
       !storageRemoved &&
       !isAnalysisInProgress &&
@@ -430,6 +432,22 @@ class Member {
 
   /// Subtitle under member name on rankings (title if earned, else competency level).
   String get rankingsRoleLabel => achievedTitle ?? rank;
+
+  /// Skill tier for Rankings podium / leaderboard (Beginner → Expert).
+  String get skillTierLabel {
+    final raw = rank.trim();
+    if (raw.isEmpty) return 'Beginner';
+    const tiers = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+    for (final tier in tiers) {
+      if (raw.toLowerCase() == tier.toLowerCase()) return tier;
+    }
+    final lower = raw.toLowerCase();
+    if (lower.startsWith('expert')) return 'Expert';
+    if (lower.startsWith('advanc')) return 'Advanced';
+    if (lower.startsWith('inter')) return 'Intermediate';
+    if (lower.startsWith('begin')) return 'Beginner';
+    return 'Beginner';
+  }
 }
 
 class EventFeedback {

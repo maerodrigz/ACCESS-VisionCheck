@@ -30,6 +30,22 @@ export async function resolveGlobalSearch(query: string): Promise<GlobalSearchRe
     }
   }
 
+  if (
+    lower === 'accounts' ||
+    lower === 'account' ||
+    lower.includes('account management')
+  ) {
+    return { path: '/account-management', hint: 'Open Accounts' }
+  }
+  if (
+    lower === 'notifications' ||
+    lower === 'notification' ||
+    lower.includes('notification center') ||
+    lower === 'alerts'
+  ) {
+    return { path: '/notifications', hint: 'Open Notification Center' }
+  }
+
   const [users, requestsRaw, mediaRows] = await Promise.all([
     fetchUsers().catch(() => []),
     fetchServiceRequests().catch(() => []),

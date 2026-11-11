@@ -64,6 +64,9 @@ def db_session(monkeypatch):
     from app.config import settings
 
     settings.sms_provider = "log"
+    # Local .env may set AUTH_LOCKOUT_ENABLED=false for UI work; lockout-clearing
+    # assertions still need enforcement on for these SMS reset tests.
+    settings.auth_lockout_enabled = True
     from app.database import SessionLocal, engine
     from app.services import sms_rate_limit
 

@@ -55,7 +55,7 @@ class RequestorHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kRequestorHomeBg,
+      color: Colors.transparent,
       child: ListenableBuilder(
         listenable: Listenable.merge([appState, memberDataController]),
         builder: (context, _) {

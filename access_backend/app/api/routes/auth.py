@@ -456,26 +456,29 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Administrator accounts cannot be registered through the mobile app.",
         )
+
+    # Email OTP is no longer required for Member/Organization self-registration.
+    # Optional token is ignored if present so older clients do not fail hard.
+    # Do not treat registration as email-verified (no email_verified flag is set).
+    contact_for_user = None
     if role_key in ("member", "organization"):
-        if not body.email_verification_token:
+        raw_contact = (body.contact_number or "").strip()
+        if not raw_contact:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Verify your email with the code before submitting registration.",
+                detail="Mobile number is required for registration.",
             )
         try:
-            email_otp_crud.consume_verification_token(
-                db,
-                str(body.email).strip().lower(),
-                body.email_verification_token,
-            )
+            contact_for_user = normalize_ph_mobile(raw_contact)
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        contact_for_user = None
-        if body.contact_number and body.contact_number.strip():
-            try:
-                contact_for_user = normalize_ph_mobile(body.contact_number)
-            except ValueError as exc:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        # Phone is stored for profile/recovery enrollment only. SMS ownership
+        # proof still happens via /auth/phone/verify (do not set phone_verified_at here).
+        if user_crud.find_verified_phone_conflict(db, contact_for_user):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This mobile number is already registered to another account.",
+            )
     else:
         contact_for_user = body.contact_number
 

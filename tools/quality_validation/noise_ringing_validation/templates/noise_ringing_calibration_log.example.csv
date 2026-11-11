@@ -1,0 +1,4 @@
+rater_id,session_date,pack_id,n_images,noise_within1,ringing_within1,noise_off_by_ge2_count,ringing_off_by_ge2_count,pass_fail,facilitator,notes
+R1,2026-11-15,NR_CAL_PACK_A,6,0.89,0.83,1,1,pass,F1,example row
+R2,2026-11-15,NR_CAL_PACK_A,6,0.94,0.89,0,1,pass,F1,example row
+R3,2026-11-15,NR_CAL_PACK_A,6,0.83,0.78,2,2,fail,F1,remediate once then re-rate

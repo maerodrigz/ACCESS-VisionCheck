@@ -35,6 +35,17 @@ class MemberXpConfig {
       'XP Rank is your participation score on the leaderboard. Skill Tier is your quality-based '
       'classification. Media Integrity is a separate review path for AI and authenticity flags.';
 
+  /// Compact Rankings screen summary (collapsed card body).
+  static const howRankingsSummary =
+      'Your XP determines your leaderboard position. Your Skill Tier reflects your practice '
+      'evaluation quality.';
+
+  static const howRankingsXpTile =
+      'Earn up to 100 XP per eligible practice evaluation.';
+
+  static const howRankingsSkillTile =
+      'Based on quality scores and eligible practice evaluations.';
+
   static const skillLevelIntroV1 =
       'Skill Tier uses eligible released practice quality and evaluation count. '
       'Intermediate: 60%+ average with 3 eligible evaluations. Advanced: 75%+ with 6. '
@@ -51,6 +62,55 @@ class MemberXpConfig {
     }
     return skillLevelIntroV1;
   }
+
+  /// Concise Skill Tier requirements for the Rankings "How Rankings Work" details.
+  /// Does not mention daily upload caps (those are separate from tier progress).
+  static String skillTierRequirementsForPolicy(String policyVersion) {
+    if (policyVersion.trim().toLowerCase() == 'v2') {
+      return 'Eligible released practice evaluations only. Intermediate: 60% average, '
+          '3 evaluations, and 2 distinct upload days. Advanced: 75%, 12 evaluations, '
+          '10 distinct upload days. Expert: 90%, 24 evaluations, 24 distinct upload days. '
+          'Displayed tier may also reflect grandfathering or an admin override.';
+    }
+    return 'Eligible released practice evaluations only. Intermediate: 60% average and '
+        '3 evaluations. Advanced: 75% and 6 evaluations. Expert: 90% and 10 evaluations. '
+        'Displayed tier may also reflect grandfathering or an admin override.';
+  }
+
+  static List<({String title, String body})> howRankingsDetailedRules(
+    String policyVersion,
+  ) =>
+      [
+        (
+          title: 'XP earning',
+          body:
+              'Eligible practice evaluations award XP from the released quality score '
+              '(up to 100 XP). Each submission chain can receive XP only once. '
+              'XP Rank is independent of Skill Tier.',
+        ),
+        (
+          title: 'Media Integrity review',
+          body:
+              'Pending Media Integrity or admin review can delay XP and Skill Tier credit. '
+              'Rejected media or confirmed AI-generated or manipulated uploads do not earn XP.',
+        ),
+        (
+          title: 'Skill Tier requirements',
+          body: skillTierRequirementsForPolicy(policyVersion),
+        ),
+        (
+          title: 'Monthly vs All-Time XP',
+          body:
+              'All-Time XP is your total awarded practice XP. This Month uses award timestamps. '
+              'Older XP without a reliable award timestamp may not appear in This Month.',
+        ),
+        (
+          title: 'What does not earn XP',
+          body:
+              'Event documentation uploads and assignment coverage do not award XP. '
+              'Use practice evaluations for scored XP.',
+        ),
+      ];
 
   /// From `skill_level_from_score` in the backend.
   static const List<({String name, String range})> skillLevelTiers = [

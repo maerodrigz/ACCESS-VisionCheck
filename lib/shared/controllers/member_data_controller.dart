@@ -1683,8 +1683,9 @@ class MemberDataController extends ChangeNotifier {
     if (points is int) {
       appState.profilePoints = points;
     }
-    final rankPos = r['rank_position'] ?? r['rank'];
-    if (rankPos is int) {
+    // Prefer XP leaderboard position; never use skill-sorted rank_position here.
+    final rankPos = r['xp_rank_position'] ?? r['rank_position'] ?? r['rank'];
+    if (rankPos is int && rankPos > 0) {
       appState.profileRankPosition = rankPos;
     }
   }
@@ -2351,7 +2352,9 @@ class MemberDataController extends ChangeNotifier {
       goodEvaluations: r['good_evaluations'] as int? ?? r['points'] as int? ?? 0,
       monthlyPoints: r['monthly_points'] as int? ?? 0,
       evaluationCount: r['evaluation_count'] as int? ?? 0,
-      rankPosition: r['rank_position'] as int? ?? r['rank'] as int?,
+      rankPosition: r['xp_rank_position'] as int? ??
+          r['rank_position'] as int? ??
+          r['rank'] as int?,
       avgMediaScore: (r['avg_score'] as num?)?.toDouble() ??
           (r['average_quality_score'] as num?)?.toDouble() ??
           0,

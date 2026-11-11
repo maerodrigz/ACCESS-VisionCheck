@@ -13,23 +13,27 @@ abstract final class MobileRegistrationCopy {
   static const requestorTypeSubtitle =
       'Choose the option that best describes you or your organization!';
 
-  static const emailVerificationTitle = 'Email verification';
-  static const emailVerificationBody =
-      'Use the email address above. Tap Send code, then enter the 6-digit code from your inbox.';
-
-  static const verifyEmailBeforeSubmit =
-      'Confirm your email with the 6-digit code before you submit registration.';
-
   static const agreeLegalError =
       'Please agree to the Terms, Privacy Policy, and Content Standards.';
+
+  /// Kept for the unused [RegistrationEmailOtpPanel] widget. Sign-up no longer
+  /// requires Email OTP; do not reintroduce that gate on registration screens.
+  static const emailVerificationTitle = 'Email verification';
+  static const emailVerificationBody =
+      'We will email a one-time code to confirm this address before you submit.';
+
+  static const phoneRecoveryHint =
+      'After approval, verify this number in Profile to enable SMS password recovery.';
 
   static String memberSuccessMessage(String email) =>
       'Your member registration was submitted and is pending administrator approval. '
       'We will email $email when your account is approved or declined. '
-      'You cannot sign in until approval is complete.';
+      'You cannot sign in until approval is complete. '
+      'After approval, verify your mobile number in Profile to enable SMS password recovery.';
 
   static String requestorSuccessMessage(String email) =>
       'Your requestor registration was submitted and is pending administrator approval. '
       'We will email $email when your account is approved or declined. '
-      'You cannot sign in until approval is complete.';
+      'You cannot sign in until approval is complete. '
+      'After approval, verify your mobile number in Profile to enable SMS password recovery.';
 }

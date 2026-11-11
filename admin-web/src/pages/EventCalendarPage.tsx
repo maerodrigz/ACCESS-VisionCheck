@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import {
   CalendarCheck,
   CalendarDays,
@@ -23,6 +23,8 @@ import {
 } from '../components/event-calendar/EventCalendarParts'
 import { pageToolbarIconBtnClass, PageToolbarRefreshButton } from '../components/PageToolbar'
 import { AdminErrorBanner } from '../components/AdminAlert'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { useToast } from '../context/ToastContext'
 import { AdminSelect } from '../components/AdminSelect'
 import { AdminConfirmDialog } from '../components/AdminConfirmDialog'
@@ -133,28 +135,29 @@ export function EventCalendarPage() {
 
   const monthLabel = focusedMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 
+  const header = FEATURE_HEADERS.eventCalendar
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-w-0 text-sm leading-snug text-[var(--color-text-secondary)]">
-          Monitor documentation events, schedules, and team assignments in real time. Assign teams in{' '}
-          <Link to="/documentation-requests" className="font-semibold text-[var(--color-accent-blue)] hover:underline">
-            Documentation Requests
-          </Link>
-          .
-        </p>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-blue)] px-3.5 py-1.5 text-sm font-semibold text-white hover:opacity-95"
-          >
-            <Plus size={15} strokeWidth={2.25} />
-            Create Event
-          </button>
-          <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
-        </div>
-      </div>
+      <AdminFeatureHeader
+        icon={header.icon}
+        title={header.title}
+        description={header.description}
+        backTo="/"
+        actions={
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-blue)] px-3.5 py-1.5 text-sm font-semibold text-white hover:opacity-95"
+            >
+              <Plus size={15} strokeWidth={2.25} />
+              Create Event
+            </button>
+            <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />
+          </div>
+        }
+      />
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
 

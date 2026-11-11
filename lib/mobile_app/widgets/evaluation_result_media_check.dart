@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
+import 'package:access_mobile/mobile_app/widgets/member_separated_integrity_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/utils/member_integrity_display.dart';
@@ -105,6 +106,13 @@ class EvaluationResultMediaCheckCard extends StatelessWidget {
               ),
             ),
           ],
+          const SizedBox(height: 10),
+          MemberSeparatedIntegrityStatusStrip(
+            automated: result.aiDetection,
+            adminReviewStatus: adminReviewStatus,
+            dense: true,
+            embedded: true,
+          ),
           const SizedBox(height: 8),
           Text(
             _disclaimer,

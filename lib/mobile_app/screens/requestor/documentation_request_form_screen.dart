@@ -10,7 +10,6 @@ import 'package:access_mobile/shared/utils/schedule_time_utils.dart';
 import 'package:access_mobile/shared/widgets/registration_form_widgets.dart';
 import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
 
-const _kFormBg = Color(0xFFF2F9FD);
 const _kCardRadius = 14.0;
 const _kInputRadius = 12.0;
 const _kFieldGap = 12.0;
@@ -326,7 +325,7 @@ class _DocumentationRequestFormScreenState
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: _kFormBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: kSurface,
         elevation: 0,

@@ -31,6 +31,21 @@ from app.services.supabase_storage import display_profile_image
 router = APIRouter(prefix="/member", tags=["Member"])
 
 
+def _v2_seal_fields(db: Session) -> tuple[bool, object]:
+    from app.services.skill_progression_v2_activation import get_sealed_activation
+
+    seal = get_sealed_activation(db)
+    if seal is None:
+        return False, None
+    return True, seal.sealed_at
+
+
+def _is_cohort_member(db: Session, user_id: int) -> bool:
+    from app.services.skill_progression_v2_activation import is_user_in_sealed_cohort
+
+    return is_user_in_sealed_cohort(db, user_id)
+
+
 def _profile_out(db: Session, user: User) -> ProfileOut:
     from app.services.skill_progression import build_skill_progression_snapshot
 
@@ -203,6 +218,7 @@ def participation(db: Session = Depends(get_db), current_user: User = Depends(re
     )
     eval_rules = evaluation_rules(db)
     quality_avg = round(progression.skill_score_pct, 2)
+    sealed, sealed_at = _v2_seal_fields(db)
     return ParticipationOut(
         assignments_total=profile_crud.assignments_total(db, current_user.id),
         assignments_completed=profile_crud.assignments_completed(db, current_user.id),
@@ -235,6 +251,11 @@ def participation(db: Session = Depends(get_db), current_user: User = Depends(re
         skill_progression_policy_version=progression.policy_version,
         skill_progression_policy_configured=progression.configured_policy_version,
         skill_progression_v2_blocked_reason=progression.v2_activation_blocked_reason,
+        skill_progression_v2_activation_sealed=sealed,
+        skill_progression_v2_activation_sealed_at=sealed_at,
+        skill_progression_grandfather_cohort_member=_is_cohort_member(
+            db, current_user.id
+        ),
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,
     )

@@ -90,7 +90,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('Overall rating'), findsOneWidget);
+    expect(find.text('Overall event rating'), findsOneWidget);
     expect(find.byIcon(Icons.star_outline_rounded), findsWidgets);
     expect(find.text('Tell us about your experience...'), findsOneWidget);
     expect(find.text('Submit Feedback'), findsOneWidget);

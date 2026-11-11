@@ -370,6 +370,58 @@ Challenge? memberActiveAssignment() {
   return accepted;
 }
 
+DateTime? memberAssignmentEventDay(Challenge task) {
+  final event = calendarEventForAssignment(task);
+  if (event != null) {
+    return DateTime(
+      event.startDate.year,
+      event.startDate.month,
+      event.startDate.day,
+    );
+  }
+  return null;
+}
+
+bool memberAssignmentIsPast(Challenge task) {
+  final day = memberAssignmentEventDay(task);
+  if (day == null) return false;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  return day.isBefore(today);
+}
+
+/// Next assignment for Member Home — skips past-dated events without changing status.
+Challenge? memberNextAssignment() {
+  Challenge? soonestUndated;
+  Challenge? soonestDated;
+  DateTime? soonestDay;
+
+  for (final task in appState.challenges) {
+    if (task.completed) continue;
+    final status = task.status.toLowerCase();
+    if (status == 'cancelled' ||
+        status == 'canceled' ||
+        status == 'declined' ||
+        status == 'completed' ||
+        status == 'done') {
+      continue;
+    }
+    if (memberAssignmentIsPast(task)) continue;
+
+    final day = memberAssignmentEventDay(task);
+    if (day == null) {
+      soonestUndated ??= task;
+      continue;
+    }
+    if (soonestDay == null || day.isBefore(soonestDay)) {
+      soonestDay = day;
+      soonestDated = task;
+    }
+  }
+
+  return soonestDated ?? soonestUndated;
+}
+
 /// Assignment status pill — aligned with [MyAssignmentsScreen] backend values.
 ({String label, Color color, Color bg}) memberAssignmentStatusBadge(String status) {
   final s = status.toLowerCase();

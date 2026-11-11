@@ -132,10 +132,10 @@ class RequestorTabHero extends StatelessWidget {
   }
 }
 
-/// Pinned white bar: ACCESS seal + VisionCheck wordmark + optional actions.
+/// Pinned transparent bar: ACCESS seal + VisionCheck wordmark + optional actions.
 ///
-/// Use on every Requestor tab so branding stays visible while illustrated
-/// feature banners scroll with page content.
+/// Use on every Requestor tab so branding stays over the shared sky background
+/// while illustrated feature banners scroll with page content.
 class RequestorBrandAppBar extends StatelessWidget {
   const RequestorBrandAppBar({
     super.key,
@@ -153,7 +153,7 @@ class RequestorBrandAppBar extends StatelessWidget {
     final sidePad = narrow ? 16.0 : kMemberDashboardPagePadding;
 
     return ColoredBox(
-      color: kSurface,
+      color: Colors.transparent,
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -169,7 +169,7 @@ class RequestorBrandAppBar extends StatelessWidget {
   }
 }
 
-/// Minimal white app bar + pastel greeting card for Requestor Home only.
+/// Transparent brand bar + pastel greeting card for Requestor Home only.
 ///
 /// Does not replace [RequestorTabHero] used by other requestor surfaces.
 class RequestorHomeHeader extends StatelessWidget {

@@ -12,7 +12,8 @@ import {
   saveSecuritySettings,
 } from '../api/systemSettings'
 import { AdminConfirmDialog } from '../components/AdminConfirmDialog'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { pageToolbarBtnClass } from '../components/PageToolbar'
 import { SecurityConfirmModal } from '../components/system-configuration/SecurityConfirmModal'
 import {
@@ -456,9 +457,10 @@ export function SystemConfigurationPage() {
 
   return (
     <div className="sys-config sys-config__page">
-      <AdminPageHeader
-        title="System Configuration"
-        subtitle="Configure system-wide settings and administrative preferences for ACCESS VisionCheck."
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.systemConfiguration.icon}
+        title={FEATURE_HEADERS.systemConfiguration.title}
+        description={FEATURE_HEADERS.systemConfiguration.description}
         backTo="/"
         actions={
           <button type="button" className={pageToolbarBtnClass} onClick={handleRefresh}>

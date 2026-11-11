@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ACCESS VisionCheck — Quality Sandbox (Research Only)</title>
+<style>
+:root {
+  --bg: #f8fafc; --surface: #fff; --border: #e2e8f0;
+  --accent: #0052d4; --warn: #b45309; --err: #b91c1c;
+  --ok: #15803d; --dim: #64748b; --text: #1e293b;
+  --badge-1:#b91c1c;--badge-2:#d97706;--badge-3:#ca8a04;
+  --badge-4:#16a34a;--badge-5:#0369a1;
+  --enet:#1d4ed8; --classical:#0f766e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);padding:1.25rem}
+h1{font-size:1.25rem;font-weight:700;margin-bottom:.25rem}
+.subtitle{color:var(--dim);font-size:.875rem;margin-bottom:1rem}
+.banner{background:#fef3c7;border:1px solid #fcd34d;border-radius:.5rem;padding:.75rem 1rem;
+  font-size:.8125rem;color:#92400e;margin-bottom:1.25rem;line-height:1.5}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;
+  padding:1.25rem;margin-bottom:1.25rem}
+.card h2{font-size:1rem;font-weight:600;margin-bottom:.75rem}
+.drop-zone{border:2px dashed var(--border);border-radius:.5rem;padding:2rem;text-align:center;
+  cursor:pointer;transition:.15s;min-height:7rem;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.5rem;color:var(--dim)}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:#eff6ff}
+.drop-zone input[type=file]{display:none}
+.drop-zone img{max-width:100%;max-height:14rem;border-radius:.5rem;margin-top:.5rem;object-fit:contain}
+.opts{display:flex;gap:1.5rem;margin-top:.75rem;font-size:.875rem;flex-wrap:wrap}
+.opts label{display:flex;align-items:center;gap:.375rem;cursor:pointer}
+button{background:var(--accent);color:#fff;border:none;border-radius:.5rem;padding:.6rem 1.5rem;
+  font-size:.9375rem;font-weight:600;cursor:pointer;transition:.1s}
+button:hover{background:#003fa3}
+button:disabled{background:#94a3b8;cursor:not-allowed}
+#result-section{display:none}
+.overall-note{font-size:.8125rem;background:#f0fdf4;border:1px solid #86efac;
+  border-radius:.5rem;padding:.65rem .875rem;color:var(--ok);margin-bottom:.75rem}
+.meta-row{display:flex;flex-wrap:wrap;gap:.75rem;font-size:.8125rem;color:var(--dim);
+  margin-bottom:.75rem}
+.meta-row span strong{color:var(--text)}
+.error-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:.5rem;
+  padding:.75rem 1rem;color:var(--err);font-size:.875rem;white-space:pre-wrap}
+.spinner{width:1.5rem;height:1.5rem;border:3px solid #e2e8f0;
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
+  margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.research-notes{font-size:.75rem;color:var(--dim);margin-top:.75rem}
+.research-notes li{margin-bottom:.2rem}
+.engine-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+@media (max-width:900px){.engine-grid{grid-template-columns:1fr}}
+.engine-panel{border:1px solid var(--border);border-radius:.75rem;padding:1rem;background:var(--bg)}
+.engine-panel.enet{border-top:3px solid var(--enet)}
+.engine-panel.classical{border-top:3px solid var(--classical)}
+.engine-title{font-size:.95rem;font-weight:700;margin-bottom:.35rem}
+.engine-meta{font-size:.75rem;color:var(--dim);margin-bottom:.75rem;line-height:1.45}
+.engine-meta .avail-ok{color:var(--ok);font-weight:600}
+.engine-meta .avail-no{color:var(--err);font-weight:600}
+.crit-list{display:flex;flex-direction:column;gap:.5rem}
+.crit-row{border:1px solid var(--border);border-radius:.5rem;padding:.65rem .75rem;background:var(--surface)}
+.crit-header{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.crit-name{font-weight:600;font-size:.875rem}
+.badge{font-size:1.15rem;font-weight:800;padding:.05rem .4rem;border-radius:.375rem;background:#f1f5f9}
+.badge[data-b="1"]{color:var(--badge-1)}.badge[data-b="2"]{color:var(--badge-2)}
+.badge[data-b="3"]{color:var(--badge-3)}.badge[data-b="4"]{color:var(--badge-4)}
+.badge[data-b="5"]{color:var(--badge-5)}.badge[data-b="na"]{color:var(--dim);font-size:.9rem}
+.badge-label{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}
+.crit-meta{font-size:.72rem;color:var(--dim);margin-top:.35rem}
+.crit-warn{font-size:.72rem;color:var(--warn);margin-top:.35rem;background:#fff7ed;
+  border-radius:.375rem;padding:.3rem .45rem;border-left:3px solid #f59e0b}
+.ver-chip{font-size:.65rem;background:#f1f5f9;border:1px solid var(--border);
+  border-radius:1rem;padding:.08rem .4rem;color:var(--dim);display:inline-block;margin-right:.25rem}
+.compare-wrap{overflow-x:auto;margin-bottom:1rem}
+.compare-table{width:100%;border-collapse:collapse;font-size:.8rem;min-width:520px}
+.compare-table th,.compare-table td{padding:.45rem .55rem;border-bottom:1px solid var(--border);text-align:left}
+.compare-table th{color:var(--dim);font-weight:600;background:#f1f5f9}
+.compare-table .enet-col{color:var(--enet);font-weight:700}
+.compare-table .classical-col{color:var(--classical);font-weight:700}
+.alt-section{margin-top:.5rem;font-size:.8125rem}
+.alt-section summary{cursor:pointer;color:var(--accent);font-weight:500}
+.alt-table{width:100%;border-collapse:collapse;margin-top:.375rem;font-size:.75rem}
+.alt-table th{text-align:left;color:var(--dim);font-weight:500;padding:.2rem .4rem;border-bottom:1px solid var(--border)}
+.alt-table td{padding:.2rem .4rem;border-bottom:1px solid #f1f5f9}
+.limits{font-size:.72rem;color:var(--dim);margin-top:.5rem}
+.limits li{margin-bottom:.15rem}
+.why-list{display:flex;flex-direction:column;gap:.6rem;margin:1rem 0}
+.why-item{border:1px solid var(--border);border-radius:.625rem;background:var(--surface);overflow:hidden}
+.why-item summary{cursor:pointer;padding:.75rem 1rem;font-weight:600;font-size:.9rem;
+  list-style:none;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap}
+.why-item summary::-webkit-details-marker{display:none}
+.why-item summary::after{content:'Why this score?';font-weight:500;font-size:.75rem;color:var(--accent)}
+.why-item[open] summary::after{content:'Hide details'}
+.why-body{padding:0 1rem 1rem;border-top:1px solid #f1f5f9}
+.why-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem}
+@media (max-width:800px){.why-grid{grid-template-columns:1fr}}
+.why-col{background:var(--bg);border:1px solid var(--border);border-radius:.5rem;padding:.75rem}
+.why-col h3{font-size:.8rem;margin-bottom:.4rem}
+.why-col.enet h3{color:var(--enet)}
+.why-col.classical h3{color:var(--classical)}
+.meas-table{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:.4rem}
+.meas-table th,.meas-table td{padding:.2rem .3rem;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
+.meas-table th{color:var(--dim);font-weight:500}
+.role-chip{font-size:.65rem;border-radius:1rem;padding:.05rem .35rem;border:1px solid var(--border);color:var(--dim)}
+.role-chip.scoring{border-color:#93c5fd;color:#1d4ed8;background:#eff6ff}
+.role-chip.diag{border-color:#fcd34d;color:#92400e;background:#fffbeb}
+.why-measures{font-size:.8rem;color:var(--text);margin:.65rem 0 .25rem}
+.why-disagree{font-size:.75rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:.375rem;
+  padding:.45rem .6rem;margin-top:.65rem;color:#1e3a8a}
+</style>
+</head>
+<body>
+
+<h1>ACCESS VisionCheck — Quality Evaluation Sandbox</h1>
+<p class="subtitle">Research-only · Side-by-side EfficientNet-B0 vs Experimental Classical · Not connected to production</p>
+
+<div class="banner">
+  <strong>Research-only tool.</strong>
+  Both engines score the same upload independently with separate runtimes.
+  EfficientNet-B0 never silently falls back to OpenCV here.
+  Noise and Ringing are unvalidated against the ACCESS human pilot.
+  Do not use these scores for membership, XP, or production threshold changes.
+  Uploads stay in memory only.
+</div>
+
+<div class="card">
+  <h2>Upload a photograph</h2>
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-in').click()">
+    <svg width="32" height="32" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+    </svg>
+    <span id="drop-label">Drop a JPEG or PNG here, or click to browse</span>
+    <input type="file" id="file-in" accept="image/jpeg,image/png,image/webp">
+    <img id="preview-img" alt="preview" style="display:none">
+  </div>
+  <div class="opts">
+    <label>
+      <input type="checkbox" id="opt-noise-alts">
+      Show Noise v3 / v4 alternates
+    </label>
+    <label>
+      <input type="checkbox" id="opt-ring-alts">
+      Show Ringing v3 / v4 alternates
+    </label>
+  </div>
+  <div style="margin-top:1rem">
+    <button id="eval-btn" disabled>Evaluate both engines</button>
+  </div>
+</div>
+
+<div id="result-section">
+  <div id="loading" style="display:none;text-align:center;padding:2rem">
+    <div class="spinner"></div>
+    <p style="margin-top:.75rem;color:#64748b;font-size:.875rem">Running EfficientNet-B0 and classical engines…</p>
+  </div>
+  <div id="error-box" class="error-box" style="display:none"></div>
+  <div id="result-body" style="display:none">
+    <div class="card">
+      <div class="meta-row" id="meta-row"></div>
+      <div class="overall-note" id="overall-note"></div>
+      <h2>Side-by-side comparison</h2>
+      <div class="compare-wrap">
+        <table class="compare-table" id="compare-table"></table>
+      </div>
+      <div class="engine-grid">
+        <div class="engine-panel enet" id="panel-a"></div>
+        <div class="engine-panel classical" id="panel-b"></div>
+      </div>
+      <h2 style="margin-top:.5rem">Explainable criterion details</h2>
+      <p style="font-size:.8rem;color:var(--dim);margin-bottom:.5rem">
+        Expand each criterion for measurements, interpretation, and limitations.
+        Diagnostic-only values do not change badges.
+      </p>
+      <div class="why-list" id="why-list"></div>
+      <div id="alts-block"></div>
+      <ul class="research-notes" id="research-notes"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileIn   = document.getElementById('file-in');
+const previewImg = document.getElementById('preview-img');
+const dropLabel  = document.getElementById('drop-label');
+const evalBtn    = document.getElementById('eval-btn');
+const resultSec  = document.getElementById('result-section');
+const loadingEl  = document.getElementById('loading');
+const errorBox   = document.getElementById('error-box');
+const resultBody = document.getElementById('result-body');
+
+let selectedFile = null;
+
+function setFile(f) {
+  if (!f) return;
+  selectedFile = f;
+  dropLabel.textContent = f.name + ' (' + (f.size / 1024).toFixed(0) + ' KB)';
+  previewImg.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => { previewImg.src = e.target.result; previewImg.style.display = 'block'; };
+  reader.readAsDataURL(f);
+  evalBtn.disabled = false;
+}
+
+fileIn.addEventListener('change', () => setFile(fileIn.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  setFile(e.dataTransfer.files[0]);
+});
+
+evalBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  evalBtn.disabled = true;
+  resultSec.style.display = 'block';
+  loadingEl.style.display = 'block';
+  errorBox.style.display = 'none';
+  resultBody.style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  fd.append('noise_alts', document.getElementById('opt-noise-alts').checked ? '1' : '0');
+  fd.append('ringing_alts', document.getElementById('opt-ring-alts').checked ? '1' : '0');
+
+  try {
+    const resp = await fetch('/evaluate', { method: 'POST', body: fd });
+    const data = await resp.json();
+    loadingEl.style.display = 'none';
+    if (!data.ok) {
+      errorBox.textContent = 'Error: ' + (data.error || 'Unknown error');
+      errorBox.style.display = 'block';
+    } else {
+      renderResult(data);
+      resultBody.style.display = 'block';
+    }
+  } catch (err) {
+    loadingEl.style.display = 'none';
+    errorBox.textContent = 'Network error: ' + err.message;
+    errorBox.style.display = 'block';
+  }
+  evalBtn.disabled = false;
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function badgeHtml(c) {
+  if (c == null || c.badge == null) {
+    return '<span class="badge" data-b="na">N/A</span>';
+  }
+  return `<span class="badge" data-b="${c.badge}">${c.badge}/5</span>`;
+}
+
+function renderResult(d) {
+  if (d.thumbnail_datauri) {
+    previewImg.src = d.thumbnail_datauri;
+    previewImg.style.display = 'block';
+  }
+  const a = d.engine_a || {};
+  const b = d.engine_b || {};
+  const diagMs = d.diagnostics_elapsed_ms;
+  const diagTimeLabel = (typeof diagMs === 'number' && !Number.isNaN(diagMs))
+    ? `${diagMs} ms`
+    : 'N/A';
+  const hasExplanations = Array.isArray(d.explanations) && d.explanations.length > 0;
+  document.getElementById('meta-row').innerHTML = `
+    <span><strong>Input:</strong> ${d.image_size ? d.image_size.width + '×' + d.image_size.height : '?'}</span>
+    <span><strong>ENET time:</strong> ${a.elapsed_ms != null ? a.elapsed_ms + ' ms' : 'N/A'}</span>
+    <span><strong>Classical time:</strong> ${b.elapsed_ms != null ? b.elapsed_ms + ' ms' : 'N/A'}</span>
+    <span><strong>Diagnostics time:</strong> ${diagTimeLabel}</span>
+    <span><strong>Explanations:</strong> ${hasExplanations ? d.explanations.length + ' criteria' : 'missing'}</span>
+    <span><strong>OpenCV substituted for ENET:</strong> ${a.opencv_fallback_used ? 'YES (unexpected)' : 'No'}</span>
+  `;
+  document.getElementById('overall-note').textContent = d.overall_note || '';
+
+  const names = d.criteria_names || [];
+  const mapA = Object.fromEntries((a.criteria || []).map(c => [c.name, c]));
+  const mapB = Object.fromEntries((b.criteria || []).map(c => [c.name, c]));
+  let rows = `<thead><tr>
+    <th>Criterion</th>
+    <th class="enet-col">EfficientNet-B0</th>
+    <th class="classical-col">Experimental Classical</th>
+  </tr></thead><tbody>`;
+  names.forEach(name => {
+    const ca = mapA[name] || {};
+    const cb = mapB[name] || {};
+    const ba = ca.badge != null ? `${ca.badge}/5 (${esc(ca.badge_label || '')})` : 'N/A';
+    const bb = cb.badge != null ? `${cb.badge}/5 (${esc(cb.badge_label || '')})` : 'N/A';
+    rows += `<tr>
+      <td>${esc(name)}</td>
+      <td class="enet-col">${ba}</td>
+      <td class="classical-col">${bb}</td>
+    </tr>`;
+  });
+  rows += '</tbody>';
+  document.getElementById('compare-table').innerHTML = rows;
+
+  document.getElementById('panel-a').innerHTML = renderEnginePanel(
+    'Engine A — EfficientNet-B0 (production baseline)', a, false, d.alternates
+  );
+  document.getElementById('panel-b').innerHTML = renderEnginePanel(
+    'Engine B — Experimental Classical Combined v1', b, true, d.alternates
+  );
+
+  renderWhyList(d.explanations || [], mapA, mapB);
+
+  const alts = document.getElementById('alts-block');
+  alts.innerHTML = '';
+  if (d.alternates && (d.alternates.noise || d.alternates.ringing)) {
+    if (d.alternates.noise) alts.innerHTML += buildAltBlock('Noise alternates', d.alternates.noise);
+    if (d.alternates.ringing) alts.innerHTML += buildAltBlock('Ringing alternates', d.alternates.ringing);
+  }
+
+  const notes = document.getElementById('research-notes');
+  notes.innerHTML = '';
+  (d.research_notes || []).forEach(n => {
+    const li = document.createElement('li'); li.textContent = n; notes.appendChild(li);
+  });
+}
+
+function renderWhyList(explanations, mapA, mapB) {
+  const host = document.getElementById('why-list');
+  if (!host) return;
+  if (!explanations || !explanations.length) {
+    host.innerHTML = `
+      <div class="error-box" style="display:block">
+        No explanation payload returned. Diagnostics did not reach the UI.
+        Hard-refresh this page (Ctrl+F5). If Diagnostics time stays N/A, restart
+        the sandbox server so it reloads evaluator.py / diagnostics.py.
+      </div>`;
+    return;
+  }
+  host.innerHTML = explanations.map(exp => {
+    const ca = mapA[exp.name] || {};
+    const cb = mapB[exp.name] || {};
+    const en = exp.efficientnet || {};
+    const cl = exp.classical || {};
+    const aBadge = ca.badge != null ? `${ca.badge}/5` : 'N/A';
+    const bBadge = cb.badge != null ? `${cb.badge}/5` : 'N/A';
+    return `<details class="why-item">
+      <summary>
+        <span>${esc(exp.name)}
+          <span class="ver-chip enet-col">ENET ${aBadge}</span>
+          <span class="ver-chip classical-col">Classical ${bBadge}</span>
+          ${cl.version ? `<span class="ver-chip">det ${esc(cl.version)}</span>` : ''}
+        </span>
+      </summary>
+      <div class="why-body">
+        <p class="why-measures"><strong>Measures:</strong> ${esc(exp.measures || '')}</p>
+        ${exp.disagreement_note ? `<div class="why-disagree">${esc(exp.disagreement_note)}</div>` : ''}
+        <div class="why-grid">
+          <div class="why-col enet">
+            <h3>EfficientNet-B0</h3>
+            <div class="crit-meta">Rating: <strong>${aBadge}</strong>
+              ${en.badge_label ? `(${esc(en.badge_label)})` : ''}</div>
+            <p class="crit-meta" style="margin-top:.4rem">${esc(en.explanation || '')}</p>
+            ${measTable(en.measurements)}
+            ${en.limitation ? `<div class="crit-warn">${esc(en.limitation)}</div>` : ''}
+          </div>
+          <div class="why-col classical">
+            <h3>Experimental Classical ${cl.version ? '(' + esc(cl.version) + ')' : ''}</h3>
+            <div class="crit-meta">Rating: <strong>${bBadge}</strong>
+              ${cl.badge_label ? `(${esc(cl.badge_label)})` : ''}
+              ${cl.reliability ? `<span class="ver-chip">${esc(String(cl.reliability).replace(/_/g,' '))}</span>` : ''}
+            </div>
+            <p class="crit-meta" style="margin-top:.4rem">${esc(cl.interpretation || '')}</p>
+            ${measTable(cl.measurements)}
+            ${cl.limitation ? `<div class="crit-warn">${esc(cl.limitation)}</div>` : ''}
+            ${cl.warning ? `<div class="crit-warn">${esc(cl.warning)}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    </details>`;
+  }).join('');
+}
+
+function measTable(measurements) {
+  if (!measurements || !measurements.length) {
+    return '<p class="crit-meta">No measurements available (not invented).</p>';
+  }
+  let rows = '';
+  measurements.forEach(m => {
+    const role = m.role === 'scoring_input' ? 'scoring' : (m.role === 'model_output' ? 'scoring' : 'diag');
+    const roleLabel = m.role === 'scoring_input' ? 'scoring' : (m.role === 'model_output' ? 'model' : 'diagnostic');
+    rows += `<tr>
+      <td>${esc(m.key)}</td>
+      <td><strong>${esc(m.value)}</strong> ${esc(m.unit || '')}</td>
+      <td><span class="role-chip ${role}">${roleLabel}</span></td>
+    </tr>`;
+    if (m.note) rows += `<tr><td colspan="3" class="crit-meta">${esc(m.note)}</td></tr>`;
+  });
+  return `<table class="meas-table">
+    <thead><tr><th>Measurement</th><th>Value</th><th>Role</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function renderEnginePanel(title, eng, showAltsOnCriteria, alternates) {
+  if (!eng) {
+    return `<div class="engine-title">${esc(title)}</div><p class="engine-meta avail-no">No engine result</p>`;
+  }
+  const avail = eng.engine_available
+    ? '<span class="avail-ok">Available</span>'
+    : '<span class="avail-no">Unavailable</span>';
+  let html = `
+    <div class="engine-title">${esc(title)}</div>
+    <div class="engine-meta">
+      ${avail}
+      &nbsp;·&nbsp; <strong>ID:</strong> ${esc(eng.engine_id || '?')}
+      &nbsp;·&nbsp; <strong>Runtime:</strong> ${eng.elapsed_ms != null ? eng.elapsed_ms + ' ms' : 'N/A'}
+      ${eng.unavailable_reason ? `<div class="crit-warn">${esc(eng.unavailable_reason)}</div>` : ''}
+      ${eng.note ? `<div style="margin-top:.35rem">${esc(eng.note)}</div>` : ''}
+    </div>
+    <div class="crit-list">
+  `;
+  (eng.criteria || []).forEach(c => {
+    html += buildCritRow(c, showAltsOnCriteria ? alternates : null);
+  });
+  html += '</div>';
+  if (eng.limitations && eng.limitations.length) {
+    html += '<ul class="limits">';
+    eng.limitations.forEach(l => { html += `<li>${esc(l)}</li>`; });
+    html += '</ul>';
+  }
+  return html;
+}
+
+function buildCritRow(c, alternates) {
+  const q01 = c.quality_0_1 != null ? c.quality_0_1 : null;
+  const hasAlts = alternates && (
+    (c.name === 'Noise' && alternates.noise) ||
+    (c.name === 'Ringing Artifacts' && alternates.ringing)
+  );
+  const altData = c.name === 'Noise' ? alternates?.noise : alternates?.ringing;
+  return `
+    <div class="crit-row">
+      <div class="crit-header">
+        <span class="crit-name">${esc(c.name)}</span>
+        ${badgeHtml(c)}
+      </div>
+      <div class="badge-label">${esc(c.badge_label || (c.badge == null ? 'Unavailable' : ''))}</div>
+      <div class="crit-meta">
+        ${q01 != null ? `Quality (0-1): <strong>${q01}</strong> &nbsp;` : ''}
+        ${c.raw_value != null ? `${esc(c.raw_key)}: <strong>${c.raw_value}</strong> &nbsp;` : ''}
+        <span class="ver-chip">${esc(c.version || '')}</span>
+        ${c.status ? `<span class="ver-chip">${esc(String(c.status).replace(/_/g,' '))}</span>` : ''}
+      </div>
+      ${c.direction ? `<div class="crit-meta" style="font-style:italic">${esc(c.direction)}</div>` : ''}
+      ${c.warning ? `<div class="crit-warn">${esc(c.warning)}</div>` : ''}
+      ${c.limitation && !c.warning ? `<div class="crit-warn">${esc(c.limitation)}</div>` : ''}
+      ${hasAlts && altData ? buildAltTable(altData) : ''}
+    </div>
+  `;
+}
+
+function buildAltBlock(title, altData) {
+  return `<div class="card" style="padding:.75rem 1rem"><strong>${esc(title)}</strong>${buildAltTable(altData)}</div>`;
+}
+
+function buildAltTable(altData) {
+  let rows = '';
+  for (const [ver, info] of Object.entries(altData || {})) {
+    if (info.error) {
+      rows += `<tr><td>${esc(ver)}</td><td colspan="3" style="color:var(--err)">${esc(info.error)}</td></tr>`;
+    } else {
+      const warn = info.warning || '';
+      rows += `<tr>
+        <td>${esc(ver)}</td>
+        <td>${info.badge != null ? info.badge + '/5' : '?'}</td>
+        <td>${info.quality_0_1 != null ? info.quality_0_1 : '?'}</td>
+        <td style="color:var(--warn);font-size:.7rem">${esc(warn.substring(0, 80))}${warn.length > 80 ? '…' : ''}</td>
+      </tr>`;
+    }
+  }
+  return `<details class="alt-section" open>
+    <summary>Alternate estimators (not validated — diagnostic only)</summary>
+    <table class="alt-table">
+      <thead><tr><th>Version</th><th>Badge</th><th>Q(0-1)</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </details>`;
+}
+</script>
+</body>
+</html>

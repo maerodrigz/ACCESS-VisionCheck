@@ -1,29 +1,26 @@
 import { useCallback, useEffect, useState } from 'react'
-
 import { useNavigate } from 'react-router-dom'
-
 import { Bell, Calendar, ImageIcon, MailOpen } from 'lucide-react'
 
 import { fetchHomeDashboard, type HomeDashboardSnapshot } from '../lib/dashboard'
-
 import { useAuth } from '../context/AuthContext'
-
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { DashboardOverviewStrip } from '../components/dashboard/DashboardOverviewStrip'
+import { SystemOverviewPanel } from '../components/dashboard/SystemOverviewPanel'
 import {
   ActionCenterPanel,
   ActiveDocumentersPanel,
   AiReviewQueuePanel,
   TodayScheduleTimelinePanel,
 } from '../components/dashboard/DashboardSep29Panels'
-import { WelcomeHeader } from '../components/dashboard/DashboardPanels'
 
 export function DashboardPage() {
-  const { user } = useAuth()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [data, setData] = useState<HomeDashboardSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const adminName = (user?.name?.trim().split(/\s+/)[0] || 'Admin')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,63 +48,54 @@ export function DashboardPage() {
   const o = data?.overview
 
   return (
-    <div className="w-full max-w-[1400px] space-y-4">
-      <WelcomeHeader adminName={user?.name ?? 'Admin'} onRefresh={load} loading={loading} />
+    <div className="w-full max-w-[1400px] space-y-3">
+      <SystemOverviewPanel
+        adminName={adminName}
+        onRefresh={load}
+        loading={loading}
+        statsLoading={loading && !data}
+        stats={
+          o
+            ? [
+                {
+                  icon: MailOpen,
+                  label: 'Pending Requests',
+                  sublabel: 'Needs approval',
+                  value: o.pendingRequests,
+                  accent: 'var(--color-danger)',
+                  onClick: () => navigate('/documentation-requests'),
+                },
+                {
+                  icon: Calendar,
+                  label: "Today's Events",
+                  sublabel: 'Scheduled today',
+                  value: o.todayEvents,
+                  accent: 'var(--color-accent-blue)',
+                  onClick: () => navigate('/event-calendar'),
+                },
+                {
+                  icon: ImageIcon,
+                  label: 'Media for Review',
+                  sublabel: 'Integrity needs action',
+                  value: o.mediaPendingEvaluation,
+                  accent: 'var(--color-accent-cyan)',
+                  onClick: () => navigate('/media-integrity'),
+                },
+                {
+                  icon: Bell,
+                  label: 'Unread Alerts',
+                  sublabel: 'Your notifications',
+                  value: o.unreadNotifications,
+                  accent: 'var(--color-accent-blue)',
+                  onClick: () => navigate('/notifications'),
+                  badge: o.unreadNotifications > 0,
+                },
+              ]
+            : null
+        }
+      />
 
       {error ? <AdminErrorBanner>{error}</AdminErrorBanner> : null}
-
-      {loading && !data ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-[62px] animate-pulse rounded-xl bg-[var(--color-surface-muted)]"
-            />
-          ))}
-        </div>
-      ) : o ? (
-        <DashboardOverviewStrip
-          items={[
-            {
-              icon: MailOpen,
-              label: 'Pending Requests',
-              sublabel: 'needs approval',
-              value: o.pendingRequests,
-              color: 'var(--color-danger)',
-              bgColor: 'color-mix(in srgb, var(--color-danger) 6%, var(--color-surface))',
-              onClick: () => navigate('/documentation-requests'),
-            },
-            {
-              icon: Calendar,
-              label: "Today's Events",
-              sublabel: 'scheduled today',
-              value: o.todayEvents,
-              color: 'var(--color-accent-blue)',
-              bgColor: 'color-mix(in srgb, var(--color-accent-blue) 6%, var(--color-surface))',
-              onClick: () => navigate('/event-calendar'),
-            },
-            {
-              icon: ImageIcon,
-              label: 'Media Awaiting Review',
-              sublabel: 'integrity needs action',
-              value: o.mediaPendingEvaluation,
-              color: 'var(--color-accent-cyan)',
-              bgColor: 'color-mix(in srgb, var(--color-accent-cyan) 8%, var(--color-surface))',
-              onClick: () => navigate('/media-integrity'),
-            },
-            {
-              icon: Bell,
-              label: 'Unread Alerts',
-              sublabel: 'new notifications',
-              value: o.unreadNotifications,
-              color: 'var(--color-accent-purple)',
-              bgColor: 'color-mix(in srgb, var(--color-accent-purple) 8%, var(--color-surface))',
-              onClick: () => navigate('/notifications'),
-              badge: o.unreadNotifications > 0,
-            },
-          ]}
-        />
-      ) : null}
 
       {data ? (
         <>

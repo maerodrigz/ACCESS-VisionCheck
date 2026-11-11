@@ -20,6 +20,10 @@ from app.models.feedback import Feedback
 from app.models.assignment_member_feedback import AssignmentMemberFeedback
 from app.models.member_milestone import MemberMilestone
 from app.models.member_ranking import MemberRanking
+from app.models.skill_progression_v2_activation import (
+    SkillProgressionV2Activation,
+    SkillProgressionV2CohortMember,
+)
 from app.models.notification import Notification
 from app.models.member_notification_preference import MemberNotificationPreference
 from app.models.analytics_report import AnalyticsReport
@@ -57,6 +61,8 @@ __all__ = [
     "AssignmentMemberFeedback",
     "MemberMilestone",
     "MemberRanking",
+    "SkillProgressionV2Activation",
+    "SkillProgressionV2CohortMember",
     "Notification",
     "MemberNotificationPreference",
     "AnalyticsReport",

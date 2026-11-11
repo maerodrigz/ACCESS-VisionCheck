@@ -97,16 +97,16 @@ def purge_admin_inbox_noise(db: Session) -> int:
     return result.rowcount or 0
 
 
-def mark_all_read_admin_inbox(db: Session) -> int:
-    result = db.execute(
-        update(Notification)
-        .where(
-            Notification.is_read.is_(False),
-            Notification.user_id.in_(_admin_user_ids_subquery()),
-            _admin_inbox_visibility_clause(),
-        )
-        .values(is_read=True)
-    )
+def mark_all_read_admin_inbox(db: Session, *, admin_user_id: int | None = None) -> int:
+    clauses = [
+        Notification.is_read.is_(False),
+        _admin_inbox_visibility_clause(),
+    ]
+    if admin_user_id is not None:
+        clauses.append(Notification.user_id == int(admin_user_id))
+    else:
+        clauses.append(Notification.user_id.in_(_admin_user_ids_subquery()))
+    result = db.execute(update(Notification).where(*clauses).values(is_read=True))
     db.commit()
     return result.rowcount
 
@@ -128,14 +128,16 @@ def delete_all_read(db: Session) -> int:
     return result.rowcount
 
 
-def delete_read_admin_inbox(db: Session) -> int:
-    result = db.execute(
-        delete(Notification).where(
-            Notification.is_read.is_(True),
-            Notification.user_id.in_(_admin_user_ids_subquery()),
-            _admin_inbox_visibility_clause(),
-        )
-    )
+def delete_read_admin_inbox(db: Session, *, admin_user_id: int | None = None) -> int:
+    clauses = [
+        Notification.is_read.is_(True),
+        _admin_inbox_visibility_clause(),
+    ]
+    if admin_user_id is not None:
+        clauses.append(Notification.user_id == int(admin_user_id))
+    else:
+        clauses.append(Notification.user_id.in_(_admin_user_ids_subquery()))
+    result = db.execute(delete(Notification).where(*clauses))
     db.commit()
     return result.rowcount
 
@@ -208,6 +210,69 @@ def create(
     return row
 
 
+def find_media_integrity_alert(
+    db: Session,
+    user_id: int,
+    media_id: int,
+) -> Notification | None:
+    """Existing integrity review alert for this admin + media (any read state)."""
+    return db.scalar(
+        select(Notification)
+        .where(
+            Notification.user_id == user_id,
+            Notification.category == "ai_detection",
+            Notification.action_type == "review_media",
+            Notification.action_ref_id == media_id,
+        )
+        .order_by(Notification.created_at.desc())
+        .limit(1)
+    )
+
+
+def create_media_integrity_alert_once(
+    db: Session,
+    user_id: int,
+    *,
+    title: str,
+    message: str,
+    priority: str,
+    media_id: int,
+) -> Notification | None:
+    """Idempotent admin integrity alert: at most one row per admin + media_id."""
+    existing = find_media_integrity_alert(db, user_id, media_id)
+    if existing is not None:
+        return existing
+    return create(
+        db,
+        user_id,
+        title,
+        message,
+        category="ai_detection",
+        priority=priority,
+        action_type="review_media",
+        action_ref_id=media_id,
+    )
+
+
+def mark_media_integrity_alerts_resolved(db: Session, media_id: int) -> int:
+    """Mark outstanding admin integrity alerts for a media as read (resolved). History kept."""
+    if media_id is None or int(media_id) <= 0:
+        return 0
+    result = db.execute(
+        update(Notification)
+        .where(
+            Notification.category == "ai_detection",
+            Notification.action_type == "review_media",
+            Notification.action_ref_id == int(media_id),
+            Notification.is_read.is_(False),
+            Notification.user_id.in_(_admin_user_ids_subquery()),
+        )
+        .values(is_read=True)
+    )
+    db.commit()
+    return result.rowcount or 0
+
+
 def list_all(db: Session, limit: int = 100) -> list[Notification]:
     return list(
         db.scalars(
@@ -219,17 +284,24 @@ def list_all(db: Session, limit: int = 100) -> list[Notification]:
     )
 
 
-def list_for_admin_inbox(db: Session, limit: int = 200) -> list[Notification]:
-    """Notifications delivered to Admin accounts only (not member/org inboxes)."""
+def list_for_admin_inbox(
+    db: Session,
+    limit: int = 200,
+    *,
+    admin_user_id: int | None = None,
+) -> list[Notification]:
+    """Notifications for one Admin account (not other admins' copies, not member inboxes)."""
     purge_admin_inbox_noise(db)
+    clauses = [_admin_inbox_visibility_clause()]
+    if admin_user_id is not None:
+        clauses.append(Notification.user_id == int(admin_user_id))
+    else:
+        clauses.append(Notification.user_id.in_(_admin_user_ids_subquery()))
     return list(
         db.scalars(
             select(Notification)
             .options(joinedload(Notification.user))
-            .where(
-                Notification.user_id.in_(_admin_user_ids_subquery()),
-                _admin_inbox_visibility_clause(),
-            )
+            .where(*clauses)
             .order_by(Notification.created_at.desc())
             .limit(limit)
         )

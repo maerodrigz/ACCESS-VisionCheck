@@ -6,11 +6,14 @@ export const API_BASE =
 
 export class ApiError extends Error {
   status: number
+  /** Raw FastAPI `detail` (string, array, or structured object). */
+  detail: unknown
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, detail: unknown = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -119,7 +122,11 @@ export async function apiRequest<T>(
       setStoredToken(null)
       unauthorizedHandler?.()
     }
-    throw new ApiError(msg, res.status)
+    const detail =
+      typeof data === 'object' && data !== null && 'detail' in data
+        ? (data as { detail: unknown }).detail
+        : data
+    throw new ApiError(msg, res.status, detail)
   }
 
   if (method === 'GET') {

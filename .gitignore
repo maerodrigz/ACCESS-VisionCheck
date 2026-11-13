@@ -138,3 +138,17 @@ access_backend/.env.waverep_nopush_test
 # Quality shadow research logs (Phase 2)
 access_backend/research_logs/
 
+# Local UI scratch (backups, screenshot dumps, build logs)
+_backup_*/
+_album_ui_shots/
+_eval_banner_shots/
+_phase6b_shots/
+_screenshots_*/
+_verify_*/
+/access_login*.png
+/access_toast*.png
+/login_toast*.png
+/build_*.txt
+/ui.xml
+assets/images/assets/
+

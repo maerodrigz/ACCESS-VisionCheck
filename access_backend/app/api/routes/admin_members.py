@@ -81,6 +81,11 @@ def permanently_delete_member(
             detail="Confirmation email does not match this member.",
         )
 
+    from app.services.member_permanent_deletion import (
+        PermanentDeletionIncompleteError,
+        incomplete_cleanup_http_detail,
+    )
+
     try:
         stats = user_crud.permanently_delete_member(
             db,
@@ -88,6 +93,11 @@ def permanently_delete_member(
             acting_admin_id=admin.id,
             delete_uploads=body.delete_uploads,
         )
+    except PermanentDeletionIncompleteError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=incomplete_cleanup_http_detail(exc.stats),
+        ) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -137,16 +147,22 @@ def retry_member_storage_cleanup(
     stats = pending_crud.retry_for_user(db, user_id)
     partial = stats.media_failed > 0
     msg = (
-        f"Storage retry complete. {stats.media_deleted} media record(s) removed, "
-        f"{stats.storage_deleted} storage object(s) deleted."
+        f"Storage cleanup retry finished. {stats.media_deleted} media record(s) removed, "
+        f"{stats.storage_deleted} storage object(s) deleted. "
+        "The account is still active until you run permanent delete again."
     )
     if partial:
-        msg += f" {stats.media_failed} item(s) still need attention."
+        msg += (
+            f" {stats.media_failed} item(s) still need attention"
+            f"{' (storage still queued)' if stats.storage_queued else ''}."
+        )
     return MemberPermanentDeleteResponse(
         message=msg,
         media_deleted=stats.media_deleted,
         media_failed=stats.media_failed,
         storage_deleted=stats.storage_deleted,
-        storage_queued=stats.media_failed,
+        storage_queued=stats.storage_queued,
+        chains_removed=stats.chains_removed,
+        assignments_removed=stats.assignments_removed,
         partial_failure=partial,
     )

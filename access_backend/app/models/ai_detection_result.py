@@ -32,9 +32,14 @@ class AiDetectionResult(TimestampMixin, Base):
 
     media = relationship("MediaFile", back_populates="ai_detection_results")
     reviewer = relationship("User", foreign_keys=[reviewed_by])
+    # DB has ON DELETE CASCADE on ai_review_history.ai_detection_id (NOT NULL).
+    # Without cascade/passive_deletes, SQLAlchemy nulls that FK when deleting the
+    # detection row during media delete-orphan and hits a NOT NULL violation.
     review_history = relationship(
         "AiReviewHistory",
         back_populates="ai_detection",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
         order_by="AiReviewHistory.reviewed_at.desc()",
     )
 

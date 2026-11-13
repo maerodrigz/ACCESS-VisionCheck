@@ -10,6 +10,10 @@ interface Props {
   userId: number
   accountRole?: AccountRole
   loading?: boolean
+  errorMessage?: string | null
+  canRetryStorage?: boolean
+  storageRetryLoading?: boolean
+  onRetryStorage?: () => void
   onConfirm: (confirmationEmail: string) => void
   onCancel: () => void
 }
@@ -21,6 +25,10 @@ export function DeleteMemberAccountDialog({
   userId,
   accountRole = 'Member',
   loading = false,
+  errorMessage = null,
+  canRetryStorage = false,
+  storageRetryLoading = false,
+  onRetryStorage,
   onConfirm,
   onCancel,
 }: Props) {
@@ -110,6 +118,26 @@ export function DeleteMemberAccountDialog({
               className="admin-input mt-1.5 w-full rounded-lg py-2 text-sm"
             />
           </label>
+          {errorMessage ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/8 px-3 py-2 text-xs leading-relaxed text-[var(--color-text-primary)]"
+            >
+              <p className="font-semibold text-[var(--color-danger)]">Deletion did not complete</p>
+              <p className="mt-1 text-[var(--color-text-secondary)]">{errorMessage}</p>
+              {canRetryStorage && onRetryStorage ? (
+                <button
+                  type="button"
+                  onClick={onRetryStorage}
+                  disabled={loading || storageRetryLoading}
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-primary)] disabled:opacity-50"
+                >
+                  {storageRetryLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Retry storage cleanup
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className="flex gap-2 px-5 py-4">
           <button
@@ -126,8 +154,8 @@ export function DeleteMemberAccountDialog({
             disabled={!canSubmit}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-danger)] py-2.5 text-sm font-bold text-white disabled:opacity-50"
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-            Delete permanently
+            {loading && !storageRetryLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {errorMessage ? 'Retry permanent delete' : 'Delete permanently'}
           </button>
         </div>
       </div>

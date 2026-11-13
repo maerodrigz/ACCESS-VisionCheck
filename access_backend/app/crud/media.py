@@ -3,13 +3,14 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 
 from app.config import settings
 from app.services.evaluation_daily import evaluation_calendar_date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.ai_review_history import AiReviewHistory
 from app.models.documentation_request import DocumentationRequest
 from app.models.media_constants import (
     APPROVAL_APPROVED,
@@ -348,23 +349,58 @@ def remove_practice_storage_only(db: Session, media: MediaFile) -> MediaFile:
     return media
 
 
-def delete_media_row_only(db: Session, media: MediaFile) -> None:
-    """Delete DB row only (evaluations/AI cascade). Caller must have removed storage already."""
-    try:
+def _integrity_block_reason(exc: IntegrityError) -> str:
+    """Short, non-sensitive reason for admin/logs (constraint name or SQLSTATE class)."""
+    orig = getattr(exc, "orig", None)
+    diag = getattr(orig, "diag", None) if orig is not None else None
+    constraint = getattr(diag, "constraint_name", None) if diag is not None else None
+    if constraint:
+        return f"database constraint {constraint}"
+    msg = str(orig or exc)
+    if "ai_review_history" in msg and "ai_detection_id" in msg:
+        return "ai_review_history.ai_detection_id not-null during cascade"
+    if "submission_chains" in msg and "root_media_id" in msg:
+        return "submission_chains.root_media_id restrict"
+    return "linked database records"
+
+
+def delete_media_row_only(db: Session, media: MediaFile, *, commit: bool = True) -> None:
+    """Delete DB row only (evaluations/AI cascade). Caller must have removed storage already.
+
+    When [commit] is False, uses a savepoint so a failed delete does not roll back
+    earlier work in the caller's transaction (e.g. submission-chain cleanup).
+
+    Explicitly removes ai_review_history for this media first so ORM delete-orphan of
+    ai_detection_results cannot null a NOT NULL ai_detection_id.
+    """
+
+    def _delete_row() -> None:
+        db.execute(delete(AiReviewHistory).where(AiReviewHistory.media_id == media.id))
+        db.flush()
         db.delete(media)
-        db.commit()
+        db.flush()
+
+    try:
+        if commit:
+            _delete_row()
+            db.commit()
+        else:
+            with db.begin_nested():
+                _delete_row()
     except IntegrityError as exc:
-        db.rollback()
+        if commit:
+            db.rollback()
+        reason = _integrity_block_reason(exc)
         raise RuntimeError(
-            "This file is linked to other records and could not be deleted. "
-            "Try archiving it instead, or remove related evaluations first."
+            "This file is linked to other records and could not be deleted "
+            f"({reason}). Try archiving it instead, or remove related evaluations first."
         ) from exc
 
 
 def delete_media(db: Session, media: MediaFile) -> None:
     if media.file_url and media.file_url != REMOVED_STORAGE_FILE_URL:
         _delete_media_file_from_disk(media.file_url)
-    delete_media_row_only(db, media)
+    delete_media_row_only(db, media, commit=True)
 
 
 def create(db: Session, data: dict) -> MediaFile:

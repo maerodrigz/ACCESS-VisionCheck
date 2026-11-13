@@ -8,6 +8,7 @@ import {
   fetchUsers,
   permanentlyDeleteMemberAccount,
   resetUserPassword,
+  retryMemberStorageCleanup,
   setUserStatus,
   updateUser,
   updateUserRole,
@@ -81,6 +82,9 @@ export function AccountManagementPage() {
   const [memberDeactivateLoading, setMemberDeactivateLoading] = useState(false)
   const [memberDelete, setMemberDelete] = useState<AdminAccountUser | null>(null)
   const [memberDeleteLoading, setMemberDeleteLoading] = useState(false)
+  const [memberDeleteError, setMemberDeleteError] = useState<string | null>(null)
+  const [memberDeleteCanRetryStorage, setMemberDeleteCanRetryStorage] = useState(false)
+  const [memberStorageRetryLoading, setMemberStorageRetryLoading] = useState(false)
 
   const { showToast } = useToast()
 
@@ -307,12 +311,16 @@ export function AccountManagementPage() {
   function handleDeleteMember(user: AdminAccountUser) {
     setOpenMenuId(null)
     if (user.role !== 'Member' && user.role !== 'Organization') return
+    setMemberDeleteError(null)
+    setMemberDeleteCanRetryStorage(false)
     setMemberDelete(user)
   }
 
   async function confirmMemberDelete(confirmationEmail: string) {
     if (!memberDelete || memberDeleteLoading) return
     setMemberDeleteLoading(true)
+    setMemberDeleteError(null)
+    setMemberDeleteCanRetryStorage(false)
     try {
       const result = await permanentlyDeleteMemberAccount(memberDelete.user_id, confirmationEmail)
       const detail =
@@ -325,15 +333,41 @@ export function AccountManagementPage() {
       await loadUsers()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Delete failed'
-      const needsRetry = /queued for retry|storage cleanup/i.test(msg)
-      showToast(
-        needsRetry
-          ? `${msg} Run storage cleanup retry for this member, then try permanent delete again.`
-          : msg,
-        true,
-      )
+      // Prefer structured 409 detail; never infer retry from "0 … queued for retry" text.
+      let canRetryStorage = false
+      if (e && typeof e === 'object' && 'detail' in e) {
+        const detail = (e as { detail: unknown }).detail
+        if (detail && typeof detail === 'object' && detail !== null) {
+          const d = detail as { can_retry_storage?: unknown; storage_queued?: unknown }
+          if (typeof d.can_retry_storage === 'boolean') {
+            canRetryStorage = d.can_retry_storage
+          } else if (typeof d.storage_queued === 'number') {
+            canRetryStorage = d.storage_queued > 0
+          }
+        }
+      }
+      setMemberDeleteError(msg)
+      setMemberDeleteCanRetryStorage(canRetryStorage)
+      showToast(msg, true)
     } finally {
       setMemberDeleteLoading(false)
+    }
+  }
+
+  async function retryMemberDeleteStorageCleanup() {
+    if (!memberDelete || memberStorageRetryLoading) return
+    setMemberStorageRetryLoading(true)
+    try {
+      const result = await retryMemberStorageCleanup(memberDelete.user_id)
+      setMemberDeleteError(result.message)
+      setMemberDeleteCanRetryStorage(Boolean(result.partial_failure && (result.storage_queued ?? 0) > 0))
+      showToast(result.message || 'Storage cleanup retry finished')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Storage cleanup retry failed'
+      setMemberDeleteError(msg)
+      showToast(msg, true)
+    } finally {
+      setMemberStorageRetryLoading(false)
     }
   }
 
@@ -602,11 +636,17 @@ export function AccountManagementPage() {
             memberEmail={memberDelete.email}
             userId={memberDelete.user_id}
             accountRole={memberDelete.role}
-            loading={memberDeleteLoading}
+            loading={memberDeleteLoading || memberStorageRetryLoading}
+            errorMessage={memberDeleteError}
+            canRetryStorage={memberDeleteCanRetryStorage}
+            storageRetryLoading={memberStorageRetryLoading}
+            onRetryStorage={() => void retryMemberDeleteStorageCleanup()}
             onConfirm={(email) => void confirmMemberDelete(email)}
             onCancel={() => {
-              if (memberDeleteLoading) return
+              if (memberDeleteLoading || memberStorageRetryLoading) return
               setMemberDelete(null)
+              setMemberDeleteError(null)
+              setMemberDeleteCanRetryStorage(false)
             }}
           />
         ) : null}

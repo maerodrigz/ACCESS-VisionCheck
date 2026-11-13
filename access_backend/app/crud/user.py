@@ -183,6 +183,7 @@ def permanently_delete_member(
 
     from app.crud import session as session_crud
     from app.services.member_permanent_deletion import (
+        PermanentDeletionIncompleteError,
         PermanentDeletionStats,
         assert_requestor_permanent_delete_allowed,
         cleanup_member_assignments,
@@ -209,11 +210,7 @@ def permanently_delete_member(
     stats.assignments_removed = cleanup_member_assignments(db, user, acting_admin_id=acting_admin_id)
 
     if stats.media_failed > 0 or stats.storage_queued > 0:
-        raise RuntimeError(
-            f"Could not finish removing {stats.media_failed} media file(s). "
-            f"{stats.storage_queued} storage object(s) queued for retry. "
-            "Retry deletion after storage cleanup completes; the account was not removed."
-        )
+        raise PermanentDeletionIncompleteError(stats)
 
     account_kind = "requestor" if role_name == RoleName.ORGANIZATION else "member"
     try:

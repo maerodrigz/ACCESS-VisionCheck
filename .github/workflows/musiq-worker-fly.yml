@@ -1,0 +1,63 @@
+# Deploy musiq_worker to Fly.io via remote builder (no local Docker on the laptop).
+# Manual / workflow_dispatch only. Does not run on every push.
+#
+# Required GitHub secrets (never commit these values):
+#   FLY_API_TOKEN       — fly tokens create deploy
+#   MUSIQ_WORKER_TOKEN  — same bearer secret used by access_backend
+#
+# Prerequisites (one-time, operator):
+#   fly apps create access-musiq-worker
+#   fly volumes create musiq_tfhub --region sin --size 5 -a access-musiq-worker
+#
+# This workflow does not purchase a plan; Fly bills the linked account if usage occurs.
+
+name: Deploy MUSIQ worker (Fly.io)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type deploy to confirm staging deploy (QUALITY_ENGINE stays enet on backend)"
+        required: true
+        default: ""
+
+jobs:
+  deploy:
+    if: github.event.inputs.confirm == 'deploy'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: musiq_worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Sync worker secret
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          MUSIQ_WORKER_TOKEN: ${{ secrets.MUSIQ_WORKER_TOKEN }}
+        run: |
+          if [ -z "$MUSIQ_WORKER_TOKEN" ]; then
+            echo "MUSIQ_WORKER_TOKEN GitHub secret is required" >&2
+            exit 1
+          fi
+          flyctl secrets set "MUSIQ_WORKER_TOKEN=${MUSIQ_WORKER_TOKEN}" \
+            --app access-musiq-worker \
+            --stage
+
+      - name: Deploy (remote builder)
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --remote-only --config fly.toml --app access-musiq-worker
+
+      - name: Probe health (not a readiness claim for MUSIQ)
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl status --app access-musiq-worker
+          echo "After deploy, manually curl https://<app>.fly.dev/ready until musiq_ready=true"
+          echo "Do not treat this job alone as live MUSIQ verification."

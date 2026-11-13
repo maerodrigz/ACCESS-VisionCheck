@@ -144,6 +144,33 @@ class Settings(BaseSettings):
     deferred_reconcile_max_jobs: int = Field(default=100, alias="DEFERRED_RECONCILE_MAX_JOBS")
     health_show_database_name: bool = Field(default=False, alias="HEALTH_SHOW_DATABASE_NAME")
 
+    # Phase 2 hybrid NR-IQA shadow scoring (research logs only; never user-facing).
+    # Keep false in production. When false, MUSIQ/TF are not imported.
+    quality_shadow_enabled: bool = Field(default=False, alias="QUALITY_SHADOW_ENABLED")
+    quality_shadow_max_workers: int = Field(default=1, alias="QUALITY_SHADOW_MAX_WORKERS")
+    quality_shadow_log_dir: str = Field(
+        default="research_logs/quality_shadow",
+        alias="QUALITY_SHADOW_LOG_DIR",
+    )
+    quality_shadow_tfhub_cache_dir: str = Field(
+        default="research_logs/quality_shadow/tfhub_cache",
+        alias="QUALITY_SHADOW_TFHUB_CACHE_DIR",
+    )
+    quality_shadow_anon_salt: str = Field(default="", alias="QUALITY_SHADOW_ANON_SALT")
+    quality_shadow_retention_days: int = Field(default=90, alias="QUALITY_SHADOW_RETENTION_DAYS")
+
+    # Production quality engine selector. Default enet = EfficientNet-B0 (unchanged).
+    # musiq_worker enables the remote client for test/shadow calls only in this release;
+    # media_evaluator still serves ENET until an explicit cutover.
+    quality_engine: str = Field(default="enet", alias="QUALITY_ENGINE")
+    musiq_worker_url: str = Field(default="", alias="MUSIQ_WORKER_URL")
+    musiq_worker_token: str = Field(default="", alias="MUSIQ_WORKER_TOKEN")
+    musiq_worker_timeout_sec: float = Field(default=60.0, alias="MUSIQ_WORKER_TIMEOUT_SEC")
+    musiq_worker_tls_verify: bool = Field(default=True, alias="MUSIQ_WORKER_TLS_VERIFY")
+    # When true and MUSIQ_WORKER_URL is set, quality_shadow prefers the remote worker
+    # for MUSIQ OPQ instead of local TensorFlow (local TF remains optional fallback).
+    musiq_worker_prefer_remote: bool = Field(default=True, alias="MUSIQ_WORKER_PREFER_REMOTE")
+
     # Linked replacement upload (Phase 1+: schema only until enabled in later phases).
     replacement_upload_enabled: bool = Field(default=False, alias="REPLACEMENT_UPLOAD_ENABLED")
 
@@ -229,6 +256,21 @@ class Settings(BaseSettings):
                 "AUTH_LOCKOUT_ENABLED=false is not allowed when APP_ENV is production. "
                 "Remove AUTH_LOCKOUT_ENABLED=false or set APP_ENV to development/testing."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_quality_shadow_in_production(self) -> "Settings":
+        if self.is_production and self.quality_shadow_enabled:
+            raise ValueError(
+                "QUALITY_SHADOW_ENABLED=true is not allowed when APP_ENV is production. "
+                "Shadow scoring is research-only; keep the flag false in production."
+            )
+        engine = (self.quality_engine or "enet").strip().lower()
+        if engine not in ("enet", "musiq_worker"):
+            raise ValueError(
+                "QUALITY_ENGINE must be 'enet' (default EfficientNet-B0) or 'musiq_worker'."
+            )
+        self.quality_engine = engine
         return self
 
     @property

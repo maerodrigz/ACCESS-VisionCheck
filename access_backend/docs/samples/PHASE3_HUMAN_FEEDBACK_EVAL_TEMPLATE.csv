@@ -1,0 +1,8 @@
+media_anon_id,criterion,system_observation,rule_triggered,reference_issue_identified_by_human,observation_correctness_1to5,recommendation_relevance_1to5,clarity_1to5,usefulness_1to5,notes
+a1b2c3d4e5f60718293a4b5c,sharpness,"Fine detail looks severely soft on the Laplacian focus signal. Edges and texture are hard to resolve for documentation.",sharpness_severe_v1,"",,,,,,"Rate feedback quality (not image quality). 1=poor 5=excellent. Leave reference_issue blank if none."
+a1b2c3d4e5f60718293a4b5c,blur,"Suppressed to avoid duplicate/contradictory focus feedback. Sharpness and blur share the same Laplacian quality axis.",blur_severe_v1 (suppressed),"",,,,,,"Expect suppressed_duplicate; mark observation_correctness based on whether suppression was appropriate."
+a1b2c3d4e5f60718293a4b5c,brightness,"Exposure looks poorly balanced (far from mid-gray or clipped). Subject detail may be lost in shadows or highlights.",brightness_severe_v1,"",,,,,,
+a1b2c3d4e5f60718293a4b5c,contrast,"Tonal contrast looks very low after hybrid RMS mapping. The subject may appear flat.",contrast_severe_v1,"",,,,,,
+a1b2c3d4e5f60718293a4b5c,blocking_artifacts,"Strong 8x8 boundary energy suggests visible compression blocking.",blocking_artifacts_severe_v1,"",,,,,,
+a1b2c3d4e5f60718293a4b5c,color_balance,"Strong color cast detected by the heuristic white-balance estimate.",color_balance_severe_v1,"",,,,,,
+a1b2c3d4e5f60718293a4b5c,color_saturation,"Saturation looks extreme (heavily oversaturated or washed out) on the heuristic estimate.",color_saturation_severe_v1,"",,,,,,

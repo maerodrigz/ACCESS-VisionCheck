@@ -1,0 +1,22 @@
+# Keep the folder layout; do not commit original media or rater PII.
+photos/*
+!photos/.gitkeep
+videos/*
+!videos/.gitkeep
+ratings/*
+!ratings/.gitkeep
+!ratings/README.md
+output/*
+!output/.gitkeep
+manifest.csv
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.heic
+*.mp4
+*.mov
+*.m4v
+*.webm
+*.mkv
+*.avi

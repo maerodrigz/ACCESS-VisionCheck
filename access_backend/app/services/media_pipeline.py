@@ -289,6 +289,26 @@ def run_pipeline(
         },
     )
 
+    # Schedule research shadow immediately after production rows commit so later
+    # XP/notify failures cannot skip logging. Preview-only POST /evaluate never
+    # reaches run_pipeline. Empty file_bytes (trusted preview save) are reloaded
+    # inside the shadow worker from cache/storage.
+    try:
+        from app.services.quality_shadow import maybe_schedule_quality_shadow
+
+        is_photo = not _is_practice_eval_video_file_name(eval_file_name)
+        maybe_schedule_quality_shadow(
+            evaluation_id=getattr(evaluation, "id", None),
+            media_id=media.id,
+            file_bytes=file_bytes if is_photo else None,
+            is_photo=is_photo,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "quality shadow schedule failed media_id=%s (production eval unchanged)",
+            media.id,
+        )
+
     if media.uploaded_by:
         user = user_crud.get_by_id(db, media.uploaded_by)
         uploader_name = user.fullname if user else "Member"

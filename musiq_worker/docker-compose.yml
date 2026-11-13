@@ -1,0 +1,31 @@
+# Local / VM smoke stack for the MUSIQ worker only.
+# Does not start access_backend and does not change QUALITY_ENGINE.
+services:
+  musiq-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: access-musiq-worker:local
+    ports:
+      - "8080:8080"
+    environment:
+      MUSIQ_WORKER_TOKEN: ${MUSIQ_WORKER_TOKEN:-dev-local-musiq-token}
+      TFHUB_CACHE_DIR: /models/tfhub
+      PRELOAD_MUSIQ: "true"
+      CUDA_VISIBLE_DEVICES: "-1"
+      VIDEO_SAMPLE_FRAMES: "4"
+      PORT: "8080"
+      WORKER_HOST: "0.0.0.0"
+      ALLOW_INSECURE_EMPTY_TOKEN: "false"
+    volumes:
+      - musiq_tfhub_cache:/models/tfhub
+    # First boot downloads ~200MB+ TF Hub SavedModel into the volume.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 240s
+
+volumes:
+  musiq_tfhub_cache:

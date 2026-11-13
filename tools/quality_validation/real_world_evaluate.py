@@ -59,8 +59,25 @@ def evaluate_production_quality(
         if isinstance(row, dict) and row.get("name") is not None and row.get("score") is not None
     }
     media_type = str(payload.get("media_type") or "")
-    expected = VIDEO_CRITERIA if media_type == "video" else PHOTO_CRITERIA
-    missing = [name for name in expected if name not in by_name]
+    # Production photo criteria replaced Noise/Ringing with Color Balance/Saturation.
+    # Color heuristics may be unavailable (mono / extreme exposure) → no score.
+    # Require the five technical heads; treat color as optional.
+    photo_required_current = (
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+    )
+    photo_legacy = PHOTO_CRITERIA
+    if media_type == "video":
+        expected_options = (VIDEO_CRITERIA,)
+    else:
+        expected_options = (photo_required_current, photo_legacy)
+    missing_by_option = [
+        [name for name in expected if name not in by_name] for expected in expected_options
+    ]
+    missing = min(missing_by_option, key=len)
     overall = payload.get("overall_score")
     if overall is None or missing:
         return _failed(

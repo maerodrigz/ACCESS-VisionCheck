@@ -127,7 +127,10 @@ tools/quality_validation/.venv_musiq_official/
 tools/quality_validation/.venv_musiq_official_phase1/
 tools/quality_validation/.venv_musiq_phase4b/
 tools/quality_validation/workspace/datasets/koniq10k/musiq_paq2piq_benchmark/cache/
+tools/quality_validation/workspace/datasets/koniq10k/musiq_paq2piq_benchmark/**/cache/
 tools/quality_validation/workspace/datasets/koniq10k/official_musiq_engine_verification/cache/
+tools/quality_validation/workspace/**/*.pth
+tools/quality_validation/workspace/**/__MACOSX/
 musiq_worker/.venv/
 musiq_worker/.env
 access_backend/.env.waverep_nopush_test

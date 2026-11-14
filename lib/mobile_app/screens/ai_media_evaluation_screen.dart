@@ -439,7 +439,10 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
         finalResult = scored;
       } else {
         setState(() => _phase = _EvalPhase.idle);
-        final local = MediaEvaluationFeedback.fromLocal(scored);
+        final local = MediaEvaluationFeedback.fromLocal(
+          scored,
+          qualityWarnings: warnings.isNotEmpty ? warnings : null,
+        );
         feedback = local;
         finalResult = scored.copyWithGemini(local, geminiFeedbackIsLocal: true);
         fetchLiveGemini = true;

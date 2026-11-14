@@ -15,6 +15,7 @@ from app.models.media_file import MediaFile
 from app.models.system_branding import SystemBranding
 from app.models.user import User
 from app.services.efficientnet_b0_scorer import MODEL_ID, efficientnet_available
+from app.services import gemini_service
 from app.services.media_evaluator import SCORING_ENGINE
 from app.services.media_upload_config import admin_media_payload
 from app.services.security_policy import SECURITY_DEFAULTS
@@ -52,6 +53,26 @@ def _storage_usage_percent(db: Session) -> float:
     return round(max(12.0, min(96.0, estimated)), 1)
 
 
+def _feedback_generation_payload() -> dict:
+    """Gemini status for admins — never includes API key values."""
+    status = gemini_service.gemini_configuration_status()
+    return {
+        "name": "Gemini",
+        "description": (
+            "After automated image quality assessment produces criterion scores, Gemini "
+            "receives those measured results and generates encouraging, human-friendly "
+            "feedback for members. Gemini does not change scores, inspect the original "
+            "image, or make authenticity conclusions."
+        ),
+        "configured": status["api_key_configured"],
+        "model": status["model"] or "gemini-3.8-flash",
+        "model_configured": status["model_configured"],
+        "model_looks_supported": status["model_looks_supported"],
+        "ready": status["ready"],
+        "configurable": False,
+    }
+
+
 def _ai_evaluation_payload(cfg: dict) -> dict:
     """Public AI evaluation config — never exposes keys, weights paths, or credentials."""
     return {
@@ -67,17 +88,7 @@ def _ai_evaluation_payload(cfg: dict) -> dict:
             "available_on_server": efficientnet_available(),
             "configurable": False,
         },
-        "feedback_generation": {
-            "name": "Gemini",
-            "description": (
-                "After EfficientNet-B0 produces criterion scores, Gemini receives those results "
-                "and generates encouraging, human-friendly feedback for members. Gemini does not "
-                "change or invent scores."
-            ),
-            "configured": bool((settings.gemini_api_key or "").strip()),
-            "model": (settings.gemini_model or "").strip() or "gemini-3.8-flash",
-            "configurable": False,
-        },
+        "feedback_generation": _feedback_generation_payload(),
         "max_evaluation_uploads_per_day": cfg["max_evaluation_uploads_per_day"],
     }
 

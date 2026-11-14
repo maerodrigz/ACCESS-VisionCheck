@@ -1,0 +1,209 @@
+{
+  "phase": "7I",
+  "started_at": "2026-11-14T13:59:33.398823+00:00",
+  "local_cutover_activated": true,
+  "report_complete": true,
+  "cloud_deploy": false,
+  "cases": {
+    "photo_http": {
+      "http_status": 200,
+      "bytes": 3678886,
+      "parse_ok": true,
+      "media_type_envelope": "photo",
+      "scoring_engine_envelope": "musiq-worker+opencv+color-heuristics",
+      "scoring_engine": "musiq-worker+opencv+color-heuristics",
+      "scoring_model": "musiq-paq2piq+opencv-classical",
+      "overall_score": 4.86,
+      "criterion_names": [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation"
+      ],
+      "authenticity_deferred": true,
+      "quality_provisional": true,
+      "xp_eligible": false,
+      "xp_pending": true,
+      "analysis_quality_engine": "musiq_worker",
+      "analysis_opencv_fallback": false,
+      "analysis_efficientnet_used": false,
+      "musiq_opq_context_only": true,
+      "musiq_not_used_for_criteria": true,
+      "ai_analysis_status": "deferred",
+      "ai_is_final": false,
+      "ai_verdict": null,
+      "ai_probability": null,
+      "ai_detector_backend": null
+    },
+    "video_http": {
+      "http_status": 200,
+      "bytes": 98037,
+      "parse_ok": true,
+      "media_type_envelope": "video",
+      "scoring_engine_envelope": "musiq-worker+opencv+color-heuristics",
+      "scoring_engine": "musiq-worker+opencv+color-heuristics",
+      "scoring_model": "musiq-paq2piq+opencv-classical",
+      "overall_score": 4.33,
+      "criterion_names": [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation",
+        "Flickering",
+        "Motion Stability"
+      ],
+      "authenticity_deferred": true,
+      "quality_provisional": true,
+      "xp_eligible": false,
+      "xp_pending": true,
+      "analysis_quality_engine": "musiq_worker",
+      "analysis_opencv_fallback": false,
+      "analysis_efficientnet_used": false,
+      "musiq_opq_context_only": true,
+      "musiq_not_used_for_criteria": true,
+      "ai_analysis_status": "deferred",
+      "ai_is_final": false,
+      "ai_verdict": null,
+      "ai_probability": null,
+      "ai_detector_backend": null
+    },
+    "docker_stop": {
+      "ok": true,
+      "exit_code": 0,
+      "cmd": "docker compose -f C:\\Users\\Dell\\Desktop\\access_mobile\\musiq_worker\\docker-compose.yml stop musiq-worker",
+      "stdout_tail": "",
+      "stderr_tail": " Container musiq_worker-musiq-worker-1 Stopping \n Container musiq_worker-musiq-worker-1 Stopped \n"
+    },
+    "worker_after_stop": {
+      "url": "http://127.0.0.1:8080",
+      "ready": false,
+      "error": "[WinError 10061] No connection could be made because the target machine actively refused it"
+    },
+    "worker_offline_fallback": {
+      "http_status": 200,
+      "bytes": 3678886,
+      "parse_ok": true,
+      "media_type_envelope": "photo",
+      "scoring_engine_envelope": "opencv+color-heuristics",
+      "scoring_engine": "opencv+color-heuristics",
+      "scoring_model": "opencv",
+      "overall_score": 4.86,
+      "criterion_names": [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation"
+      ],
+      "authenticity_deferred": true,
+      "quality_provisional": true,
+      "xp_eligible": false,
+      "xp_pending": true,
+      "analysis_quality_engine": "opencv",
+      "analysis_opencv_fallback": true,
+      "analysis_efficientnet_used": false,
+      "musiq_opq_context_only": null,
+      "musiq_not_used_for_criteria": null,
+      "ai_analysis_status": "deferred",
+      "ai_is_final": false,
+      "ai_verdict": null,
+      "ai_probability": null,
+      "ai_detector_backend": null
+    },
+    "docker_start": {
+      "ok": true,
+      "exit_code": 0,
+      "cmd": "docker compose -f C:\\Users\\Dell\\Desktop\\access_mobile\\musiq_worker\\docker-compose.yml start musiq-worker",
+      "stdout_tail": "",
+      "stderr_tail": " Container musiq_worker-musiq-worker-1 Starting \n Container musiq_worker-musiq-worker-1 Started \n"
+    },
+    "worker_after_restart": {
+      "url": "http://127.0.0.1:8080",
+      "health_status": 200,
+      "ready_status": 200,
+      "ready_body": {
+        "status": "ready",
+        "musiq_ready": true,
+        "model_id": "tfhub:google/musiq/paq2piq/1",
+        "model_version": "paq2piq/1",
+        "engine_handle": "https://tfhub.dev/google/musiq/paq2piq/1"
+      },
+      "ready": true
+    }
+  },
+  "gates": {
+    "loaded_engine_is_musiq_worker": true,
+    "production_uses_enet_false": true,
+    "worker_ready": true,
+    "photo_http_musiq_ok": true,
+    "video_http_musiq_ok": true,
+    "offline_opencv_fallback_ok": true,
+    "enet_not_used_on_musiq_path": true,
+    "enet_weights_retained": true,
+    "vectorized_blocking": true,
+    "preview_defers_auth_and_xp": true
+  },
+  "results": {
+    "loaded_engine": "PASS",
+    "worker_available": "PASS",
+    "photo_http": "PASS",
+    "video_http": "PASS",
+    "worker_offline_fallback": "PASS",
+    "rollback_availability": "PASS"
+  },
+  "blockers": [],
+  "changed_files": [
+    "access_backend/.env (QUALITY_ENGINE + missing MUSIQ_WORKER_* if needed)",
+    "access_backend/phase7i_local_cutover/env_backups/.env.pre_phase7i_*",
+    "access_backend/scripts/apply_phase7i_local_cutover_env.py",
+    "access_backend/scripts/verify_phase7i_local_cutover.py",
+    "access_backend/scripts/run_phase7i_local_cutover.bat",
+    "access_backend/phase7i_local_cutover/PHASE7I_REPORT.md"
+  ],
+  "notes": [],
+  "env_quality_engine_setting": "musiq_worker",
+  "actual_active_quality_engine": "musiq_worker",
+  "production_uses_enet": false,
+  "musiq_worker_configured": true,
+  "musiq_worker_url_set": true,
+  "musiq_worker_token_set": true,
+  "vectorized_blocking": true,
+  "enet_weights_retained": true,
+  "env_backup_retained": true,
+  "worker_url_host": "127.0.0.1:8080",
+  "worker_probe": {
+    "url": "http://127.0.0.1:8080",
+    "health_status": 200,
+    "ready_status": 200,
+    "ready_body": {
+      "status": "ready",
+      "musiq_ready": true,
+      "model_id": "tfhub:google/musiq/paq2piq/1",
+      "model_version": "paq2piq/1",
+      "engine_handle": "https://tfhub.dev/google/musiq/paq2piq/1"
+    },
+    "ready": true
+  },
+  "worker_readiness_check": {
+    "ok": true,
+    "ready": true,
+    "body": {
+      "status": "ready",
+      "musiq_ready": true,
+      "model_id": "tfhub:google/musiq/paq2piq/1",
+      "model_version": "paq2piq/1",
+      "engine_handle": "https://tfhub.dev/google/musiq/paq2piq/1"
+    }
+  },
+  "finished_at": "2026-11-14T14:00:45.983552+00:00",
+  "test_photo": "C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\own_new_photos\\IMG_20230512_103539_795.jpg",
+  "test_video": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\01_baseline_neutral.mp4"
+}

@@ -1,9 +1,11 @@
 """HTTPS client for the remote MUSIQ + OpenCV worker.
 
 Default production quality engine remains EfficientNet-B0 (`QUALITY_ENGINE=enet`).
-This client is for:
-  - optional quality-shadow remote MUSIQ when MUSIQ_WORKER_URL is set
-  - explicit test-mode calls that never mutate production evaluation payloads
+Phase 7G: `QUALITY_ENGINE=musiq_worker` selects the worker for quality metrics when
+configured; fallback is optimized local OpenCV only (EfficientNet inactive on this
+path). Default stays `enet` for rollback until an explicit .env cutover.
+
+Also used for quality-shadow remote MUSIQ when MUSIQ_WORKER_URL is set.
 
 Never invents MUSIQ scores on timeout/offline; returns status unavailable/error.
 """
@@ -33,12 +35,13 @@ def quality_engine() -> str:
 
 
 def production_uses_enet() -> bool:
-    """True unless an explicit future cutover is configured.
+    """True when production quality should prefer EfficientNet-B0.
 
-    Even when QUALITY_ENGINE=musiq_worker, this release keeps EfficientNet as the
-    active production scorer. The worker is callable for test/shadow only.
+    Default ``QUALITY_ENGINE=enet`` keeps ENET. Setting ``musiq_worker`` selects
+    the Docker worker path in media_evaluator (with ENET/OpenCV fallback). Deploy
+    and .env are unchanged in Phase 7A, so live production stays on ENET.
     """
-    return True
+    return quality_engine() != "musiq_worker"
 
 
 def _base_url() -> str:
@@ -135,11 +138,23 @@ def evaluate_bytes(
                 data=data,
             )
             if resp.status_code >= 400:
-                detail = resp.text[:500]
-                return _unavailable(
-                    f"worker_http_{resp.status_code}: {detail}",
-                    media_type=media_type_norm,
+                # Never log Authorization headers or raw multipart bodies.
+                detail = (resp.text or "")[:200].replace("\n", " ")
+                if resp.status_code in (401, 403):
+                    reason = f"worker_auth_failed_{resp.status_code}"
+                elif resp.status_code == 413:
+                    reason = "worker_payload_too_large"
+                elif resp.status_code == 504:
+                    reason = "worker_gateway_timeout"
+                else:
+                    reason = f"worker_http_{resp.status_code}"
+                logger.warning(
+                    "musiq worker http_error status=%s reason=%s detail=%s",
+                    resp.status_code,
+                    reason,
+                    detail,
                 )
+                return _unavailable(reason, media_type=media_type_norm)
             body = resp.json()
             if not isinstance(body, dict):
                 return _unavailable("worker_invalid_json", media_type=media_type_norm)

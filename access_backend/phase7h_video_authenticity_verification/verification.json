@@ -1,0 +1,292 @@
+{
+  "phase": "7H",
+  "started_at": "2026-11-14T10:57:19.560918+00:00",
+  "env_file_modified": false,
+  "production_cutover_activated": false,
+  "weights_deleted": false,
+  "test_video": "C:\\Users\\Dell\\Desktop\\video_metadata_test\\VID_20260629_181454.mp4",
+  "test_video_exists": true,
+  "test_video_bytes": 17774612,
+  "test_photo": "C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\own_new_photos\\IMG_20230512_103539_795.jpg",
+  "test_photo_exists": true,
+  "cases": {
+    "video_musiq_online": {
+      "http_status": 200,
+      "path": "C:\\Users\\Dell\\Desktop\\video_metadata_test\\VID_20260629_181454.mp4",
+      "bytes": 17774612,
+      "parse_ok": true,
+      "media_type_envelope": "video",
+      "scoring_engine_envelope": "musiq-worker+opencv+color-heuristics",
+      "scoring_engine": "musiq-worker+opencv+color-heuristics",
+      "scoring_model": "musiq-paq2piq+opencv-classical",
+      "overall_score": 4.29,
+      "criterion_names": [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation",
+        "Flickering",
+        "Motion Stability"
+      ],
+      "criterion_scores": {
+        "Sharpness": 3,
+        "Blur": 3,
+        "Brightness": 5,
+        "Contrast": 5,
+        "Blocking Artifacts": 4,
+        "Color Balance": 5,
+        "Color Saturation": 5,
+        "Flickering": null,
+        "Motion Stability": null
+      },
+      "authenticity_deferred": true,
+      "quality_provisional": true,
+      "xp_eligible": false,
+      "xp_pending": true,
+      "show_quality_feedback": true,
+      "analysis_quality_engine": "musiq_worker",
+      "analysis_opencv_fallback": false,
+      "analysis_efficientnet_used": false,
+      "musiq_opq_context_only": true,
+      "musiq_not_used_for_criteria": true,
+      "ai_detection_keys": [
+        "analysis_status",
+        "detail",
+        "is_final",
+        "requires_review"
+      ],
+      "ai_analysis_status": "deferred",
+      "ai_is_final": false,
+      "ai_verdict": null,
+      "ai_probability": null,
+      "ai_detector_backend": null,
+      "frames_analyzed": 1
+    },
+    "video_worker_offline_fallback": {
+      "http_status": 200,
+      "path": "C:\\Users\\Dell\\Desktop\\video_metadata_test\\VID_20260629_181454.mp4",
+      "bytes": 17774612,
+      "parse_ok": true,
+      "media_type_envelope": "video",
+      "scoring_engine_envelope": "opencv+color-heuristics",
+      "scoring_engine": "opencv+color-heuristics",
+      "scoring_model": "opencv",
+      "overall_score": 4.57,
+      "criterion_names": [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation",
+        "Flickering",
+        "Motion Stability"
+      ],
+      "criterion_scores": {
+        "Sharpness": 4,
+        "Blur": 4,
+        "Brightness": 5,
+        "Contrast": 4,
+        "Blocking Artifacts": 5,
+        "Color Balance": 5,
+        "Color Saturation": 5,
+        "Flickering": null,
+        "Motion Stability": null
+      },
+      "authenticity_deferred": true,
+      "quality_provisional": true,
+      "xp_eligible": false,
+      "xp_pending": true,
+      "show_quality_feedback": true,
+      "analysis_quality_engine": "opencv",
+      "analysis_opencv_fallback": true,
+      "analysis_efficientnet_used": false,
+      "musiq_opq_context_only": null,
+      "musiq_not_used_for_criteria": null,
+      "ai_detection_keys": [
+        "analysis_status",
+        "detail",
+        "is_final",
+        "requires_review"
+      ],
+      "ai_analysis_status": "deferred",
+      "ai_is_final": false,
+      "ai_verdict": null,
+      "ai_probability": null,
+      "ai_detector_backend": null,
+      "frames_analyzed": 1
+    },
+    "authenticity": {
+      "photo_authenticity_only": {
+        "ok": true,
+        "verdict": "authentic",
+        "probability": 0.0,
+        "raw_detector_probability": 0.0,
+        "confidence": 1.0,
+        "risk_level": "low",
+        "requires_review": false,
+        "detector_backend": "probe",
+        "detail": "Low AI authenticity risk from PROBE (0% P(fake)). This is not proof of authenticity.",
+        "analysis_status": null,
+        "is_final": null,
+        "signals": {
+          "probe": 0.0,
+          "support_frequency": 0.48,
+          "support_noise_uniformity": 0.15,
+          "support_texture_entropy": 0.2,
+          "support_quality_paradox": 0.15,
+          "support_skin_smoothness": 0.18
+        },
+        "fabricated_score_detected": false
+      },
+      "photo_include_authenticity_true": {
+        "ok": true,
+        "verdict": "authentic",
+        "probability": 0.0,
+        "raw_detector_probability": 0.0,
+        "confidence": 1.0,
+        "risk_level": "low",
+        "requires_review": false,
+        "detector_backend": "probe",
+        "detail": "Low AI authenticity risk from PROBE (0% P(fake)). This is not proof of authenticity.",
+        "analysis_status": null,
+        "is_final": null,
+        "signals": {
+          "probe": 0.0,
+          "support_frequency": 0.48,
+          "support_noise_uniformity": 0.15,
+          "support_texture_entropy": 0.2,
+          "support_quality_paradox": 0.15,
+          "support_skin_smoothness": 0.18
+        },
+        "fabricated_score_detected": false
+      },
+      "photo_quality_preview_deferred": {
+        "ok": true,
+        "verdict": null,
+        "probability": null,
+        "raw_detector_probability": null,
+        "confidence": null,
+        "risk_level": null,
+        "requires_review": false,
+        "detector_backend": null,
+        "detail": "AI authenticity risk will be assessed when you save this submission.",
+        "analysis_status": "deferred",
+        "is_final": false,
+        "signals": null,
+        "fabricated_score_detected": false,
+        "authenticity_deferred": true,
+        "xp_eligible": false
+      },
+      "video_authenticity_only": {
+        "ok": true,
+        "verdict": "ai_generated",
+        "probability": 0.512,
+        "raw_detector_probability": 0.512,
+        "confidence": 0.512,
+        "risk_level": "high",
+        "requires_review": true,
+        "detector_backend": "waverep_g4",
+        "detail": "High AI authenticity risk from WaveRep G4 (51% AI score). Requires officer review.",
+        "analysis_status": null,
+        "is_final": null,
+        "signals": {
+          "waverep_g4": 0.512
+        },
+        "fabricated_score_detected": false
+      }
+    }
+  },
+  "gates": {
+    "video_musiq_online_ok": true,
+    "video_offline_opencv_fallback_ok": true,
+    "flutter_video_criteria_present": true,
+    "probe_checkpoint_investigated": true,
+    "probe_checkpoint_on_disk": true,
+    "no_fabricated_authenticity_scores": true,
+    "quality_preview_defers_authenticity": true,
+    "probe_thresholds_unchanged": true,
+    "unavailable_detector_safe": true
+  },
+  "results": {
+    "video_asset": "PASS",
+    "video_musiq_online": "PASS",
+    "authenticity_suite": "PASS",
+    "regression_pytest": "PASS",
+    "video_worker_offline_fallback": "PASS",
+    "flutter_compat": "PASS",
+    "probe_checkpoint_present": "PASS",
+    "probe_warm_affects_quality_preview": "PASS",
+    "no_fabricated_scores": "PASS",
+    "quality_preview_defers_auth": "PASS",
+    "thresholds_preserved": "PASS",
+    "unavailable_detector_safe": "SKIPPED"
+  },
+  "blockers": [],
+  "notes": [
+    "Using existing video (real_phone_mp4): C:\\Users\\Dell\\Desktop\\video_metadata_test\\VID_20260629_181454.mp4. Research datasets not modified.",
+    "Checkpoint present; unavailable-detector fabrication gate N/A."
+  ],
+  "probe": {
+    "ai_detector_backend": "probe",
+    "probe_checkpoint_path": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\experiments\\probe\\modelscope_cache\\models\\shuinishaojiu--PROBE-AIGI-Detection\\snapshots\\master\\DINOv2_best_model_step_34999.pth",
+    "probe_checkpoint_on_disk": true,
+    "probe_detector_available": true,
+    "expected_sha256": "c8caa9bad54c029e4d22e1909c4673e46a239d8419a986e0ab461d423a450156",
+    "probe_low_risk_threshold": 0.3,
+    "probe_high_risk_threshold": 0.45,
+    "integrity_detector_status": {
+      "detector_backend": "probe",
+      "pytorch_available": true,
+      "probe_checkpoint": "DINOv2_best_model_step_34999.pth",
+      "probe_checkpoint_on_disk": true,
+      "probe_checkpoint_ready": true,
+      "probe_low_risk_threshold": 0.3,
+      "probe_high_risk_threshold": 0.45,
+      "waverep": {
+        "enabled": true,
+        "module_dir": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\waverep",
+        "module_file_exists": true,
+        "checkpoint_path": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\waverep\\demo\\weights\\weights_dinov2_G4.ckpt",
+        "checkpoint_exists": true,
+        "samples": 20,
+        "device": "cpu",
+        "detector_initialized": false,
+        "init_error": null
+      }
+    },
+    "impact": "Quality preview (/media/evaluate) uses include_authenticity=False; PROBE warm warning is optional init only and does not change quality scores. Saved-media authenticity / evaluate_authenticity_bytes requires the checkpoint; when missing, probability stays null and review is required (no fabricated P(fake))."
+  },
+  "process_local": {
+    "quality_engine": "musiq_worker",
+    "worker_url": "http://127.0.0.1:8080"
+  },
+  "worker_ready": {
+    "ok": true,
+    "ready": true,
+    "body": {
+      "status": "ready",
+      "musiq_ready": true,
+      "model_id": "tfhub:google/musiq/paq2piq/1",
+      "model_version": "paq2piq/1",
+      "engine_handle": "https://tfhub.dev/google/musiq/paq2piq/1"
+    }
+  },
+  "video_source_kind": "real_phone_mp4",
+  "pytest": {
+    "exit_code": 0,
+    "passed": true,
+    "tail": [
+      "........................................................................ [ 87%]",
+      "..........                                                               [100%]",
+      "82 passed in 3.32s"
+    ]
+  },
+  "phase7h_ready": true,
+  "authenticity_runtime_ready": true,
+  "finished_at": "2026-11-14T11:00:47.910818+00:00"
+}

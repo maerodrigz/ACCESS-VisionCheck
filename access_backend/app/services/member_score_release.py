@@ -99,7 +99,9 @@ def release_member_evaluation_scores(
     except json.JSONDecodeError:
         return False
 
-    if data.get("member_scores_released") and data.get("gemini_feedback"):
+    if data.get("member_scores_released") and gemini_service.is_valid_gemini_feedback(
+        data.get("gemini_feedback")
+    ):
         return True
 
     data["member_scores_released"] = True
@@ -107,14 +109,15 @@ def release_member_evaluation_scores(
     data["quality_provisional"] = False
     data.pop("review_gate_message", None)
 
-    if not data.get("gemini_feedback") and not data.get("gemini_generated_at"):
+    # Retry while feedback is missing/invalid. Stamp gemini_generated_at only on success.
+    if not gemini_service.is_valid_gemini_feedback(data.get("gemini_feedback")):
         feedback = gemini_service.generate_media_evaluation_feedback(
             data,
             member_first_name=member_first_name or "Member",
         )
-        if feedback:
+        if gemini_service.is_valid_gemini_feedback(feedback):
             data["gemini_feedback"] = feedback
-        data["gemini_generated_at"] = datetime.now(timezone.utc).isoformat()
+            data["gemini_generated_at"] = datetime.now(timezone.utc).isoformat()
 
     # Remove outdated review-only messages after administrator approval.
     # Preserve legitimate technical feedback and any generated Gemini explanation.

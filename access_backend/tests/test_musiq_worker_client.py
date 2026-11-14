@@ -36,6 +36,12 @@ def test_not_configured_returns_unavailable():
     assert client.production_uses_enet() is True
 
 
+def test_production_uses_enet_false_when_musiq_worker_selected(monkeypatch):
+    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
+    assert client.quality_engine() == "musiq_worker"
+    assert client.production_uses_enet() is False
+
+
 def test_evaluate_bytes_maps_ok_response(monkeypatch):
     monkeypatch.setattr(client.settings, "musiq_worker_url", "https://worker.test")
     monkeypatch.setattr(client.settings, "musiq_worker_token", "secret-token")

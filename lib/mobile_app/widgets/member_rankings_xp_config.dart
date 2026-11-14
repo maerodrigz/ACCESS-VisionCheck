@@ -2,13 +2,14 @@
 class MemberXpConfig {
   MemberXpConfig._();
 
-  /// From `access_backend/app/services/media_pipeline.py` — points added per evaluation.
+  /// From `access_backend/app/services/media_pipeline.py`. Points use stored overall
+  /// (v2 Clarity formula for new evals; historical rows keep their original overall).
   static const String evaluationFormula = 'overall_score × 100';
 
   /// From `access_backend/app/services/ai_review_workflow.py`.
   static const int aiConfirmedPenalty = 25;
 
-  /// Mirrors `int(scores["overall_score"] * 100)` in the media pipeline.
+  /// Mirrors pipeline XP from legacy 0–1 overall (derived from backend overall_score).
   static int xpFromEvaluationScore(double score) {
     final normalized = score <= 1.0 ? score : score / 5.0;
     return (normalized.clamp(0.0, 1.0) * 100).round();

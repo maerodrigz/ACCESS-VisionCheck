@@ -1,0 +1,755 @@
+{
+  "phase": "7E",
+  "started_at": "2026-11-14T10:24:05.038594+00:00",
+  "n_images": 5,
+  "images": [
+    {
+      "name": "IMG_20230327_191344_831.jpg",
+      "bytes": 4808902
+    },
+    {
+      "name": "IMG_20230411_181815_568~2.jpg",
+      "bytes": 2831392
+    },
+    {
+      "name": "IMG_20230415_175222_905.jpg",
+      "bytes": 4355427
+    },
+    {
+      "name": "IMG_20230512_103539_795.jpg",
+      "bytes": 3678886
+    },
+    {
+      "name": "IMG_20230612_173018_154.jpg",
+      "bytes": 5415440
+    }
+  ],
+  "process_rss_mb_start": null,
+  "phase7d_baseline_means_ms": {
+    "efficientnet_b0": 209.85,
+    "musiq_worker_opencv": 4776.27,
+    "opencv_local": 4888.84
+  },
+  "per_image": [
+    {
+      "image": "IMG_20230327_191344_831.jpg",
+      "bytes": 4808902,
+      "local_opencv": {
+        "ok": true,
+        "meta": {
+          "width": 4608,
+          "height": 3456,
+          "megapixels": 15.925,
+          "diagnostic_resized_to": [
+            1024,
+            768
+          ]
+        },
+        "timings_ms": {
+          "decode_oriented_bgr_ms": 319.440699997358,
+          "cvt_gray_ms": 5.999900022288784,
+          "sharpness_laplacian_var_ms": 209.28249999997206,
+          "blur_from_sharpness_ms": 0.0,
+          "noise_gaussian_residual_ms": 196.8709999928251,
+          "brightness_contrast_ms": 117.40650000865571,
+          "blocking_artifacts_ms": 5451.9512000260875,
+          "ringing_artifacts_ms": 66.23280001804233,
+          "full_analyze_bgr_ms": 6974.048500007484,
+          "full_analyze_image_bytes_ms": 4899.797000020044,
+          "diagnostic_resize_1024_ms": 17.47270001214929,
+          "diagnostic_blocking_after_resize_1024_ms": 215.22350001032464,
+          "diagnostic_ringing_after_resize_1024_ms": 5.892400018638,
+          "diagnostic_full_analyze_bgr_resized_1024_ms": 259.6596000075806
+        },
+        "lap_var": 57.93073859821529
+      },
+      "worker_classical_local": {
+        "ok": true,
+        "meta": {
+          "native_wh": [
+            4608,
+            3456
+          ],
+          "resized_wh": [
+            1024,
+            768
+          ],
+          "resize_cap": 1024
+        },
+        "timings_ms": {
+          "decode_cv_imdecode_ms": 117.50480000046082,
+          "resize_cap_ms": 20.670300000347197,
+          "gray_float64_ms": 2.28320001042448,
+          "laplacian_sobel_tenengrad_bundle_ms": 254.26789998891763,
+          "immerkaer_ms": 7.005399995250627,
+          "residual_std_ms": 15.969800006132573,
+          "blocking_boundary_ratio_ms": 17.64579999144189,
+          "flat_block_frac_ms": 165.0245999917388,
+          "ringing_edge_lap_ms": 7.460900000296533,
+          "classical_quality_from_bgr_ms": 281.42399998614565
+        }
+      },
+      "efficientnet_b0": {
+        "ok": true,
+        "meta": {
+          "pil_wh": [
+            4608,
+            3456
+          ],
+          "network_input": [
+            224,
+            224
+          ]
+        },
+        "timings_ms": {
+          "oriented_pil_ms": 136.29429999855347,
+          "preprocess_resize_224_ms": 50.71869998937473,
+          "forward_ms": 45.3972999821417,
+          "full_analyze_image_bytes_ms": 215.73170000920072
+        }
+      },
+      "musiq_http": {
+        "ok": true,
+        "client_wall_ms": 3512.867899989942,
+        "worker_duration_ms": 3387.637,
+        "http_and_transfer_est_ms": 125.23089998994192,
+        "classical_local_proxy_ms": 330.01549998880364,
+        "musiq_plus_misc_server_est_ms": 3057.6215000111965,
+        "musiq_opq_raw": 64.61396026611328,
+        "musiq_opq_note": "OPQ context only; not an OpenCV criterion",
+        "worker_status": "ok",
+        "payload_bytes": 4808902,
+        "classical_local_detail": {
+          "ok": true,
+          "meta": {
+            "native_wh": [
+              4608,
+              3456
+            ],
+            "resized_wh": [
+              1024,
+              768
+            ],
+            "resize_cap": 1024
+          },
+          "timings_ms": {
+            "decode_cv_imdecode_ms": 105.70849999203347,
+            "resize_cap_ms": 14.521900011459365,
+            "gray_float64_ms": 1.7670999804977328,
+            "laplacian_sobel_tenengrad_bundle_ms": 260.1456999836955,
+            "immerkaer_ms": 7.943899981910363,
+            "residual_std_ms": 18.391899997368455,
+            "blocking_boundary_ratio_ms": 17.69950002199039,
+            "flat_block_frac_ms": 183.90989999170415,
+            "ringing_edge_lap_ms": 7.235900004161522,
+            "classical_quality_from_bgr_ms": 330.01549998880364
+          }
+        }
+      }
+    },
+    {
+      "image": "IMG_20230411_181815_568~2.jpg",
+      "bytes": 2831392,
+      "local_opencv": {
+        "ok": true,
+        "meta": {
+          "width": 3456,
+          "height": 4608,
+          "megapixels": 15.925,
+          "diagnostic_resized_to": [
+            768,
+            1024
+          ]
+        },
+        "timings_ms": {
+          "decode_oriented_bgr_ms": 280.12179999495856,
+          "cvt_gray_ms": 5.788900016341358,
+          "sharpness_laplacian_var_ms": 170.08209999767132,
+          "blur_from_sharpness_ms": 0.0,
+          "noise_gaussian_residual_ms": 150.10369999799877,
+          "brightness_contrast_ms": 132.91250000474975,
+          "blocking_artifacts_ms": 4580.612799996743,
+          "ringing_artifacts_ms": 55.611099989619106,
+          "full_analyze_bgr_ms": 4907.486199983396,
+          "full_analyze_image_bytes_ms": 5133.638300001621,
+          "diagnostic_resize_1024_ms": 13.681000011274591,
+          "diagnostic_blocking_after_resize_1024_ms": 198.1556999962777,
+          "diagnostic_ringing_after_resize_1024_ms": 6.581599998753518,
+          "diagnostic_full_analyze_bgr_resized_1024_ms": 229.21940000378527
+        },
+        "lap_var": 80.71700190387652
+      },
+      "worker_classical_local": {
+        "ok": true,
+        "meta": {
+          "native_wh": [
+            3456,
+            4608
+          ],
+          "resized_wh": [
+            768,
+            1024
+          ],
+          "resize_cap": 1024
+        },
+        "timings_ms": {
+          "decode_cv_imdecode_ms": 66.76129999686964,
+          "resize_cap_ms": 14.527400024235249,
+          "gray_float64_ms": 1.7146999889519066,
+          "laplacian_sobel_tenengrad_bundle_ms": 253.35210000048392,
+          "immerkaer_ms": 6.764699995983392,
+          "residual_std_ms": 15.92420000815764,
+          "blocking_boundary_ratio_ms": 19.726800004718825,
+          "flat_block_frac_ms": 163.46369998063892,
+          "ringing_edge_lap_ms": 8.753499976592138,
+          "classical_quality_from_bgr_ms": 253.0247000104282
+        }
+      },
+      "efficientnet_b0": {
+        "ok": true,
+        "meta": {
+          "pil_wh": [
+            3456,
+            4608
+          ],
+          "network_input": [
+            224,
+            224
+          ]
+        },
+        "timings_ms": {
+          "oriented_pil_ms": 117.41479998454452,
+          "preprocess_resize_224_ms": 45.74579998734407,
+          "forward_ms": 32.38320001401007,
+          "full_analyze_image_bytes_ms": 203.76969999051653
+        }
+      },
+      "musiq_http": {
+        "ok": true,
+        "client_wall_ms": 3539.681099995505,
+        "worker_duration_ms": 3520.463,
+        "http_and_transfer_est_ms": 19.218099995504872,
+        "classical_local_proxy_ms": 273.665799992159,
+        "musiq_plus_misc_server_est_ms": 3246.797200007841,
+        "musiq_opq_raw": 70.94519805908203,
+        "musiq_opq_note": "OPQ context only; not an OpenCV criterion",
+        "worker_status": "ok",
+        "payload_bytes": 2831392,
+        "classical_local_detail": {
+          "ok": true,
+          "meta": {
+            "native_wh": [
+              3456,
+              4608
+            ],
+            "resized_wh": [
+              768,
+              1024
+            ],
+            "resize_cap": 1024
+          },
+          "timings_ms": {
+            "decode_cv_imdecode_ms": 93.83920000982471,
+            "resize_cap_ms": 13.731800019741058,
+            "gray_float64_ms": 2.2973999730311334,
+            "laplacian_sobel_tenengrad_bundle_ms": 278.4117999835871,
+            "immerkaer_ms": 8.348500006832182,
+            "residual_std_ms": 19.80290000210516,
+            "blocking_boundary_ratio_ms": 18.754599994281307,
+            "flat_block_frac_ms": 164.21570000238717,
+            "ringing_edge_lap_ms": 8.832499996060506,
+            "classical_quality_from_bgr_ms": 273.665799992159
+          }
+        }
+      }
+    },
+    {
+      "image": "IMG_20230415_175222_905.jpg",
+      "bytes": 4355427,
+      "local_opencv": {
+        "ok": true,
+        "meta": {
+          "width": 4608,
+          "height": 3456,
+          "megapixels": 15.925,
+          "diagnostic_resized_to": [
+            1024,
+            768
+          ]
+        },
+        "timings_ms": {
+          "decode_oriented_bgr_ms": 283.6470000038389,
+          "cvt_gray_ms": 5.70720000541769,
+          "sharpness_laplacian_var_ms": 189.52640000497922,
+          "blur_from_sharpness_ms": 0.0,
+          "noise_gaussian_residual_ms": 140.27099998202175,
+          "brightness_contrast_ms": 122.7286999928765,
+          "blocking_artifacts_ms": 4681.282199977431,
+          "ringing_artifacts_ms": 51.16130001260899,
+          "full_analyze_bgr_ms": 5008.161100005964,
+          "full_analyze_image_bytes_ms": 5270.597099995939,
+          "diagnostic_resize_1024_ms": 12.419900012901053,
+          "diagnostic_blocking_after_resize_1024_ms": 220.88730000541545,
+          "diagnostic_ringing_after_resize_1024_ms": 6.016500003170222,
+          "diagnostic_full_analyze_bgr_resized_1024_ms": 241.33220000658184
+        },
+        "lap_var": 236.56547797087427
+      },
+      "worker_classical_local": {
+        "ok": true,
+        "meta": {
+          "native_wh": [
+            4608,
+            3456
+          ],
+          "resized_wh": [
+            1024,
+            768
+          ],
+          "resize_cap": 1024
+        },
+        "timings_ms": {
+          "decode_cv_imdecode_ms": 78.90369999222457,
+          "resize_cap_ms": 14.17599999695085,
+          "gray_float64_ms": 1.8433000077493489,
+          "laplacian_sobel_tenengrad_bundle_ms": 243.1716000137385,
+          "immerkaer_ms": 6.410800007870421,
+          "residual_std_ms": 14.900999987730756,
+          "blocking_boundary_ratio_ms": 18.07689998531714,
+          "flat_block_frac_ms": 176.25399999087676,
+          "ringing_edge_lap_ms": 7.563300023321062,
+          "classical_quality_from_bgr_ms": 308.37409998639487
+        }
+      },
+      "efficientnet_b0": {
+        "ok": true,
+        "meta": {
+          "pil_wh": [
+            4608,
+            3456
+          ],
+          "network_input": [
+            224,
+            224
+          ]
+        },
+        "timings_ms": {
+          "oriented_pil_ms": 126.13979997695424,
+          "preprocess_resize_224_ms": 45.64490000484511,
+          "forward_ms": 32.16719999909401,
+          "full_analyze_image_bytes_ms": 209.30600000428967
+        }
+      },
+      "musiq_http": {
+        "ok": true,
+        "client_wall_ms": 3871.1060999776237,
+        "worker_duration_ms": 3835.288,
+        "http_and_transfer_est_ms": 35.81809997762366,
+        "classical_local_proxy_ms": 290.6633999955375,
+        "musiq_plus_misc_server_est_ms": 3544.6246000044625,
+        "musiq_opq_raw": 70.11820220947266,
+        "musiq_opq_note": "OPQ context only; not an OpenCV criterion",
+        "worker_status": "ok",
+        "payload_bytes": 4355427,
+        "classical_local_detail": {
+          "ok": true,
+          "meta": {
+            "native_wh": [
+              4608,
+              3456
+            ],
+            "resized_wh": [
+              1024,
+              768
+            ],
+            "resize_cap": 1024
+          },
+          "timings_ms": {
+            "decode_cv_imdecode_ms": 116.5663999854587,
+            "resize_cap_ms": 16.862699994817376,
+            "gray_float64_ms": 2.0389999845065176,
+            "laplacian_sobel_tenengrad_bundle_ms": 264.37910000095144,
+            "immerkaer_ms": 8.310499979415908,
+            "residual_std_ms": 18.053800013149157,
+            "blocking_boundary_ratio_ms": 19.88889998756349,
+            "flat_block_frac_ms": 197.82590001705103,
+            "ringing_edge_lap_ms": 7.303899998078123,
+            "classical_quality_from_bgr_ms": 290.6633999955375
+          }
+        }
+      }
+    },
+    {
+      "image": "IMG_20230512_103539_795.jpg",
+      "bytes": 3678886,
+      "local_opencv": {
+        "ok": true,
+        "meta": {
+          "width": 3264,
+          "height": 2448,
+          "megapixels": 7.99,
+          "diagnostic_resized_to": [
+            1024,
+            768
+          ]
+        },
+        "timings_ms": {
+          "decode_oriented_bgr_ms": 159.89549999358132,
+          "cvt_gray_ms": 3.047200007131323,
+          "sharpness_laplacian_var_ms": 77.25380000192672,
+          "blur_from_sharpness_ms": 0.0,
+          "noise_gaussian_residual_ms": 67.94039998203516,
+          "brightness_contrast_ms": 60.679699992761016,
+          "blocking_artifacts_ms": 2270.844999991823,
+          "ringing_artifacts_ms": 42.588000011164695,
+          "full_analyze_bgr_ms": 2897.5711000093725,
+          "full_analyze_image_bytes_ms": 3188.4533000120427,
+          "diagnostic_resize_1024_ms": 10.896099993260577,
+          "diagnostic_blocking_after_resize_1024_ms": 258.2319999928586,
+          "diagnostic_ringing_after_resize_1024_ms": 10.585599986370653,
+          "diagnostic_full_analyze_bgr_resized_1024_ms": 275.8744000166189
+        },
+        "lap_var": 732.7826467946095
+      },
+      "worker_classical_local": {
+        "ok": true,
+        "meta": {
+          "native_wh": [
+            3264,
+            2448
+          ],
+          "resized_wh": [
+            1024,
+            768
+          ],
+          "resize_cap": 1024
+        },
+        "timings_ms": {
+          "decode_cv_imdecode_ms": 57.83099998370744,
+          "resize_cap_ms": 10.83949999883771,
+          "gray_float64_ms": 1.9514999876264483,
+          "laplacian_sobel_tenengrad_bundle_ms": 300.84999999962747,
+          "immerkaer_ms": 8.075000019744039,
+          "residual_std_ms": 19.28880001651123,
+          "blocking_boundary_ratio_ms": 20.225799991749227,
+          "flat_block_frac_ms": 185.1870000245981,
+          "ringing_edge_lap_ms": 11.866599990753457,
+          "classical_quality_from_bgr_ms": 322.17070000479
+        }
+      },
+      "efficientnet_b0": {
+        "ok": true,
+        "meta": {
+          "pil_wh": [
+            3264,
+            2448
+          ],
+          "network_input": [
+            224,
+            224
+          ]
+        },
+        "timings_ms": {
+          "oriented_pil_ms": 69.98610001755878,
+          "preprocess_resize_224_ms": 30.10319999884814,
+          "forward_ms": 38.811500009614974,
+          "full_analyze_image_bytes_ms": 204.18520001112483
+        }
+      },
+      "musiq_http": {
+        "ok": true,
+        "client_wall_ms": 3033.1425000040326,
+        "worker_duration_ms": 2961.386,
+        "http_and_transfer_est_ms": 71.75650000403266,
+        "classical_local_proxy_ms": 318.4371000097599,
+        "musiq_plus_misc_server_est_ms": 2642.94889999024,
+        "musiq_opq_raw": 70.92235565185547,
+        "musiq_opq_note": "OPQ context only; not an OpenCV criterion",
+        "worker_status": "ok",
+        "payload_bytes": 3678886,
+        "classical_local_detail": {
+          "ok": true,
+          "meta": {
+            "native_wh": [
+              3264,
+              2448
+            ],
+            "resized_wh": [
+              1024,
+              768
+            ],
+            "resize_cap": 1024
+          },
+          "timings_ms": {
+            "decode_cv_imdecode_ms": 86.41359998728149,
+            "resize_cap_ms": 15.40569998905994,
+            "gray_float64_ms": 3.402800008188933,
+            "laplacian_sobel_tenengrad_bundle_ms": 401.8322000047192,
+            "immerkaer_ms": 10.311599995475262,
+            "residual_std_ms": 20.589399995515123,
+            "blocking_boundary_ratio_ms": 25.900400010868907,
+            "flat_block_frac_ms": 241.3644999905955,
+            "ringing_edge_lap_ms": 13.636200019391254,
+            "classical_quality_from_bgr_ms": 318.4371000097599
+          }
+        }
+      }
+    },
+    {
+      "image": "IMG_20230612_173018_154.jpg",
+      "bytes": 5415440,
+      "local_opencv": {
+        "ok": true,
+        "meta": {
+          "width": 4608,
+          "height": 3456,
+          "megapixels": 15.925,
+          "diagnostic_resized_to": [
+            1024,
+            768
+          ]
+        },
+        "timings_ms": {
+          "decode_oriented_bgr_ms": 305.78669998794794,
+          "cvt_gray_ms": 5.452100012917072,
+          "sharpness_laplacian_var_ms": 148.24519999092445,
+          "blur_from_sharpness_ms": 0.0,
+          "noise_gaussian_residual_ms": 127.61340002180077,
+          "brightness_contrast_ms": 125.0010000076145,
+          "blocking_artifacts_ms": 5280.958499992266,
+          "ringing_artifacts_ms": 67.69550000899471,
+          "full_analyze_bgr_ms": 5497.979000007035,
+          "full_analyze_image_bytes_ms": 5802.870500017889,
+          "diagnostic_resize_1024_ms": 15.950300003169104,
+          "diagnostic_blocking_after_resize_1024_ms": 270.4688000085298,
+          "diagnostic_ringing_after_resize_1024_ms": 9.481700020842254,
+          "diagnostic_full_analyze_bgr_resized_1024_ms": 280.2038999798242
+        },
+        "lap_var": 196.6588254678008
+      },
+      "worker_classical_local": {
+        "ok": true,
+        "meta": {
+          "native_wh": [
+            4608,
+            3456
+          ],
+          "resized_wh": [
+            1024,
+            768
+          ],
+          "resize_cap": 1024
+        },
+        "timings_ms": {
+          "decode_cv_imdecode_ms": 95.01509999972768,
+          "resize_cap_ms": 14.969600015319884,
+          "gray_float64_ms": 2.210400009062141,
+          "laplacian_sobel_tenengrad_bundle_ms": 280.10549998725764,
+          "immerkaer_ms": 8.683000021846965,
+          "residual_std_ms": 17.012099997373298,
+          "blocking_boundary_ratio_ms": 18.87709999573417,
+          "flat_block_frac_ms": 187.83480001729913,
+          "ringing_edge_lap_ms": 10.294400010025129,
+          "classical_quality_from_bgr_ms": 293.06960001122206
+        }
+      },
+      "efficientnet_b0": {
+        "ok": true,
+        "meta": {
+          "pil_wh": [
+            4608,
+            3456
+          ],
+          "network_input": [
+            224,
+            224
+          ]
+        },
+        "timings_ms": {
+          "oriented_pil_ms": 134.61310000275262,
+          "preprocess_resize_224_ms": 51.02169999736361,
+          "forward_ms": 35.95000001951121,
+          "full_analyze_image_bytes_ms": 260.2803999907337
+        }
+      },
+      "musiq_http": {
+        "ok": true,
+        "client_wall_ms": 4133.1930000160355,
+        "worker_duration_ms": 4085.784,
+        "http_and_transfer_est_ms": 47.40900001603541,
+        "classical_local_proxy_ms": 343.5606000130065,
+        "musiq_plus_misc_server_est_ms": 3742.2233999869936,
+        "musiq_opq_raw": 75.55675506591797,
+        "musiq_opq_note": "OPQ context only; not an OpenCV criterion",
+        "worker_status": "ok",
+        "payload_bytes": 5415440,
+        "classical_local_detail": {
+          "ok": true,
+          "meta": {
+            "native_wh": [
+              4608,
+              3456
+            ],
+            "resized_wh": [
+              1024,
+              768
+            ],
+            "resize_cap": 1024
+          },
+          "timings_ms": {
+            "decode_cv_imdecode_ms": 179.45769999641925,
+            "resize_cap_ms": 23.0032000108622,
+            "gray_float64_ms": 4.546400014078245,
+            "laplacian_sobel_tenengrad_bundle_ms": 477.4176999926567,
+            "immerkaer_ms": 10.836999979801476,
+            "residual_std_ms": 23.175900016212836,
+            "blocking_boundary_ratio_ms": 22.88170001702383,
+            "flat_block_frac_ms": 232.0305999892298,
+            "ringing_edge_lap_ms": 12.262599979294464,
+            "classical_quality_from_bgr_ms": 343.5606000130065
+          }
+        }
+      }
+    }
+  ],
+  "aggregates": {
+    "mean_megapixels": 14.338,
+    "local_opencv_mean_ms": {
+      "decode_oriented_bgr_ms": 269.77833999553695,
+      "cvt_gray_ms": 5.1990600128192455,
+      "sharpness_laplacian_var_ms": 158.87799999909475,
+      "blur_from_sharpness_ms": 0.0,
+      "noise_gaussian_residual_ms": 136.5598999953363,
+      "brightness_contrast_ms": 111.7456800013315,
+      "blocking_artifacts_ms": 4453.12993999687,
+      "ringing_artifacts_ms": 56.657740008085966,
+      "full_analyze_bgr_ms": 5057.04918000265,
+      "full_analyze_image_bytes_ms": 4859.071240009507,
+      "diagnostic_resize_1024_ms": 14.084000006550923,
+      "diagnostic_blocking_after_resize_1024_ms": 232.59346000268124,
+      "diagnostic_ringing_after_resize_1024_ms": 7.711560005554929,
+      "diagnostic_full_analyze_bgr_resized_1024_ms": 257.25790000287816
+    },
+    "enet_full_mean_ms": 218.6546000011731,
+    "musiq_client_wall_mean_ms": 3617.998119996628,
+    "musiq_worker_duration_mean_ms": 3558.1116,
+    "http_transfer_est_mean_ms": 59.886519996627705,
+    "classical_resized_proxy_mean_ms": 311.2684799998533,
+    "musiq_inference_plus_misc_est_mean_ms": 3246.843120000147,
+    "process_rss_mb_end": null
+  },
+  "findings": [
+    {
+      "id": "local_opencv_step_ranking",
+      "detail": "Mean step times for production opencv_quality on native resolution.",
+      "ranked_mean_ms": [
+        [
+          "full_analyze_bgr_ms",
+          5057.04918000265
+        ],
+        [
+          "full_analyze_image_bytes_ms",
+          4859.071240009507
+        ],
+        [
+          "blocking_artifacts_ms",
+          4453.12993999687
+        ],
+        [
+          "decode_oriented_bgr_ms",
+          269.77833999553695
+        ],
+        [
+          "sharpness_laplacian_var_ms",
+          158.87799999909475
+        ],
+        [
+          "noise_gaussian_residual_ms",
+          136.5598999953363
+        ],
+        [
+          "brightness_contrast_ms",
+          111.7456800013315
+        ],
+        [
+          "ringing_artifacts_ms",
+          56.657740008085966
+        ],
+        [
+          "cvt_gray_ms",
+          5.1990600128192455
+        ],
+        [
+          "blur_from_sharpness_ms",
+          0.0
+        ]
+      ]
+    },
+    {
+      "id": "blocking_python_loop_dominates_local_opencv",
+      "detail": "Production _blocking_artifacts uses nested Python loops over every 8x8 block at native resolution (no resize cap). This likely dominates local OpenCV latency.",
+      "blocking_mean_ms": 4453.12993999687,
+      "full_mean_ms": 4859.071240009507,
+      "share": 0.9164570182321833
+    },
+    {
+      "id": "native_vs_resize1024_diagnostic",
+      "detail": "Diagnostic only: same opencv_quality.analyze_bgr after longest-side 1024 resize. Not a production scoring change; scores would need parity validation before adoption.",
+      "native_full_analyze_bgr_mean_ms": 5057.04918000265,
+      "resized_1024_full_analyze_bgr_mean_ms": 257.25790000287816,
+      "speedup_factor": 19.65750781587688
+    },
+    {
+      "id": "enet_fixed_224_input",
+      "detail": "EfficientNet always resizes to 224x224 before the network. Wall time is largely decode/preprocess + small CNN forward \u2014 insensitive to multi-megapixel pixel loops.",
+      "enet_full_mean_ms": 218.6546000011731
+    },
+    {
+      "id": "musiq_path_split",
+      "detail": "MUSIQ path client wall \u2248 HTTP/transfer + worker duration. Worker classical uses RESIZE_CAP=1024; MUSIQ PaQ-2-PiQ scores original JPEG bytes (no client-side resize). musiq_plus_misc_server_est \u2248 worker_duration - local classical_quality_from_bgr proxy.",
+      "client_wall_mean_ms": 3617.998119996628,
+      "worker_duration_mean_ms": 3558.1116,
+      "http_transfer_est_mean_ms": 59.886519996627705,
+      "classical_resized_proxy_mean_ms": 311.2684799998533,
+      "musiq_inference_plus_misc_est_mean_ms": 3246.843120000147
+    },
+    {
+      "id": "why_local_opencv_rivals_musiq_total",
+      "detail": "Phase 7D showed local OpenCV (~4889 ms) similar to MUSIQ+OpenCV (~4776 ms). That is consistent with native-resolution Python blocking/ringing dominating local fallback, while the Docker path pays for large JPEG upload + TensorFlow MUSIQ but runs classical after a 1024 resize (cheaper classical)."
+    }
+  ],
+  "safe_optimization_candidates": [
+    {
+      "id": "vectorize_or_cap_local_opencv_blocking_ringing",
+      "risk": "medium",
+      "preserves_formulas_if": "NumPy/OpenCV vectorization of the same flat-block and ringing definitions, or applying an explicit documented resize cap with validated score parity vs baseline.",
+      "do_not": "Change variance threshold 8.0, block size 8, Canny 80/160, or soft_score bins just for speed."
+    },
+    {
+      "id": "align_local_opencv_with_worker_resize_cap_1024",
+      "risk": "high_without_parity_tests",
+      "preserves_formulas_if": "Only after comparing native vs capped metrics/_soft_score outputs on a frozen image set; document any intentional resolution policy.",
+      "note": "Worker classical already caps at 1024; local opencv_quality does not."
+    },
+    {
+      "id": "musiq_input_downscale_before_tf",
+      "risk": "high_for_opq_values",
+      "preserves_formulas_if": "Never for criterion scores; OPQ is context-only but values would change \u2014 requires acceptance tests.",
+      "note": "Would not change OpenCV criteria if classical stays on its own resize path."
+    },
+    {
+      "id": "avoid_double_decode_in_pipelines",
+      "risk": "low",
+      "preserves_formulas_if": "Reuse decoded BGR across color heuristics + quality when already in memory.",
+      "note": "Does not change numeric formulas."
+    },
+    {
+      "id": "keep_enet_as_fast_local_fallback",
+      "risk": "none",
+      "preserves_formulas_if": "No change; architecture choice only.",
+      "note": "Phase 7D/7C show ENET is ~20x faster than native local OpenCV on these photos."
+    }
+  ],
+  "finished_at": "2026-11-14T10:26:02.158313+00:00",
+  "scoring_behavior_changed": false
+}

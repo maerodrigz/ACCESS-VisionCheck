@@ -135,7 +135,15 @@ def test_evaluate_photo_adds_insights_without_changing_criteria(include_auth: bo
     ]
     scored = [int(c["score"]) for c in payload["criteria"] if c.get("available") is not False and c.get("score") is not None]
     assert scored
-    assert payload["overall_score"] == round(sum(scored) / len(scored), 2)
+    # v2: Sharpness+Blur combine into one Clarity factor for the overall mean.
+    from app.services.media_evaluator import compute_overall_score_from_criteria, SCORING_FORMULA_V2
+
+    expected, _meta = compute_overall_score_from_criteria(
+        payload["criteria"],
+        formula_version=SCORING_FORMULA_V2,
+    )
+    assert payload["overall_score"] == expected
+    assert payload.get("scoring_formula_version") == SCORING_FORMULA_V2
     assert "additional_quality_insights" in payload
     assert payload["additional_quality_insights"]["color_balance"]["status"] == "warm_cast"
 

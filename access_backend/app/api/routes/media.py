@@ -311,6 +311,15 @@ async def evaluate_media(
     if is_video:
         assert_evaluation_video_duration(db, ext, content)
 
+    # Phase 7G: load EfficientNet on the event-loop thread before to_thread so
+    # QUALITY_ENGINE=enet rollback does not silently prefer OpenCV (7B/7G failure mode).
+    from app.services.musiq_worker_client import quality_engine as _quality_engine
+
+    if _quality_engine() == "enet":
+        from app.services.efficientnet_b0_scorer import ensure_weights
+
+        ensure_weights()
+
     payload = await asyncio.to_thread(
         evaluate_bytes,
         content,

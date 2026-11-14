@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="420">
+  <rect width="100%" height="100%" fill="#F8FAFC"/>
+  <text x="240" y="24" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" fill="#1E293B">R2 vs R3: sharpness</text>
+  <line x1="50" y1="370" x2="430" y2="50" stroke="#94A3B8" stroke-dasharray="4 4"/>
+  <line x1="50" y1="370" x2="430" y2="370" stroke="#64748B"/>
+  <line x1="50" y1="370" x2="50" y2="50" stroke="#64748B"/>
+  <text x="240" y="408" text-anchor="middle" font-size="12" fill="#64748B">R2</text>
+  <text x="16" y="210" text-anchor="middle" transform="rotate(-90 16 210)" font-size="12" fill="#64748B">R3</text>
+  <text x="50" y="42" font-size="11" fill="#1E293B">n=100  rho=0.424  p=0.00001118</text>
+</svg>

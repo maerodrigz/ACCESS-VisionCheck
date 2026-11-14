@@ -1,0 +1,4 @@
+evaluator,engine_key,ready,ok_count,mean_ms,median_ms,p95_ms,init_ms,process_rss_mean_mb,process_rss_max_mb,process_cpu_mean_pct,docker_cpu_mean_pct,docker_mem_usage
+EfficientNet-B0 (local PyTorch),efficientnet_b0,True,10,209.84843999613076,211.2180999974953,249.35175000864547,6169.278699991992,,,,,
+MUSIQ + OpenCV (Docker worker),musiq_worker_opencv,True,10,4776.267190004,4651.86045000155,5966.882800012534,108.4718000201974,,,,4.094,3.602GiB / 7.646GiB
+OpenCV-only (local fallback),opencv_local,True,10,4888.842110006954,5133.617350016721,5229.4765649945475,7382.5670999940485,,,,,

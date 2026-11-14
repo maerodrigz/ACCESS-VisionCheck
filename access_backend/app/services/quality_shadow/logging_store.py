@@ -33,12 +33,15 @@ CSV_FIELDS = (
     "musiq_scale",
     "musiq_model_id",
     "musiq_engine_handle",
+    "musiq_source",
     "duration_ms_total",
     "duration_ms_classical",
     "duration_ms_musiq",
+    "duration_ms_worker",
     "error",
     "feedback_ruleset_version",
     "experimental_issue_count",
+    "quality_engine_production",
 )
 
 

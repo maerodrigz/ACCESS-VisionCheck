@@ -1,0 +1,1293 @@
+﻿{
+    "generated_at":  "2026-11-14T21:40:37.5207149+08:00",
+    "roots":  [
+                  {
+                      "path":  "C:\\Users\\Dell\\Desktop\\access_mobile",
+                      "size_mb":  15647.6
+                  },
+                  {
+                      "path":  "C:\\Users\\Dell\\Desktop\\fresh_validation",
+                      "size_mb":  207.65
+                  },
+                  {
+                      "path":  "C:\\Users\\Dell\\Desktop\\video_metadata_test",
+                      "size_mb":  16.95
+                  }
+              ],
+    "children":  [
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend",
+                         "is_dir":  true,
+                         "size_mb":  5593.81
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools",
+                         "is_dir":  true,
+                         "size_mb":  5518.69
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build",
+                         "is_dir":  true,
+                         "size_mb":  2554.67
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.venv",
+                         "is_dir":  true,
+                         "size_mb":  690.07
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.dart_tool",
+                         "is_dir":  true,
+                         "size_mb":  577.6
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\admin-web",
+                         "is_dir":  true,
+                         "size_mb":  234.07
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.git",
+                         "is_dir":  true,
+                         "size_mb":  211.58
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\android",
+                         "is_dir":  true,
+                         "size_mb":  54.94
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\assets",
+                         "is_dir":  true,
+                         "size_mb":  26.42
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_transparent_header",
+                         "is_dir":  true,
+                         "size_mb":  20.34
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_member_calendar_gallery",
+                         "is_dir":  true,
+                         "size_mb":  17.67
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_eval_banner_shots",
+                         "is_dir":  true,
+                         "size_mb":  11.99
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_rankings_layout_refine",
+                         "is_dir":  true,
+                         "size_mb":  10.95
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\demo",
+                         "is_dir":  true,
+                         "size_mb":  10.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_screenshots_feedback_final",
+                         "is_dir":  true,
+                         "size_mb":  9.58
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_member_rankings_phase4",
+                         "is_dir":  true,
+                         "size_mb":  9.47
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_phase6b_shots",
+                         "is_dir":  true,
+                         "size_mb":  8.45
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\flutter_run_verbose.log",
+                         "is_dir":  false,
+                         "size_mb":  7.96
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_home_phase4",
+                         "is_dir":  true,
+                         "size_mb":  7.51
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_screenshots_global_background",
+                         "is_dir":  true,
+                         "size_mb":  6.99
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_screenshots_requestor_archive",
+                         "is_dir":  true,
+                         "size_mb":  5.69
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_album_ui_shots",
+                         "is_dir":  true,
+                         "size_mb":  5.54
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_home_size_refine",
+                         "is_dir":  true,
+                         "size_mb":  4.88
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_home_phase5",
+                         "is_dir":  true,
+                         "size_mb":  4.68
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_member_rankings_phase3",
+                         "is_dir":  true,
+                         "size_mb":  3.44
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_home_phase2",
+                         "is_dir":  true,
+                         "size_mb":  2.77
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\lib",
+                         "is_dir":  true,
+                         "size_mb":  2.49
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_calendar_header",
+                         "is_dir":  true,
+                         "size_mb":  2.06
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_screenshots_feedback_phase3",
+                         "is_dir":  true,
+                         "size_mb":  1.76
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\ios",
+                         "is_dir":  true,
+                         "size_mb":  1.75
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_rankings_podium",
+                         "is_dir":  true,
+                         "size_mb":  1.64
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_design3_banner_refine",
+                         "is_dir":  true,
+                         "size_mb":  1.46
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_requests_header",
+                         "is_dir":  true,
+                         "size_mb":  1.44
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_login_check.png",
+                         "is_dir":  false,
+                         "size_mb":  1.37
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_feedback_header",
+                         "is_dir":  true,
+                         "size_mb":  1.37
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_rankings_trophy",
+                         "is_dir":  true,
+                         "size_mb":  1.31
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_toast3.png",
+                         "is_dir":  false,
+                         "size_mb":  1.18
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_member_rankings_phase1",
+                         "is_dir":  true,
+                         "size_mb":  1.18
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_toast.png",
+                         "is_dir":  false,
+                         "size_mb":  1.17
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_login2.png",
+                         "is_dir":  false,
+                         "size_mb":  1.17
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_toast5.png",
+                         "is_dir":  false,
+                         "size_mb":  1.15
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_toast4.png",
+                         "is_dir":  false,
+                         "size_mb":  1.15
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_requests_header_layout",
+                         "is_dir":  true,
+                         "size_mb":  1.04
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_feedback_header_fix",
+                         "is_dir":  true,
+                         "size_mb":  1.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_rankings_badge_fix",
+                         "is_dir":  true,
+                         "size_mb":  0.99
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_home_phase3",
+                         "is_dir":  true,
+                         "size_mb":  0.97
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_rankings_badge_image",
+                         "is_dir":  true,
+                         "size_mb":  0.96
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_screenshots_feedback_event_team",
+                         "is_dir":  true,
+                         "size_mb":  0.95
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_toast2.png",
+                         "is_dir":  false,
+                         "size_mb":  0.91
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_rankings_badge",
+                         "is_dir":  true,
+                         "size_mb":  0.89
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_screenshots_requestor_profile",
+                         "is_dir":  true,
+                         "size_mb":  0.75
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\macos",
+                         "is_dir":  true,
+                         "size_mb":  0.64
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_mobile_staging_backups",
+                         "is_dir":  true,
+                         "size_mb":  0.64
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_phase5_dashboard",
+                         "is_dir":  true,
+                         "size_mb":  0.47
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\web",
+                         "is_dir":  true,
+                         "size_mb":  0.45
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\test",
+                         "is_dir":  true,
+                         "size_mb":  0.32
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_screenshots_feedback_phase4",
+                         "is_dir":  true,
+                         "size_mb":  0.32
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_archive",
+                         "is_dir":  true,
+                         "size_mb":  0.21
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\musiq_worker",
+                         "is_dir":  true,
+                         "size_mb":  0.18
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_calendar_gallery_unify",
+                         "is_dir":  true,
+                         "size_mb":  0.16
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\docs",
+                         "is_dir":  true,
+                         "size_mb":  0.15
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.idea",
+                         "is_dir":  true,
+                         "size_mb":  0.11
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_rankings_phase4",
+                         "is_dir":  true,
+                         "size_mb":  0.09
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_gallery_stats",
+                         "is_dir":  true,
+                         "size_mb":  0.08
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_gallery_header",
+                         "is_dir":  true,
+                         "size_mb":  0.08
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_gallery_stats_compact",
+                         "is_dir":  true,
+                         "size_mb":  0.07
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_feedback_final",
+                         "is_dir":  true,
+                         "size_mb":  0.07
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_calendar_v2",
+                         "is_dir":  true,
+                         "size_mb":  0.07
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_feedback_event_team",
+                         "is_dir":  true,
+                         "size_mb":  0.07
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_calendar_refine",
+                         "is_dir":  true,
+                         "size_mb":  0.07
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_gallery_phase3",
+                         "is_dir":  true,
+                         "size_mb":  0.07
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_rankings_phase3",
+                         "is_dir":  true,
+                         "size_mb":  0.06
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_rankings_badge",
+                         "is_dir":  true,
+                         "size_mb":  0.06
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_agenda_card",
+                         "is_dir":  true,
+                         "size_mb":  0.06
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_agenda_card_v2",
+                         "is_dir":  true,
+                         "size_mb":  0.06
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_feedback_phase4",
+                         "is_dir":  true,
+                         "size_mb":  0.06
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_gallery_phase2",
+                         "is_dir":  true,
+                         "size_mb":  0.06
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_calendar",
+                         "is_dir":  true,
+                         "size_mb":  0.05
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_greeting_card",
+                         "is_dir":  true,
+                         "size_mb":  0.05
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_rankings_phase2",
+                         "is_dir":  true,
+                         "size_mb":  0.05
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_feedback_phase3",
+                         "is_dir":  true,
+                         "size_mb":  0.05
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_tracking_text",
+                         "is_dir":  true,
+                         "size_mb":  0.05
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_member_rankings_phase1",
+                         "is_dir":  true,
+                         "size_mb":  0.05
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\windows",
+                         "is_dir":  true,
+                         "size_mb":  0.04
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_home_header",
+                         "is_dir":  true,
+                         "size_mb":  0.04
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_longpress_archive",
+                         "is_dir":  true,
+                         "size_mb":  0.04
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_request_cards",
+                         "is_dir":  true,
+                         "size_mb":  0.04
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_phase4_recent",
+                         "is_dir":  true,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_phase5_home",
+                         "is_dir":  true,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\pubspec.lock",
+                         "is_dir":  false,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\packages",
+                         "is_dir":  true,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_phase3_overview",
+                         "is_dir":  true,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_album_details",
+                         "is_dir":  true,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_new_request_form",
+                         "is_dir":  true,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_phase2_create_card",
+                         "is_dir":  true,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_request_details",
+                         "is_dir":  true,
+                         "size_mb":  0.03
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.flutter-plugins-dependencies",
+                         "is_dir":  false,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\STORAGE_CLEANUP_AUDIT.md",
+                         "is_dir":  false,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.pytest_cache",
+                         "is_dir":  true,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_design3_phase1",
+                         "is_dir":  true,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\linux",
+                         "is_dir":  true,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\uat_preparation",
+                         "is_dir":  true,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_requestor_profile",
+                         "is_dir":  true,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_design3_banner_bg",
+                         "is_dir":  true,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_backup_global_background",
+                         "is_dir":  true,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.cursor",
+                         "is_dir":  true,
+                         "size_mb":  0.02
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\DEVELOPMENT_PROGRESS_2026-10-27.md",
+                         "is_dir":  false,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\FINAL_ORIGINAL_SYSTEM_INTEGRATION_REPORT.md",
+                         "is_dir":  false,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\FINAL_SYSTEM_STABILIZATION_REPORT.md",
+                         "is_dir":  false,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\flutter_build_apk_retry.log",
+                         "is_dir":  false,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\pubspec.yaml",
+                         "is_dir":  false,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\ui.xml",
+                         "is_dir":  false,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\MEDIA_QUALITY_FINAL_IMPLEMENTATION_REPORT.md",
+                         "is_dir":  false,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.kiro",
+                         "is_dir":  true,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_storage_audit_scan.ps1",
+                         "is_dir":  false,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_verify_member_rankings_phase2",
+                         "is_dir":  true,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\scripts",
+                         "is_dir":  true,
+                         "size_mb":  0.01
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.metadata",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.gitignore",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\README.md",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\analysis_options.yaml",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\_run_storage_audit.cmd",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.github",
+                         "is_dir":  true,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tooling",
+                         "is_dir":  true,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.vscode",
+                         "is_dir":  true,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build_feedback_final_out.txt",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build_debug_out.txt",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\config",
+                         "is_dir":  true,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\login_toast3.png",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_mobile.iml",
+                         "is_dir":  false,
+                         "size_mb":  0
+                     },
+                     {
+                         "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\deploy",
+                         "is_dir":  true,
+                         "size_mb":  0
+                     }
+                 ],
+    "notable":  [
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\uploads",
+                        "size_mb":  105.35
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml",
+                        "size_mb":  1235.33
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\experiments",
+                        "size_mb":  1532.08
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\research_logs",
+                        "size_mb":  0.01
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\phase7d_performance_benchmark",
+                        "size_mb":  0.04
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\phase7f_opencv_blocking_optimization",
+                        "size_mb":  0.01
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\phase7g_musiq_cutover_verification",
+                        "size_mb":  0.01
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\phase7h_video_authenticity_verification",
+                        "size_mb":  0.01
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\phase7i_local_cutover",
+                        "size_mb":  0.03
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\__pycache__",
+                        "size_mb":  0.04
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\.pytest_cache",
+                        "size_mb":  11.19
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\musiq_worker",
+                        "size_mb":  0.18
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools",
+                        "size_mb":  5518.69
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build",
+                        "size_mb":  2554.67
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.dart_tool",
+                        "size_mb":  577.6
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\android\\.gradle",
+                        "size_mb":  52.11
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\admin-web\\node_modules",
+                        "size_mb":  225.42
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\admin-web\\dist",
+                        "size_mb":  4.45
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\fresh_validation",
+                        "size_mb":  207.65
+                    },
+                    {
+                        "path":  "C:\\Users\\Dell\\Desktop\\video_metadata_test",
+                        "size_mb":  16.95
+                    }
+                ],
+    "largest_files":  [
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\experiments\\probe\\modelscope_cache\\models\\shuinishaojiu--PROBE-AIGI-Detection\\snapshots\\master\\DINOv2_best_model_step_34999.pth",
+                              "size_mb":  1161.27,
+                              "ext":  ".pth"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\.venv_musiq_phase4b\\Lib\\site-packages\\tensorflow\\python\\_pywrap_tensorflow_common.dll",
+                              "size_mb":  1007.69,
+                              "ext":  ".dll"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\univfd\\ViT-L-14.pt",
+                              "size_mb":  889.56,
+                              "ext":  ".pt"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\app\\intermediates\\merged_native_libs\\debug\\mergeDebugNativeLibs\\out\\lib\\arm64-v8a\\libflutter.so",
+                              "size_mb":  374.34,
+                              "ext":  ".so"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\waverep\\demo\\weights\\weights_dinov2_G4.ckpt",
+                              "size_mb":  330.13,
+                              "ext":  ".ckpt"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\venv312\\Lib\\site-packages\\torch\\lib\\torch_cpu.dll",
+                              "size_mb":  291.72,
+                              "ext":  ".dll"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.venv\\Lib\\site-packages\\torch\\lib\\torch_cpu.dll",
+                              "size_mb":  291.72,
+                              "ext":  ".dll"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\.venv_waverep_benchmark\\Lib\\site-packages\\torch\\lib\\torch_cpu.dll",
+                              "size_mb":  291.72,
+                              "ext":  ".dll"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\app\\intermediates\\merged_native_libs\\debug\\mergeDebugNativeLibs\\out\\lib\\arm64-v8a\\libVkLayer_khronos_validation.so",
+                              "size_mb":  237.13,
+                              "ext":  ".so"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\koniq10k\\official_musiq_engine_verification\\cache\\tfhub\\a5e1c51ceccb5074aa6e1ed774b7ba4f4c79bbee\\saved_model.pb",
+                              "size_mb":  210.89,
+                              "ext":  ".pb"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\app\\outputs\\flutter-apk\\app-debug.apk",
+                              "size_mb":  174.92,
+                              "ext":  ".apk"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\app\\outputs\\apk\\debug\\app-debug.apk",
+                              "size_mb":  174.92,
+                              "ext":  ".apk"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\app\\intermediates\\incremental\\debug-mergeJavaRes\\zip-cache\\8AbghFSXFZoM2kVrcV3dNNr6mAs=",
+                              "size_mb":  171.52,
+                              "ext":  ""
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\app\\intermediates\\merged_native_libs\\release\\mergeReleaseNativeLibs\\out\\lib\\arm64-v8a\\libflutter.so",
+                              "size_mb":  156.18,
+                              "ext":  ".so"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\SPAQ_Part_4.zip",
+                              "size_mb":  140.56,
+                              "ext":  ".zip"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\SPAQ_Part_3.zip",
+                              "size_mb":  132.62,
+                              "ext":  ".zip"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\SPAQ_Part_5.zip",
+                              "size_mb":  132.52,
+                              "ext":  ".zip"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\SPAQ_Part_2.zip",
+                              "size_mb":  119.32,
+                              "ext":  ".zip"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\koniq10k\\musiq_paq2piq_benchmark\\_smoke\\cache\\torch\\hub\\pyiqa\\musiq_paq2piq_ckpt-364c0c84.pth",
+                              "size_mb":  103.58,
+                              "ext":  ".pth"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\koniq10k\\musiq_paq2piq_benchmark\\cache\\torch\\hub\\pyiqa\\musiq_paq2piq_ckpt-364c0c84.pth",
+                              "size_mb":  103.58,
+                              "ext":  ".pth"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\livec\\output\\run_livec_001\\cache\\torch\\hub\\pyiqa\\musiq_paq2piq_ckpt-364c0c84.pth",
+                              "size_mb":  103.58,
+                              "ext":  ".pth"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.git\\objects\\6c\\cb112993bf15c1b76b48cdacebb8874a816915",
+                              "size_mb":  96.33,
+                              "ext":  ""
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\SPAQ_Part_1.zip",
+                              "size_mb":  90.42,
+                              "ext":  ".zip"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.dart_tool\\flutter_build\\15db6a28460da2eadffb1b325c74523e\\app.dill",
+                              "size_mb":  85.52,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\app\\intermediates\\flutter\\debug\\flutter_assets\\kernel_blob.bin",
+                              "size_mb":  85.52,
+                              "ext":  ".bin"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\app\\intermediates\\assets\\debug\\mergeDebugAssets\\flutter_assets\\kernel_blob.bin",
+                              "size_mb":  85.52,
+                              "ext":  ".bin"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\1e57b4283dd269ba75191ea2755bf355.cache.dill.track.dill",
+                              "size_mb":  85.52,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.dart_tool\\flutter_build\\6625f10bb66c34fba873991c1ce0980d\\app.dill",
+                              "size_mb":  85.29,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\19525320a6ec636a435c457830c6eb6c.cache.dill.track.dill",
+                              "size_mb":  85.29,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.dart_tool\\flutter_build\\2d8c39333422b9ff19e7a641b62e5080\\app.dill",
+                              "size_mb":  85.27,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.dart_tool\\flutter_build\\debb782a26ceee1da391ae0d0f3dfb65\\app.dill",
+                              "size_mb":  85.25,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\f47f4144d812b08b0d3cd588bdf749bd.cache.dill.track.dill",
+                              "size_mb":  85.25,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.dart_tool\\flutter_build\\069770e90a4a38396c69c9b5dc9cc310\\app.dill",
+                              "size_mb":  85.21,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\.dart_tool\\flutter_build\\8fa0b59a7414d4fc47bd824ec19d8165\\app.dill",
+                              "size_mb":  84.91,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\venv312\\Lib\\site-packages\\cv2\\cv2.pyd",
+                              "size_mb":  81.87,
+                              "ext":  ".pyd"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\.venv_musiq_phase4b\\Lib\\site-packages\\clang\\native\\libclang.dll",
+                              "size_mb":  80.1,
+                              "ext":  ".dll"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\uploads\\videos\\4b1a01795fe4401fa39b71f2e75baba9.mp4",
+                              "size_mb":  75.71,
+                              "ext":  ".mp4"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\build\\test_cache\\build\\1e57b4283dd269ba75191ea2755bf355.cache.dill.track.dill",
+                              "size_mb":  72.09,
+                              "ext":  ".dill"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\.venv_waverep_benchmark\\Lib\\site-packages\\cv2\\cv2.pyd",
+                              "size_mb":  71.28,
+                              "ext":  ".pyd"
+                          },
+                          {
+                              "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\android\\.gradle\\8.14\\executionHistory\\executionHistory.bin",
+                              "size_mb":  49.62,
+                              "ext":  ".bin"
+                          }
+                      ],
+    "model_files":  [
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\experiments\\probe\\modelscope_cache\\models\\shuinishaojiu--PROBE-AIGI-Detection\\snapshots\\master\\DINOv2_best_model_step_34999.pth",
+                            "size_mb":  1161.27
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\univfd\\ViT-L-14.pt",
+                            "size_mb":  889.56
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\waverep\\demo\\weights\\weights_dinov2_G4.ckpt",
+                            "size_mb":  330.13
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\koniq10k\\official_musiq_engine_verification\\cache\\tfhub\\a5e1c51ceccb5074aa6e1ed774b7ba4f4c79bbee\\saved_model.pb",
+                            "size_mb":  210.89
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\livec\\output\\run_livec_001\\cache\\torch\\hub\\pyiqa\\musiq_paq2piq_ckpt-364c0c84.pth",
+                            "size_mb":  103.58
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\koniq10k\\musiq_paq2piq_benchmark\\_smoke\\cache\\torch\\hub\\pyiqa\\musiq_paq2piq_ckpt-364c0c84.pth",
+                            "size_mb":  103.58
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\koniq10k\\musiq_paq2piq_benchmark\\cache\\torch\\hub\\pyiqa\\musiq_paq2piq_ckpt-364c0c84.pth",
+                            "size_mb":  103.58
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\efficientnet_b0_heads.pt",
+                            "size_mb":  15.61
+                        }
+                    ],
+    "media_stats":  [
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\fresh_validation",
+                            "count":  100,
+                            "size_mb":  207.65
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\video_metadata_test",
+                            "count":  1,
+                            "size_mb":  16.95
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\tools",
+                            "count":  2755,
+                            "size_mb":  2095.92
+                        },
+                        {
+                            "path":  "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\uploads",
+                            "count":  18,
+                            "size_mb":  105.35
+                        }
+                    ],
+    "duplicate_groups":  [
+                             {
+                                 "sha256":  "E68407C21DC94CB69C0E7C480CF598A7E13CEEEF8CC0C70B18C6AA1CE777AE3B",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\04331.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\04331.jpg"
+                                           ],
+                                 "size_mb":  11.69
+                             },
+                             {
+                                 "sha256":  "D3D80C06E526241D82BF1BAB5B4854DFDCE5A432EBB4ED45135213B9E494E8FC",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_4\\images\\10606.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\10606.jpg"
+                                           ],
+                                 "size_mb":  7.49
+                             },
+                             {
+                                 "sha256":  "19D65E98E4D53F36116328E7F9D3CEE4EBE65BD41425E4EF5CF514D8A5BD8B3B",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_4\\images\\04243.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\04243.jpg"
+                                           ],
+                                 "size_mb":  7.29
+                             },
+                             {
+                                 "sha256":  "476DCE18AB5B69481661F8D3C8002DF9FDF504092142FC36C018090122EA3648",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_5\\images\\07316.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\07316.jpg"
+                                           ],
+                                 "size_mb":  7.28
+                             },
+                             {
+                                 "sha256":  "E16158B68124D202B3BAC0D4D5D42921A4838F8105A74509EA13D5954B807644",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_5\\images\\04835.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\04835.jpg"
+                                           ],
+                                 "size_mb":  7.1
+                             },
+                             {
+                                 "sha256":  "8C6EAB3A1B618547CF6D9E00807082B4FF283C0A7E5E3716F7AD016F515689A5",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_5\\images\\05972.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\05972.jpg"
+                                           ],
+                                 "size_mb":  6.99
+                             },
+                             {
+                                 "sha256":  "F4C101D86FE95590D171D7104EC8DA1DB732AA39B6352A93D4FF4BA2E902EE15",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_5\\images\\03831.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\03831.jpg"
+                                           ],
+                                 "size_mb":  6.75
+                             },
+                             {
+                                 "sha256":  "C5BF3F7463F8B303DF484BD4E5979B46DEC377B30327AE7B7CEB6D9E603982C1",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_2\\images\\01181.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\01181.jpg"
+                                           ],
+                                 "size_mb":  5.9
+                             },
+                             {
+                                 "sha256":  "B0B815F6260957FFB2006FED50DFC1DB1E78F8AC1982F07D213ED6D42FC15D30",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\04370.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\04370.jpg"
+                                           ],
+                                 "size_mb":  5.76
+                             },
+                             {
+                                 "sha256":  "23C0EB143336F9E66CFF370E8841ED9F65F3671A828BE3134476132D35C8298B",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\09524.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\09524.jpg"
+                                           ],
+                                 "size_mb":  5.75
+                             },
+                             {
+                                 "sha256":  "C15AA137BAC7227C4D689DF5570DD73B1ABF0019401D42C9C9547213C71368EF",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_4\\images\\09260.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\09260.jpg"
+                                           ],
+                                 "size_mb":  5.73
+                             },
+                             {
+                                 "sha256":  "C21B70BFE86F258C7EBE605FE8EE5DF9C37241C600DA06F531B9D0377A29BEBA",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_4\\images\\01522.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\01522.jpg"
+                                           ],
+                                 "size_mb":  5.6
+                             },
+                             {
+                                 "sha256":  "313BDAE874B11B2D911978B660C7D79275EBCBE9D026F4AF3171EAB5BFDE7DF7",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_4\\images\\00304.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\00304.jpg"
+                                           ],
+                                 "size_mb":  5.44
+                             },
+                             {
+                                 "sha256":  "C9D35F15B4284CAB3E9E654189D27FB8C0B28DBD36D96308C7ADDDFC01FA55BF",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\10089.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\10089.jpg"
+                                           ],
+                                 "size_mb":  5.37
+                             },
+                             {
+                                 "sha256":  "A3BB4968A50207D26EA4ED0585EC013EEDE899D85EE4313DD84579D70F3BF9A1",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_5\\images\\00375.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\00375.jpg"
+                                           ],
+                                 "size_mb":  5.26
+                             },
+                             {
+                                 "sha256":  "EC347EA8E88924FDC21EF70554E8C25A1F8B95D79E237FEF854E29D29A6E6866",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_4\\images\\05290.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\05290.jpg"
+                                           ],
+                                 "size_mb":  5.25
+                             },
+                             {
+                                 "sha256":  "57E387565C5CCBA7ECA661117CCC5C1399586BF63BCA120E9AF837B26DE8A7D1",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\09711.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\09711.jpg"
+                                           ],
+                                 "size_mb":  5.24
+                             },
+                             {
+                                 "sha256":  "855B7263A4765DDB425BDCE0AA2F751B43FA24D19374853FA3E9261EB6EB7A70",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_1\\images\\08171.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\08171.jpg"
+                                           ],
+                                 "size_mb":  5.22
+                             },
+                             {
+                                 "sha256":  "87191F1F59B49A96D7CBB7C7F62D449F89536B5DCA335F6F285ED34BFA1B2592",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\00058.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\00058.jpg"
+                                           ],
+                                 "size_mb":  5.15
+                             },
+                             {
+                                 "sha256":  "45D7B19A8C67519AABF6C12DAAA162CBF4EFA97885A99C1896F95DC050BA2B9C",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_4\\images\\09675.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\09675.jpg"
+                                           ],
+                                 "size_mb":  5.02
+                             },
+                             {
+                                 "sha256":  "16A9AA0DF0E547224493AD02DBA9EE01BBCBB9D47C7068F571F8E769D492CFB9",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_2\\images\\01148.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\01148.jpg"
+                                           ],
+                                 "size_mb":  4.98
+                             },
+                             {
+                                 "sha256":  "3022F5E4F9876EAF9979F00E7A07264F0E4A563B9481AA35715B25ACC07BF0A0",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\01197.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\01197.jpg"
+                                           ],
+                                 "size_mb":  4.91
+                             },
+                             {
+                                 "sha256":  "C4ED7BFEC9DD237594EDE1FB457B94B91CBB1411529739EDF349DBFB2C95B27C",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_5\\images\\06900.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\06900.jpg"
+                                           ],
+                                 "size_mb":  4.77
+                             },
+                             {
+                                 "sha256":  "22D67E1EF8E57890AF733E1672084446EB73A4422CDD3A6F0E20C52A9DC29FD3",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\09931.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\09931.jpg"
+                                           ],
+                                 "size_mb":  4.76
+                             },
+                             {
+                                 "sha256":  "5F89FD02881D428EB0E64AB603083F9C4E135C038D179B7EFD74BFAA75263107",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\11086.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\11086.jpg"
+                                           ],
+                                 "size_mb":  4.75
+                             },
+                             {
+                                 "sha256":  "6C52258E7D4CCC67C3D5B657C56DC77CAE274BD1298CA18A4AC67F3A1F85F5F7",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\08909.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\08909.jpg"
+                                           ],
+                                 "size_mb":  4.72
+                             },
+                             {
+                                 "sha256":  "C3E628EECD7065B22ADC91330DBF83993B6ABA53DCD223E2558BEE540DB08FA9",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_5\\images\\07205.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\07205.jpg"
+                                           ],
+                                 "size_mb":  4.72
+                             },
+                             {
+                                 "sha256":  "6F48A8C9F353CB6165EB161A5194BD83AA97B593C4A52C00E56950DD72ED7164",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_5\\images\\02370.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\02370.jpg"
+                                           ],
+                                 "size_mb":  4.62
+                             },
+                             {
+                                 "sha256":  "2E35FE359B58626F3A58F9DC98F41C8C47422805B19D58E8CDF52173C35A28A6",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_3\\images\\01996.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\01996.jpg"
+                                           ],
+                                 "size_mb":  4.59
+                             },
+                             {
+                                 "sha256":  "148E02862536872494D6EEB419A8B686BC7A0D82DEF004243E6F0A11773F012F",
+                                 "count":  2,
+                                 "paths":  [
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\extracted\\SPAQ_Part_1\\images\\09987.jpg",
+                                               "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\workspace\\datasets\\spaq\\images\\09987.jpg"
+                                           ],
+                                 "size_mb":  4.58
+                             }
+                         ],
+    "docker":  {
+                   "system_df_v":  "docker : failed to connect to the docker API at \r\nnpipe:////./pipe/dockerDesktopLinuxEngine; check if the path is \r\ncorrect and if the daemon is running: open \r\n//./pipe/dockerDesktopLinuxEngine: The system cannot find the \r\nfile specified.\r\nAt \r\nC:\\Users\\Dell\\Desktop\\access_mobile\\_storage_audit_scan.ps1:156 \r\nchar:26\r\n+   $docker.system_df_v = (docker system df -v 2\u003e\u00261 | Out-String)\r\n+                          ~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (failed to conne...fi \r\n   le specified.:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n",
+                   "ps":  "docker : failed to connect to the docker API at \r\nnpipe:////./pipe/dockerDesktopLinuxEngine; check if the path is \r\ncorrect and if the daemon is running: open \r\n//./pipe/dockerDesktopLinuxEngine: The system cannot find the \r\nfile specified.\r\nAt \r\nC:\\Users\\Dell\\Desktop\\access_mobile\\_storage_audit_scan.ps1:159 \r\nchar:17\r\n+ ... ocker.ps = (docker ps -a --format \u0027{{.Names}} {{.Status}} \r\n{{.Size}}\u0027  ...\r\n+                 \r\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (failed to conne...fi \r\n   le specified.:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n",
+                   "volumes":  "docker : failed to connect to the docker API at \r\nnpipe:////./pipe/dockerDesktopLinuxEngine; check if the path is \r\ncorrect and if the daemon is running: open \r\n//./pipe/dockerDesktopLinuxEngine: The system cannot find the \r\nfile specified.\r\nAt \r\nC:\\Users\\Dell\\Desktop\\access_mobile\\_storage_audit_scan.ps1:158 \r\nchar:22\r\n+   $docker.volumes = (docker volume ls 2\u003e\u00261 | Out-String)\r\n+                      ~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (failed to conne...fi \r\n   le specified.:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n",
+                   "system_df":  "docker : failed to connect to the docker API at \r\nnpipe:////./pipe/dockerDesktopLinuxEngine; check if the path is \r\ncorrect and if the daemon is running: open \r\n//./pipe/dockerDesktopLinuxEngine: The system cannot find the \r\nfile specified.\r\nAt \r\nC:\\Users\\Dell\\Desktop\\access_mobile\\_storage_audit_scan.ps1:155 \r\nchar:24\r\n+   $docker.system_df = (docker system df 2\u003e\u00261 | Out-String)\r\n+                        ~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (failed to conne...fi \r\n   le specified.:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n",
+                   "images":  "docker : failed to connect to the docker API at \r\nnpipe:////./pipe/dockerDesktopLinuxEngine; check if the path is \r\ncorrect and if the daemon is running: open \r\n//./pipe/dockerDesktopLinuxEngine: The system cannot find the \r\nfile specified.\r\nAt \r\nC:\\Users\\Dell\\Desktop\\access_mobile\\_storage_audit_scan.ps1:157 \r\nchar:21\r\n+ ... r.images = (docker images --format \r\n\u0027{{.Repository}}:{{.Tag}} {{.Size} ...\r\n+                 \r\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (failed to conne...fi \r\n   le specified.:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n"
+               }
+}

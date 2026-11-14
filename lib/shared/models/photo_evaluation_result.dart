@@ -1,4 +1,5 @@
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
+import 'package:access_mobile/shared/models/rule_based_quality_feedback.dart';
 
 /// Structured photo evaluation result (1–5 per criterion).
 class CriterionScore {
@@ -289,7 +290,7 @@ class AiDetectionResult {
   }
 }
 
-/// Gemini-generated narrative feedback (scores come only from EfficientNet-B0).
+/// Narrative mentor feedback (Gemini when available; otherwise rule-based from scores).
 class MediaEvaluationFeedback {
   const MediaEvaluationFeedback({
     required this.explanation,
@@ -343,46 +344,35 @@ class MediaEvaluationFeedback {
     return full.split(RegExp(r'\s+')).first;
   }
 
-  factory MediaEvaluationFeedback.fromLocal(PhotoEvaluationResult result) {
-    final isVideo = result.isVideo;
-    final mediaLabel = isVideo ? 'video' : 'photo';
+  factory MediaEvaluationFeedback.fromLocal(
+    PhotoEvaluationResult result, {
+    List<String>? qualityWarnings,
+  }) {
     final firstName = _memberFirstNameForFeedback();
-    final namePrefix = firstName.isNotEmpty ? '$firstName, ' : '';
-    final strong = result.criteria.where((c) => c.score >= 4).toList();
-    final weak = result.criteria.where((c) => c.score <= 2).toList();
-
-    final strengths = result.strengths.isNotEmpty
-        ? result.strengths
-        : strong
-            .map((c) => c.explanation.trim().isNotEmpty ? c.explanation : 'Your ${c.name.toLowerCase()} looks solid.')
-            .toList();
-    final improvements = result.weaknesses.isNotEmpty
-        ? result.weaknesses
-        : weak
-            .map((c) => c.explanation.trim().isNotEmpty ? c.explanation : 'There is room to improve ${c.name.toLowerCase()}.')
-            .toList();
-    final tips = result.criteria
-        .where((c) => c.score <= 3 && c.suggestion.isNotEmpty)
-        .map((c) => c.suggestion)
-        .toSet()
-        .toList();
-
-    final opening = strong.isNotEmpty
-        ? '${namePrefix}Great effort on this $mediaLabel! You are already showing strength in ${strong.map((c) => c.name.toLowerCase()).join(', ')}!'
-        : '${namePrefix}Thank you for sharing this $mediaLabel. Every submission is a step forward in building your documentation skills!';
-
-    final summary = result.overallPercent >= 75
-        ? ' Your overall quality is coming together nicely.'
-        : result.overallPercent >= 60
-            ? ' You have a good foundation to build on with a bit more polish.'
-            : ' There is clear potential here. Small adjustments to technique will make a noticeable difference.';
-
+    final warnings = qualityWarnings ?? result.qualityWarnings;
+    final built = RuleBasedQualityFeedback.build(
+      criteria: [
+        for (final c in result.criteria)
+          RuleBasedQualityInput(
+            name: c.name,
+            score: c.score,
+            available: c.available,
+            explanation: c.explanation,
+            suggestion: c.suggestion,
+          ),
+      ],
+      isVideo: result.isVideo,
+      overallScore: result.overallScore,
+      qualityLevel: result.qualityLevel,
+      memberFirstName: firstName.isEmpty ? null : firstName,
+      qualityWarnings: warnings,
+    );
     return MediaEvaluationFeedback(
-      explanation: energeticFeedbackText('$opening$summary'),
-      strengths: strengths,
-      improvements: improvements,
-      tips: tips,
-      closingMessage: 'Keep practicing and submitting. Consistency is how great documenters are made!',
+      explanation: energeticFeedbackText(built.explanation),
+      strengths: built.strengths,
+      improvements: built.improvements,
+      tips: built.tips,
+      closingMessage: built.closingMessage,
     );
   }
 
@@ -394,6 +384,24 @@ class MediaEvaluationFeedback {
         closingMessage: closingMessage.trim().isEmpty
             ? closingMessage
             : (closingMessage.trim().endsWith('!') ? closingMessage : '${closingMessage.trim()}!'),
+      );
+
+  /// Strip score-like numbers from narrative fields (metric cards keep their own scores).
+  MediaEvaluationFeedback withoutNarrativeMeasurements() => MediaEvaluationFeedback(
+        explanation: RuleBasedQualityFeedback.stripNarrativeMeasurements(explanation),
+        strengths: strengths
+            .map(RuleBasedQualityFeedback.stripNarrativeMeasurements)
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        improvements: improvements
+            .map(RuleBasedQualityFeedback.stripNarrativeMeasurements)
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        tips: tips
+            .map(RuleBasedQualityFeedback.stripNarrativeMeasurements)
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        closingMessage: RuleBasedQualityFeedback.stripNarrativeMeasurements(closingMessage),
       );
 }
 
@@ -524,6 +532,8 @@ class PhotoEvaluationResult {
     this.evaluationAvailable = true,
     this.qualityEngine,
     this.opencvFallback = false,
+    this.qualityWarnings = const [],
+    this.scoringFormulaVersion,
   });
 
   final List<CriterionScore> criteria;
@@ -553,6 +563,19 @@ class PhotoEvaluationResult {
   final bool evaluationAvailable;
   final String? qualityEngine;
   final bool opencvFallback;
+  /// Backend `quality_warnings` used for directional rule-based tips (e.g. underexposure).
+  final List<String> qualityWarnings;
+
+  /// Backend scoring formula: `v1` seven-criterion mean, `v2` unified Clarity.
+  /// Missing value means historical v1. Flutter never recomputes overall from criteria.
+  final String? scoringFormulaVersion;
+
+  /// Effective formula for display/debug; historical payloads without the field are v1.
+  String get scoringFormulaVersionEffective {
+    final raw = (scoringFormulaVersion ?? '').trim().toLowerCase();
+    if (raw == 'v2' || raw == 'v1') return raw;
+    return 'v1';
+  }
 
   int get overallPercent =>
       evaluationAvailable ? ((overallScore / 5) * 100).round().clamp(0, 100) : 0;
@@ -668,6 +691,7 @@ class PhotoEvaluationResult {
       'ai_detection': aiDetection.toJson(),
       'media_type': mediaType,
       'scoring_model': scoringModel,
+      if (scoringFormulaVersion != null) 'scoring_formula_version': scoringFormulaVersion,
       'strengths': strengths,
       'weaknesses': weaknesses,
       'quality_disclaimer':
@@ -809,6 +833,13 @@ class PhotoEvaluationResult {
       evaluationAvailable: !failed,
       qualityEngine: analysis?['quality_engine'] as String? ?? j['scoring_engine'] as String?,
       opencvFallback: analysis?['opencv_fallback'] == true,
+      qualityWarnings: (j['quality_warnings'] as List?)
+              ?.map((e) => e.toString())
+              .where((s) => s.trim().isNotEmpty)
+              .toList() ??
+          const [],
+      scoringFormulaVersion: j['scoring_formula_version'] as String? ??
+          analysis?['scoring_formula_version'] as String?,
     );
   }
 
@@ -844,6 +875,8 @@ class PhotoEvaluationResult {
       evaluationAvailable: evaluationAvailable,
       qualityEngine: qualityEngine,
       opencvFallback: opencvFallback,
+      qualityWarnings: qualityWarnings,
+      scoringFormulaVersion: scoringFormulaVersion,
     );
   }
 
@@ -889,6 +922,8 @@ class PhotoEvaluationResult {
         evaluationAvailable: evaluationAvailable,
         qualityEngine: qualityEngine,
         opencvFallback: opencvFallback,
+        qualityWarnings: qualityWarnings,
+        scoringFormulaVersion: scoringFormulaVersion,
       );
 
   PhotoEvaluationResult copyWithGemini(MediaEvaluationFeedback gf, {bool geminiFeedbackIsLocal = false}) {
@@ -931,6 +966,8 @@ class PhotoEvaluationResult {
         evaluationAvailable: evaluationAvailable,
         qualityEngine: qualityEngine,
         opencvFallback: opencvFallback,
+        qualityWarnings: qualityWarnings,
+        scoringFormulaVersion: scoringFormulaVersion,
       );
   }
 }

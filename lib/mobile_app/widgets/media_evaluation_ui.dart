@@ -275,6 +275,7 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
                   )
                 : gf,
             dense: dense,
+            isLocalFallback: feedbackIsLocalFallback,
           ),
         ],
       ],
@@ -303,7 +304,7 @@ class LocalFeedbackNotice extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Gemini feedback is unavailable right now. Showing an offline summary from your scores.',
+              'Live AI mentor feedback is unavailable right now. Showing score-based quality feedback from your measured results (not Gemini-generated).',
               style: evalBodyStyle.copyWith(
                 fontSize: 12,
                 color: kTextPrimary,
@@ -320,10 +321,16 @@ class LocalFeedbackNotice extends StatelessWidget {
 
 /// Card wrapper for Gemini mentor feedback below technical scores.
 class AiFeedbackCard extends StatelessWidget {
-  const AiFeedbackCard({super.key, required this.feedback, this.dense = false});
+  const AiFeedbackCard({
+    super.key,
+    required this.feedback,
+    this.dense = false,
+    this.isLocalFallback = false,
+  });
 
   final MediaEvaluationFeedback feedback;
   final bool dense;
+  final bool isLocalFallback;
 
   @override
   Widget build(BuildContext context) {
@@ -343,12 +350,16 @@ class AiFeedbackCard extends StatelessWidget {
                   gradient: kEvalSoftGradient,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: kEvalSecondary, size: 17),
+                child: Icon(
+                  isLocalFallback ? Icons.insights_rounded : Icons.auto_awesome_rounded,
+                  color: kEvalSecondary,
+                  size: 17,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'AI Feedback',
+                  isLocalFallback ? 'Score-based quality feedback' : 'AI Feedback',
                   style: evalCardTitleStyle.copyWith(fontSize: dense ? 14 : 15),
                 ),
               ),

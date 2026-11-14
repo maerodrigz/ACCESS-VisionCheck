@@ -1,0 +1,16 @@
+# Cloudflare Worker for Phase 6B API. Do not deploy until secrets + Supabase are ready.
+name = "access-phase6b-api"
+main = "src/index.js"
+compatibility_date = "2024-11-12"
+
+# Secrets (never commit; use wrangler secret put):
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SECRET_KEY          # preferred: sb_secret_...
+#   wrangler secret put FACILITATOR_TOKEN
+# Legacy only if still required:
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY   # eyJ... JWT
+
+[vars]
+SUPABASE_STORAGE_BUCKET = "phase6b-indval"
+# PAGES_BASE_URL = "https://YOUR-PAGES.pages.dev"
+# SUPABASE_URL may be a secret or a [vars] entry (non-secret project URL is OK)

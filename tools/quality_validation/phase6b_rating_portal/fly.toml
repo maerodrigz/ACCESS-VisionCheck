@@ -1,0 +1,38 @@
+# Fly.io config for Phase 6B human rating portal.
+# This file does NOT deploy by itself. See DEPLOYMENT.md.
+#
+#   fly auth login
+#   fly apps create access-phase6b-ratings
+#   fly volumes create phase6b_data --region sin --size 1
+#   fly secrets set EVALUATOR_INVITES="..." FACILITATOR_TOKEN="..."
+#   python scripts/stage_images.py
+#   fly deploy --remote-only --config fly.toml
+
+app = "access-phase6b-ratings"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8090"
+  DATABASE_PATH = "/data/ratings.sqlite3"
+  IMAGES_DIR = "/app/images"
+  ALLOW_BOOTSTRAP_WITHOUT_SECRETS = "false"
+
+[http_service]
+  internal_port = 8090
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[mounts]]
+  source = "phase6b_data"
+  destination = "/data"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

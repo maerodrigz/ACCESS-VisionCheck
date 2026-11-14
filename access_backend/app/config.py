@@ -159,9 +159,9 @@ class Settings(BaseSettings):
     quality_shadow_anon_salt: str = Field(default="", alias="QUALITY_SHADOW_ANON_SALT")
     quality_shadow_retention_days: int = Field(default=90, alias="QUALITY_SHADOW_RETENTION_DAYS")
 
-    # Production quality engine selector. Default enet = EfficientNet-B0 (unchanged).
-    # musiq_worker enables the remote client for test/shadow calls only in this release;
-    # media_evaluator still serves ENET until an explicit cutover.
+    # Production quality engine selector. Default enet = EfficientNet-B0 (rollback / pre-cutover).
+    # Phase 7G target: musiq_worker = MUSIQ + classical OpenCV, fallback optimized local OpenCV
+    # only (ENET inactive on that path; weights retained). Do not set musiq_worker in .env until cutover.
     quality_engine: str = Field(default="enet", alias="QUALITY_ENGINE")
     musiq_worker_url: str = Field(default="", alias="MUSIQ_WORKER_URL")
     musiq_worker_token: str = Field(default="", alias="MUSIQ_WORKER_TOKEN")

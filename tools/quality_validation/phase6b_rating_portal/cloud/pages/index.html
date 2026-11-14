@@ -1,0 +1,101 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0052D4" />
+  <title>ACCESS VisionCheck — Phase 6B Rating</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <meta name="api-base" content="https://access-phase6b-api.reaganaldric0.workers.dev" />
+  <script>window.PHASE6B_API_BASE = "https://access-phase6b-api.reaganaldric0.workers.dev";</script>
+</head>
+<body>
+  <div id="gate" class="app gate">
+    <div class="card">
+      <h1>ACCESS VisionCheck</h1>
+      <p class="muted">Phase 6B independent human quality rating (100 images).</p>
+      <p class="muted">Use the secure invite link from the facilitator. Do not share your link.</p>
+      <label class="muted" for="inviteInput">Invite token (if opening this page directly)</label>
+      <input id="inviteInput" type="password" autocomplete="off" style="width:100%;margin:0.4rem 0 0.8rem;padding:0.6rem;border-radius:10px;border:1px solid #e2e8f0;" />
+      <button class="primary" id="btnStart" type="button">Sugod / Start</button>
+      <p id="gateError" class="save-status err"></p>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <div class="topbar">
+      <div class="brand">ACCESS <span>VisionCheck</span></div>
+      <div class="pill" id="whoPill">Evaluator</div>
+      <div class="pill" id="progressPill">Image 1 of 100</div>
+    </div>
+
+    <div class="banner" id="scaleGuide">
+      <strong>Giya sa rating (1–5)</strong>
+      <ul class="scale-guide">
+        <li><span class="sg-num">1</span> Dili gyud maayo</li>
+        <li><span class="sg-num">2</span> Dili kaayo maayo</li>
+        <li><span class="sg-num">3</span> Sakto-sakto lang</li>
+        <li><span class="sg-num">4</span> Maayo</li>
+        <li><span class="sg-num">5</span> Maayo kaayo</li>
+        <li><span class="sg-num na">N/A</span> Dili applicable</li>
+      </ul>
+      <p class="banner-note">
+        Mas taas = mas maayo (lakip blur, noise, blocking, ringing).
+        Ayaw hunahunaa kung AI ba.
+        Kung unsure, gamita ang <strong>N/A</strong>, dili ang 3.
+      </p>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;gap:0.5rem;align-items:center;margin-bottom:0.45rem;">
+        <strong id="imageTitle">INDVAL-001</strong>
+        <span class="save-status" id="saveStatus">Ready</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="viewer" id="viewer">
+        <img id="photo" alt="Blinded evaluation image" draggable="false" />
+      </div>
+      <div class="viewer-tools">
+        <button type="button" id="zoomOut">Zoom −</button>
+        <button type="button" id="zoomIn">Zoom +</button>
+        <button type="button" id="zoomReset">Fit</button>
+        <button type="button" id="zoom200">100–200%</button>
+      </div>
+    </div>
+
+    <div class="card" id="criteriaCard"></div>
+
+    <div class="card">
+      <label for="notes"><strong>Notes</strong> (optional)</label>
+      <textarea id="notes" placeholder="Optional notes for this image"></textarea>
+    </div>
+
+    <div class="card">
+      <strong>Jump / resume</strong>
+      <p class="muted" style="margin:0.25rem 0 0.55rem;font-size:0.85rem;">Green = complete. Orange = partial. Tap to open.</p>
+      <div class="thumb-grid" id="thumbGrid"></div>
+    </div>
+  </div>
+
+  <div id="summary" class="app summary hidden">
+    <div class="card">
+      <h1>Completion summary</h1>
+      <p id="summaryText" class="muted"></p>
+      <ul id="summaryList"></ul>
+      <button class="primary" id="btnFinalSubmit" type="button">Submit final answers</button>
+      <button class="ghost" id="btnBackEdit" type="button">Balik / Keep editing</button>
+      <p id="summaryError" class="save-status err"></p>
+    </div>
+  </div>
+
+  <div class="dock hidden" id="dock">
+    <button type="button" id="btnPrev">Previous</button>
+    <button type="button" class="primary btn-wide" id="btnNext">Save &amp; Next</button>
+    <button type="button" id="btnReview">Review</button>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+
+

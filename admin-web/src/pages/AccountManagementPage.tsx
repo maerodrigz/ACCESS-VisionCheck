@@ -63,6 +63,7 @@ export function AccountManagementPage() {
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>('all')
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
 
   const [profileUserId, setProfileUserId] = useState<number | null>(null)
@@ -91,9 +92,11 @@ export function AccountManagementPage() {
   const { showToast } = useToast()
 
   const filtered = useMemo(
-    () => filterAccounts(allUsers, search, roleFilter, statusFilter),
-    [allUsers, search, roleFilter, statusFilter],
+    () => filterAccounts(allUsers, search, roleFilter, statusFilter, presenceFilter),
+    [allUsers, search, roleFilter, statusFilter, presenceFilter],
   )
+
+  const presenceCounts = useMemo(() => presenceSummary(allUsers), [allUsers])
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -388,7 +391,9 @@ export function AccountManagementPage() {
     }
   }
 
-  const hasFilters = Boolean(search || roleFilter !== 'all' || statusFilter !== 'all')
+  const hasFilters = Boolean(
+    search || roleFilter !== 'all' || statusFilter !== 'all' || presenceFilter !== 'all',
+  )
 
   return (
     <div className="account-mgmt" data-account-management>
@@ -473,14 +478,9 @@ export function AccountManagementPage() {
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="suspended">Suspended</option>
+                <option value="disabled">Disabled</option>
               </select>
             </label>
-            <button
-                <option value="disabled">Disabled</option>
-              type="button"
-              className="account-mgmt__btn account-mgmt__btn--ghost"
-              onClick={loadUsers}
-              disabled={loading}
             <label className="account-mgmt__filter">
               <span className="account-mgmt__filter-label">Presence</span>
               <select
@@ -520,6 +520,18 @@ export function AccountManagementPage() {
           <span>
             <strong>{presenceCounts.disabled}</strong> disabled
           </span>
+        </div>
+
+        {error ? (
+          <div className="account-mgmt__state account-mgmt__state--error" role="alert">
+            <p>{error}</p>
+            <button
+              type="button"
+              className="account-mgmt__btn account-mgmt__btn--ghost"
+              onClick={loadUsers}
+            >
+              Retry
+            </button>
           </div>
         ) : null}
 

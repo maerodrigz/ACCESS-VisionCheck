@@ -1,7 +1,11 @@
 import { AlertTriangle } from 'lucide-react'
 import type { CompetencyMember } from '../../lib/competency'
 import { memberNeedsReview } from '../../lib/competency'
-import { MemberAvatar, TeamCoverageBadge } from '../documentation-team/TeamMemberBadges'
+import {
+  MemberAvatar,
+  MemberSkillBadge,
+  TeamCoverageBadge,
+} from '../documentation-team/TeamMemberBadges'
 import { CompetencyLevelBadge } from './CompetencyBadges'
 
 interface Props {

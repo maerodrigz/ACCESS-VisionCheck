@@ -78,8 +78,9 @@ export function AccountActionsMenu({
   onDeleteMember,
 }: Props) {
   const sk = accountStatusKey(user)
+  const accountEnabled = sk !== 'disabled' && user.is_active !== false
   const protectedAdmin = !canChangePrivilegedFields(user, allUsers)
-  const activateLabel = sk === 'active' ? 'Deactivate Account' : 'Activate Account'
+  const activateLabel = accountEnabled ? 'Deactivate Account' : 'Activate Account'
   const menuId = useId()
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -148,13 +149,13 @@ export function AccountActionsMenu({
       <MenuItem icon={KeyRound} label="Reset Password" onClick={onResetPassword} />
       <hr className="account-mgmt__menu-divider" />
       <MenuItem
-        icon={sk === 'active' ? UserX : UserCheck}
+        icon={accountEnabled ? UserX : UserCheck}
         label={activateLabel}
         onClick={onToggleActive}
-        danger={sk === 'active'}
-        disabled={protectedAdmin && sk === 'active'}
+        danger={accountEnabled}
+        disabled={protectedAdmin && accountEnabled}
         title={
-          protectedAdmin && sk === 'active'
+          protectedAdmin && accountEnabled
             ? 'Cannot deactivate the last active administrator.'
             : undefined
         }

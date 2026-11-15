@@ -123,22 +123,65 @@ function ProfileContent({
 
       <div className="account-mgmt__profile-grid">
         {!isRequestorRole(user.role) ? (
-          <div className="account-mgmt__profile-stat">
-            <span className="account-mgmt__profile-stat-label">Skill Level</span>
-            <span className="account-mgmt__profile-stat-value">
-              {(user as { skill_effective_tier?: string | null }).skill_effective_tier ??
-                user.skill_level ??
-                'N/A'}
-            </span>
-          </div>
+          <>
+            <div className="account-mgmt__profile-stat account-mgmt__profile-stat--full">
+              <span className="account-mgmt__profile-stat-label">Quality Skill Classification</span>
+              <span className="account-mgmt__profile-stat-value" style={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                Media-quality titles shown to the member. Separate from Administrative Competency.
+              </span>
+            </div>
+            <div className="account-mgmt__profile-stat">
+              <span className="account-mgmt__profile-stat-label">Photo Skill</span>
+              <span className="account-mgmt__profile-stat-value">
+                {user.quality_skill_photo_title ?? 'Not Yet Classified'}
+                {user.quality_skill_photo_average != null
+                  ? ` · ${user.quality_skill_photo_average.toFixed(2)}/5`
+                  : ''}
+              </span>
+            </div>
+            <div className="account-mgmt__profile-stat">
+              <span className="account-mgmt__profile-stat-label">Video Skill</span>
+              <span className="account-mgmt__profile-stat-value">
+                {user.quality_skill_video_title ?? 'Not Yet Classified'}
+                {user.quality_skill_video_average != null
+                  ? ` · ${user.quality_skill_video_average.toFixed(2)}/5`
+                  : ''}
+              </span>
+            </div>
+            <div className="account-mgmt__profile-stat">
+              <span className="account-mgmt__profile-stat-label">Administrative Competency</span>
+              <span className="account-mgmt__profile-stat-value">
+                {user.skill_effective_tier ?? user.skill_level ?? 'N/A'}
+              </span>
+            </div>
+          </>
         ) : null}
         <div className="account-mgmt__profile-stat">
           <span className="account-mgmt__profile-stat-label">Date Joined</span>
           <span className="account-mgmt__profile-stat-value">{formatAccountDate(user.created_at)}</span>
         </div>
         <div className="account-mgmt__profile-stat">
-          <span className="account-mgmt__profile-stat-label">Last Active</span>
-          <span className="account-mgmt__profile-stat-value">{formatAccountDateTime(user.last_active)}</span>
+          <span className="account-mgmt__profile-stat-label">Account Status</span>
+          <span className="account-mgmt__profile-stat-value">
+            {user.account_status ||
+              (user.is_active === false ? 'Disabled' : 'Active')}
+          </span>
+        </div>
+        <div className="account-mgmt__profile-stat">
+          <span className="account-mgmt__profile-stat-label">Presence</span>
+          <span className="account-mgmt__profile-stat-value">
+            {user.presence || (user.is_online ? 'Online' : 'Offline')}
+          </span>
+        </div>
+        <div className="account-mgmt__profile-stat">
+          <span className="account-mgmt__profile-stat-label">Last Seen</span>
+          <span className="account-mgmt__profile-stat-value">
+            {formatAccountDateTime(user.last_seen_at ?? user.last_active)}
+          </span>
+        </div>
+        <div className="account-mgmt__profile-stat">
+          <span className="account-mgmt__profile-stat-label">Last Login</span>
+          <span className="account-mgmt__profile-stat-value">{formatAccountDateTime(user.last_login_at)}</span>
         </div>
         <div className="account-mgmt__profile-stat">
           <span className="account-mgmt__profile-stat-label">Tasks Completed</span>

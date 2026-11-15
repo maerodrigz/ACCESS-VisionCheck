@@ -36,8 +36,10 @@ import {
   isRequestorRole,
   mapStatusToApi,
   parseAdminAccountUser,
+  presenceSummary,
   type AccountFormValues,
   type AdminAccountUser,
+  type PresenceFilter,
   type ProfileActivity,
 } from '../lib/accountManagement'
 import '../../components/account-management.css'
@@ -474,6 +476,26 @@ export function AccountManagementPage() {
               </select>
             </label>
             <button
+                <option value="disabled">Disabled</option>
+              type="button"
+              className="account-mgmt__btn account-mgmt__btn--ghost"
+              onClick={loadUsers}
+              disabled={loading}
+            <label className="account-mgmt__filter">
+              <span className="account-mgmt__filter-label">Presence</span>
+              <select
+                className="account-mgmt__select"
+                value={presenceFilter}
+                onChange={(e) => setPresenceFilter(e.target.value as PresenceFilter)}
+              >
+                <option value="all">All</option>
+                <option value="online">Online</option>
+                <option value="offline">Offline</option>
+                <option value="inactive">Inactive 30d</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </label>
+            <button
               type="button"
               className="account-mgmt__btn account-mgmt__btn--ghost"
               onClick={loadUsers}
@@ -485,9 +507,19 @@ export function AccountManagementPage() {
           </div>
         </div>
 
-        {error ? (
-          <div className="account-mgmt__alert account-mgmt__alert--error" role="alert">
-            {error}
+        <div className="account-mgmt__presence-summary" aria-live="polite">
+          <span>
+            <strong>{presenceCounts.online}</strong> online
+          </span>
+          <span>
+            <strong>{presenceCounts.offline}</strong> offline
+          </span>
+          <span>
+            <strong>{presenceCounts.inactive}</strong> inactive 30d
+          </span>
+          <span>
+            <strong>{presenceCounts.disabled}</strong> disabled
+          </span>
           </div>
         ) : null}
 

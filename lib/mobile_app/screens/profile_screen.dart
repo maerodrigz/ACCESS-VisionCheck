@@ -10,6 +10,8 @@ import 'package:access_mobile/mobile_app/screens/edit_profile_screen.dart';
 import 'package:access_mobile/mobile_app/screens/member_achievements_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
+import 'package:access_mobile/mobile_app/widgets/member_improvement_card.dart';
+import 'package:access_mobile/mobile_app/widgets/member_quality_skill_card.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_evaluation_summary.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_settings_section.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_logout_section.dart';
@@ -171,7 +173,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: _kSectionGap),
                           const _QuickStatsStrip(),
                           const SizedBox(height: _kSectionGap),
-                          const MemberProfileSkillProgressSection(),
+                          const MemberQualitySkillCard(),
+                          const SizedBox(height: _kSectionGap),
+                          const MemberImprovementCard(),
                           const SizedBox(height: _kSectionGap),
                           _MyActivitySection(
                             onViewEvaluations: widget.onViewEvaluations,
@@ -265,36 +269,34 @@ class _CompactProfileCard extends StatelessWidget {
   final bool compact;
   final VoidCallback onEdit;
 
-  static String _accountStatusLabel(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-      case 'active':
-        return 'Active';
-      case 'pending':
-        return 'Pending';
-      case 'rejected':
-        return 'Rejected';
-      case 'inactive':
-        return 'Inactive';
-      default:
-        if (status.trim().isEmpty) return '';
-        final t = status.trim();
-        return t[0].toUpperCase() + t.substring(1).toLowerCase();
+  /// Account enablement label — from DB `is_active` / `account_status`, not registration status.
+  static String _accountEnablementLabel({
+    required bool isActive,
+    required String accountStatus,
+  }) {
+    final raw = accountStatus.trim().toLowerCase();
+    if (raw == 'disabled' || !isActive) return 'Disabled';
+    if (raw == 'active' || raw == 'active account') return 'Active Account';
+    if (accountStatus.trim().isNotEmpty) {
+      // Prefer backend wording when present.
+      return accountStatus.trim();
     }
-  }
-
-  static bool _isActiveStatus(String s) {
-    final l = s.trim().toLowerCase();
-    return l == 'approved' || l == 'active';
+    return isActive ? 'Active Account' : 'Disabled';
   }
 
   @override
   Widget build(BuildContext context) {
     final displayName = appState.profileName.trim();
-    final rawStatus = appState.profileStatus.trim();
-    final statusLabel = rawStatus.isNotEmpty ? _accountStatusLabel(rawStatus) : '';
-    final isActive = _isActiveStatus(rawStatus);
-    final competencyLevel = memberDashboardCompetencyLevel();
+    final isActive = appState.profileIsActive;
+    final statusLabel = _accountEnablementLabel(
+      isActive: isActive,
+      accountStatus: appState.profileAccountStatus,
+    );
+    final presenceLabel = appState.profilePresence.trim().isNotEmpty
+        ? appState.profilePresence.trim()
+        : (appState.profileIsOnline ? 'Online' : 'Offline');
+    final isOnline = appState.profileIsOnline ||
+        presenceLabel.toLowerCase() == 'online';
     final titleLabel = appState.profileTitleLabel;
     final imageUrl = appState.profileImageUrl;
     final rank = appState.profileRank;
@@ -352,22 +354,12 @@ class _CompactProfileCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       )),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Skill: $competencyLevel',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: dashText(TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      )),
-                    ),
-                    if (statusLabel.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: isActive
@@ -381,9 +373,9 @@ class _CompactProfileCard extends StatelessWidget {
                               Icon(
                                 isActive
                                     ? Icons.check_circle_rounded
-                                    : Icons.schedule_rounded,
+                                    : Icons.block_rounded,
                                 size: 13,
-                                color: isActive ? Colors.white : kYellow,
+                                color: isActive ? Colors.white : kRed,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -397,8 +389,35 @@ class _CompactProfileCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                      ),
-                    ],
+                        if (isActive)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.circle,
+                                  size: 10,
+                                  color: isOnline ? kGreen : kIconInactive,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  presenceLabel,
+                                  style: dashText(const TextStyle(
+                                    color: kTextPrimary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                  )),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),

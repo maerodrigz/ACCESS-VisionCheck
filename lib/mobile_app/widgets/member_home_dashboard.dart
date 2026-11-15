@@ -7,7 +7,6 @@ import 'package:access_mobile/mobile_app/screens/my_assignments_screen.dart';
 import 'package:access_mobile/mobile_app/sheets/event_detail_sheet.dart';
 import 'package:access_mobile/mobile_app/widgets/gallery_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_announcements.dart';
-import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_profile_requestor_feedback.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
@@ -1676,6 +1675,7 @@ class _HomeAnnouncementRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unread = !announcement.isRead;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1685,14 +1685,32 @@ class _HomeAnnouncementRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: kCyan.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: const Icon(Icons.campaign_outlined, color: kCyan, size: 15),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: kCyan.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: const Icon(Icons.campaign_outlined, color: kCyan, size: 15),
+                  ),
+                  if (unread)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: kCyan,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 9),
               Expanded(
@@ -1705,7 +1723,10 @@ class _HomeAnnouncementRow extends StatelessWidget {
                       announcement.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: memberDashboardCardTitleStyle.copyWith(fontSize: 13),
+                      style: memberDashboardCardTitleStyle.copyWith(
+                        fontSize: 13,
+                        fontWeight: unread ? FontWeight.w800 : FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -1726,7 +1747,7 @@ class _HomeAnnouncementRow extends StatelessWidget {
   }
 }
 
-// ── Skill Progress + Requestor Feedback (stacked full-width cards) ────────────
+// ── My Skill Level + Requestor Feedback (stacked full-width cards) ────────────
 
 const _kPairNavy = Color(0xFF103E56);
 const _kPairMuted = Color(0xFF617F91);
@@ -1863,11 +1884,16 @@ class _HomePairCardHeader extends StatelessWidget {
   }
 }
 
-class _HomeSkillProgressCard extends StatelessWidget {
+class _HomeSkillProgressCard extends StatefulWidget {
   const _HomeSkillProgressCard({this.onViewRankings});
 
   final VoidCallback? onViewRankings;
 
+  @override
+  State<_HomeSkillProgressCard> createState() => _HomeSkillProgressCardState();
+}
+
+class _HomeSkillProgressCardState extends State<_HomeSkillProgressCard> {
   static String _formatXp(int value) {
     final s = value.abs().toString();
     if (s.length <= 3) return s;
@@ -1880,69 +1906,80 @@ class _HomeSkillProgressCard extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      memberDataController.refreshQualitySkillClassification();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: Listenable.merge([appState, memberDataController]),
       builder: (context, _) {
-        final snapshot = MemberCompetencySnapshot.fromAppState();
+        final snap = memberDataController.qualitySkillClassification;
+        final xp = appState.profilePoints;
+        final loading = memberDataController.qualitySkillClassificationLoading &&
+            snap == null;
 
         return _HomePairCardShell(
-          onTap: onViewRankings,
+          onTap: widget.onViewRankings,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _HomePairCardHeader(
-                icon: Icons.emoji_events_outlined,
-                title: 'Skill Progress',
-                actionLabel: onViewRankings == null ? null : 'Rankings',
-                onAction: onViewRankings,
+                icon: Icons.workspace_premium_outlined,
+                title: 'My Skill Level',
+                actionLabel: widget.onViewRankings == null ? null : 'Rankings',
+                onAction: widget.onViewRankings,
               ),
               const SizedBox(height: 8),
-              Text(
-                snapshot.levelName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: dashText(const TextStyle(
-                  color: kAccent,
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                )),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${_formatXp(snapshot.points)} XP',
-                style: dashText(const TextStyle(
-                  color: _kPairNavy,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                )),
-              ),
-              if (snapshot.progressUsesSkillScore) ...[
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: SizedBox(
-                    height: 6,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ColoredBox(color: _kPairBorder.withValues(alpha: 0.7)),
-                        FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: snapshot.progress.clamp(0.0, 1.0),
-                          child: const ColoredBox(color: kCyan),
-                        ),
-                      ],
-                    ),
-                  ),
+              if (loading)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else ...[
+                Text(
+                  snap?.photoLine ?? 'Photo Skill: Not Yet Classified',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: dashText(const TextStyle(
+                    color: kAccent,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                  )),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  snap?.videoLine ?? 'Video Skill: Not Yet Classified',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: dashText(const TextStyle(
+                    color: kAccent,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                  )),
                 ),
               ],
               const SizedBox(height: 6),
               Text(
-                snapshot.progressSubtitle,
-                maxLines: 3,
+                '${_formatXp(xp)} XP · leaderboard participation',
+                style: dashText(const TextStyle(
+                  color: _kPairNavy,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                )),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Quality classifications are separate from XP.',
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: dashText(const TextStyle(
                   color: _kPairMuted,

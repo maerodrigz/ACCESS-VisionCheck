@@ -7,6 +7,7 @@ import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/models/request_status.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
+import 'package:access_mobile/shared/services/presence_heartbeat_service.dart';
 import 'package:access_mobile/shared/widgets/auth_gate.dart';
 import 'package:access_mobile/mobile_app/screens/dashboard_screen.dart';
 import 'package:access_mobile/mobile_app/screens/calendar_screen.dart';
@@ -124,6 +125,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     MemberShellNavigation.openGallery = _openGallery;
     MemberShellNavigation.openHome = () => _goToTab(0);
+    PresenceHeartbeatService.instance.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(AccessGlobalBackground.precache(context));
@@ -141,6 +143,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // PresenceHeartbeatService also observes lifecycle (stop heartbeats when backgrounded).
     if (state == AppLifecycleState.resumed) {
       unawaited(memberDataController.resumePendingPracticeAnalysis());
     }
@@ -310,7 +313,7 @@ class RequesterShell extends StatefulWidget {
   State<RequesterShell> createState() => _RequesterShellState();
 }
 
-class _RequesterShellState extends State<RequesterShell> {
+class _RequesterShellState extends State<RequesterShell> with WidgetsBindingObserver {
   int _navIndex = 0;
   RequestStatus? _requestFilter;
   int? _feedbackRequestId;
@@ -318,6 +321,8 @@ class _RequesterShellState extends State<RequesterShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    PresenceHeartbeatService.instance.start();
     RequestorShellNavigation.openFeedback = _openFeedback;
     RequestorShellNavigation.openGallery = () => _goToTab(RequestorShellTabs.gallery);
     RequestorShellNavigation.openCalendar = () => _goToTab(RequestorShellTabs.calendar);
@@ -331,7 +336,13 @@ class _RequesterShellState extends State<RequesterShell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // PresenceHeartbeatService owns heartbeat start/stop on lifecycle.
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     RequestorShellNavigation.clear();
     super.dispose();
   }

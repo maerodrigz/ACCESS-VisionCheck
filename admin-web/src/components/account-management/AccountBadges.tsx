@@ -49,7 +49,9 @@ export function StatusBadge({ statusKey }: { statusKey: AccountStatusKey }) {
       ? 'account-mgmt__badge--active'
       : statusKey === 'suspended'
         ? 'account-mgmt__badge--suspended'
-        : 'account-mgmt__badge--inactive'
+        : statusKey === 'disabled'
+          ? 'account-mgmt__badge--disabled'
+          : 'account-mgmt__badge--inactive'
   return (
     <span className={`account-mgmt__badge account-mgmt__status-badge ${cls}`}>{statusLabel(statusKey)}</span>
   )

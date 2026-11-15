@@ -73,6 +73,12 @@ class MemberApiService {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  /// Photo/Video quality Skill Classification (not XP / skill progression tiers).
+  Future<Map<String, dynamic>> getQualitySkillClassification() async {
+    final data = await apiClient.get('/member/quality-skill-classification');
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   /// Requestor ratings and comments received by the logged-in member.
   Future<Map<String, dynamic>> getReceivedRequestorRatings({int limit = 20}) async {
     final data = await apiClient.get('/member/requester-ratings?limit=$limit');
@@ -172,6 +178,17 @@ class MemberApiService {
   Future<List<Map<String, dynamic>>> getAnnouncements() async {
     final data = await apiClient.get('/announcements');
     return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> getAnnouncement(int id) async {
+    final data = await apiClient.get('/announcements/$id');
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Marks announcement detail as read (idempotent). Does not reset expiry.
+  Future<Map<String, dynamic>> markAnnouncementRead(int id) async {
+    final data = await apiClient.post('/announcements/$id/read', {});
+    return Map<String, dynamic>.from(data as Map);
   }
 
   Future<void> markNotificationRead(int id) async {

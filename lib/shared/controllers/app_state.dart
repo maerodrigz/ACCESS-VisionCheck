@@ -168,6 +168,13 @@ class Evaluation {
       replacementVerified ||
       MemberReviewStatus.isReuploadRequested(reviewStatus);
 
+  /// DB stores 0–1; older payloads may store 1–5 in criteria_json only.
+  double get displayScore => score <= 1.0 ? score : (score / 5).clamp(0.0, 1.0);
+
+  int get displayPercent => (displayScore * 100).round();
+
+  bool get hasAiCriteria => criteria.isNotEmpty;
+
   /// True for practice AI quality evaluations (historical EfficientNet or current MUSIQ/OpenCV).
   bool get isEfficientNetEvaluation =>
       scoringModel?.contains('efficientnet') == true ||
@@ -921,7 +928,14 @@ class AppState extends ChangeNotifier {
   String? profileStudentId;
   String? profileImageUrl;
   String profileAccountRole = 'Member';
+  /// Registration workflow status from API (`pending` | `approved` | `rejected`).
   String profileStatus = 'approved';
+  /// Account enablement from DB `users.is_active` (same as Admin Account Status).
+  bool profileIsActive = true;
+  String profileAccountStatus = 'Active';
+  /// Heartbeat presence, separate from account enablement.
+  String profilePresence = 'Offline';
+  bool profileIsOnline = false;
   String profileYear = 'ACCESS Member';
   int profileUploads = 0;
   Color profileColor = const Color(0xFF3B82F6);
@@ -958,6 +972,10 @@ class AppState extends ChangeNotifier {
     profileImageUrl = null;
     profileAccountRole = 'Member';
     profileStatus = 'approved';
+    profileIsActive = true;
+    profileAccountStatus = 'Active';
+    profilePresence = 'Offline';
+    profileIsOnline = false;
     profileYear = 'ACCESS Member';
     profileUploads = 0;
     profileSkillLevel = null;
@@ -1001,6 +1019,10 @@ class AppState extends ChangeNotifier {
     Object? profileImage = _profileImageUnset,
     String? role,
     String? status,
+    bool? isActive,
+    String? accountStatus,
+    String? presence,
+    bool? isOnline,
   }) {
     profileName = name;
     profileEmail = email;
@@ -1012,6 +1034,24 @@ class AppState extends ChangeNotifier {
     }
     profileAccountRole = role?.trim() ?? '';
     profileStatus = status?.trim() ?? '';
+    if (isActive != null) {
+      profileIsActive = isActive;
+    }
+    final account = (accountStatus ?? '').trim();
+    if (account.isNotEmpty) {
+      profileAccountStatus = account;
+    } else if (isActive != null) {
+      profileAccountStatus = isActive ? 'Active' : 'Disabled';
+    }
+    final presenceLabel = (presence ?? '').trim();
+    if (presenceLabel.isNotEmpty) {
+      profilePresence = presenceLabel;
+    }
+    if (isOnline != null) {
+      profileIsOnline = isOnline;
+    } else if (presenceLabel.isNotEmpty) {
+      profileIsOnline = presenceLabel.toLowerCase() == 'online';
+    }
     final parts = name.trim().split(RegExp(r'\s+'));
     profileInitials = parts.length >= 2
         ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()

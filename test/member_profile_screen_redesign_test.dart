@@ -56,14 +56,22 @@ void main() {
 
     expect(find.text('Profile'), findsWidgets);
     expect(find.text('Alex Rivera'), findsOneWidget);
-    expect(find.text('Active'), findsOneWidget);
+    expect(find.text('Active Account'), findsOneWidget);
     expect(find.text('Edit Profile'), findsWidgets);
     expect(find.text('Quick stats'), findsOneWidget);
     expect(find.text('#4'), findsWidgets);
     expect(find.text('820'), findsOneWidget);
     expect(find.text('12'), findsOneWidget);
-    expect(find.text('Skill progress'), findsOneWidget);
-    expect(find.text('My Activity'), findsOneWidget);
+    expect(find.text('My Skill Level'), findsOneWidget);
+    expect(find.text('My Improvement'), findsOneWidget);
+    expect(find.text('Skill progress'), findsNothing);
+    expect(find.textContaining('Skill: Intermediate'), findsNothing);
+
+    await tester.scrollUntilVisible(
+      find.text('Evaluations'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Evaluations'), findsOneWidget);
     expect(find.text('Achievements'), findsOneWidget);
 

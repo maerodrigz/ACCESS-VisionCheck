@@ -15,6 +15,7 @@ import 'package:access_mobile/shared/models/member_milestone.dart';
 import 'package:access_mobile/shared/models/media_upload_response.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
+import 'package:access_mobile/shared/models/quality_skill_classification.dart';
 import 'package:access_mobile/shared/models/submission_chain_history.dart';
 import 'package:access_mobile/shared/utils/practice_media_title.dart';
 import 'package:access_mobile/shared/utils/replacement_upload_errors.dart';
@@ -90,6 +91,12 @@ class MemberDataController extends ChangeNotifier {
   bool participationQuotaSyncing = false;
   String? participationQuotaSyncError;
 
+  /// Quality Skill Classification (Photo/Video) — separate from XP / skill tiers.
+  QualitySkillClassificationSnapshot? qualitySkillClassification;
+  bool qualitySkillClassificationLoading = false;
+  String? qualitySkillClassificationError;
+  Future<void>? _qualitySkillClassificationFuture;
+
   final ParticipationRefreshGuard _participationRefreshGuard =
       ParticipationRefreshGuard();
   Future<bool>? _participationRefreshFuture;
@@ -135,6 +142,10 @@ class MemberDataController extends ChangeNotifier {
     _galleryTabFuture = null;
     _rankingsTabFuture = null;
     _eventGalleryRefreshFuture = null;
+    _qualitySkillClassificationFuture = null;
+    qualitySkillClassification = null;
+    qualitySkillClassificationLoading = false;
+    qualitySkillClassificationError = null;
     appState.evaluations.clear();
     appState.gallery.clear();
     appState.eventGallery.clear();
@@ -184,6 +195,16 @@ class MemberDataController extends ChangeNotifier {
     try {
       final profile = await memberApiService.getProfile();
       final imagePath = profile['profile_image'] as String?;
+      final isActiveRaw = profile['is_active'];
+      final isActive = isActiveRaw is bool
+          ? isActiveRaw
+          : (isActiveRaw == null ? true : isActiveRaw.toString().toLowerCase() == 'true');
+      final isOnlineRaw = profile['is_online'];
+      final isOnline = isOnlineRaw is bool
+          ? isOnlineRaw
+          : (isOnlineRaw == null
+              ? null
+              : isOnlineRaw.toString().toLowerCase() == 'true');
       final imageUrl = imagePath != null && imagePath.trim().isNotEmpty
           ? memberApiService.mediaUrl(imagePath.trim())
           : null;
@@ -199,6 +220,10 @@ class MemberDataController extends ChangeNotifier {
         profileImage: imageUrl,
         role: profile['role'] as String?,
         status: profile['status'] as String?,
+        isActive: isActive,
+        accountStatus: profile['account_status'] as String?,
+        presence: profile['presence'] as String?,
+        isOnline: isOnline,
       );
       profileLoaded = true;
       profileLoadError = null;
@@ -396,12 +421,17 @@ class MemberDataController extends ChangeNotifier {
     evaluationsTabSynced = false;
   }
 
+  /// Throttle background re-sync when the Evaluations tab is re-opened.
+  DateTime? _evaluationsTabLightSyncedAt;
+  static const _evaluationsTabLightMinInterval = Duration(seconds: 45);
+
   Future<void> ensureEvaluationsTab() {
     if (!authController.isLoggedIn) return Future.value();
     _invalidateEvaluationsTabIfStale();
     if (evaluationsTabSynced && evaluationsTabError == null) {
+      // Single coalesced background refresh (quota + lists). Avoids duplicate
+      // participation calls that previously fired on every tab revisit.
       unawaited(_syncEvaluationsTabLight());
-      unawaited(refreshParticipationQuota(reason: 'evaluations_tab_return'));
       return Future.value();
     }
     final inFlight = _evaluationsTabFuture;
@@ -421,15 +451,22 @@ class MemberDataController extends ChangeNotifier {
     return owned;
   }
 
-  /// Participation + evaluation list only (no full-tab loading state).
+  /// Participation + evaluation lists (no full-tab loading state).
   Future<void> _syncEvaluationsTabLight() async {
     if (!authController.isLoggedIn) return;
-    await refreshParticipationQuota(reason: 'evaluations_tab_light');
+    final last = _evaluationsTabLightSyncedAt;
+    if (last != null &&
+        DateTime.now().difference(last) < _evaluationsTabLightMinInterval) {
+      return;
+    }
+    if (_evaluationsTabFuture != null) return;
     try {
       await Future.wait<void>([
+        refreshParticipationQuota(reason: 'evaluations_tab_light'),
         _syncEvaluationsSection(),
         _syncEvaluationMediaSection(),
       ]);
+      _evaluationsTabLightSyncedAt = DateTime.now();
       appState.notifyListeners();
       notifyListeners();
     } catch (e, st) {
@@ -463,23 +500,24 @@ class MemberDataController extends ChangeNotifier {
     }
 
     final ctx = _MemberSyncContext();
+    // Parallel: quota + evaluations + practice media (previously media waited on evals).
     await Future.wait<void>([
       refreshParticipationQuota(reason: 'evaluations_tab_open'),
       _runSection(ctx, 'Evaluations', _syncEvaluationsSection),
+      _runSection(ctx, 'EvaluationMedia', _syncEvaluationMediaSection),
     ]);
-    if (!ctx.sessionExpired) {
-      final evalErr = _syncErrorFromContext(ctx, sectionPrefix: 'Evaluations');
-      if (evalErr == null && appState.evaluations.isNotEmpty) {
-        evaluationsTabSynced = true;
-        evaluationsTabError = null;
-        appState.notifyListeners();
-        notifyListeners();
-      }
-    }
-    await _runSection(ctx, 'EvaluationMedia', _syncEvaluationMediaSection);
     evaluationsTabError = _syncErrorFromContext(ctx);
     if (evaluationsTabError == null) {
       evaluationsTabSynced = true;
+      _evaluationsTabLightSyncedAt = DateTime.now();
+    } else if (!ctx.sessionExpired) {
+      final evalErr = _syncErrorFromContext(ctx, sectionPrefix: 'Evaluations');
+      if (evalErr == null && appState.evaluations.isNotEmpty) {
+        // Show list even if media section failed; pull-to-refresh can retry.
+        evaluationsTabSynced = true;
+        evaluationsTabError = null;
+        _evaluationsTabLightSyncedAt = DateTime.now();
+      }
     }
     appState.notifyListeners();
   }
@@ -695,6 +733,7 @@ class MemberDataController extends ChangeNotifier {
       evaluationsTabError = _syncErrorFromContext(ctx);
       if (evaluationsTabError == null) {
         evaluationsTabSynced = true;
+        _evaluationsTabLightSyncedAt = DateTime.now();
       }
       appState.notifyListeners();
     } finally {
@@ -702,6 +741,49 @@ class MemberDataController extends ChangeNotifier {
       notifyListeners();
     }
     unawaited(resumePendingPracticeAnalysis());
+    unawaited(refreshQualitySkillClassification());
+  }
+
+  /// Loads Photo/Video quality Skill Classification from the single backend service.
+  Future<void> refreshQualitySkillClassification({bool force = false}) async {
+    if (!authController.isLoggedIn) return;
+    if (!force &&
+        qualitySkillClassification != null &&
+        !qualitySkillClassificationLoading &&
+        qualitySkillClassificationError == null) {
+      return;
+    }
+    if (_qualitySkillClassificationFuture != null) {
+      await _qualitySkillClassificationFuture;
+      return;
+    }
+    qualitySkillClassificationLoading = true;
+    qualitySkillClassificationError = null;
+    notifyListeners();
+    final future = () async {
+      try {
+        final raw = await memberApiService.getQualitySkillClassification();
+        qualitySkillClassification =
+            QualitySkillClassificationSnapshot.fromJson(raw);
+        qualitySkillClassificationError = null;
+      } catch (e) {
+        if (await _clearSessionIfUnauthorized(e)) {
+          qualitySkillClassificationError = 'Session expired. Please sign in again.';
+        } else {
+          qualitySkillClassificationError =
+              e.toString().replaceFirst('ApiException: ', '').trim();
+          if (qualitySkillClassificationError!.isEmpty) {
+            qualitySkillClassificationError = 'Unable to load skill classification';
+          }
+        }
+      } finally {
+        qualitySkillClassificationLoading = false;
+        _qualitySkillClassificationFuture = null;
+        notifyListeners();
+      }
+    }();
+    _qualitySkillClassificationFuture = future;
+    await future;
   }
 
   /// Calendar tab pull-to-refresh.
@@ -852,6 +934,16 @@ class MemberDataController extends ChangeNotifier {
     final imageUrl = imagePath != null && imagePath.trim().isNotEmpty
         ? memberApiService.mediaUrl(imagePath.trim())
         : null;
+    final isActiveRaw = profile['is_active'];
+    final isActive = isActiveRaw is bool
+        ? isActiveRaw
+        : (isActiveRaw == null ? true : isActiveRaw.toString().toLowerCase() == 'true');
+    final isOnlineRaw = profile['is_online'];
+    final isOnline = isOnlineRaw is bool
+        ? isOnlineRaw
+        : (isOnlineRaw == null
+            ? null
+            : isOnlineRaw.toString().toLowerCase() == 'true');
     appState.applyProfile(
       name: _nonEmptyProfileName(profile['name'], authController.user!.name),
       email: profile['email'] as String? ?? authController.user!.email,
@@ -864,6 +956,10 @@ class MemberDataController extends ChangeNotifier {
       profileImage: imageUrl,
       role: profile['role'] as String?,
       status: profile['status'] as String?,
+      isActive: isActive,
+      accountStatus: profile['account_status'] as String?,
+      presence: profile['presence'] as String?,
+      isOnline: isOnline,
     );
     ctx.profileOk = true;
     profileLoaded = true;
@@ -1042,17 +1138,60 @@ class MemberDataController extends ChangeNotifier {
       ..addAll(results[1].map(_calendarEventFromApi));
   }
 
+  Announcement _announcementFromApi(Map<String, dynamic> a) {
+    DateTime? parseDt(Object? raw) {
+      if (raw is! String || raw.trim().isEmpty) return null;
+      return DateTime.tryParse(raw)?.toUtc();
+    }
+
+    return Announcement(
+      id: a['id'] as int? ?? 0,
+      title: a['title'] as String? ?? 'Announcement',
+      content: a['content'] as String? ?? '',
+      date: _formatIso(a['created_at'] as String?),
+      postedByName: a['posted_by_name'] as String?,
+      isRead: a['is_read'] == true,
+      firstReadAt: parseDt(a['first_read_at']),
+      expiresAt: parseDt(a['expires_at']),
+    );
+  }
+
   Future<void> _syncAnnouncementsSection() async {
     final rows = await memberApiService.getAnnouncements();
     appState.announcements
       ..clear()
-      ..addAll(rows.map((a) => Announcement(
-            id: a['id'] as int? ?? 0,
-            title: a['title'] as String? ?? 'Announcement',
-            content: a['content'] as String? ?? '',
-            date: _formatIso(a['created_at'] as String?),
-            postedByName: a['posted_by_name'] as String?,
-          )));
+      ..addAll(rows.map(_announcementFromApi));
+  }
+
+  /// Opens announcement detail: fetch, mark read once, update local state.
+  /// Returns null when missing/expired for this member.
+  Future<Announcement?> openAnnouncementDetail(int announcementId) async {
+    if (announcementId <= 0) return null;
+    try {
+      final detail = await memberApiService.getAnnouncement(announcementId);
+      final stamped = await memberApiService.markAnnouncementRead(announcementId);
+      final merged = Map<String, dynamic>.from(detail)
+        ..['is_read'] = true
+        ..['first_read_at'] = stamped['first_read_at'] ?? detail['first_read_at']
+        ..['expires_at'] = stamped['expires_at'] ?? detail['expires_at'];
+      final item = _announcementFromApi(merged);
+      final idx = appState.announcements.indexWhere((a) => a.id == item.id);
+      if (idx >= 0) {
+        appState.announcements[idx] = item;
+      } else {
+        appState.announcements.insert(0, item);
+      }
+      appState.notifyListeners();
+      return item;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        appState.announcements.removeWhere((a) => a.id == announcementId);
+        appState.notifyListeners();
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _syncEvaluationMediaSection() async {

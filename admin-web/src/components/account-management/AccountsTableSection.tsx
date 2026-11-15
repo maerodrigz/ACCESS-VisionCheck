@@ -1,11 +1,27 @@
 import {
   accountStatusKey,
   formatAccountDate,
+  formatAccountDateTime,
+  isAccountOnline,
   partitionAccounts,
   type AdminAccountUser,
 } from '../../lib/accountManagement'
 import { AccountUserAvatar, StatusBadge } from './AccountBadges'
 import { AccountActionsMenu } from './AccountActionsMenu'
+
+function PresenceDot({ user }: { user: AdminAccountUser }) {
+  const disabled = accountStatusKey(user) === 'disabled'
+  const online = !disabled && isAccountOnline(user)
+  return (
+    <span
+      className={`account-mgmt__presence ${online ? 'account-mgmt__presence--online' : 'account-mgmt__presence--offline'}`}
+      title={disabled ? 'Account disabled' : online ? 'Online' : 'Offline'}
+    >
+      <span className="account-mgmt__presence-dot" aria-hidden />
+      {online ? 'Online' : 'Offline'}
+    </span>
+  )
+}
 
 interface Props {
   rows: AdminAccountUser[]
@@ -39,6 +55,8 @@ function AccountsTable({
           <col className="account-mgmt__col-name" />
           <col className="account-mgmt__col-email" />
           <col className="account-mgmt__col-status" />
+          <col className="account-mgmt__col-presence" />
+          <col className="account-mgmt__col-seen" />
           <col className="account-mgmt__col-date" />
           <col className="account-mgmt__col-actions" />
         </colgroup>
@@ -46,7 +64,9 @@ function AccountsTable({
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Status</th>
+            <th>Account</th>
+            <th>Presence</th>
+            <th>Last Seen / Login</th>
             <th>Date Joined</th>
             <th className="account-mgmt__th-actions">Actions</th>
           </tr>
@@ -63,6 +83,22 @@ function AccountsTable({
               <td className="account-mgmt__email">{u.email}</td>
               <td className="account-mgmt__status-cell">
                 <StatusBadge statusKey={accountStatusKey(u)} />
+                {u.is_inactive ? (
+                  <span className="account-mgmt__inactive-tag" title="No authenticated activity for 30 days">
+                    Inactive 30d
+                  </span>
+                ) : null}
+              </td>
+              <td className="account-mgmt__presence-cell">
+                <PresenceDot user={u} />
+              </td>
+              <td className="account-mgmt__date-cell">
+                <div className="account-mgmt__seen-stack">
+                  <span>Seen {formatAccountDateTime(u.last_seen_at ?? u.last_active)}</span>
+                  <span className="account-mgmt__seen-sub">
+                    Login {formatAccountDateTime(u.last_login_at)}
+                  </span>
+                </div>
               </td>
               <td className="account-mgmt__date-cell">{formatAccountDate(u.created_at)}</td>
               <td className="account-mgmt__actions-cell">

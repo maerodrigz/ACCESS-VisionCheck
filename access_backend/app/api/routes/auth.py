@@ -161,6 +161,17 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
         token,
         expire_minutes=expire_minutes,
     )
+    # Stamp login time (UTC). last_seen_at is maintained by foreground heartbeats only
+    # for members/orgs; a login stamp alone does not keep them Online after 2 minutes.
+    from app.services.member_presence import utc_now
+
+    now = utc_now()
+    user.last_login_at = now
+    if role_name in (RoleName.MEMBER, RoleName.ORGANIZATION):
+        user.last_seen_at = now
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
     return LoginResponse(
         token=token,

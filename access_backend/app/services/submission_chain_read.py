@@ -51,7 +51,9 @@ def chain_metadata_for_media(
     if not chain_id:
         return out
 
-    chain = db.get(SubmissionChain, chain_id)
+    # Prefer caller-provided chain (list endpoints batch-load) to avoid N+1 db.get.
+    if chain is None:
+        chain = db.get(SubmissionChain, chain_id)
     if chain is None:
         out["submission_chain_id"] = chain_id
         return out

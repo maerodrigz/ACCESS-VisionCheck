@@ -15,7 +15,10 @@ def test_list_evaluations_media_id_returns_one_row() -> None:
     ev.media.file_name = "practice.jpg"
     ev.media.file_url = "/uploads/x.jpg"
     ev.media.storage_removed_at = None
-    ev.criteria_json = '{"overall_score": 4}'
+    ev.media.submission_chain_id = None
+    ev.media.replaces_media_id = None
+    ev.media.replacement_lifecycle = None
+    ev.criteria_json = '{"overall_score": 4, "criteria": [{"name": "Sharpness", "score": 4}]}'
     ev.overall_score = 4.0
     ev.feedback = "ok"
     ev.sharpness_score = 0.8

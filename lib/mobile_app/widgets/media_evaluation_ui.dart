@@ -171,7 +171,11 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (useBreakdownCard) ...[
-          QualityBreakdownCard(result: result, dense: dense),
+          QualityBreakdownCard(
+            result: result,
+            dense: dense,
+            showOverallScoreHeader: showBreakdownOverallScore,
+          ),
         ] else ...[
           if (showOverallHeader) ...[
             Row(

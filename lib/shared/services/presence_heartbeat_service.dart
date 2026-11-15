@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// Foreground-only presence heartbeat for Member / Organization accounts.

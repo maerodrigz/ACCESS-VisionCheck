@@ -156,3 +156,8 @@ _verify_*/
 /ui.xml
 assets/images/assets/
 
+
+# Local DB schema inventories (not source)
+access_backend/local_backups/
+android/hs_err_pid*.log
+

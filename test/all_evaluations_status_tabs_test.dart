@@ -73,13 +73,14 @@ void main() {
       expect(verified.length, 3);
     });
 
-    test('admin verified has no remove action eligibility', () {
+    test('admin verified scored practice may free cloud storage', () {
       final verified = _ev(
         id: 'MED-9',
         title: 'Verified',
         reviewStatus: 'verified_human',
       );
-      expect(verified.canRemovePracticeStorage, isFalse);
+      // Verified swipe-delete frees media bytes only; score/XP history remain.
+      expect(verified.canRemovePracticeStorage, isTrue);
     });
   });
 }

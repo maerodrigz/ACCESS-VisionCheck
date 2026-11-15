@@ -181,7 +181,8 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Rankings'), findsOneWidget);
-    expect(find.text('Skill Tier Progress'), findsOneWidget);
+    expect(find.text('My Skill Level'), findsOneWidget);
+    expect(find.text('Skill Tier Progress'), findsNothing);
     expect(find.text('Quality trend'), findsNothing);
   });
 }

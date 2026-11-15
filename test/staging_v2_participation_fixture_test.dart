@@ -58,10 +58,18 @@ void main() {
     expect(snap.remainingDistinctUploadDays, 9);
     expect(snap.remainingEligibleEvaluations, 9);
     expect(snap.evalGateHint, contains('9 more skill-eligible'));
+    // Member-facing intro is Quality Skill Classification (not XP progression day gates).
     expect(
       MemberXpConfig.skillLevelIntroForPolicy('v2'),
-      contains('12 evals, 10 days'),
+      contains('Quality Skill Classification'),
     );
+    expect(
+      MemberXpConfig.skillLevelIntroForPolicy('v2'),
+      contains('latest 10 qualifying'),
+    );
+    // Progression gate numbers remain on the participation snapshot for Rankings XP.
+    expect(appState.profileSkillNextTierRequiredEvaluations, 12);
+    expect(appState.profileSkillNextTierRequiredDays, 10);
     expect(appState.dailyEvaluationLimit, 3);
   });
 }

@@ -12,12 +12,15 @@ from pydantic import ValidationError
 from app.config import Settings
 from app.services import security_policy
 
+_STRONG_JWT = "unit-test-jwt-secret-not-for-production-use-01"
+
 
 def test_settings_default_lockout_enabled():
     s = Settings(
         _env_file=None,
         APP_ENV="development",
         AUTH_LOCKOUT_ENABLED=True,
+        JWT_SECRET=_STRONG_JWT,
     )
     assert s.auth_lockout_enabled is True
     assert s.is_production is False
@@ -28,6 +31,7 @@ def test_settings_allows_disable_in_development():
         _env_file=None,
         APP_ENV="development",
         AUTH_LOCKOUT_ENABLED=False,
+        JWT_SECRET=_STRONG_JWT,
     )
     assert s.auth_lockout_enabled is False
     assert s.is_production is False
@@ -38,6 +42,7 @@ def test_settings_allows_disable_in_testing():
         _env_file=None,
         APP_ENV="testing",
         AUTH_LOCKOUT_ENABLED=False,
+        JWT_SECRET=_STRONG_JWT,
     )
     assert s.auth_lockout_enabled is False
 
@@ -48,6 +53,7 @@ def test_settings_refuses_disable_in_production():
             _env_file=None,
             APP_ENV="production",
             AUTH_LOCKOUT_ENABLED=False,
+            JWT_SECRET=_STRONG_JWT,
         )
     assert "AUTH_LOCKOUT_ENABLED=false" in str(exc.value)
 
@@ -58,6 +64,7 @@ def test_settings_refuses_disable_in_prod_alias():
             _env_file=None,
             APP_ENV="prod",
             AUTH_LOCKOUT_ENABLED=False,
+            JWT_SECRET=_STRONG_JWT,
         )
 
 
@@ -66,6 +73,7 @@ def test_settings_production_keeps_lockout_on():
         _env_file=None,
         APP_ENV="production",
         AUTH_LOCKOUT_ENABLED=True,
+        JWT_SECRET=_STRONG_JWT,
     )
     assert s.auth_lockout_enabled is True
     assert s.is_production is True

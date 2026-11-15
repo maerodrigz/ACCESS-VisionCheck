@@ -33,9 +33,10 @@ class Settings(BaseSettings):
 
     database_url_override: str | None = Field(default=None, alias="DATABASE_URL")
 
-    jwt_secret: str = "access_visioncheck_dev_secret"
-    jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 10080
+    # Required from environment — insecure placeholders are rejected (see jwt_secret_policy).
+    jwt_secret: str = Field(default="", alias="JWT_SECRET")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_minutes: int = Field(default=10080, alias="JWT_EXPIRE_MINUTES")
 
     # Environment marker (development | testing | production). Used for fail-safe guards.
     app_env: str = Field(default="development", alias="APP_ENV")
@@ -239,6 +240,14 @@ class Settings(BaseSettings):
     sms_daily_budget_global: int = Field(default=200, alias="SMS_DAILY_BUDGET_GLOBAL")
     sms_rate_limit_per_ip_hour: int = Field(default=20, alias="SMS_RATE_LIMIT_PER_IP_HOUR")
     sms_rate_limit_per_phone_hour: int = Field(default=8, alias="SMS_RATE_LIMIT_PER_PHONE_HOUR")
+
+    @model_validator(mode="after")
+    def _require_strong_jwt_secret(self) -> "Settings":
+        from app.core.jwt_secret_policy import validate_jwt_secret
+
+        # Never log the secret; validate_jwt_secret only raises a safe message.
+        self.jwt_secret = validate_jwt_secret(self.jwt_secret)
+        return self
 
     @model_validator(mode="after")
     def _validate_probe_risk_thresholds(self) -> "Settings":

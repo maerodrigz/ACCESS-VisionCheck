@@ -9,6 +9,64 @@ from dotenv import load_dotenv
 
 _ISOLATED_DB = "access_waverep_test"
 
+# Process-local only: never write .env. Prefer an already-strong JWT_SECRET; otherwise
+# install a pytest-only value so Settings() can import when the local .env still has
+# a documented insecure placeholder.
+_PYTEST_JWT_SECRET = "pytest-access-visioncheck-jwt-secret-do-not-use-in-prod-01"
+
+
+def _load_backend_dotenv_for_pytest() -> None:
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    if env_path.is_file():
+        load_dotenv(env_path, override=False)
+
+
+def _ensure_strong_jwt_secret_for_pytest() -> None:
+    _load_backend_dotenv_for_pytest()
+    current = (os.environ.get("JWT_SECRET") or "").strip()
+    # Inline check avoids importing app.core before env is ready.
+    insecure = {
+        "",
+        "change_this_secret",
+        "access_visioncheck_dev_secret",
+        "secret",
+        "jwt_secret",
+        "your-secret-key",
+        "dev-secret",
+    }
+    if len(current) < 32 or current.lower() in insecure:
+        os.environ["JWT_SECRET"] = _PYTEST_JWT_SECRET
+
+
+def _ensure_pytest_testclient_host_allowed() -> None:
+    """Allow Starlette TestClient Host ``testserver`` under pytest only.
+
+    TrustedHostMiddleware stays enabled. Production ALLOWED_HOSTS is unchanged.
+    When no .env is present (isolated checkout-index snapshots), Settings defaults
+    omit ``testserver`` and TestClient calls return HTTP 400 Invalid host header.
+    """
+    _load_backend_dotenv_for_pytest()
+    current = (os.environ.get("ALLOWED_HOSTS") or "").strip()
+    if current == "*":
+        return
+    parts = [h.strip() for h in current.split(",") if h.strip()]
+    if not parts:
+        # No env override: do not rely on production LAN Field defaults for pytest.
+        parts = [
+            "testserver",
+            "localhost",
+            "127.0.0.1",
+            "localhost:3001",
+            "127.0.0.1:3001",
+        ]
+    elif "testserver" not in {p.lower() for p in parts}:
+        parts.append("testserver")
+    os.environ["ALLOWED_HOSTS"] = ",".join(parts)
+
+
+_ensure_strong_jwt_secret_for_pytest()
+_ensure_pytest_testclient_host_allowed()
+
 
 def _waverep_database_url() -> str | None:
     if os.environ.get("ACCESS_PYTEST_DB", "").strip() != _ISOLATED_DB:

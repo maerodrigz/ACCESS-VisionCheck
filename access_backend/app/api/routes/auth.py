@@ -394,6 +394,7 @@ def logout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Removes all tracked sessions for this user so revoked JWTs fail get_current_user.
     session_crud.revoke_sessions_for_user(db, current_user.id)
     return MessageResponse(message="Logged out")
 

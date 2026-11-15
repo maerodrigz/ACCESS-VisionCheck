@@ -24,9 +24,10 @@ export function CompetencyMembersTable({ members, onViewProfile }: Props) {
       <table className="w-full min-w-[720px] text-left text-sm">
         <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
           <tr>
-            <th className="min-w-[220px] px-4 py-3">Member</th>
-            <th className="min-w-[160px] px-4 py-3">Competency</th>
-            <th className="min-w-[120px] px-4 py-3">Performance</th>
+            <th className="min-w-[200px] px-4 py-3">Member</th>
+            <th className="min-w-[160px] px-4 py-3">Photo / Video Skill</th>
+            <th className="min-w-[140px] px-4 py-3">Admin Competency</th>
+            <th className="min-w-[110px] px-4 py-3">Performance</th>
             <th className="min-w-[100px] px-4 py-3 text-right">Action</th>
           </tr>
         </thead>
@@ -59,6 +60,9 @@ export function CompetencyMembersTable({ members, onViewProfile }: Props) {
                       )}
                     </div>
                   </div>
+                </td>
+                <td className="px-4 py-3">
+                  <MemberSkillBadge member={m} />
                 </td>
                 <td className="px-4 py-3">
                   <CompetencyLevelBadge level={member.currentLevel} overridden={member.levelOverridden} compact />

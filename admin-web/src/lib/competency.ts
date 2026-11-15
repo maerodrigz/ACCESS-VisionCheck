@@ -122,7 +122,7 @@ export const FILTER_CHIPS: { id: CompetencyFilterChip; label: string }[] = [
 export const SORT_OPTIONS: { id: CompetencySortOption; label: string }[] = [
   { id: 'name', label: 'Name' },
   { id: 'performance', label: 'Highest ranked' },
-  { id: 'competency', label: 'Competency level' },
+  { id: 'competency', label: 'Administrative Competency' },
   { id: 'tasksCompleted', label: 'Tasks completed' },
   { id: 'acceptanceRate', label: 'Acceptance rate' },
 ]

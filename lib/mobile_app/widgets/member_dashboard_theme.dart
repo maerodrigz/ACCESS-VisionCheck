@@ -350,10 +350,11 @@ String formatTaskRole(String role) {
   return role[0].toUpperCase() + role.substring(1);
 }
 
+/// Member-facing skill chip: Quality Skill Classification only (not XP / competency tier).
 String memberDashboardCompetencyLevel() {
-  final skill = appState.profileSkillLevel?.trim();
-  if (skill != null && skill.isNotEmpty) return skill;
-  return 'Beginner';
+  final snap = memberDataController.qualitySkillClassification;
+  if (snap != null) return snap.compactChipLabel;
+  return 'Not Yet Classified';
 }
 
 Challenge? memberActiveAssignment() {

@@ -71,25 +71,26 @@ void main() {
 
     await pumpRankings(tester);
 
-    expect(find.text('Skill Tier Progress'), findsOneWidget);
-    expect(find.text('Current tier: Intermediate'), findsOneWidget);
+    expect(find.text('My Skill Level'), findsWidgets);
+    expect(find.text('Skill Tier Progress'), findsNothing);
+    expect(find.text('Current tier: Intermediate'), findsNothing);
     expect(find.text('How Rankings Work'), findsOneWidget);
     expect(find.text('How XP & Skill Tiers Work'), findsNothing);
     expect(find.text(MemberXpConfig.howRankingsSummary), findsOneWidget);
     expect(find.text('XP Rank'), findsOneWidget);
-    expect(find.text('Skill Tier'), findsOneWidget);
+    expect(find.text('Skill Level'), findsOneWidget);
     expect(find.text(MemberXpConfig.howRankingsXpTile), findsOneWidget);
     expect(find.text(MemberXpConfig.howRankingsSkillTile), findsOneWidget);
     expect(find.text('View detailed rules'), findsOneWidget);
 
-    final v1Skill =
+    final skillCopy =
         MemberXpConfig.skillTierRequirementsForPolicy('v1');
-    expect(find.text(v1Skill).hitTestable(), findsNothing);
+    expect(find.text(skillCopy).hitTestable(), findsNothing);
     expect(find.textContaining('AI penalty'), findsNothing);
     expect(find.textContaining('3/day'), findsNothing);
   });
 
-  testWidgets('expand and collapse detailed rules uses active policy',
+  testWidgets('expand and collapse detailed rules uses quality classification',
       (tester) async {
     appState.profileName = 'Shan Lee';
     appState.profilePoints = 658;
@@ -106,16 +107,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Hide detailed rules'), findsOneWidget);
-    expect(find.text('XP earning').hitTestable(), findsOneWidget);
-    expect(find.text('Media Integrity review').hitTestable(), findsOneWidget);
-    expect(find.text('Skill Tier requirements').hitTestable(), findsOneWidget);
-    expect(find.text('Monthly vs All-Time XP').hitTestable(), findsOneWidget);
-    expect(find.text('What does not earn XP').hitTestable(), findsOneWidget);
+    expect(find.text('XP earning'), findsOneWidget);
+    expect(find.text('Media Integrity review'), findsOneWidget);
+    expect(find.text('My Skill Level requirements'), findsOneWidget);
+    expect(find.text('Monthly vs All-Time XP'), findsOneWidget);
+    await tester.ensureVisible(find.text('What does not earn XP'));
+    expect(find.text('What does not earn XP'), findsOneWidget);
     expect(
-      find.text(MemberXpConfig.skillTierRequirementsForPolicy('v1')).hitTestable(),
+      find.text(MemberXpConfig.skillTierRequirementsForPolicy('v1')),
       findsOneWidget,
     );
-    expect(find.textContaining('12 evaluations'), findsNothing);
+    expect(find.textContaining('Intermediate'), findsNothing);
     expect(find.textContaining('3/day'), findsNothing);
 
     await tester.tap(find.text('Hide detailed rules'));
@@ -128,7 +130,7 @@ void main() {
     );
   });
 
-  testWidgets('v2 policy shows distinct upload-day thresholds when expanded',
+  testWidgets('v2 policy keeps the same quality classification requirements',
       (tester) async {
     appState.profileName = 'Carlos';
     appState.profilePoints = 100;
@@ -150,7 +152,8 @@ void main() {
           .hitTestable(),
       findsOneWidget,
     );
-    expect(find.textContaining('24 distinct upload days'), findsOneWidget);
+    expect(find.textContaining('Developing'), findsWidgets);
+    expect(find.textContaining('24 distinct upload days'), findsNothing);
     expect(find.textContaining('3/day'), findsNothing);
   });
 
@@ -165,10 +168,11 @@ void main() {
 
     await pumpRankings(tester, width: 320);
 
-    expect(find.text('Skill Tier Progress'), findsOneWidget);
+    expect(find.text('My Skill Level'), findsWidgets);
+    expect(find.text('Skill Tier Progress'), findsNothing);
     expect(find.text('How Rankings Work'), findsOneWidget);
     expect(find.text('XP Rank'), findsOneWidget);
-    expect(find.text('Skill Tier'), findsOneWidget);
+    expect(find.text('Skill Level'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.ensureVisible(find.text('View detailed rules'));

@@ -22,6 +22,7 @@ from app.schemas.member_api import (
     ParticipationOut,
     ProfileOut,
     ProfileUpdate,
+    QualitySkillClassificationOut,
 )
 from app.core.security import verify_password
 from app.services.media_upload_config import evaluation_rules
@@ -47,18 +48,30 @@ def _is_cohort_member(db: Session, user_id: int) -> bool:
 
 
 def _profile_out(db: Session, user: User) -> ProfileOut:
+    from app.services.member_presence import presence_fields
     from app.services.skill_progression import build_skill_progression_snapshot
 
     ranking = ranking_crud.get_or_create(db, user.id)
     stored = user.skill_level.level_name if user.skill_level else None
     progression = build_skill_progression_snapshot(db, user.id)
     effective = progression.effective_tier
+    presence = presence_fields(
+        is_active=bool(user.is_active),
+        last_seen_at=getattr(user, "last_seen_at", None),
+        last_login_at=getattr(user, "last_login_at", None),
+    )
     return ProfileOut(
         id=user.id,
         name=user.fullname,
         email=user.email,
         role=user.role.role_name,
         status=user.status,
+        is_active=bool(user.is_active),
+        account_status=str(presence["account_status"]),
+        presence=str(presence["presence"]),
+        is_online=bool(presence["is_online"]),
+        last_seen_at=presence["last_seen_at"],
+        last_login_at=presence["last_login_at"],
         student_id=user.student_id,
         contact_number=user.contact_number,
         phone_verified=bool(user.phone_verified_at),
@@ -201,6 +214,23 @@ def acknowledge_member_milestone(
         earned_at=row.created_at,
         acknowledged_at=row.acknowledged_at,
     )
+
+
+@router.get("/quality-skill-classification", response_model=QualitySkillClassificationOut)
+def quality_skill_classification(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    """Photo/Video quality Skill Classification — separate from XP and skill progression tiers."""
+    from app.services.quality_skill_classification import (
+        classification_guide,
+        classify_member_quality_skills,
+    )
+
+    snap = classify_member_quality_skills(db, current_user.id)
+    payload = snap.to_dict()
+    payload["guide"] = classification_guide()
+    return QualitySkillClassificationOut(**payload)
 
 
 @router.get("/participation", response_model=ParticipationOut)

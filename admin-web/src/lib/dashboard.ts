@@ -627,8 +627,8 @@ function buildActiveDocumenters(
     totalActive: total,
     breakdown: [
       { label: 'Advanced', count: advanced, percent: pct(advanced) },
-      { label: 'Developing', count: developing, percent: pct(developing) },
-      { label: 'Amateur', count: amateur, percent: pct(amateur) },
+      { label: 'Intermediate', count: developing, percent: pct(developing) },
+      { label: 'Beginner', count: amateur, percent: pct(amateur) },
     ],
   }
 }

@@ -9,7 +9,7 @@ void main() {
       expect(titles, containsAll([
         'XP earning',
         'Media Integrity review',
-        'Skill Tier requirements',
+        'My Skill Level requirements',
         'Monthly vs All-Time XP',
         'What does not earn XP',
       ]));
@@ -21,21 +21,21 @@ void main() {
       expect(joined, contains('award timestamp'));
       expect(joined, contains('Event documentation'));
       expect(joined, contains('assignment'));
-      expect(joined, contains('grandfathering'));
-      expect(joined, contains('admin override'));
+      expect(joined, contains('Quality Skill Classification'));
+      expect(joined, contains('Photo and Video'));
     }
   });
 
-  test('skillTierRequirementsForPolicy switches on active version', () {
+  test('skillTierRequirementsForPolicy uses Quality Skill Classification', () {
     final v1 = MemberXpConfig.skillTierRequirementsForPolicy('v1');
     final v2 = MemberXpConfig.skillTierRequirementsForPolicy('v2');
-    expect(v1, contains('3 evaluations'));
-    expect(v1, contains('6 evaluations'));
-    expect(v1, contains('10 evaluations'));
+    expect(v1, contains('Quality Skill Classification'));
+    expect(v1, contains('Developing'));
+    expect(v1, contains('Proficient'));
+    expect(v1, contains('4.50–5.00'));
     expect(v1, isNot(contains('distinct upload days')));
-    expect(v2, contains('2 distinct upload days'));
-    expect(v2, contains('12 evaluations'));
-    expect(v2, contains('24 distinct upload days'));
+    expect(v1, isNot(contains('Intermediate')));
+    expect(v2, equals(v1));
     expect(MemberXpConfig.skillTierRequirementsForPolicy(''), equals(v1));
   });
 }

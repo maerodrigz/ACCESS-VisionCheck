@@ -102,7 +102,8 @@ void main() {
     expect(find.text('Practice quality over time'), findsNothing);
     expect(find.text('Could not load history'), findsNothing);
     expect(find.text('Performance Overview'), findsNothing);
-    expect(find.text('Skill Tier Progress'), findsOneWidget);
+    expect(find.text('My Skill Level'), findsWidgets);
+    expect(find.text('Skill Tier Progress'), findsNothing);
     expect(find.text('How Rankings Work'), findsOneWidget);
     expect(find.text('How XP & Skill Tiers Work'), findsNothing);
   });

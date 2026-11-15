@@ -39,7 +39,8 @@ export const FEATURE_HEADERS = {
   competency: {
     icon: GraduationCap,
     title: 'Competency Management',
-    description: 'Manage member profiles, skills, rankings, and performance.',
+    description:
+      'Administrative Competency, Quality Skill Classification (Photo/Video), rankings XP, and performance.',
   },
   mediaGallery: {
     icon: Images,

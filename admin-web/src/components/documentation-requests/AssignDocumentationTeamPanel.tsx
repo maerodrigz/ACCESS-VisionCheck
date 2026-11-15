@@ -450,7 +450,7 @@ function RecommendationList({
                       ) : null}
                     </p>
                     <p className="mt-0.5 text-[11px] text-[var(--color-text-secondary)]">
-                      Performance: {m.performance_score} · Skill: {m.skill_level}
+                      Performance: {m.performance_score} · Admin competency: {m.skill_level}
                     </p>
                     <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[var(--color-text-secondary)]">
                       <AvailabilityPill availability={m.availability} />

@@ -158,8 +158,18 @@ class AnnouncementOut(BaseModel):
     content: str
     posted_by_name: str | None = None
     created_at: datetime
+    is_read: bool = False
+    first_read_at: datetime | None = None
+    expires_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class AnnouncementReadOut(BaseModel):
+    announcement_id: int
+    is_read: bool = True
+    first_read_at: datetime
+    expires_at: datetime
 
 
 class MediaOut(BaseModel):
@@ -289,7 +299,15 @@ class ProfileOut(BaseModel):
     name: str
     email: str
     role: str
+    # Registration workflow status (pending | approved | rejected) — not account enablement.
     status: str
+    # Account enablement (DB users.is_active). Same source as Admin Member Management.
+    is_active: bool = True
+    account_status: str = "Active"
+    presence: str = "Offline"
+    is_online: bool = False
+    last_seen_at: datetime | None = None
+    last_login_at: datetime | None = None
     student_id: str | None = None
     contact_number: str | None = None
     phone_verified: bool = False
@@ -312,6 +330,30 @@ class ProfileUpdate(BaseModel):
     profile_image: str | None = None
     current_password: str | None = Field(default=None, min_length=1, max_length=128)
     new_password: str | None = Field(default=None, min_length=6, max_length=128)
+
+
+class MediaQualityClassificationOut(BaseModel):
+    media_kind: str
+    title: str
+    average_score: float | None = None
+    average_score_display: float | None = None
+    qualifying_evaluations: int = 0
+    window_size: int = 10
+    formula_version: str | None = None
+    next_title: str | None = None
+    score_gap: float | None = None
+    evaluations_gap: int | None = None
+    progress_summary: str = ""
+    classified: bool = False
+
+
+class QualitySkillClassificationOut(BaseModel):
+    photo: MediaQualityClassificationOut
+    video: MediaQualityClassificationOut
+    disclaimer: str
+    photo_title: str
+    video_title: str
+    guide: list[dict] = Field(default_factory=list)
 
 
 class ParticipationOut(BaseModel):

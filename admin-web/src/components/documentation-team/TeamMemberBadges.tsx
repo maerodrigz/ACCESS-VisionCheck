@@ -12,7 +12,7 @@ import {
   coverageRoleLabel,
   memberAccountLabel,
   memberInitials,
-  skillLevelLabel,
+  qualitySkillCompactLabel,
 } from '../../lib/teamMembers'
 
 const avatarSizes = {
@@ -170,32 +170,53 @@ export function TeamPerformanceBar({
   )
 }
 
+/** Quality Skill Classification badge (Photo/Video). Not administrative competency. */
 export function MemberSkillBadge({ member }: { member: TeamMemberProfile }) {
-  return <SkillLevelBadge tier={member.skillTier} label={skillLevelLabel(member)} />
+  const label = qualitySkillCompactLabel(member)
+  const classified = label !== 'Not Yet Classified'
+  return (
+    <span
+      className="inline-flex max-w-full shrink-0 truncate rounded-md px-2 py-0.5 text-[10px] font-bold"
+      style={{
+        backgroundColor: classified
+          ? 'color-mix(in srgb, var(--color-accent-cyan) 14%, transparent)'
+          : 'var(--color-surface-muted)',
+        color: classified ? 'var(--color-accent-cyan)' : 'var(--color-text-secondary)',
+      }}
+      title="Quality Skill Classification (media quality). Separate from Administrative Competency."
+    >
+      {label}
+    </span>
+  )
 }
 
-/** Roster label for the three competency groups already used on the dashboard. */
-function rosterCompetencyLabel(member: TeamMemberProfile): 'Amateur' | 'Developing' | 'Advanced' {
+/** Administrative Competency only (Beginner / Intermediate / Advanced). Never uses Developing/Proficient. */
+function rosterAdminCompetencyLabel(
+  member: TeamMemberProfile,
+): 'Beginner' | 'Intermediate' | 'Advanced' {
   const raw = `${member.skillLevel ?? ''} ${member.skillTier}`.toLowerCase()
-  if (raw.includes('advanced') || raw.includes('expert')) return 'Advanced'
-  if (raw.includes('develop') || raw.includes('intermediate')) return 'Developing'
-  return 'Amateur'
+  if (raw.includes('advanced') || raw.includes('expert') || raw.includes('master')) {
+    return 'Advanced'
+  }
+  if (raw.includes('inter')) return 'Intermediate'
+  return 'Beginner'
 }
 
 export function RosterCompetencyBadge({ member }: { member: TeamMemberProfile }) {
-  const label = rosterCompetencyLabel(member)
+  const label = rosterAdminCompetencyLabel(member)
   const color =
     label === 'Advanced'
       ? 'var(--color-accent-blue)'
-      : label === 'Developing'
+      : label === 'Intermediate'
         ? 'var(--color-accent-cyan)'
         : 'var(--color-text-secondary)'
   return (
     <span
       className="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
       style={{ color, backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)` }}
+      title="Administrative Competency (assignment/override). Not media-quality classification."
     >
-      {label}
+      Admin: {label}
     </span>
   )
 }

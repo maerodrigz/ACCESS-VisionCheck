@@ -1,4 +1,3 @@
-import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
 import 'package:access_mobile/mobile_app/widgets/member_home_dashboard.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
@@ -39,7 +38,7 @@ Future<void> _pumpHome(
   );
   await tester.pump();
   await tester.scrollUntilVisible(
-    find.text('Skill Progress'),
+    find.text('My Skill Level'),
     280,
     scrollable: find.byType(Scrollable).first,
   );
@@ -95,19 +94,20 @@ void main() {
       ..addAll(savedRatings);
   });
 
-  testWidgets('home shows Skill Progress and Requestor Feedback cards',
+  testWidgets('home shows My Skill Level and Requestor Feedback cards',
       (tester) async {
     await _pumpHome(tester, width: 390);
 
-    expect(find.text('Skill Progress'), findsOneWidget);
+    expect(find.text('My Skill Level'), findsOneWidget);
     expect(find.text('Requestor Feedback'), findsOneWidget);
     expect(find.text('Rankings'), findsWidgets);
     expect(find.text('View All'), findsWidgets);
     expect(find.text('No requestor feedback yet.'), findsOneWidget);
 
-    final snapshot = MemberCompetencySnapshot.fromAppState();
-    expect(find.text(snapshot.levelName), findsWidgets);
+    expect(find.textContaining('Photo Skill:'), findsWidgets);
+    expect(find.textContaining('Video Skill:'), findsWidgets);
     expect(find.textContaining('XP'), findsWidgets);
+    expect(find.text('Skill Progress'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -159,11 +159,11 @@ void main() {
     expect(feedback, 1);
   });
 
-  testWidgets('wide width keeps Skill Progress above Requestor Feedback',
+  testWidgets('wide width keeps My Skill Level above Requestor Feedback',
       (tester) async {
     await _pumpHome(tester, width: 390);
 
-    final skillY = tester.getTopLeft(find.text('Skill Progress')).dy;
+    final skillY = tester.getTopLeft(find.text('My Skill Level')).dy;
     final feedbackY = tester.getTopLeft(find.text('Requestor Feedback')).dy;
     expect(feedbackY, greaterThan(skillY));
     expect(tester.takeException(), isNull);
@@ -171,9 +171,9 @@ void main() {
 
   testWidgets('narrow width stacks without overflow', (tester) async {
     await _pumpHome(tester, width: 320, textScale: 1.2);
-    expect(find.text('Skill Progress'), findsOneWidget);
+    expect(find.text('My Skill Level'), findsOneWidget);
     expect(find.text('Requestor Feedback'), findsOneWidget);
-    final skillY = tester.getTopLeft(find.text('Skill Progress')).dy;
+    final skillY = tester.getTopLeft(find.text('My Skill Level')).dy;
     final feedbackY = tester.getTopLeft(find.text('Requestor Feedback')).dy;
     expect(feedbackY, greaterThan(skillY));
     expect(tester.takeException(), isNull);

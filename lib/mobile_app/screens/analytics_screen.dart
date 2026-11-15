@@ -3,6 +3,13 @@ import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 
+/// Legacy analytics prototype. Not wired into member navigation or deep links.
+///
+/// Do not present the badge rows below as Quality Skill Classification
+/// (Beginner / Developing / Proficient / Advanced / Expert). Those titles live on
+/// Profile, Home, Rankings, My Improvement, and About Skill Levels via
+/// `quality_skill_*`. The badge counts here are participation-badge buckets
+/// (Novice→Master from good-eval counts) kept only for historical reference.
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
 
@@ -131,11 +138,15 @@ class AnalyticsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 28),
 
-            // ── Skill Classification ──────────────────────────────────────
-            _SectionTitle('Competency-Based Skill Classification'),
+            // ── Legacy participation badges (not Quality Skill Classification) ──
+            _SectionTitle('Legacy participation badges (unused screen)'),
             const SizedBox(height: 4),
-            const Text('Member distribution by badge (based on good evaluations).',
-              style: TextStyle(color: kTextSecondary, fontSize: 12)),
+            const Text(
+              'Not Quality Skill Classification. Distribution by good-evaluation '
+              'participation badges (Novice–Master). Member media-quality titles are '
+              'Beginner / Developing / Proficient / Advanced / Expert on My Skill Level.',
+              style: TextStyle(color: kTextSecondary, fontSize: 12),
+            ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),

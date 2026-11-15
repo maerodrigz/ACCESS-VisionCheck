@@ -16,46 +16,47 @@ class MemberXpConfig {
   }
 
   static const skillTierIntro =
-      'Skill Tier (Beginner through Expert) is based on the average quality score of '
-      'eligible, released practice evaluations only. Pending or withheld uploads do not count '
-      'until an officer releases scores.';
+      'My Skill Level uses Quality Skill Classification: Beginner, Developing, Proficient, '
+      'Advanced, and Expert. Photo and Video are classified separately from the latest 10 '
+      'qualifying comparable evaluations under the current scoring formula.';
 
   static const xpRankIntro =
       'XP Rank reflects participation rewards on the leaderboard (total XP). It is separate '
-      'from Skill Tier and from Media Integrity review.';
+      'from My Skill Level (quality classification) and from Media Integrity review.';
 
   static const mediaIntegrityIntro =
       'Media Integrity covers AI detection and admin review. It can hold or exclude an upload '
-      'from skill tier and XP until resolved. A low AI probability alone is not treated as proof '
+      'from quality classification and XP until resolved. A low AI probability alone is not treated as proof '
       'of inauthentic media.';
 
   static const collapsedXpHint =
-      'Earn XP from eligible practice evaluations. Skill Tier uses released quality scores only.';
+      'Earn XP from eligible practice evaluations. My Skill Level uses quality classifications only.';
 
   static const howXpIntro =
-      'XP Rank is your participation score on the leaderboard. Skill Tier is your quality-based '
-      'classification. Media Integrity is a separate review path for AI and authenticity flags.';
+      'XP Rank is your participation score on the leaderboard. My Skill Level is your '
+      'Photo/Video quality classification. Media Integrity is a separate review path for AI and authenticity flags.';
 
   /// Compact Rankings screen summary (collapsed card body).
   static const howRankingsSummary =
-      'Your XP determines your leaderboard position. Your Skill Tier reflects your practice '
-      'evaluation quality.';
+      'Your XP determines your leaderboard position. My Skill Level shows Photo and Video '
+      'quality classifications and is separate from XP.';
 
   static const howRankingsXpTile =
       'Earn up to 100 XP per eligible practice evaluation.';
 
   static const howRankingsSkillTile =
-      'Based on quality scores and eligible practice evaluations.';
+      'Photo/Video titles from quality scores and minimum qualifying evaluations.';
 
   static const skillLevelIntroV1 =
-      'Skill Tier uses eligible released practice quality and evaluation count. '
-      'Intermediate: 60%+ average with 3 eligible evaluations. Advanced: 75%+ with 6. '
-      'Expert: 90%+ with 10. Daily upload cap (3/day) is separate from tier progress.';
+      'My Skill Level (Quality Skill Classification): Beginner 0.00–1.99 with 3 evals, '
+      'Developing 2.00–2.99 with 3, Proficient 3.00–3.99 with 5, Advanced 4.00–4.49 with 8, '
+      'Expert 4.50–5.00 with 10. Photo and Video are separate. Daily upload caps are separate from classification.';
 
   static const skillLevelIntroV2 =
-      'Skill Tier uses eligible released practice quality, evaluation count, and distinct '
-      'upload days (Manila calendar). Intermediate: 60%+, 3 evals, 2 days. Advanced: 75%+, '
-      '12 evals, 10 days. Expert: 90%+, 24 evals, 24 days. Daily upload cap (3/day) is separate.';
+      'My Skill Level (Quality Skill Classification): Beginner 0.00–1.99 with 3 evals, '
+      'Developing 2.00–2.99 with 3, Proficient 3.00–3.99 with 5, Advanced 4.00–4.49 with 8, '
+      'Expert 4.50–5.00 with 10. Uses the latest 10 qualifying comparable evaluations. '
+      'Daily upload caps are separate from classification.';
 
   static String skillLevelIntroForPolicy(String policyVersion) {
     if (policyVersion.trim().toLowerCase() == 'v2') {
@@ -64,18 +65,14 @@ class MemberXpConfig {
     return skillLevelIntroV1;
   }
 
-  /// Concise Skill Tier requirements for the Rankings "How Rankings Work" details.
-  /// Does not mention daily upload caps (those are separate from tier progress).
+  /// Concise Quality Skill Classification requirements for Rankings "How Rankings Work".
+  /// [policyVersion] kept for call-site compatibility; thresholds are classification rules.
   static String skillTierRequirementsForPolicy(String policyVersion) {
-    if (policyVersion.trim().toLowerCase() == 'v2') {
-      return 'Eligible released practice evaluations only. Intermediate: 60% average, '
-          '3 evaluations, and 2 distinct upload days. Advanced: 75%, 12 evaluations, '
-          '10 distinct upload days. Expert: 90%, 24 evaluations, 24 distinct upload days. '
-          'Displayed tier may also reflect grandfathering or an admin override.';
-    }
-    return 'Eligible released practice evaluations only. Intermediate: 60% average and '
-        '3 evaluations. Advanced: 75% and 6 evaluations. Expert: 90% and 10 evaluations. '
-        'Displayed tier may also reflect grandfathering or an admin override.';
+    final _ = policyVersion;
+    return 'Quality Skill Classification uses eligible released practice evaluations under the '
+        'current scoring formula. Beginner: 0.00–1.99 / 5 (3 evals). Developing: 2.00–2.99 (3). '
+        'Proficient: 3.00–3.99 (5). Advanced: 4.00–4.49 (8). Expert: 4.50–5.00 (10). '
+        'Photo and Video are classified separately. XP rank remains independent.';
   }
 
   static List<({String title, String body})> howRankingsDetailedRules(
@@ -87,16 +84,16 @@ class MemberXpConfig {
           body:
               'Eligible practice evaluations award XP from the released quality score '
               '(up to 100 XP). Each submission chain can receive XP only once. '
-              'XP Rank is independent of Skill Tier.',
+              'XP Rank is independent of My Skill Level.',
         ),
         (
           title: 'Media Integrity review',
           body:
-              'Pending Media Integrity or admin review can delay XP and Skill Tier credit. '
+              'Pending Media Integrity or admin review can delay XP and quality classification credit. '
               'Rejected media or confirmed AI-generated or manipulated uploads do not earn XP.',
         ),
         (
-          title: 'Skill Tier requirements',
+          title: 'My Skill Level requirements',
           body: skillTierRequirementsForPolicy(policyVersion),
         ),
         (
@@ -113,17 +110,18 @@ class MemberXpConfig {
         ),
       ];
 
-  /// From `skill_level_from_score` in the backend.
+  /// Quality Skill Classification titles shown in member-facing copy.
   static const List<({String name, String range})> skillLevelTiers = [
-    (name: 'Expert', range: '90+ quality'),
-    (name: 'Advanced', range: '75–89'),
-    (name: 'Intermediate', range: '60–74'),
-    (name: 'Beginner', range: 'Below 60'),
+    (name: 'Expert', range: '4.50–5.00 · 10 evals'),
+    (name: 'Advanced', range: '4.00–4.49 · 8 evals'),
+    (name: 'Proficient', range: '3.00–3.99 · 5 evals'),
+    (name: 'Developing', range: '2.00–2.99 · 3 evals'),
+    (name: 'Beginner', range: '0.00–1.99 · 3 evals'),
   ];
 
   static const leaderboardOrderNote =
-      'This screen sorts members by XP (monthly or all-time). Skill Tier rank on your profile '
-      'uses quality score and eligible evaluation count, not XP order.';
+      'This screen sorts members by XP (monthly or all-time). My Skill Level on your profile '
+      'uses Photo/Video quality classification, not XP order.';
 
   static const uploadGuidanceIntro =
       'ACCESS uses two upload paths. Daily limits apply only to practice AI evaluations, not '
@@ -138,7 +136,7 @@ class MemberXpConfig {
       'the event. Submissions must fall within the admin-configured upload window (often 7 days after the event).';
 
   static const uploadQualityTip =
-      'Tip: Skill Tier rewards strong released quality scores, not upload volume alone.';
+      'Tip: My Skill Level rewards strong released quality scores, not upload volume alone.';
 
   static const contentStandardsTitle = 'ACCESS content standards';
 
@@ -160,7 +158,7 @@ class MemberXpConfig {
           'XP drives leaderboard order on this screen.',
     ),
     (
-      title: 'Skill Tier (quality)',
+      title: 'My Skill Level (quality)',
       body: skillTierIntro,
     ),
     (

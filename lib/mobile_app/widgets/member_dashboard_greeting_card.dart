@@ -25,6 +25,9 @@ class _MemberDashboardGreetingCardState extends State<MemberDashboardGreetingCar
     );
     _fade = CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic);
     _fadeController.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      memberDataController.refreshQualitySkillClassification();
+    });
   }
 
   @override

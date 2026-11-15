@@ -127,8 +127,8 @@ void main() {
     expect(find.text('#1'), findsWidgets);
     expect(find.text('#2'), findsOneWidget);
     expect(find.text('#3'), findsOneWidget);
-    expect(find.text('Intermediate'), findsWidgets);
-    expect(find.text('Beginner'), findsWidgets);
+    // Leaderboard shows XP only; quality titles live in My Skill Level card.
+    expect(find.text('Intermediate'), findsNothing);
     expect(find.text('Leaderboard'), findsOneWidget);
     expect(find.text('#4'), findsOneWidget);
     expect(find.text('Mela Dee With A Very Long Display Name'), findsOneWidget);

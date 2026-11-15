@@ -127,7 +127,7 @@ export function CompetencyProfileDrawer({
         </div>
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <div>
-            <div className="text-[10px] text-[var(--color-text-secondary)]">Current</div>
+            <div className="text-[10px] text-[var(--color-text-secondary)]">Admin competency</div>
             <CompetencyLevelBadge level={m.currentLevel} overridden={m.levelOverridden} compact />
             {m.levelOverridden ? (
               <p className="mt-0.5 max-w-[140px] text-[10px] leading-snug text-[var(--color-text-secondary)]">
@@ -140,6 +140,10 @@ export function CompetencyProfileDrawer({
             <CompetencyLevelBadge level={m.recommendedLevel} compact />
           </div>
         </div>
+        <p className="mt-2 max-w-sm text-[10px] leading-snug text-[var(--color-text-muted)]">
+          Administrative Competency is for assignment and overrides. It is not the member&apos;s Photo/Video
+          Skill title.
+        </p>
       </div>
 
       <Section title="Availability">

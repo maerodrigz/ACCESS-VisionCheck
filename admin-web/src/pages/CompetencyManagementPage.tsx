@@ -569,7 +569,7 @@ export function CompetencyManagementPage() {
                 <>
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="text-sm font-bold text-[var(--color-text-primary)]">
-                      Member rankings and competency
+                      Quality Skill Classification and Administrative Competency
                     </h2>
                     <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
                       {skillsVisible.length} shown

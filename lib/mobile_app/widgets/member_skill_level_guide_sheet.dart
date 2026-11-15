@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
+import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_competency_progress.dart';
@@ -61,16 +62,19 @@ void showMemberSkillLevelGuideSheet(BuildContext context) {
                   padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + bottomInset),
                   children: [
                     _SummaryChip(
-                      label: 'Current level',
-                      value: snapshot.levelName,
-                    ),
-                    const SizedBox(height: 8),
-                    _SummaryChip(
                       label: 'Total XP',
                       value: '${snapshot.points}',
                     ),
+                    const SizedBox(height: 8),
+                    _SummaryChip(
+                      label: 'My Skill Level',
+                      value: memberDataController
+                              .qualitySkillClassification
+                              ?.compactChipLabel ??
+                          'Not Yet Classified',
+                    ),
                     const SizedBox(height: 20),
-                    _SectionTitle('Skill level (Beginner → Expert)'),
+                    _SectionTitle('My Skill Level (Beginner → Expert)'),
                     const SizedBox(height: 8),
                     Text(
                       MemberXpConfig.skillLevelIntroForPolicy(
@@ -80,7 +84,7 @@ void showMemberSkillLevelGuideSheet(BuildContext context) {
                     ),
                     const SizedBox(height: 14),
                     _BulletRow(
-                      title: 'Skill Tier (quality)',
+                      title: 'My Skill Level (quality)',
                       body: MemberXpConfig.skillTierIntro,
                     ),
                     _BulletRow(
@@ -93,7 +97,7 @@ void showMemberSkillLevelGuideSheet(BuildContext context) {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Score ranges',
+                      'Quality titles',
                       style: memberDashboardCardTitleStyle.copyWith(fontSize: 13),
                     ),
                     const SizedBox(height: 8),

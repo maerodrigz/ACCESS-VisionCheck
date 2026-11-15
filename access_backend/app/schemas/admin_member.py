@@ -21,10 +21,23 @@ class AdminMemberResponse(BaseModel):
     skill_level: str | None = None
     skill_effective_tier: str | None = None
     skill_tier_stored_legacy: str | None = None
+    # Quality Skill Classification (separate from XP / skill progression tiers).
+    quality_skill_photo_title: str | None = None
+    quality_skill_video_title: str | None = None
+    quality_skill_photo_average: float | None = None
+    quality_skill_video_average: float | None = None
+    quality_skill_photo_evaluations: int | None = None
+    quality_skill_video_evaluations: int | None = None
     assigned_tasks: int = 0
     completed_tasks: int = 0
     media_eval_score: float = 0.0
     last_active: datetime | None = None
+    account_status: str = "Active"
+    presence: str = "Offline"
+    is_online: bool = False
+    is_inactive: bool = False
+    last_seen_at: datetime | None = None
+    last_login_at: datetime | None = None
     primary_task_role: str | None = None
     profile_image: str | None = None
     good_evaluations: int = 0

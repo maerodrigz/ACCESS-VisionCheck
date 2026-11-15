@@ -162,9 +162,25 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
           <Section title="Skill and performance">
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3.5">
               <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                Competency level, performance metrics, requester ratings, training notes, and level overrides are
-                managed in Competency Management.
+                Photo Skill / Video Skill (Quality Skill Classification) and Administrative Competency,
+                performance metrics, requester ratings, and overrides are managed in Competency Management.
               </p>
+              <div className="mt-2 space-y-1 text-xs text-[var(--color-text-primary)]">
+                <p>
+                  <span className="font-semibold text-[var(--color-text-secondary)]">Photo Skill:</span>{' '}
+                  {member.qualitySkillPhotoTitle ?? 'Not Yet Classified'}
+                </p>
+                <p>
+                  <span className="font-semibold text-[var(--color-text-secondary)]">Video Skill:</span>{' '}
+                  {member.qualitySkillVideoTitle ?? 'Not Yet Classified'}
+                </p>
+                <p>
+                  <span className="font-semibold text-[var(--color-text-secondary)]">
+                    Administrative Competency:
+                  </span>{' '}
+                  {member.skillLevel ?? 'N/A'}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => {

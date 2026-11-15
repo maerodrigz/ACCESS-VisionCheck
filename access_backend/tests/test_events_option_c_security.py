@@ -69,17 +69,10 @@ def _user(db: Session, email: str, role_name: str) -> User:
     return user
 
 
-def _token_for(user: User) -> str:
-    from app.core.security import create_access_token
+def _token_for(db: Session, user: User) -> str:
+    from tests.auth_token import issue_bearer_token
 
-    return create_access_token(
-        {
-            "userId": user.id,
-            "name": user.fullname,
-            "email": user.email,
-            "role": user.role.role_name,
-        }
-    )
+    return issue_bearer_token(db, user)
 
 
 def _request(
@@ -106,7 +99,7 @@ def _request(
 
 def test_unscoped_list_rejected(client: TestClient, db: Session) -> None:
     member = _user(db, "optc-member@example.com", "Member")
-    token = _token_for(member)
+    token = _token_for(db, member)
     r = client.get("/api/events", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 422
 
@@ -127,7 +120,7 @@ def test_member_assignments_only_own(client: TestClient, db: Session) -> None:
         db, request=req_b, member_id=m_b.id, assigned_by=admin.id, task_role="photographer"
     )
 
-    tok_a = _token_for(m_a)
+    tok_a = _token_for(db, m_a)
     r = client.get(
         "/api/events?scope=assignments",
         headers={"Authorization": f"Bearer {tok_a}"},
@@ -139,7 +132,7 @@ def test_member_assignments_only_own(client: TestClient, db: Session) -> None:
     assert body[0]["assignment_id"] is not None
     assert "Private description" in (body[0].get("description") or "")
 
-    tok_b = _token_for(m_b)
+    tok_b = _token_for(db, m_b)
     r_b = client.get(
         "/api/events?scope=assignments",
         headers={"Authorization": f"Bearer {tok_b}"},
@@ -160,7 +153,7 @@ def test_member_b_cannot_read_a_assignment_detail(client: TestClient, db: Sessio
     )
     event_id = event_cal_crud.get_event_for_request(db, req.id).id
 
-    tok_b = _token_for(m_b)
+    tok_b = _token_for(db, m_b)
     r = client.get(
         f"/api/events/{event_id}",
         headers={"Authorization": f"Bearer {tok_b}"},
@@ -176,7 +169,7 @@ def test_campus_includes_unassigned_and_redacts(client: TestClient, db: Session)
     org = _user(db, "optc3-org@example.com", "Organization")
     member = _user(db, "optc3-member@example.com", "Member")
     _request(db, org, title="Unassigned Approved")
-    tok = _token_for(member)
+    tok = _token_for(db, member)
     r = client.get(
         "/api/events?scope=campus",
         headers={"Authorization": f"Bearer {tok}"},
@@ -206,7 +199,7 @@ def test_requestor_scoped_to_own_org(client: TestClient, db: Session) -> None:
     _request(db, org_a, title="A Private")
     _request(db, org_b, title="B Private")
 
-    tok_a = _token_for(org_a)
+    tok_a = _token_for(db, org_a)
     r = client.get(
         "/api/events?scope=my-requests",
         headers={"Authorization": f"Bearer {tok_a}"},
@@ -223,7 +216,7 @@ def test_requestor_detail_other_org_is_public_only(client: TestClient, db: Sessi
     req_b = _request(db, org_b, title="B Event")
     event_id = event_cal_crud.get_event_for_request(db, req_b.id).id
 
-    tok_a = _token_for(org_a)
+    tok_a = _token_for(db, org_a)
     r = client.get(
         f"/api/events/{event_id}",
         headers={"Authorization": f"Bearer {tok_a}"},
@@ -235,7 +228,7 @@ def test_requestor_detail_other_org_is_public_only(client: TestClient, db: Sessi
 
 def test_admin_member_list_forbidden(client: TestClient, db: Session) -> None:
     admin = _user(db, "optc6-admin@example.com", "Admin")
-    tok = _token_for(admin)
+    tok = _token_for(db, admin)
     r = client.get(
         "/api/events?scope=campus",
         headers={"Authorization": f"Bearer {tok}"},
@@ -247,7 +240,7 @@ def test_admin_can_list_all_admin_route(client: TestClient, db: Session) -> None
     org = _user(db, "optc7-org@example.com", "Organization")
     admin = _user(db, "optc7-admin@example.com", "Admin")
     _request(db, org)
-    tok = _token_for(admin)
+    tok = _token_for(db, admin)
     r = client.get("/api/admin/events", headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 200
     assert len(r.json()) >= 1
@@ -256,7 +249,7 @@ def test_admin_can_list_all_admin_route(client: TestClient, db: Session) -> None
 
 def test_invalid_scope_rejected(client: TestClient, db: Session) -> None:
     member = _user(db, "optc8-member@example.com", "Member")
-    tok = _token_for(member)
+    tok = _token_for(db, member)
     r = client.get(
         "/api/events?scope=my-requests",
         headers={"Authorization": f"Bearer {tok}"},
@@ -266,7 +259,7 @@ def test_invalid_scope_rejected(client: TestClient, db: Session) -> None:
 
 def test_member_id_query_rejected(client: TestClient, db: Session) -> None:
     member = _user(db, "optc9-member@example.com", "Member")
-    tok = _token_for(member)
+    tok = _token_for(db, member)
     r = client.get(
         "/api/events?scope=campus&member_id=999",
         headers={"Authorization": f"Bearer {tok}"},

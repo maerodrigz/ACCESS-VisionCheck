@@ -127,16 +127,12 @@ def _member(db: Session, email: str, name: str = "Member") -> User:
 
 
 def _token(user: User) -> str:
-    from app.core.security import create_access_token
+    from sqlalchemy.orm import object_session
+    from tests.auth_token import issue_bearer_token
 
-    return create_access_token(
-        {
-            "userId": user.id,
-            "name": user.fullname,
-            "email": user.email,
-            "role": user.role.role_name,
-        }
-    )
+    db = object_session(user)
+    assert db is not None
+    return issue_bearer_token(db, user)
 
 
 def _capture_and_seal(db: Session) -> SkillProgressionV2Activation:

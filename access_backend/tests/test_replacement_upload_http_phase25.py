@@ -15,7 +15,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from app.config import settings
-from app.core.security import create_access_token
 from app.crud import evaluation as eval_crud
 from app.crud import submission_chain as chain_crud
 from app.database import SessionLocal, engine
@@ -85,14 +84,12 @@ def _error_detail(resp) -> dict | str | None:
 
 
 def _token(user: User) -> str:
-    return create_access_token(
-        {
-            "userId": user.id,
-            "name": user.fullname,
-            "email": user.email,
-            "role": user.role.role_name,
-        }
-    )
+    from sqlalchemy.orm import object_session
+    from tests.auth_token import issue_bearer_token
+
+    db = object_session(user)
+    assert db is not None
+    return issue_bearer_token(db, user)
 
 
 def _user_by_role(db, role_name: str) -> User | None:

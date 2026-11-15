@@ -4,7 +4,6 @@ import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
 void showAllAnnouncementsSheet(BuildContext context) {
-  final items = appState.announcements;
   showModalBottomSheet(
     context: context,
     backgroundColor: kDashCardBg,
@@ -16,47 +15,86 @@ void showAllAnnouncementsSheet(BuildContext context) {
       expand: false,
       initialChildSize: 0.65,
       maxChildSize: 0.92,
-      builder: (_, controller) => Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: kDashBorder,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Row(
-              children: [
-                Text('All Announcements', style: memberDashboardSectionTitleStyle),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: kDashTextSecondary),
+      builder: (sheetContext, controller) => ListenableBuilder(
+        listenable: Listenable.merge([appState, memberDataController]),
+        builder: (context, _) {
+          final items = appState.announcements;
+          return Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: kDashBorder,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              controller: controller,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _AnnouncementTile(announcement: items[i]),
-            ),
-          ),
-        ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Row(
+                  children: [
+                    Text('All Announcements', style: memberDashboardSectionTitleStyle),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close_rounded, color: kDashTextSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: items.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No active announcements.',
+                          style: TextStyle(color: kDashTextSecondary),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: controller,
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (_, i) => MemberDashboardTapScale(
+                          onTap: () => showAnnouncementDetailSheet(sheetContext, items[i]),
+                          child: _AnnouncementTile(announcement: items[i]),
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     ),
   );
 }
 
-void showAnnouncementDetailSheet(BuildContext context, Announcement item) {
-  showModalBottomSheet(
+Future<void> showAnnouncementDetailSheet(
+  BuildContext context,
+  Announcement item,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+  final opened = await memberDataController.openAnnouncementDetail(item.id);
+  if (context.mounted) {
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+  if (!context.mounted) return;
+  if (opened == null) {
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('This announcement is no longer available.'),
+      ),
+    );
+    return;
+  }
+
+  await showModalBottomSheet<void>(
     context: context,
     backgroundColor: kDashCardBg,
     isScrollControlled: true,
@@ -81,11 +119,11 @@ void showAnnouncementDetailSheet(BuildContext context, Announcement item) {
               ),
             ),
             const SizedBox(height: 16),
-            Text(item.title, style: memberDashboardCardTitleStyle.copyWith(fontSize: 18)),
+            Text(opened.title, style: memberDashboardCardTitleStyle.copyWith(fontSize: 18)),
             const SizedBox(height: 6),
-            MemberDashboardMetaRow(icon: Icons.calendar_today_outlined, label: item.date),
+            MemberDashboardMetaRow(icon: Icons.calendar_today_outlined, label: opened.date),
             const SizedBox(height: 16),
-            Text(item.content, style: memberDashboardBodyStyle.copyWith(color: kDashTextPrimary)),
+            Text(opened.content, style: memberDashboardBodyStyle.copyWith(color: kDashTextPrimary)),
           ],
         ),
       ),
@@ -150,19 +188,38 @@ class _AnnouncementTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unread = !announcement.isRead;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: kDashCardBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.campaign_outlined, color: kMemberDashboardAccent, size: 18),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: kDashCardBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.campaign_outlined, color: kMemberDashboardAccent, size: 18),
+              ),
+              if (unread)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: kMemberDashboardAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -171,7 +228,12 @@ class _AnnouncementTile extends StatelessWidget {
               children: [
                 Text(announcement.date, style: memberDashboardMetaStyle),
                 const SizedBox(height: 2),
-                Text(announcement.title, style: memberDashboardCardTitleStyle),
+                Text(
+                  announcement.title,
+                  style: memberDashboardCardTitleStyle.copyWith(
+                    fontWeight: unread ? FontWeight.w800 : FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   announcement.preview,

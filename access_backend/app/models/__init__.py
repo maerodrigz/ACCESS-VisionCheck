@@ -30,11 +30,13 @@ from app.models.analytics_report import AnalyticsReport
 from app.models.archive import Archive
 from app.models.facebook_post import FacebookPost
 from app.models.facebook_setting import FacebookSetting
+from app.models.facebook_page_token_health import FacebookPageTokenHealth
 from app.models.audit_log import AuditLog
 from app.models.login_history import LoginHistory
 from app.models.user_session import UserSession
 from app.models.media_comment import MediaComment
 from app.models.announcement import Announcement
+from app.models.announcement_member_read import AnnouncementMemberRead
 from app.models.system_branding import SystemBranding
 from app.models.system_settings import SystemSettings
 from app.models.push_device_token import PushDeviceToken
@@ -69,11 +71,13 @@ __all__ = [
     "Archive",
     "FacebookPost",
     "FacebookSetting",
+    "FacebookPageTokenHealth",
     "AuditLog",
     "LoginHistory",
     "UserSession",
     "MediaComment",
     "Announcement",
+    "AnnouncementMemberRead",
     "SystemBranding",
     "SystemSettings",
     "PushDeviceToken",

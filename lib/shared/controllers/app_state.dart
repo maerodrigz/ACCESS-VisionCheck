@@ -379,6 +379,9 @@ class Announcement {
   final String content;
   final String date;
   final String? postedByName;
+  final bool isRead;
+  final DateTime? firstReadAt;
+  final DateTime? expiresAt;
 
   const Announcement({
     required this.id,
@@ -386,12 +389,32 @@ class Announcement {
     required this.content,
     required this.date,
     this.postedByName,
+    this.isRead = false,
+    this.firstReadAt,
+    this.expiresAt,
   });
 
   String get preview {
     final cleaned = content.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (cleaned.length <= 140) return cleaned;
     return '${cleaned.substring(0, 137)}…';
+  }
+
+  Announcement copyWithRead({
+    required bool isRead,
+    DateTime? firstReadAt,
+    DateTime? expiresAt,
+  }) {
+    return Announcement(
+      id: id,
+      title: title,
+      content: content,
+      date: date,
+      postedByName: postedByName,
+      isRead: isRead,
+      firstReadAt: firstReadAt ?? this.firstReadAt,
+      expiresAt: expiresAt ?? this.expiresAt,
+    );
   }
 }
 

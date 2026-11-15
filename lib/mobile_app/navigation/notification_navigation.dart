@@ -175,16 +175,26 @@ Future<void> _openAnnouncementFromNotification(
   await memberDataController.ensureAnnouncementsForNavigation();
   if (!context.mounted) return;
 
-  final item = announcementForNotification(notification);
-  if (item != null) {
-    await showMemberNotificationFloatingCard(
-      context,
-      title: item.title,
-      message: item.content,
-      categoryLabel: 'Announcement',
-      icon: Icons.campaign_outlined,
-      timeLabel: item.date,
+  final refId = notification.actionRefId;
+  Announcement? item = announcementForNotification(notification);
+
+  // Prefer opening by id so first-open stamps first_read_at / expires_at.
+  if (refId != null && refId > 0) {
+    item ??= Announcement(
+      id: refId,
+      title: notification.title,
+      content: notification.body,
+      date: '',
     );
+    await showAnnouncementDetailSheet(context, item);
+    // Refresh inbox so expired announcement rows drop after the 24h window.
+    await memberDataController.refreshNotifications();
+    return;
+  }
+
+  if (item != null) {
+    await showAnnouncementDetailSheet(context, item);
+    await memberDataController.refreshNotifications();
     return;
   }
 

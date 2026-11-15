@@ -39,10 +39,29 @@ def _out(row) -> NotificationOut:
     )
 
 
+def _announcement_notification_visible(db: Session, n, *, user_id: int) -> bool:
+    """Hide announcement inbox rows after the member's 24h post-read window."""
+    if (n.category or "").strip().lower() != "announcement":
+        return True
+    if (n.action_type or "").strip().lower() != "view_announcement":
+        return True
+    ref = n.action_ref_id
+    if ref is None:
+        return True
+    from app.crud import announcement_member_read as read_crud
+
+    return not read_crud.is_expired_for_user(
+        db, announcement_id=int(ref), user_id=user_id
+    )
+
+
 @router.get("", response_model=list[NotificationOut])
 def list_notifications(db: Session = Depends(get_db), current_user: User = Depends(require_approved)):
     rows = notification_crud.list_for_user(db, current_user.id)
-    return [_out(n) for n in rows]
+    visible = [
+        n for n in rows if _announcement_notification_visible(db, n, user_id=current_user.id)
+    ]
+    return [_out(n) for n in visible]
 
 
 @router.post("/push-token", response_model=MessageResponse)

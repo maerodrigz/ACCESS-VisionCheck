@@ -352,6 +352,7 @@ class _DeclineFormSheet extends StatefulWidget {
 class _DeclineFormSheetState extends State<_DeclineFormSheet> {
   String? _code;
   final _otherCtrl = TextEditingController();
+  bool _submitting = false;
 
   static const _reasons = [
     ('schedule_conflict', 'Schedule conflict'),
@@ -367,53 +368,73 @@ class _DeclineFormSheetState extends State<_DeclineFormSheet> {
     super.dispose();
   }
 
+  void _submit() {
+    if (_submitting) return;
+    if (_code == null) return;
+    if (_code == 'other' && _otherCtrl.text.trim().length < 8) return;
+    setState(() => _submitting = true);
+    Navigator.pop(context, (_code!, _code == 'other' ? _otherCtrl.text.trim() : null));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Why are you declining?', style: memberDashboardCardTitleStyle.copyWith(fontSize: 16)),
-          const SizedBox(height: 12),
-          ..._reasons.map(
-            (r) => RadioListTile<String>(
-              value: r.$1,
-              groupValue: _code,
-              onChanged: (v) => setState(() => _code = v),
-              title: Text(r.$2, style: const TextStyle(fontSize: 14)),
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-          if (_code == 'other') ...[
-            TextField(
-              controller: _otherCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Brief explanation (required)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+        child: SingleChildScrollView(
+          // Keep radio selection and Other text while the keyboard opens.
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Why are you declining?',
+                style: memberDashboardCardTitleStyle.copyWith(fontSize: 16),
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kMemberPrimary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+              const SizedBox(height: 12),
+              ..._reasons.map(
+                (r) => RadioListTile<String>(
+                  value: r.$1,
+                  groupValue: _code,
+                  onChanged: _submitting ? null : (v) => setState(() => _code = v),
+                  title: Text(r.$2, style: const TextStyle(fontSize: 14)),
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
               ),
-              onPressed: () {
-                if (_code == null) return;
-                if (_code == 'other' && _otherCtrl.text.trim().length < 8) return;
-                Navigator.pop(context, (_code!, _code == 'other' ? _otherCtrl.text.trim() : null));
-              },
-              child: const Text('Submit Decline', style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
+              if (_code == 'other') ...[
+                TextField(
+                  controller: _otherCtrl,
+                  enabled: !_submitting,
+                  maxLines: 3,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    hintText: 'Brief explanation (required)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kMemberPrimary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: _submitting ? null : _submit,
+                  child: const Text(
+                    'Submit Decline',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

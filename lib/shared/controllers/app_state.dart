@@ -168,15 +168,21 @@ class Evaluation {
       replacementVerified ||
       MemberReviewStatus.isReuploadRequested(reviewStatus);
 
-  /// DB stores 0–1; older payloads may store 1–5 in criteria_json only.
-  double get displayScore => score <= 1.0 ? score : (score / 5).clamp(0.0, 1.0);
-
-  int get displayPercent => (displayScore * 100).round();
-
-  bool get hasAiCriteria => criteria.isNotEmpty;
-
+  /// True for practice AI quality evaluations (historical EfficientNet or current MUSIQ/OpenCV).
   bool get isEfficientNetEvaluation =>
-      scoringModel?.contains('efficientnet') == true || hasAiCriteria;
+      scoringModel?.contains('efficientnet') == true ||
+      scoringModel?.contains('musiq') == true ||
+      scoringModel?.contains('opencv') == true ||
+      hasAiCriteria;
+
+  /// Member-facing quality engine badge. Historical EfficientNet rows keep that label.
+  String get qualityEngineBadgeLabel {
+    final model = (scoringModel ?? '').toLowerCase();
+    if (model.contains('efficientnet')) return 'EfficientNet-B0';
+    if (model.contains('opencv') && !model.contains('musiq')) return 'OpenCV';
+    if (model.contains('musiq') || hasAiCriteria) return 'MUSIQ + OpenCV';
+    return 'MUSIQ + OpenCV';
+  }
 
   List<CriterionScore> get previewCriteria {
     if (criteria.isEmpty) return const [];
@@ -680,7 +686,7 @@ class AppState extends ChangeNotifier {
   /// My Assignments or My Requests scope (private fields from API).
   final List<CalendarEvent> myCalendarEvents = [];
   final List<Challenge> challenges = [];
-  /// Member AI evaluation uploads (EfficientNet-B0). Not event gallery media.
+  /// Member AI evaluation uploads (MUSIQ + OpenCV quality). Not event gallery media.
   final List<GalleryItem> gallery = [];
   /// Approved ACCESS event/documentation media from GET /api/gallery.
   final List<EventGalleryMedia> eventGallery = [];

@@ -12,7 +12,8 @@ import 'package:access_mobile/shared/themes/theme.dart';
 
 const _modelFooter =
     'Individual criteria are five-level experimental estimates. '
-    'Core technical signals use EfficientNet-B0; Color Balance and Color Saturation use heuristic estimates. '
+    'Core technical signals use MUSIQ with classical OpenCV criteria (OpenCV fallback if the worker is unavailable). '
+    'Color Balance and Color Saturation use heuristic estimates. '
     'Video Motion Stability uses frame-sharpness changes; Flickering uses frame-brightness changes. '
     'Human-friendly feedback may include Google Gemini AI.';
 

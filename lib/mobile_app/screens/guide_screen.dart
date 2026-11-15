@@ -79,15 +79,15 @@ class GuideScreen extends StatelessWidget {
           number: 3,
           color: kAccent,
           icon: Icons.psychology_outlined,
-          title: 'AI Core: EfficientNet-B0',
+          title: 'AI Core: MUSIQ + OpenCV',
           subtitle: 'Technical quality + authenticity analysis',
           bullets: [
-            'Technical Quality Score: measures sharpness, lighting, composition, resolution',
-            'AI Detection Probability: detects AI-generated or manipulated content',
-            'Both scores fed into the Results Aggregator',
+            'Technical Quality Score: MUSIQ worker with classical OpenCV criteria (OpenCV fallback)',
+            'AI Detection Probability: PROBE / WaveRep authenticity models (separate from quality)',
+            'Both tracks feed into the Results Aggregator',
           ],
           highlight: true,
-          highlightLabel: 'EfficientNet-B0 Model',
+          highlightLabel: 'MUSIQ + OpenCV',
         ),
 
         _Step(
@@ -97,10 +97,10 @@ class GuideScreen extends StatelessWidget {
           title: 'Score Computation',
           subtitle: 'Separate tracks',
           bullets: [
-            'Skill Tier: average quality on eligible, released practice evaluations (0–100)',
+            'My Skill Level: Quality Skill Classification for Photo and Video (0–5 average)',
             'XP Rank: participation points from evaluated uploads (leaderboard order)',
             'Media Integrity: AI detection and admin review (can hold scores until resolved)',
-            'Beginner / Intermediate / Advanced / Expert tiers use quality thresholds (60 / 75 / 90)',
+            'Titles: Beginner, Developing, Proficient, Advanced, Expert (score + minimum evals)',
           ],
         ),
 
@@ -134,13 +134,13 @@ class GuideScreen extends StatelessWidget {
           number: 7,
           color: kAccent,
           icon: Icons.emoji_events_outlined,
-          title: 'Skill Classification',
-          subtitle: 'Competency-based rule system',
+          title: 'Quality Skill Classification',
+          subtitle: 'Photo and Video media-quality titles',
           bullets: [
-            'Requires 3–5 completed evaluations to earn a title',
-            'Title based on average score quality',
-            'Novice → Beginner → Intermediate → Advanced → Expert → Master',
-            'Badge updates automatically as more evaluations are completed',
+            'Uses the latest 10 qualifying comparable practice evaluations',
+            'Photo and Video are classified separately from average score + minimum count',
+            'Beginner → Developing → Proficient → Advanced → Expert',
+            'XP, achievements, and leaderboard order stay separate from these titles',
           ],
         ),
 
@@ -184,8 +184,8 @@ class GuideScreen extends StatelessWidget {
         _ComponentCard(
           icon: Icons.auto_awesome_rounded,
           color: kAccent,
-          title: 'AI Core (EfficientNet-B0)',
-          desc: 'Deep learning model that analyzes visual characteristics, measures technical clarity, and detects AI-generated or manipulated content.'),
+          title: 'AI Core (MUSIQ + OpenCV)',
+          desc: 'MUSIQ worker and classical OpenCV measure technical quality. Separate authenticity detectors assess AI-generated or manipulated content.'),
         _ComponentCard(
           icon: Icons.chat_bubble_outline,
           color: const Color(0xFF4285F4),

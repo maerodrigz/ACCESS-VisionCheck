@@ -210,7 +210,7 @@ class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
                         detail: '',
                       ),
                       mediaType: evaluation.mediaType ?? 'photo',
-                      scoringModel: evaluation.scoringModel ?? 'efficientnet_b0',
+                      scoringModel: evaluation.scoringModel ?? 'musiq-paq2piq+opencv-classical',
                       showQualityFeedback: false,
                       memberIntegrityMessage: integrityReason,
                     ),

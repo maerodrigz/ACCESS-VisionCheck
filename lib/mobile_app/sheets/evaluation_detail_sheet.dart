@@ -77,9 +77,9 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: kBorder),
                     ),
-                    child: const Text(
-                      'EfficientNet-B0',
-                      style: TextStyle(color: kTextSecondary, fontSize: 10, fontWeight: FontWeight.w600),
+                    child: Text(
+                      ev.qualityEngineBadgeLabel,
+                      style: const TextStyle(color: kTextSecondary, fontSize: 10, fontWeight: FontWeight.w600),
                     ),
                   ),
                 if (ev.hasAdminReviewDecision && ev.reviewStatus != null)

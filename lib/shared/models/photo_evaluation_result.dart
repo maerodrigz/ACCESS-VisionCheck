@@ -622,8 +622,8 @@ class PhotoEvaluationResult {
 
   /// Awarded XP from backend stamps, or preview × multiplier when released/eligible.
   ///
-  /// Verified submissions often keep xp_multiplier: 0 from the integrity hold
-  /// even after xp_awarded_at_review is true. Prefer explicit award fields.
+  /// Verified submissions often keep `xp_multiplier: 0` from the integrity hold
+  /// even after `xp_awarded_at_review` is true. Prefer explicit award fields.
   int? get memberXpAwardedPoints {
     if (xpAwardedPoints != null && xpAwardedPoints! > 0) {
       return xpAwardedPoints;
@@ -756,9 +756,13 @@ class PhotoEvaluationResult {
     map.remove('gemini_feedback_is_local');
     map['member_scores_released'] = memberScoresReleasedEffective;
     map['show_quality_feedback'] = showQualityFeedbackEffective;
-    map['scoring_engine'] = scoringModel.contains('efficientnet')
-        ? 'efficientnet-b0+ffmpeg'
-        : (scoringModel.isNotEmpty ? scoringModel : 'efficientnet-b0+ffmpeg');
+    map['scoring_engine'] = scoringModel.contains('musiq')
+        ? 'musiq-worker+opencv+color-heuristics'
+        : scoringModel.contains('efficientnet')
+            ? 'efficientnet-b0+ffmpeg' // historical rows only
+            : (scoringModel.isNotEmpty
+                ? scoringModel
+                : 'musiq-worker+opencv+color-heuristics');
     return map;
   }
 

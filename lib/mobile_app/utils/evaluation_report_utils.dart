@@ -54,7 +54,7 @@ PhotoEvaluationResult? evaluationToPhotoResult(Evaluation ev) {
         recommendation: ev.recommendation ?? 'Needs Improvement',
         aiDetection: _fallbackAiDetection(ev.reviewStatus),
         mediaType: ev.mediaType ?? 'photo',
-        scoringModel: ev.scoringModel ?? 'efficientnet_b0',
+        scoringModel: ev.scoringModel ?? 'musiq-paq2piq+opencv-classical',
         geminiFeedback: ev.geminiFeedback,
       ),
       ev.reviewStatus,

@@ -62,7 +62,7 @@ def _ignore_client_preview_authenticity_for_video(media: MediaFile) -> bool:
 
 
 def _video_ai_scan_incomplete(ai_info: dict | None) -> bool:
-    """True when a video upload has no completed PROBE/UnivFD authenticity result."""
+    """True when a video upload has no completed PROBE/WaveRep authenticity result."""
     if not isinstance(ai_info, dict) or not ai_info:
         return True
     if is_deferred_authenticity_preview(ai_info):

@@ -5,7 +5,7 @@ import mimetypes
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -565,6 +565,11 @@ def stream_admin_media(
     if not media or not media.file_url:
         raise HTTPException(status_code=404, detail="Media not found")
 
+    from app.services.media_stream_response import (
+        file_response_from_bytes,
+        stream_suffix_for_content_type,
+    )
+
     file_url = normalize_supabase_storage_url(media.file_url or "")
     content_type = _admin_media_content_type(media.file_name, media.file_type)
     local = local_media_path(file_url)
@@ -584,10 +589,11 @@ def stream_admin_media(
     if not content:
         raise HTTPException(status_code=404, detail="Media file unavailable")
 
-    return Response(
-        content=content,
+    return file_response_from_bytes(
+        content,
         media_type=content_type,
-        headers={"Cache-Control": "private, max-age=120", "Accept-Ranges": "bytes"},
+        filename=media.file_name,
+        suffix=stream_suffix_for_content_type(content_type, media.file_name),
     )
 
 

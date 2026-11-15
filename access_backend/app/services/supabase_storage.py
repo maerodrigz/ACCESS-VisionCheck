@@ -248,6 +248,24 @@ def normalize_supabase_storage_url(url: str | None) -> str:
     return _fix_legacy_object_path(normalized)
 
 
+def member_list_file_url(url: str | None, *, storage_removed: bool = False) -> str:
+    """Member evaluation LIST / card URL without remote Supabase signing.
+
+    Keeps compact ``supabase-ref:`` values so Flutter can use authenticated
+    ``GET /api/media/{id}/stream``. Does not expose service-role keys or make
+    the bucket public. Use [normalize_supabase_storage_url] only when a
+    fetchable HTTPS URL is required (stream redirect, single-object fetch).
+    """
+    if storage_removed:
+        return ""
+    if not url or not str(url).strip():
+        return ""
+    normalized = str(url).strip()
+    if is_supabase_storage_ref(normalized):
+        return normalized
+    return _fix_legacy_object_path(normalized)
+
+
 def _remember_bucket_access(bucket: str, status_code: int) -> None:
     if status_code == 200:
         _bucket_is_public[bucket] = True

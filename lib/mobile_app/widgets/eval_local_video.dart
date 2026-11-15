@@ -3,9 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import 'package:access_mobile/mobile_app/widgets/eval_video_playback_chrome.dart';
+import 'package:access_mobile/mobile_app/widgets/eval_video_playback_diagnostics.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_video_playback_stub.dart'
     if (dart.library.io) 'package:access_mobile/mobile_app/widgets/eval_video_playback_io.dart'
     if (dart.library.html) 'package:access_mobile/mobile_app/widgets/eval_video_playback_web.dart';
+import 'package:access_mobile/mobile_app/widgets/eval_video_preview_gate.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
@@ -470,22 +473,30 @@ class EvalNetworkVideoPreviewTile extends StatelessWidget {
   }
 }
 
-void openEvalNetworkVideoViewer(
+Future<void> openEvalNetworkVideoViewer(
   BuildContext context, {
   required String videoUrl,
   required String title,
   String? integrityReviewNotice,
-}) {
+}) async {
   if (videoUrl.trim().isEmpty) return;
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => EvalNetworkVideoViewerScreen(
-        videoUrl: videoUrl,
-        title: title,
-        integrityReviewNotice: integrityReviewNotice,
+  // Suspend report/list preview controllers so only one player uses bandwidth.
+  EvalVideoPreviewGate.instance.beginFullscreenPlayback();
+  evalVideoDiag('viewer_open');
+  try {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => EvalNetworkVideoViewerScreen(
+          videoUrl: videoUrl,
+          title: title,
+          integrityReviewNotice: integrityReviewNotice,
+        ),
       ),
-    ),
-  );
+    );
+  } finally {
+    EvalVideoPreviewGate.instance.endFullscreenPlayback();
+    evalVideoDiag('viewer_close');
+  }
 }
 
 /// Full-screen player for saved evaluation videos hosted on the API.
@@ -509,7 +520,11 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
   VideoPlayerController? _controller;
   bool _loading = true;
   bool _error = false;
+  String? _errorDetail;
   bool _showControls = true;
+  int _initGeneration = 0;
+  bool _wasBuffering = false;
+  DateTime? _initStartedAt;
 
   @override
   void initState() {
@@ -517,33 +532,97 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
     _initPlayer();
   }
 
+  EvalVideoChromeKind get _chromeKind {
+    final v = _controller?.value;
+    return evalVideoChromeKind(
+      loading: _loading,
+      error: _error,
+      initialized: v?.isInitialized ?? false,
+      isPlaying: v?.isPlaying ?? false,
+      isBuffering: v?.isBuffering ?? false,
+    );
+  }
+
+  void _onControllerTick() {
+    final c = _controller;
+    if (c == null || !mounted) return;
+    final buffering = c.value.isBuffering;
+    if (buffering != _wasBuffering) {
+      evalVideoDiag(
+        buffering ? 'buffering_start' : 'buffering_end',
+        fields: {
+          'position_ms': c.value.position.inMilliseconds,
+          'playing': c.value.isPlaying,
+        },
+      );
+      _wasBuffering = buffering;
+    }
+    setState(() {});
+  }
+
   Future<void> _initPlayer() async {
+    final generation = ++_initGeneration;
+    _initStartedAt = DateTime.now();
+    evalVideoDiag('init_start');
+    setState(() {
+      _loading = true;
+      _error = false;
+      _errorDetail = null;
+      _wasBuffering = false;
+    });
+    final previous = _controller;
+    if (previous != null) {
+      previous.removeListener(_onControllerTick);
+      _controller = null;
+      await previous.dispose();
+    }
+
     try {
-      final uri = Uri.parse(widget.videoUrl);
+      // Follow 307 signed-URL redirects without forwarding JWT; keep JWT only
+      // when the stream serves local FileResponse (200/206).
+      final playable = await resolveMemberMediaPlayableUri(
+        widget.videoUrl,
+        bearerToken: authController.user?.token,
+      );
+      if (!mounted || generation != _initGeneration) return;
+
       final controller = VideoPlayerController.networkUrl(
-        uri,
-        httpHeaders: memberMediaHttpHeaders(
-          widget.videoUrl,
-          bearerToken: authController.user?.token,
-        ),
+        playable.uri,
+        httpHeaders: playable.httpHeaders,
       );
       await controller.initialize();
-      if (!mounted) {
+      if (!mounted || generation != _initGeneration) {
         await controller.dispose();
         return;
       }
       await controller.setLooping(false);
+      controller.addListener(_onControllerTick);
+      final initMs = _initStartedAt == null
+          ? null
+          : DateTime.now().difference(_initStartedAt!).inMilliseconds;
+      evalVideoDiag(
+        'init_ok',
+        fields: {
+          'init_ms': initMs,
+          'duration_ms': controller.value.duration.inMilliseconds,
+        },
+      );
       setState(() {
         _controller = controller;
         _loading = false;
         _error = false;
+        _errorDetail = null;
       });
+      // Single play() after init. Do not re-call while buffering.
       await controller.play();
-    } catch (_) {
-      if (mounted) {
+      evalVideoDiag('play_issued', fields: {'position_ms': 0});
+    } catch (e) {
+      evalVideoDiag('init_error', fields: {'type': e.runtimeType.toString()});
+      if (mounted && generation == _initGeneration) {
         setState(() {
           _loading = false;
           _error = true;
+          _errorDetail = 'Unable to play this video. Check your connection and try again.';
         });
       }
     }
@@ -551,20 +630,44 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _initGeneration++;
+    final c = _controller;
+    _controller = null;
+    c?.removeListener(_onControllerTick);
+    c?.dispose();
+    evalVideoDiag('viewer_dispose');
     super.dispose();
   }
 
   void _togglePlay() {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
-    setState(() {
-      if (c.value.isPlaying) {
-        c.pause();
-      } else {
-        c.play();
-      }
-    });
+    final playing = c.value.isPlaying;
+    final buffering = c.value.isBuffering;
+    if (playing) {
+      if (!evalVideoShouldIssuePause(isPlaying: true, userWantsPause: true)) return;
+      evalVideoDiag(
+        'pause',
+        fields: {'position_ms': c.value.position.inMilliseconds, 'buffering': buffering},
+      );
+      c.pause();
+      setState(() {});
+      return;
+    }
+    // Do not spam play() while already playing+buffering.
+    if (!evalVideoShouldIssuePlay(
+      isPlaying: playing,
+      isBuffering: buffering,
+      userWantsPlay: true,
+    )) {
+      return;
+    }
+    evalVideoDiag(
+      'play',
+      fields: {'position_ms': c.value.position.inMilliseconds, 'buffering': buffering},
+    );
+    c.play();
+    setState(() {});
   }
 
   String _positionLabel(Duration d) {
@@ -576,6 +679,9 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
   @override
   Widget build(BuildContext context) {
     final notice = widget.integrityReviewNotice?.trim();
+    final chrome = _chromeKind;
+    final showSpinner = evalVideoShowBufferingSpinner(chrome);
+    final showPlayBadge = _showControls && evalVideoShowPlayBadge(chrome);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -593,9 +699,7 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  if (_loading)
-                    const Center(child: CircularProgressIndicator(color: Colors.white70))
-                  else if (_error)
+                  if (_error)
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
@@ -604,9 +708,20 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
                           const Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 56),
                           const SizedBox(height: 12),
                           Text(
-                            'Unable to load this video. Check your connection and try again.',
+                            _errorDetail ??
+                                'Unable to load this video. Check your connection and try again.',
                             textAlign: TextAlign.center,
                             style: dashText(const TextStyle(color: Colors.white70, fontSize: 14)),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton.icon(
+                            onPressed: _loading ? null : _initPlayer,
+                            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                            label: const Text('Retry', style: TextStyle(color: Colors.white)),
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.white24,
+                              foregroundColor: Colors.white,
+                            ),
                           ),
                         ],
                       ),
@@ -618,6 +733,8 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
                         child: VideoPlayer(_controller!),
                       ),
                     ),
+                  if (showSpinner && !_error)
+                    const Center(child: CircularProgressIndicator(color: Colors.white70)),
                   if (!_loading && !_error && _controller != null && _showControls)
                     Positioned(
                       left: 0,
@@ -627,14 +744,10 @@ class _EvalNetworkVideoViewerScreenState extends State<EvalNetworkVideoViewerScr
                         controller: _controller!,
                         onTogglePlay: _togglePlay,
                         positionLabel: _positionLabel,
+                        chromeKind: chrome,
                       ),
                     ),
-                  if (!_loading &&
-                      !_error &&
-                      _controller != null &&
-                      _showControls &&
-                      !_controller!.value.isPlaying)
-                    const EvalVideoPlayBadge(onDarkBackground: true),
+                  if (showPlayBadge) const EvalVideoPlayBadge(onDarkBackground: true),
                 ],
               ),
             ),
@@ -840,11 +953,13 @@ class _VideoControlsBar extends StatelessWidget {
     required this.controller,
     required this.onTogglePlay,
     required this.positionLabel,
+    this.chromeKind,
   });
 
   final VideoPlayerController controller;
   final VoidCallback onTogglePlay;
   final String Function(Duration) positionLabel;
+  final EvalVideoChromeKind? chromeKind;
 
   @override
   Widget build(BuildContext context) {
@@ -857,6 +972,16 @@ class _VideoControlsBar extends StatelessWidget {
         final durationMs = value.duration.inMilliseconds;
         final positionMs = value.position.inMilliseconds.clamp(0, durationMs > 0 ? durationMs : 0);
         final progress = durationMs > 0 ? positionMs / durationMs : 0.0;
+        final kind = chromeKind ??
+            evalVideoChromeKind(
+              loading: false,
+              error: false,
+              initialized: true,
+              isPlaying: value.isPlaying,
+              isBuffering: value.isBuffering,
+            );
+        final showPauseIcon =
+            kind == EvalVideoChromeKind.playing || kind == EvalVideoChromeKind.buffering;
 
         return Container(
           padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.paddingOf(context).bottom),
@@ -896,11 +1021,28 @@ class _VideoControlsBar extends StatelessWidget {
                   IconButton(
                     onPressed: onTogglePlay,
                     icon: Icon(
-                      value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      showPauseIcon ? Icons.pause_rounded : Icons.play_arrow_rounded,
                       color: Colors.white,
                       size: 28,
                     ),
                   ),
+                  if (kind == EvalVideoChromeKind.buffering) ...[
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Buffering',
+                      style: dashText(const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      )),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Text(
                     '${positionLabel(value.position)} / ${positionLabel(value.duration)}',
                     style: dashText(const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),

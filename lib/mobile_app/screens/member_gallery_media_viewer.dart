@@ -109,22 +109,23 @@ class _MemberGalleryMediaViewerState extends State<MemberGalleryMediaViewer> {
       return;
     }
 
-    final uri = Uri.tryParse(_current.thumbnailUrl);
-    if (uri == null) {
+    final url = _current.thumbnailUrl;
+    if (Uri.tryParse(url) == null) {
       if (mounted) setState(() => _videoError = true);
       return;
     }
 
-    final url = _current.thumbnailUrl;
-    final controller = VideoPlayerController.networkUrl(
-      uri,
-      httpHeaders: memberMediaHttpHeaders(
+    try {
+      final playable = await resolveMemberMediaPlayableUri(
         url,
         bearerToken: authController.user?.token,
-      ),
-    );
-    _videoController = controller;
-    try {
+      );
+      if (!mounted) return;
+      final controller = VideoPlayerController.networkUrl(
+        playable.uri,
+        httpHeaders: playable.httpHeaders,
+      );
+      _videoController = controller;
       await controller.initialize();
       if (!mounted) return;
       setState(() {

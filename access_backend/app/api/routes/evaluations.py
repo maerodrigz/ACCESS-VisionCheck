@@ -9,9 +9,12 @@ from app.database import get_db
 from app.models.submission_chain import SubmissionChain
 from app.models.user import User
 from app.schemas.member_api import EvaluationOut
-from app.services.member_score_release import evaluation_row_for_member
+from app.services.member_score_release import (
+    evaluation_row_for_member,
+    slim_criteria_json_for_member_list,
+)
 from app.services.submission_chain_read import chain_metadata_for_media, chains_by_ids
-from app.services.supabase_storage import normalize_supabase_storage_url
+from app.services.supabase_storage import member_list_file_url
 
 router = APIRouter(prefix="/evaluations", tags=["Evaluations"])
 
@@ -22,6 +25,7 @@ def _evaluation_out_for_row(
     *,
     ai=None,
     chain=None,
+    for_list: bool = False,
 ) -> EvaluationOut:
     if ai is None:
         ai = eval_crud.get_ai_for_media(db, ev.media_id)
@@ -50,12 +54,11 @@ def _evaluation_out_for_row(
         quality_level=ev.quality_level,
         recommendation=ev.recommendation,
     )
+    if for_list:
+        criteria_json = slim_criteria_json_for_member_list(criteria_json)
     storage_removed = ev.media.storage_removed_at is not None
-    file_url = (
-        ""
-        if storage_removed
-        else normalize_supabase_storage_url(ev.media.file_url or "")
-    )
+    # List/card responses keep compact refs (no per-row Supabase sign). Stream auth stays on /media/{id}/stream.
+    file_url = member_list_file_url(ev.media.file_url, storage_removed=storage_removed)
     chain_meta = chain_metadata_for_media(db, ev.media, chain=chain)
     chain_row = chain
     if chain_row is None and chain_meta.get("submission_chain_id"):
@@ -133,7 +136,8 @@ def list_evaluations(
         ev = eval_crud.get_for_media(db, media_id)
         if ev is None or ev.media.uploaded_by != current_user.id:
             return []
-        return [_evaluation_out_for_row(db, ev)]
+        # Detail/report path: full criteria_json; still avoid remote URL signing (stream-compatible).
+        return [_evaluation_out_for_row(db, ev, for_list=False)]
 
     rows = eval_crud.list_for_user(db, current_user.id) if mine else []
     if not rows:
@@ -154,6 +158,7 @@ def list_evaluations(
             chain=chain_map.get(ev.media.submission_chain_id)
             if ev.media is not None and ev.media.submission_chain_id
             else None,
+            for_list=True,
         )
         for ev in rows
     ]

@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import Date, cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -43,7 +43,7 @@ from app.services.media_file_hash import (
     EVALUATION_DUPLICATE_UPLOAD_MESSAGE,
     sha256_hex,
 )
-from app.services.supabase_storage import normalize_supabase_storage_url
+from app.services.supabase_storage import member_list_file_url, normalize_supabase_storage_url
 from app.config import settings
 
 router = APIRouter(prefix="/media", tags=["Media"])
@@ -144,7 +144,8 @@ def _media_out(m, base_url: str | None = None) -> MediaOut:
     show_scores = member_may_view_scores(criteria, review_status)
 
     storage_removed = getattr(m, "storage_removed_at", None) is not None
-    url = "" if storage_removed else normalize_supabase_storage_url(m.file_url or "")
+    # List cards use stream URLs for supabase-ref; do not sign every row on GET /media.
+    url = member_list_file_url(m.file_url, storage_removed=storage_removed)
     if base_url and url.startswith("/"):
         url = f"{base_url}{url}"
     return MediaOut(
@@ -248,10 +249,16 @@ def stream_member_media(
     if not _member_may_stream_media(current_user, media):
         raise HTTPException(status_code=404, detail="Media not found")
 
+    from app.services.media_stream_response import (
+        file_response_from_bytes,
+        stream_suffix_for_content_type,
+    )
+
     file_url = normalize_supabase_storage_url(media.file_url or "")
     content_type = _stream_content_type(media.file_name, media.file_type)
     local = local_media_path(file_url)
     if local is not None:
+        # Starlette FileResponse honors Range → 206 for seeking / pause-resume.
         return FileResponse(
             local,
             media_type=content_type,
@@ -259,6 +266,8 @@ def stream_member_media(
             headers={"Cache-Control": "private, max-age=120"},
         )
 
+    # Private Supabase (or other HTTPS): short-lived signed URL redirect. Client
+    # must follow Location without forwarding the JWT (signed URL is the auth).
     if file_url.startswith("http://") or file_url.startswith("https://"):
         return RedirectResponse(url=file_url, status_code=307)
 
@@ -266,10 +275,11 @@ def stream_member_media(
     if not content:
         raise HTTPException(status_code=404, detail="Media file unavailable")
 
-    return Response(
-        content=content,
+    return file_response_from_bytes(
+        content,
         media_type=content_type,
-        headers={"Cache-Control": "private, max-age=120", "Accept-Ranges": "bytes"},
+        filename=media.file_name,
+        suffix=stream_suffix_for_content_type(content_type, media.file_name),
     )
 
 

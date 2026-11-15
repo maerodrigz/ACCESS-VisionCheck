@@ -15,10 +15,8 @@ from app.models.media_constants import (
     MEDIA_CATEGORY_EVENT,
 )
 from app.models.user import User
-from app.config import settings, facebook_credentials
-from app.crud import system_settings as settings_crud
 from app.services.facebook_publish_guard import ensure_facebook_publishing_enabled
-from app.services.facebook_service import inspect_page_token, list_page_albums, resolve_page_album_id
+from app.services.facebook_token_health import build_status_payload
 from app.services.event_facebook_publish import bulk_publish_event_media
 from app.services.supabase_storage import (
     normalize_supabase_storage_url,
@@ -166,61 +164,14 @@ def publish_event_media_to_facebook(
 
 @router.get("/facebook/status")
 def facebook_config_status(db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    """Whether Graph API credentials are set (never returns secret values)."""
-    cfg = settings_crud.settings_payload(db)
-    publishing_enabled = bool(cfg.get("enable_facebook_publishing", True))
-    page_id, page_token = facebook_credentials()
-    page_id_set = bool(page_id)
-    token_set = bool(page_token)
-    missing: list[str] = []
-    if not page_id_set:
-        missing.append("FACEBOOK_PAGE_ID")
-    if not token_set:
-        missing.append("FACEBOOK_PAGE_ACCESS_TOKEN")
-    token_check = inspect_page_token() if token_set else {"ok": False, "reason": "missing_token"}
-    token_ok = bool(token_check.get("ok"))
-    graph_ready = page_id_set and token_set and token_ok
-    album_id: str | None = None
-    album_name: str | None = None
-    if graph_ready:
-        try:
-            album_id = resolve_page_album_id()
-            for album in list_page_albums():
-                if str(album.get("id")) == album_id:
-                    album_name = album.get("name")
-                    break
-        except Exception:
-            album_id = None
-    if token_set and not token_ok:
-        missing.append("PAGE_ACCESS_TOKEN (wrong type — need Page token from me/accounts)")
+    """Cached Facebook connection health (no Graph call). Never returns secrets."""
+    return build_status_payload(db, live=False)
 
-    if graph_ready:
-        reminder = (
-            "Graph API ready. Bulk photos publish as swipeable grid post(s) on your Page feed "
-            "(up to 10 photos per post)."
-        )
-    elif token_set and not token_ok and token_check.get("reason"):
-        reminder = str(token_check["reason"])
-    else:
-        reminder = (
-            "Auto-post to your Page needs FACEBOOK_PAGE_ID and FACEBOOK_PAGE_ACCESS_TOKEN in "
-            "access_backend/.env (then restart the backend). Without a token, use browser share "
-            "to publish one best pick at a time."
-        )
 
-    return {
-        "configured": graph_ready,
-        "browser_share_available": publishing_enabled,
-        "publishing_enabled": publishing_enabled,
-        "page_id_set": page_id_set,
-        "access_token_set": token_set,
-        "page_token_valid": token_ok,
-        "token_check": token_check,
-        "album_id": album_id,
-        "album_name": album_name,
-        "missing": missing,
-        "reminder": reminder,
-    }
+@router.post("/facebook/status/check")
+def facebook_config_status_check(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    """Manual live validation via Graph /me (once). Persists safe metadata only."""
+    return build_status_payload(db, live=True)
 
 
 @router.get("/facebook/history")

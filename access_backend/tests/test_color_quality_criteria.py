@@ -51,7 +51,9 @@ def test_daylight_neutral_scores_balance_and_saturation() -> None:
     assert sat["available"] is True
     assert 1 <= int(bal["score"]) <= 5
     assert 1 <= int(sat["score"]) <= 5
-    assert "Heuristic" in bal["explanation"] or "heuristic" in bal["explanation"].lower()
+    assert "Heuristic" not in bal["explanation"]
+    assert "heuristic" not in bal["explanation"].lower()
+    assert bal.get("estimate_kind") == "heuristic_experimental"
 
 
 def test_warm_sunset_does_not_crash_and_may_score() -> None:
@@ -166,8 +168,15 @@ def test_evaluate_photo_seven_criteria_order_no_noise_ringing() -> None:
 
 
 def test_evaluate_video_keeps_flicker_motion() -> None:
+    from app.services.ffmpeg_frames import FrameExtractionResult, SAMPLING_METHOD_FFMPEG
+
     frames = [_png_bytes(np.full((64, 64, 3), (100, 120, 140), dtype=np.uint8)) for _ in range(3)]
-    with patch.object(media_evaluator, "extract_frames", return_value=frames):
+    extraction = FrameExtractionResult(
+        frames=frames,
+        sampling_method=SAMPLING_METHOD_FFMPEG,
+        probe_duration_sec=1.2,
+    )
+    with patch.object(media_evaluator, "extract_frames_detailed", return_value=extraction):
         with patch.object(
             media_evaluator,
             "resolve_quality_engine_for_bytes",
@@ -175,11 +184,16 @@ def test_evaluate_video_keeps_flicker_motion() -> None:
         ):
             with patch.object(
                 media_evaluator,
-                "detect_ai_generated_from_frames",
-                return_value={"verdict": "authentic"},
+                "analyze_image_for_engine",
+                return_value=_stub_metrics(),
             ):
-                with patch.object(media_evaluator, "apply_integrity_evaluation_policy", side_effect=lambda p: p):
-                    payload = media_evaluator.evaluate_video(b"fake", ext=".mp4", include_authenticity=True)
+                with patch.object(
+                    media_evaluator,
+                    "detect_ai_generated_from_frames",
+                    return_value={"verdict": "authentic"},
+                ):
+                    with patch.object(media_evaluator, "apply_integrity_evaluation_policy", side_effect=lambda p: p):
+                        payload = media_evaluator.evaluate_video(b"fake", ext=".mp4", include_authenticity=True)
     assert payload is not None
     names = [c["name"] for c in payload["criteria"]]
     assert names[:7] == [

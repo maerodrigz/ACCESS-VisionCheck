@@ -197,10 +197,7 @@ def analyze_motion_stability_from_frames(frame_bytes: list[bytes]) -> dict[str, 
 
     if instability <= _MOTION_JITTER_EXCELLENT and avg_mag < 1.2:
         score = 5
-        explanation = (
-            "Sampled frames show little camera jitter. Experimental heuristic "
-            "based on sparse feature tracking between FFmpeg samples."
-        )
+        explanation = "Camera looks steady across the sampled frames."
         suggestion = "Maintain this steady shooting technique."
     elif (
         avg_dir >= _PAN_DIR_CONSISTENCY
@@ -209,35 +206,25 @@ def analyze_motion_stability_from_frames(frame_bytes: list[bytes]) -> dict[str, 
     ):
         score = 4
         explanation = (
-            "Motion looks like a relatively smooth directional move (possible pan) "
-            "rather than erratic shake. Experimental heuristic; sparse sampling limits certainty."
+            "Motion looks like a relatively smooth directional move rather than "
+            "erratic shake. Based on a limited set of sampled frames."
         )
         suggestion = "Keep pans slow and even for documentation clips."
     elif instability <= _MOTION_JITTER_GOOD:
         score = 4
-        explanation = (
-            "Mild camera movement between sampled frames. Experimental heuristic."
-        )
+        explanation = "Mild camera movement was detected between sampled frames."
         suggestion = "Brace your elbows or slow down camera moves."
     elif instability <= _MOTION_JITTER_FAIR:
         score = 3
-        explanation = (
-            "Noticeable inter-frame camera movement or jitter in the sampled frames. "
-            "Experimental heuristic."
-        )
+        explanation = "Noticeable camera movement or jitter was detected."
         suggestion = "Use a steadier grip or a tripod when possible."
     elif instability <= _MOTION_JITTER_POOR:
         score = 2
-        explanation = (
-            "Strong erratic motion between sampled frames. Experimental heuristic; "
-            "not a full optical-stabilization analysis."
-        )
+        explanation = "Significant camera movement was detected."
         suggestion = "Stabilize the camera; avoid sudden shakes while recording."
     else:
         score = 1
-        explanation = (
-            "Very unstable camera motion across sampled frames. Experimental heuristic."
-        )
+        explanation = "Camera motion looks very unstable across the sampled frames."
         suggestion = "Re-record with a tripod or gimbal if documentation clarity matters."
 
     return _scored(name, score, explanation, suggestion)
@@ -289,45 +276,38 @@ def analyze_flickering_from_frames(frame_bytes: list[bytes]) -> dict[str, Any]:
 
     if effective <= _FLICKER_MEAN_DELTA_EXCELLENT:
         score = 5
-        explanation = (
-            "Sampled-frame luminance stays relatively steady. Experimental heuristic "
-            "using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
-        )
+        explanation = "Lighting appears mostly consistent throughout the video."
         suggestion = "Maintain this stable lighting when recording."
     elif gradual and effective <= _FLICKER_MEAN_DELTA_GOOD:
         score = 4
         explanation = (
-            "Luminance changes look more like a gradual exposure or scene brightness "
-            "shift than rapid flicker. Experimental heuristic; sparse sampling limits certainty."
+            "Brightness changes look gradual rather than rapid flicker. "
+            "Based on a limited set of sampled frames."
         )
         suggestion = "Lock exposure if your camera allows, when documentation needs stable brightness."
     elif effective <= _FLICKER_MEAN_DELTA_GOOD and not oscillating:
         score = 4
-        explanation = (
-            "Minor luminance variation between sampled frames. Experimental heuristic."
-        )
+        explanation = "Minor brightness variation was detected between sampled frames."
         suggestion = "Keep lighting continuous when possible."
     elif effective <= _FLICKER_MEAN_DELTA_FAIR:
         score = 3
         explanation = (
-            "Moderate frame-to-frame brightness changes in the samples"
-            + (" with oscillating pattern." if oscillating else ".")
-            + " Experimental heuristic."
+            "Moderate frame-to-frame brightness changes were detected"
+            + (" with an oscillating pattern." if oscillating else ".")
         )
         suggestion = "Use continuous lighting and avoid flickering sources."
     elif effective <= _FLICKER_MEAN_DELTA_POOR:
         score = 2
         explanation = (
-            "Large luminance swings between sampled frames"
+            "Large brightness swings were detected between sampled frames"
             + (" consistent with flicker-like oscillation." if oscillating else ".")
-            + " Experimental heuristic."
         )
         suggestion = "Avoid strobing lights and unlock/relock exposure carefully."
     else:
         score = 1
         explanation = (
-            "Extreme sampled-frame brightness alternation. Experimental heuristic; "
-            "not a calibrated flicker meter."
+            "Extreme brightness alternation was detected across sampled frames. "
+            "Based on a limited set of sampled frames."
         )
         suggestion = "Re-record under stable continuous lighting."
 

@@ -1,5 +1,6 @@
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/models/rule_based_quality_feedback.dart';
+import 'package:access_mobile/shared/utils/criterion_explanation_sanitize.dart';
 
 /// Structured photo evaluation result (1–5 per criterion).
 class CriterionScore {
@@ -53,7 +54,7 @@ class CriterionScore {
     return CriterionScore(
       name: j['name'] as String? ?? '',
       score: available ? (rawScore?.clamp(1, 5) ?? 3) : 0,
-      explanation: j['explanation'] as String? ?? '',
+      explanation: sanitizeCriterionExplanation(j['explanation'] as String? ?? ''),
       suggestion: j['suggestion'] as String? ?? '',
       available: available,
     );

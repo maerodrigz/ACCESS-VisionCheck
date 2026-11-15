@@ -14,7 +14,7 @@ class CriterionMeta {
 
 /// Short member-facing note for technical quality sections.
 const kFiveLevelCriteriaIntro =
-    'Each criterion is a five-level experimental estimate (1 to 5), not a precise percentage.';
+    'Each criterion is scored from 1 to 5 based on available technical signals.';
 
 /// Short note under overall /100 scores.
 const kOverallFromFiveLevelNote =
@@ -23,19 +23,19 @@ const kOverallFromFiveLevelNote =
 const kCriterionMeta = <String, CriterionMeta>{
   'Sharpness': CriterionMeta(
     icon: Icons.center_focus_strong_rounded,
-    description: 'Estimates how crisp and well-focused the subject appears.',
+    description: 'How crisp and well-focused the subject appears.',
   ),
   'Blur': CriterionMeta(
     icon: Icons.blur_off_rounded,
-    description: 'Estimates motion or focus blur that reduces clarity.',
+    description: 'Motion or focus blur that reduces clarity.',
   ),
   'Brightness': CriterionMeta(
     icon: Icons.wb_sunny_outlined,
-    description: 'Estimates whether exposure is balanced across the scene.',
+    description: 'Whether exposure looks balanced across the scene.',
   ),
   'Contrast': CriterionMeta(
     icon: Icons.contrast_rounded,
-    description: 'Estimates tonal separation between light and dark areas.',
+    description: 'Tonal separation between light and dark areas.',
   ),
   'Blocking Artifacts': CriterionMeta(
     icon: Icons.grid_view_rounded,
@@ -43,13 +43,12 @@ const kCriterionMeta = <String, CriterionMeta>{
   ),
   'Color Balance': CriterionMeta(
     icon: Icons.wb_twilight_rounded,
-    description:
-        'Experimental heuristic for color cast strength. Not a measure of artistic quality or perfect color.',
+    description: 'Checks for color cast or noticeable color shifts.',
   ),
   'Color Saturation': CriterionMeta(
     icon: Icons.palette_outlined,
     description:
-        'Experimental heuristic for color intensity. Not artistic quality; muted or grayscale looks may show N/A.',
+        'Checks color intensity. Muted or grayscale looks may show N/A.',
   ),
   // Historical criteria (older evaluations).
   'Noise': CriterionMeta(
@@ -62,13 +61,12 @@ const kCriterionMeta = <String, CriterionMeta>{
   ),
   'Motion Stability': CriterionMeta(
     icon: Icons.video_stable_rounded,
-    description:
-        'Uses changes in frame sharpness as a proxy for camera steadiness. Experimental estimate.',
+    description: 'Checks camera steadiness using sampled frames from the video.',
   ),
   'Flickering': CriterionMeta(
     icon: Icons.flare_rounded,
     description:
-        'Uses changes in frame brightness as a proxy for lighting flicker. Experimental estimate.',
+        'Checks lighting consistency using sampled frames. Limited samples are not definitive.',
   ),
 };
 

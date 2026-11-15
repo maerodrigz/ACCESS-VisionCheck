@@ -112,16 +112,15 @@ def analyze_color_balance_criterion_bgr(bgr: np.ndarray) -> dict[str, Any]:
         return _scored_criterion(
             name,
             5,
-            "Color channels look reasonably neutral for documentation. "
-            "Mild warm or cool lighting can still be intentional. (Heuristic estimate.)",
+            "Colors look reasonably neutral for documentation. "
+            "Mild warm or cool lighting can still be intentional.",
             "Maintain this white balance when natural colors matter.",
         )
     if effective < _CAST_STRONG:
         return _scored_criterion(
             name,
             4,
-            "A mild color tint is present. This is often normal for indoor or sunset light. "
-            "(Heuristic estimate.)",
+            "A mild color tint is present. This is often normal for indoor or sunset light.",
             "Adjust white balance only if natural subject colors are required.",
         )
     if effective < _CAST_EXTREME:
@@ -129,15 +128,15 @@ def analyze_color_balance_criterion_bgr(bgr: np.ndarray) -> dict[str, Any]:
         return _scored_criterion(
             name,
             3,
-            f"Noticeable {tip} color cast detected. It may be intentional artistic lighting. "
-            "(Heuristic estimate; not a validated aesthetic score.)",
+            f"Some noticeable {tip} color shifts were detected. "
+            "This may be intentional lighting.",
             "Correct white balance in-camera or in editing if true-to-life color is needed.",
         )
     return _scored_criterion(
         name,
         2,
         "Strong color cast detected across the frame. Subject colors may look unnatural "
-        "for documentation. (Heuristic estimate.)",
+        "for documentation.",
         "Set a custom white balance or correct the cast before submitting.",
     )
 
@@ -178,15 +177,14 @@ def analyze_color_saturation_criterion_bgr(bgr: np.ndarray) -> dict[str, Any]:
             name,
             2,
             "Colors look heavily oversaturated and may clip. This can hurt documentation "
-            "realism. (Heuristic estimate.)",
+            "realism.",
             "Reduce saturation or vibrance before export if natural color is preferred.",
         )
     if sat_mean >= _SAT_HIGH and sat_p90 >= 0.85:
         return _scored_criterion(
             name,
             3,
-            "Saturation is quite high. This may be intentional but can look unnatural. "
-            "(Heuristic estimate.)",
+            "Saturation is quite high. This may be intentional but can look unnatural.",
             "Dial back saturation slightly if true-to-life color is needed.",
         )
     if sat_mean < _SAT_LOW:
@@ -194,22 +192,20 @@ def analyze_color_saturation_criterion_bgr(bgr: np.ndarray) -> dict[str, Any]:
             name,
             3,
             "Colors look muted or washed out relative to typical documentation photos. "
-            "(Heuristic estimate; artistic mute looks are not automatically wrong.)",
+            "Muted looks are not automatically wrong.",
             "Increase vibrance slightly only if the scene should look more vivid.",
         )
     if _SAT_LOW <= sat_mean < _SAT_HIGH:
         return _scored_criterion(
             name,
             5,
-            "Saturation looks within a typical range for documentation photos. "
-            "(Heuristic estimate.)",
+            "Saturation looks within a typical range for documentation photos.",
             "Maintain this color intensity for future submissions.",
         )
     return _scored_criterion(
         name,
         4,
-        "Saturation is moderately elevated but still usable for documentation. "
-        "(Heuristic estimate.)",
+        "Saturation is moderately elevated but still usable for documentation.",
         "Keep saturation moderate unless the event look requires stronger color.",
     )
 

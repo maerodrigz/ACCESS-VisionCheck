@@ -166,7 +166,7 @@ def test_photo_and_color_path_unchanged(monkeypatch):
     monkeypatch.setattr(
         media_evaluator,
         "resolve_quality_engine_for_bytes",
-        lambda _c: (stub, "opencv", True),
+        lambda _c, **_kwargs: (stub, "opencv", True),
     )
     monkeypatch.setattr(media_evaluator, "detect_ai_generated", lambda *a, **k: {"verdict": "authentic"})
     monkeypatch.setattr(media_evaluator, "apply_integrity_evaluation_policy", lambda p: p)

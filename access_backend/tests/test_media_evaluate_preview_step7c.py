@@ -35,10 +35,7 @@ def test_deferred_preview_marker() -> None:
 
 def test_photo_preview_skips_authenticity_detector() -> None:
     metrics = {"sharpness": 0.5, "blur": 0.2, "noise": 0.1, "brightness": 0.5, "contrast": 0.4, "blocking_artifacts": 0.1, "ringing_artifacts": 0.1, "width": 640, "height": 480}
-    with patch(
-        "app.services.media_evaluator.resolve_quality_engine_for_bytes",
-        return_value=(metrics, "opencv", True),
-    ):
+    with patch("app.services.media_evaluator._analyze_image", return_value=metrics):
         with patch("app.services.media_evaluator.detect_ai_generated") as detect:
             payload = evaluate_photo(_jpeg_bytes(), include_authenticity=False)
 
@@ -53,10 +50,7 @@ def test_photo_preview_skips_authenticity_detector() -> None:
 
 def test_photo_full_analysis_still_calls_detector() -> None:
     metrics = {"sharpness": 0.5, "blur": 0.2, "noise": 0.1, "brightness": 0.5, "contrast": 0.4, "blocking_artifacts": 0.1, "ringing_artifacts": 0.1, "width": 640, "height": 480}
-    with patch(
-        "app.services.media_evaluator.resolve_quality_engine_for_bytes",
-        return_value=(metrics, "opencv", True),
-    ):
+    with patch("app.services.media_evaluator._analyze_image", return_value=metrics):
         with patch("app.services.media_evaluator.detect_ai_generated", return_value={"verdict": "authentic", "confidence": 0.8, "probability": 0.1, "detail": "ok", "signals": {}}):
             payload = evaluate_photo(_jpeg_bytes(), include_authenticity=True)
 
@@ -65,11 +59,13 @@ def test_photo_full_analysis_still_calls_detector() -> None:
 
 
 def test_video_preview_skips_frame_authenticity() -> None:
+    from app.services.ffmpeg_frames import FrameExtractionResult, SAMPLING_METHOD_FFMPEG
     from app.services.media_evaluator import QUALITY_ENGINE_OPENCV
 
     frames = [_jpeg_bytes(), _jpeg_bytes()]
     metrics = {"sharpness": 0.5, "blur": 0.2, "noise": 0.1, "brightness": 0.5, "contrast": 0.4, "blocking_artifacts": 0.1, "ringing_artifacts": 0.1, "width": 640, "height": 480}
-    with patch("app.services.media_evaluator.extract_frames", return_value=frames):
+    extraction = FrameExtractionResult(frames=frames, sampling_method=SAMPLING_METHOD_FFMPEG, probe_duration_sec=1.0)
+    with patch("app.services.media_evaluator.extract_frames_detailed", return_value=extraction):
         with patch(
             "app.services.media_evaluator.resolve_quality_engine_for_bytes",
             return_value=(metrics, QUALITY_ENGINE_OPENCV, True),
@@ -199,10 +195,7 @@ def test_background_pipeline_runs_full_evaluate_when_metadata_deferred() -> None
 
 def test_gemini_quality_fields_present_on_preview() -> None:
     metrics = {"sharpness": 0.5, "blur": 0.2, "noise": 0.1, "brightness": 0.5, "contrast": 0.4, "blocking_artifacts": 0.1, "ringing_artifacts": 0.1, "width": 640, "height": 480}
-    with patch(
-        "app.services.media_evaluator.resolve_quality_engine_for_bytes",
-        return_value=(metrics, "opencv", True),
-    ):
+    with patch("app.services.media_evaluator._analyze_image", return_value=metrics):
         payload = evaluate_photo(_jpeg_bytes(), include_authenticity=False)
 
     assert payload is not None

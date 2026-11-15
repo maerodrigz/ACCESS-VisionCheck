@@ -170,20 +170,36 @@ def test_evaluate_photo_without_insights_field_when_decode_fails() -> None:
 
 
 def test_evaluate_video_adds_insights_uses_quality_frames_only() -> None:
+    from app.services.ffmpeg_frames import FrameExtractionResult, SAMPLING_METHOD_FFMPEG
+
     frames = [
         _encode_png(_flat_bgr(80, 80, (40, 120, 240))),
         _encode_png(_flat_bgr(80, 80, (38, 118, 238))),
         _encode_png(_flat_bgr(80, 80, (36, 116, 236))),
     ]
-    with patch.object(media_evaluator, "extract_frames", return_value=frames):
-        with patch.object(media_evaluator, "_analyze_image", return_value=_stub_metrics()):
+    extraction = FrameExtractionResult(
+        frames=frames,
+        sampling_method=SAMPLING_METHOD_FFMPEG,
+        probe_duration_sec=1.0,
+    )
+    with patch.object(media_evaluator, "extract_frames_detailed", return_value=extraction):
+        with patch.object(
+            media_evaluator,
+            "resolve_quality_engine_for_bytes",
+            return_value=(_stub_metrics(), "opencv", True),
+        ):
             with patch.object(
                 media_evaluator,
-                "detect_ai_generated_from_frames",
-                return_value={"verdict": "authentic"},
+                "analyze_image_for_engine",
+                return_value=_stub_metrics(),
             ):
-                with patch.object(media_evaluator, "apply_integrity_evaluation_policy", side_effect=lambda p: p):
-                    payload = media_evaluator.evaluate_video(b"fake", ext=".mp4", include_authenticity=True)
+                with patch.object(
+                    media_evaluator,
+                    "detect_ai_generated_from_frames",
+                    return_value={"verdict": "authentic"},
+                ):
+                    with patch.object(media_evaluator, "apply_integrity_evaluation_policy", side_effect=lambda p: p):
+                        payload = media_evaluator.evaluate_video(b"fake", ext=".mp4", include_authenticity=True)
     assert payload is not None
     assert len(payload["criteria"]) == 9
     assert "additional_quality_insights" in payload

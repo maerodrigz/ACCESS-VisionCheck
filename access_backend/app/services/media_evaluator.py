@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from app.services.ffmpeg_frames import extract_frames, ffmpeg_available
+from app.services.ffmpeg_frames import extract_frames, extract_frames_detailed, ffmpeg_available
 from app.services.media_upload_config import DEFAULT_VIDEO_EXTENSIONS
 from app.services.image_quality import legacy_scores_from_payload, parse_client_payload
 from app.services.ai_authenticity_detector import detect_ai_generated, detect_ai_generated_from_frames
@@ -254,7 +254,8 @@ def evaluate_video(
     file_name: str = "",
     include_authenticity: bool = True,
 ) -> dict[str, Any] | None:
-    frame_bytes = extract_frames(content, ext)
+    extraction = extract_frames_detailed(content, ext)
+    frame_bytes = extraction.frames
     if not frame_bytes:
         return None
 
@@ -330,6 +331,7 @@ def evaluate_video(
         frames_analyzed=len(frame_metrics),
         enet_metrics=averaged,
         musiq_opq_context=musiq_ctx if engine == QUALITY_ENGINE_MUSIQ_WORKER else None,
+        frame_sampling=extraction.diagnostics(),
     )
     return payload
 

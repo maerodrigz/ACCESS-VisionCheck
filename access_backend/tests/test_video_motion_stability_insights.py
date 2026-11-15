@@ -156,26 +156,42 @@ def test_evaluate_video_backward_compat_without_motion(monkeypatch: pytest.Monke
             "height": 480,
         }
 
-    with patch.object(media_evaluator, "extract_frames", return_value=frames_png):
-        with patch.object(media_evaluator, "_analyze_image", return_value=_stub_metrics()):
+    from app.services.ffmpeg_frames import FrameExtractionResult, SAMPLING_METHOD_FFMPEG
+
+    extraction = FrameExtractionResult(
+        frames=frames_png,
+        sampling_method=SAMPLING_METHOD_FFMPEG,
+        probe_duration_sec=1.0,
+    )
+    with patch.object(media_evaluator, "extract_frames_detailed", return_value=extraction):
+        with patch.object(
+            media_evaluator,
+            "resolve_quality_engine_for_bytes",
+            return_value=(_stub_metrics(), "opencv", True),
+        ):
             with patch.object(
                 media_evaluator,
-                "detect_ai_generated_from_frames",
-                return_value={"verdict": "authentic"},
+                "analyze_image_for_engine",
+                return_value=_stub_metrics(),
             ):
                 with patch.object(
                     media_evaluator,
-                    "apply_integrity_evaluation_policy",
-                    side_effect=lambda p: p,
+                    "detect_ai_generated_from_frames",
+                    return_value={"verdict": "authentic"},
                 ):
-                    with patch(
-                        "app.services.video_motion_stability_insights.analyze_video_motion_stability_bytes",
-                        return_value={
-                            "status": "stable_smooth",
-                            "headline": "Stable / Smooth Motion",
-                            "feedback": "ok",
-                        },
+                    with patch.object(
+                        media_evaluator,
+                        "apply_integrity_evaluation_policy",
+                        side_effect=lambda p: p,
                     ):
-                        payload = media_evaluator.evaluate_video(b"x", ext=".mp4")
+                        with patch(
+                            "app.services.video_motion_stability_insights.analyze_video_motion_stability_bytes",
+                            return_value={
+                                "status": "stable_smooth",
+                                "headline": "Stable / Smooth Motion",
+                                "feedback": "ok",
+                            },
+                        ):
+                            payload = media_evaluator.evaluate_video(b"x", ext=".mp4")
     assert payload is not None
     assert payload["additional_quality_insights"]["motion_stability"]["status"] == "stable_smooth"

@@ -167,12 +167,14 @@ def test_probe_integrity_flow_unverified_provenance_holds_xp() -> None:
     assert out["xp_pending"] is True
 
 
-def test_univfd_still_fuses_when_backend_univfd() -> None:
+def test_univfd_fusion_path_retired_probe_always_used() -> None:
+    """Even if a caller patches backend to univfd, detect_ai_generated stays on PROBE."""
     with patch(PROBE_BACKEND, return_value="univfd"):
         with patch(PROBE_PROB, return_value=0.72):
             with patch(FUSE, return_value=0.65) as fuse_mock:
                 result = detect_ai_generated(_jpeg_bytes(), file_name="sample.jpg")
 
-    fuse_mock.assert_called_once()
-    assert "neural" in result["signals"]
-    assert result.get("detector_backend") != "probe"
+    fuse_mock.assert_not_called()
+    assert result.get("detector_backend") == "probe"
+    assert "probe" in result.get("signals", {})
+    assert result.get("raw_detector_probability") == 0.72

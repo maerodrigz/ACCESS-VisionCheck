@@ -183,21 +183,17 @@ def evaluate(
 
 
 def enet_status() -> dict[str, Any]:
-    """Return availability info for EfficientNet without loading the model."""
-    try:
-        from app.services.efficientnet_b0_scorer import (
-            efficientnet_available,
-            weights_path,
-        )
-        avail = efficientnet_available()
-        wp = weights_path()
-        return {
-            "engine_available": avail,
-            "weights_path": str(wp),
-            "weights_exist": wp.is_file(),
-        }
-    except Exception as exc:  # noqa: BLE001
-        return {"engine_available": False, "error": str(exc)}
+    """EfficientNet-B0 permanently retired; never loads weights."""
+    return {
+        "engine_available": False,
+        "weights_path": None,
+        "weights_exist": False,
+        "status": "permanently_retired",
+        "error": (
+            "EfficientNet-B0 was removed from ACCESS VisionCheck. "
+            "Sandbox Engine A returns unavailable; use Engine B / OpenCV research paths."
+        ),
+    }
 
 
 # ── engine runners ────────────────────────────────────────────────────────────
@@ -214,9 +210,9 @@ _ENET_CRITERIA_META = {
 }
 
 _ENET_LIMITATION = (
-    "Sandbox reads production EfficientNet-B0 only. "
-    "OpenCV fallback is never substituted here. "
-    "Badges use production _soft_score (compressed; badge 1 unreachable for metric in [0,1])."
+    "EfficientNet-B0 permanently retired from ACCESS VisionCheck. "
+    "Sandbox Engine A no longer loads weights or runs inference. "
+    "OpenCV is never substituted into Engine A."
 )
 
 
@@ -241,162 +237,26 @@ def _enet_placeholder_criteria(*, reason: str) -> list[dict[str, Any]]:
 
 
 def _run_efficientnet(image_bytes: bytes) -> dict[str, Any]:
-    """Run EfficientNet-B0 using the EXACT same path as production.
-
-    Never calls OpenCV or media_evaluator.resolve_quality_engine_for_bytes.
-    If the model/weights are unavailable, returns engine_available=False with
-    seven null-badge criteria and an explicit unavailable_reason.
-    """
-    base: dict[str, Any] = {
-        "engine_id": "efficientnet-b0",
+    """Engine A stub: EfficientNet-B0 retired (never imports scorer or loads weights)."""
+    _ = image_bytes
+    reason = (
+        "EfficientNet-B0 permanently retired. Scorer and weights removed. "
+        "Scores not computed. OpenCV fallback was NOT used."
+    )
+    return {
+        "engine_id": "efficientnet-b0-retired",
         "engine_available": False,
         "elapsed_ms": 0.0,
-        "criteria": [],
+        "criteria": _enet_placeholder_criteria(reason=reason),
         "raw_metrics": None,
-        "unavailable_reason": None,
+        "unavailable_reason": reason,
         "limitations": [_ENET_LIMITATION],
         "opencv_fallback_used": False,
+        "weights_path": None,
+        "weights_exist": False,
+        "status": "permanently_retired",
     }
 
-    # -- check availability without loading weights yet --
-    try:
-        from app.services.efficientnet_b0_scorer import (
-            analyze_image_bytes as enet_analyze,
-            efficientnet_available,
-            ensure_weights,
-            weights_path,
-            MODEL_ID,
-            MODEL_VERSION,
-        )
-    except Exception as exc:  # noqa: BLE001
-        reason = f"Import error: {exc}"
-        base["unavailable_reason"] = reason
-        base["criteria"] = _enet_placeholder_criteria(reason=reason)
-        return base
-
-    if not efficientnet_available():
-        reason = "PyTorch or PIL not available in this environment."
-        base["unavailable_reason"] = reason
-        base["criteria"] = _enet_placeholder_criteria(reason=reason)
-        return base
-
-    wp = weights_path()
-    if not wp.is_file():
-        reason = (
-            f"EfficientNet-B0 weights missing at {wp}. "
-            "Scores not computed. OpenCV fallback was NOT used."
-        )
-        base["unavailable_reason"] = reason
-        base["criteria"] = _enet_placeholder_criteria(reason=reason)
-        base["weights_path"] = str(wp)
-        base["weights_exist"] = False
-        return base
-
-    if not ensure_weights():
-        reason = (
-            f"EfficientNet-B0 weights exist at {wp} but failed to load. "
-            "Scores not computed. OpenCV fallback was NOT used."
-        )
-        base["unavailable_reason"] = reason
-        base["criteria"] = _enet_placeholder_criteria(reason=reason)
-        base["weights_path"] = str(wp)
-        base["weights_exist"] = True
-        return base
-
-    # -- infer (EfficientNet only; no OpenCV) --
-    t0 = time.perf_counter()
-    try:
-        raw = enet_analyze(image_bytes)
-    except Exception as exc:  # noqa: BLE001
-        reason = f"Inference error: {exc}"
-        base["unavailable_reason"] = reason
-        base["elapsed_ms"] = round((time.perf_counter() - t0) * 1000.0, 1)
-        base["criteria"] = _enet_placeholder_criteria(reason=reason)
-        return base
-
-    elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 1)
-
-    if raw is None:
-        reason = (
-            "EfficientNet-B0 analyze_image_bytes returned None. "
-            "Scores not computed. OpenCV fallback was NOT used."
-        )
-        base["unavailable_reason"] = reason
-        base["elapsed_ms"] = elapsed_ms
-        base["criteria"] = _enet_placeholder_criteria(reason=reason)
-        return base
-
-    # -- badge conversion: EXACT same as production _photo_criteria ----------
-    try:
-        from app.services.media_evaluator import (
-            _brightness_metric,
-            _soft_score,
-        )
-    except Exception as exc:  # noqa: BLE001
-        reason = f"Badge-conversion import error: {exc}"
-        base["unavailable_reason"] = reason
-        base["elapsed_ms"] = elapsed_ms
-        base["criteria"] = _enet_placeholder_criteria(reason=reason)
-        return base
-
-    def _enet_badge(key: str) -> int | None:
-        v = raw.get(key)
-        if v is None:
-            return None
-        if key == "brightness":
-            return _soft_score(_brightness_metric(float(v)))
-        if key in ("blur", "noise", "blocking_artifacts", "ringing_artifacts"):
-            # production inverts defect heads
-            if key == "noise":
-                return _soft_score(1.0 - min(float(v), 0.85))
-            return _soft_score(1.0 - float(v))
-        return _soft_score(float(v))
-
-    criteria: list[dict[str, Any]] = []
-    for cname in CRITERIA_NAMES:
-        raw_key, direction, ver = _ENET_CRITERIA_META[cname]
-        badge = _enet_badge(raw_key)
-        raw_val = raw.get(raw_key)
-        status = "production_baseline"
-        warning = None
-        if cname in ("Noise", "Ringing Artifacts"):
-            status = "production_estimate_unvalidated_on_ACCESS_pilot"
-            warning = (
-                f"{cname} from EfficientNet-B0 is a model estimate, not an ACCESS-validated "
-                "human-rubric measurement."
-            )
-        criteria.append({
-            "name": cname,
-            "badge": badge,
-            "badge_label": _BADGE_LABELS.get(badge, "?") if badge else None,
-            "raw_value": round(float(raw_val), 4) if raw_val is not None else None,
-            "raw_key": raw_key,
-            "version": ver,
-            "direction": direction,
-            "status": status,
-            "limitation": _ENET_LIMITATION,
-            "warning": warning,
-        })
-
-    return {
-        "engine_id": f"efficientnet-b0 v{MODEL_VERSION}",
-        "engine_available": True,
-        "elapsed_ms": elapsed_ms,
-        "criteria": criteria,
-        "raw_metrics": {k: round(float(v), 4) for k, v in raw.items()
-                       if k not in ("width", "height")},
-        "unavailable_reason": None,
-        "opencv_fallback_used": False,
-        "weights_path": str(wp),
-        "weights_exist": True,
-        "model_id": MODEL_ID,
-        "limitations": [_ENET_LIMITATION],
-        "note": (
-            "Production baseline. Weights: ml/efficientnet_b0_heads.pt. "
-            "Badges use production _soft_score / _brightness_metric. "
-            "Weights NOT modified. OpenCV fallback NOT used."
-        ),
-    }
 
 
 def _run_combined_v1(bgr: np.ndarray) -> dict[str, Any]:

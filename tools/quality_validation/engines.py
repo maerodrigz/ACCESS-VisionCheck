@@ -1,4 +1,4 @@
-"""Explicit EfficientNet vs OpenCV analysis (no silent fallback)."""
+"""Validation engines: OpenCV (active). EfficientNet-B0 permanently retired."""
 
 from __future__ import annotations
 
@@ -9,25 +9,21 @@ EngineId = Literal["efficientnet", "opencv"]
 ENGINE_EFFICIENTNET: EngineId = "efficientnet"
 ENGINE_OPENCV: EngineId = "opencv"
 
+_ENET_RETIRED = (
+    "efficientnet_retired: EfficientNet-B0 was removed from ACCESS VisionCheck. "
+    "Use OpenCV (or production MUSIQ worker). Historical ENET reports remain under "
+    "tools/quality_validation/ as evidence only."
+)
+
 
 def engine_availability() -> dict[str, bool | str]:
     """Report whether each engine can run in this environment."""
-    out: dict[str, bool | str] = {"efficientnet": False, "opencv": False}
-    try:
-        from app.services.efficientnet_b0_scorer import (
-            MODEL_ID,
-            MODEL_VERSION,
-            efficientnet_available,
-            ensure_weights,
-            weights_path,
-        )
-
-        out["efficientnet_model_id"] = MODEL_ID
-        out["efficientnet_model_version"] = MODEL_VERSION
-        out["efficientnet_weights_path"] = str(weights_path())
-        out["efficientnet"] = bool(efficientnet_available() and ensure_weights())
-    except Exception as exc:  # pragma: no cover
-        out["efficientnet_error"] = str(exc)
+    out: dict[str, bool | str] = {
+        "efficientnet": False,
+        "opencv": False,
+        "efficientnet_status": "permanently_retired",
+        "efficientnet_error": _ENET_RETIRED,
+    }
     try:
         from app.services.opencv_quality import opencv_available
 
@@ -46,20 +42,7 @@ def analyze_image_metrics(content: bytes, engine: EngineId) -> tuple[dict[str, A
         return None, "empty_input"
 
     if engine == ENGINE_EFFICIENTNET:
-        from app.services.efficientnet_b0_scorer import (
-            analyze_image_bytes,
-            efficientnet_available,
-            ensure_weights,
-        )
-
-        if not efficientnet_available():
-            return None, "efficientnet_unavailable"
-        if not ensure_weights():
-            return None, "efficientnet_weights_missing"
-        metrics = analyze_image_bytes(content)
-        if metrics is None:
-            return None, "efficientnet_inference_failed"
-        return metrics, None
+        return None, "efficientnet_retired"
 
     if engine == ENGINE_OPENCV:
         from app.services.opencv_quality import analyze_image_bytes, opencv_available

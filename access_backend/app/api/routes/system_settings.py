@@ -14,9 +14,14 @@ from app.database import get_db
 from app.models.media_file import MediaFile
 from app.models.system_branding import SystemBranding
 from app.models.user import User
-from app.services.efficientnet_b0_scorer import MODEL_ID, efficientnet_available
 from app.services import gemini_service
-from app.services.media_evaluator import SCORING_ENGINE
+from app.services.media_evaluator import (
+    SCORING_ENGINE,
+    SCORING_MODEL_MUSIQ,
+    QUALITY_ENGINE_MUSIQ_WORKER,
+)
+from app.services.musiq_worker_client import musiq_worker_configured
+from app.services.opencv_quality import opencv_available
 from app.services.media_upload_config import admin_media_payload
 from app.services.security_policy import SECURITY_DEFAULTS
 from app.schemas.system_settings import (
@@ -78,14 +83,16 @@ def _ai_evaluation_payload(cfg: dict) -> dict:
     return {
         "enabled": cfg["enable_ai_media_evaluation"],
         "quality_model": {
-            "id": MODEL_ID,
-            "name": "EfficientNet-B0",
+            "id": SCORING_MODEL_MUSIQ,
+            "name": "MUSIQ + OpenCV",
             "engine": SCORING_ENGINE,
+            "quality_engine": QUALITY_ENGINE_MUSIQ_WORKER,
             "description": (
-                "EfficientNet-B0 analyzes uploaded photos and video frames to score technical "
-                "quality — sharpness, blur, noise, brightness, contrast, and compression artifacts."
+                "MUSIQ worker scores perceptual quality context and classical OpenCV criteria "
+                "for sharpness, blur, brightness, contrast, and compression artifacts. "
+                "If the worker is unavailable, local OpenCV is used as fallback."
             ),
-            "available_on_server": efficientnet_available(),
+            "available_on_server": musiq_worker_configured() or opencv_available(),
             "configurable": False,
         },
         "feedback_generation": _feedback_generation_payload(),

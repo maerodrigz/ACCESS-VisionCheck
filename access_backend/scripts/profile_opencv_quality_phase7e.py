@@ -187,37 +187,12 @@ def profile_worker_classical_local(content: bytes) -> dict[str, Any]:
 
 
 def profile_enet(content: bytes) -> dict[str, Any]:
-    from app.services import efficientnet_b0_scorer as enet
-    from app.services.image_orientation import oriented_pil_image
-
-    timings: dict[str, float] = {}
-    if not enet.efficientnet_available():
-        return {"ok": False, "error": "enet_unavailable"}
-    enet.ensure_weights()
-
-    pil, timings["oriented_pil_ms"] = _ms(lambda: oriented_pil_image(content))
-    if pil is None:
-        return {"ok": False, "error": "pil_failed", "timings_ms": timings}
-    w, h = pil.size
-
-    def preprocess():
-        return enet._preprocess(pil)  # noqa: SLF001
-
-    tensor, timings["preprocess_resize_224_ms"] = _ms(preprocess)
-
-    def infer():
-        torch = __import__("app.services.torch_runtime", fromlist=["get_torch"]).get_torch()
-        model = enet._get_model()  # noqa: SLF001
-        assert torch is not None and model is not None
-        with torch.no_grad():
-            return model(tensor).squeeze(0).cpu().numpy()
-
-    _, timings["forward_ms"] = _ms(infer)
-    _, timings["full_analyze_image_bytes_ms"] = _ms(lambda: enet.analyze_image_bytes(content))
+    """EfficientNet-B0 permanently retired; OpenCV/MUSIQ profiling unchanged."""
+    _ = content
     return {
-        "ok": True,
-        "meta": {"pil_wh": [w, h], "network_input": [224, 224]},
-        "timings_ms": timings,
+        "ok": False,
+        "error": "efficientnet_permanently_retired",
+        "timings_ms": {},
     }
 
 

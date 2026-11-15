@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-3.8-flash", alias="GEMINI_MODEL")
 
-    # Dedicated AI detector backend: probe (PROBE-DINOv2 @ 1344px cap) or univfd.
+    # Photo AI authenticity: probe (PROBE-DINOv2) only. UnivFD permanently retired.
     ai_detector_backend: str = Field(default="probe", alias="AI_DETECTOR_BACKEND")
     probe_max_long_edge: int = Field(default=1344, alias="PROBE_MAX_LONG_EDGE")
     probe_checkpoint_path: str = Field(default="", alias="PROBE_CHECKPOINT_PATH")
@@ -159,10 +159,9 @@ class Settings(BaseSettings):
     quality_shadow_anon_salt: str = Field(default="", alias="QUALITY_SHADOW_ANON_SALT")
     quality_shadow_retention_days: int = Field(default=90, alias="QUALITY_SHADOW_RETENTION_DAYS")
 
-    # Production quality engine selector. Default enet = EfficientNet-B0 (rollback / pre-cutover).
-    # Phase 7G target: musiq_worker = MUSIQ + classical OpenCV, fallback optimized local OpenCV
-    # only (ENET inactive on that path; weights retained). Do not set musiq_worker in .env until cutover.
-    quality_engine: str = Field(default="enet", alias="QUALITY_ENGINE")
+    # Production quality engine: musiq_worker only (MUSIQ + classical OpenCV; OpenCV-only fallback).
+    # EfficientNet-B0 (QUALITY_ENGINE=enet) is permanently retired and rejected at startup.
+    quality_engine: str = Field(default="musiq_worker", alias="QUALITY_ENGINE")
     musiq_worker_url: str = Field(default="", alias="MUSIQ_WORKER_URL")
     musiq_worker_token: str = Field(default="", alias="MUSIQ_WORKER_TOKEN")
     musiq_worker_timeout_sec: float = Field(default=60.0, alias="MUSIQ_WORKER_TIMEOUT_SEC")
@@ -265,12 +264,34 @@ class Settings(BaseSettings):
                 "QUALITY_SHADOW_ENABLED=true is not allowed when APP_ENV is production. "
                 "Shadow scoring is research-only; keep the flag false in production."
             )
-        engine = (self.quality_engine or "enet").strip().lower()
-        if engine not in ("enet", "musiq_worker"):
+        engine = (self.quality_engine or "musiq_worker").strip().lower()
+        if engine == "enet":
             raise ValueError(
-                "QUALITY_ENGINE must be 'enet' (default EfficientNet-B0) or 'musiq_worker'."
+                "QUALITY_ENGINE=enet is no longer supported. EfficientNet-B0 has been retired. "
+                "Set QUALITY_ENGINE=musiq_worker (MUSIQ primary, local OpenCV fallback)."
+            )
+        if engine != "musiq_worker":
+            raise ValueError(
+                "QUALITY_ENGINE must be 'musiq_worker'. "
+                "Supported path: MUSIQ worker primary with local OpenCV fallback."
             )
         self.quality_engine = engine
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_retired_ai_detector_backends(self) -> "Settings":
+        backend = (self.ai_detector_backend or "probe").strip().lower()
+        if backend == "univfd":
+            raise ValueError(
+                "AI_DETECTOR_BACKEND=univfd is no longer supported. UnivFD has been retired. "
+                "Set AI_DETECTOR_BACKEND=probe (PROBE-DINOv2). Practice videos use WaveRep when enabled."
+            )
+        if backend != "probe":
+            raise ValueError(
+                "AI_DETECTOR_BACKEND must be 'probe'. "
+                "Supported photo authenticity path: PROBE-DINOv2."
+            )
+        self.ai_detector_backend = backend
         return self
 
     @property

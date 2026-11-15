@@ -38,11 +38,11 @@ Docker commands above are **read-only**. Do **not** run `docker system prune`, `
 | --- | --- | --- |
 | FastAPI / Flutter / admin-web source | **DO NOT DELETE** | Application code |
 | `.env`, DB, migrations, credentials | **DO NOT DELETE** | Config / secrets / schema |
-| `ml/efficientnet_b0_heads.pt` | **DO NOT DELETE** | Rollback quality engine (`QUALITY_ENGINE=enet`) |
+| `ml/efficientnet_b0_heads.pt` | **DELETED** (2026-11) | EfficientNet permanently retired; SHA preserved in research reports |
 | PROBE checkpoint + HF DINOv2 cache | **DO NOT DELETE** | Active `AI_DETECTOR_BACKEND=probe` |
 | WaveRep module + expected G4 checkpoint path | **DO NOT DELETE** | `WAVEREP_ENABLED=true` in local `.env` |
 | MUSIQ worker image / TF Hub Docker volume | **DO NOT DELETE** | Live `QUALITY_ENGINE=musiq_worker` |
-| `ml/univfd/fc_weights.pth` (+ missing backbone) | **REVIEW FIRST** | Alternate detector; not active backend but still wired |
+| `ml/univfd/fc_weights.pth` + `ViT-L-14.pt` | **DELETED** (2026-11) | UnivFD permanently retired; README tombstone only |
 | `fresh_validation\` experimental media | **REVIEW FIRST** | Research / Phase 7 test inputs |
 | `video_metadata_test\` | **REVIEW FIRST** | Single real phone MP4 used in Phase 7H |
 | `tools\quality_validation\` assets | **REVIEW FIRST** / protect ratings | Large tree (9000+ files); Phase 6B locked human ratings are **DO NOT DELETE** |
@@ -58,7 +58,7 @@ Docker commands above are **read-only**. Do **not** run `docker system prune`, `
 
 | Asset | Path | Referenced by | Current role | Verdict |
 | --- | --- | --- | --- | --- |
-| EfficientNet-B0 heads | `access_backend\ml\efficientnet_b0_heads.pt` | `app/services/efficientnet_b0_scorer.py` (`_WEIGHTS_PATH`); Phase 7G/7I rollback gates | Inactive while `QUALITY_ENGINE=musiq_worker`; **required for rollback** | **DO NOT DELETE** |
+| EfficientNet-B0 heads | `access_backend\ml\efficientnet_b0_heads.pt` | Removed with `efficientnet_b0_scorer.py` | Permanently retired | **DELETED** |
 | MUSIQ PaQ-2-PiQ | Docker worker `musiq_worker` + TF Hub volume `musiq_tfhub_cache` | `musiq_worker/docker-compose.yml`; `app/services/musiq_worker_client.py`; local `.env` `QUALITY_ENGINE=musiq_worker` | **Primary quality engine** | **DO NOT DELETE** |
 | OpenCV quality (vectorized) | Code only (`app/services/opencv_quality.py`) | Fallback on MUSIQ path | Fallback | N/A (code) |
 | PROBE DINOv2 heads | Expected: `access_backend\experiments\probe\modelscope_cache\models\shuinishaojiu--PROBE-AIGI-Detection\snapshots\master\DINOv2_best_model_step_34999.pth` | `app/services/probe_dino_detector.py` (`DEFAULT_CHECKPOINT`); `AI_DETECTOR_BACKEND=probe` | **Active authenticity backend** | **DO NOT DELETE** if present; restore from backup if missing |
@@ -66,10 +66,9 @@ Docker commands above are **read-only**. Do **not** run `docker system prune`, `
 | PROBE vendor_lib | `access_backend\experiments\probe\vendor_lib\` | `probe_dino_detector._ensure_probe_sys_path` | Runtime import path | **DO NOT DELETE** (source); `__pycache__` under it is SAFE) |
 | WaveRep G4 checkpoint | Expected: `access_backend\ml\waverep\demo\weights\weights_dinov2_G4.ckpt` | `app/config.py` `WAVEREP_CHECKPOINT_PATH`; `waverep_g4_detector.py`; `.env` has `WAVEREP_ENABLED=true` | Video authenticity when enabled | **DO NOT DELETE** path/module; locate checkpoint if missing |
 | WaveRep Python module | `access_backend\ml\waverep\` | Detector import path | Required scaffolding | **DO NOT DELETE** |
-| UnivFD head | `access_backend\ml\univfd\fc_weights.pth` | `dedicated_ai_detector.py` when backend=`univfd` | Alternate; not selected (`probe` active) | **REVIEW FIRST** (keep unless you permanently drop UnivFD) |
-| UnivFD CLIP backbone | Expected: `access_backend\ml\univfd\ViT-L-14.pt` | Same | **Not found in tree** | N/A / reinstall if re-enabling UnivFD |
+| UnivFD head + CLIP backbone | `access_backend\ml\univfd\` | Removed with `app/services/univfd/` | Permanently retired | **DELETED** |
 
-**Rule applied:** inactive ≠ deletable. EfficientNet is inactive on the MUSIQ path but is the documented rollback. UnivFD is inactive but still import-wired.
+**Rule applied:** inactive ≠ deletable until product retires the alternate. EfficientNet and UnivFD were retired and deleted after routing audits. PROBE + WaveRep remain required.
 
 ### Probe checkpoint presence (static)
 

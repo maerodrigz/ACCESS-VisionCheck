@@ -49,15 +49,17 @@ def file_sha256(path: Path) -> str:
 
 
 def weights_file_hash() -> dict[str, Any]:
-    try:
-        from app.services.efficientnet_b0_scorer import weights_path
-
-        wp = weights_path()
-        if wp.exists():
-            return {"path": str(wp), "sha256": file_sha256(wp)}
-        return {"path": str(wp), "sha256": None, "missing": True}
-    except Exception as exc:
-        return {"error": str(exc)}
+    """Historical ENET weights were removed; SHA of former file is documented in research reports."""
+    return {
+        "efficientnet_b0_heads": "permanently_retired",
+        "former_path": str(backend_root() / "ml" / "efficientnet_b0_heads.pt"),
+        "sha256": None,
+        "missing": True,
+        "note": (
+            "Weights deleted after production cutover to MUSIQ+OpenCV. "
+            "Historical SHA256 recorded in SEVEN_METRIC_RESEARCH_CONSOLIDATED_REPORT.md."
+        ),
+    }
 
 
 def build_run_metadata(
@@ -78,14 +80,6 @@ def build_run_metadata(
         opencv_version = cv2.__version__
     except ImportError:
         opencv_version = None
-    try:
-        from app.services.efficientnet_b0_scorer import MODEL_ID, MODEL_VERSION
-
-        model_id = MODEL_ID
-        model_version = MODEL_VERSION
-    except Exception:
-        model_id = None
-        model_version = None
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -95,8 +89,9 @@ def build_run_metadata(
         "platform": platform.platform(),
         "numpy_version": numpy_version,
         "opencv_version": opencv_version,
-        "efficientnet_model_id": model_id,
-        "efficientnet_model_version": model_version,
+        "efficientnet_model_id": None,
+        "efficientnet_model_version": None,
+        "efficientnet_status": "permanently_retired",
         "weights_file": weights_file_hash(),
         "engine_availability": engine_availability(),
         "evaluation_config": {

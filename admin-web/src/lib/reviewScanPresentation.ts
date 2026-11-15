@@ -595,6 +595,8 @@ export function detectorDisplayName(row: AiDetectionRow): string {
   const raw = (row.exif_metadata?.detector_backend ?? '').trim().toLowerCase()
   if (raw === 'waverep_g4' || raw.startsWith('waverep')) return WAVEREP_DETECTOR_DISPLAY_NAME
   if (raw === 'probe' || raw.includes('probe')) return PROBE_DETECTOR_DISPLAY_NAME
+  // Historical UnivFD rows remain readable; detector is retired from production.
+  if (raw === 'univfd' || raw.includes('univfd')) return 'UnivFD (historical)'
   if (raw) return raw.replace(/_/g, ' ')
   return PROBE_DETECTOR_DISPLAY_NAME
 }

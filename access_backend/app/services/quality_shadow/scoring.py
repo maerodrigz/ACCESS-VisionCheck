@@ -66,7 +66,7 @@ def _base_record(*, evaluation_id: int | None, media_id: int, anon_salt: str) ->
         "research_only": True,
         "production_payload_mutated": False,
         "experimental_feedback": None,
-        "quality_engine_production": "enet",
+        "quality_engine_production": "musiq_worker",
     }
 
 

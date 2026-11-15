@@ -32,7 +32,7 @@ def _shadow_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     reset_musiq_loader_for_tests()
     shutdown_quality_shadow_executor(wait=True)
     monkeypatch.setattr("app.config.settings.quality_shadow_enabled", True)
-    monkeypatch.setattr("app.config.settings.quality_engine", "enet")
+    monkeypatch.setattr("app.config.settings.quality_engine", "musiq_worker")
     monkeypatch.setattr("app.config.settings.musiq_worker_prefer_remote", True)
     monkeypatch.setattr("app.config.settings.musiq_worker_url", "http://127.0.0.1:8080")
     monkeypatch.setattr("app.config.settings.musiq_worker_token", "dev-local-musiq-token")
@@ -142,8 +142,8 @@ def test_shadow_success_uses_worker_payload(monkeypatch: pytest.MonkeyPatch) -> 
     assert record["criteria_q"]["sharpness"] == pytest.approx(0.8)
     assert record["experimental_feedback"]["feedback_ruleset_version"] == "hybrid_feedback_rules_v1"
     assert record["production_payload_mutated"] is False
-    assert record["quality_engine_production"] == "enet"
-    assert client.production_uses_enet() is True
+    assert record["quality_engine_production"] == "musiq_worker"
+    assert client.quality_engine() == "musiq_worker"
 
 
 def test_worker_unavailable_keeps_classical_partial(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -226,8 +226,7 @@ def test_production_payload_preserved(monkeypatch: pytest.MonkeyPatch) -> None:
         anon_salt="test-shadow-salt",
     )
     assert json.dumps(production, sort_keys=True) == snap
-    assert client.quality_engine() == "enet"
-    assert client.production_uses_enet() is True
+    assert client.quality_engine() == "musiq_worker"
 
 
 def test_shadow_flag_off_skips_worker(monkeypatch: pytest.MonkeyPatch) -> None:

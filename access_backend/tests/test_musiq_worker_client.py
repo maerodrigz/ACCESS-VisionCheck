@@ -24,7 +24,7 @@ def _reset_settings(monkeypatch):
     monkeypatch.setattr(client.settings, "musiq_worker_token", "")
     monkeypatch.setattr(client.settings, "musiq_worker_timeout_sec", 5.0)
     monkeypatch.setattr(client.settings, "musiq_worker_tls_verify", True)
-    monkeypatch.setattr(client.settings, "quality_engine", "enet")
+    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
     monkeypatch.setattr(client.settings, "musiq_worker_prefer_remote", True)
 
 
@@ -33,13 +33,12 @@ def test_not_configured_returns_unavailable():
     assert out["status"] == "unavailable"
     assert out["musiq"]["musiq_opq_raw"] is None
     assert out["production_payload_mutated"] is False
-    assert client.production_uses_enet() is True
+    assert client.quality_engine() == "musiq_worker"
 
 
-def test_production_uses_enet_false_when_musiq_worker_selected(monkeypatch):
+def test_quality_engine_is_musiq_worker(monkeypatch):
     monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
     assert client.quality_engine() == "musiq_worker"
-    assert client.production_uses_enet() is False
 
 
 def test_evaluate_bytes_maps_ok_response(monkeypatch):

@@ -1,3 +1,6 @@
+# ARCHIVED — EfficientNet-B0 retired. Non-executable without deleted scorer/weights.
+# See archive_efficientnet_retired/README.md
+
 """
 Train EfficientNet-B0 criterion heads on synthetic degradations.
 
@@ -141,3 +144,4 @@ def train(*, epochs: int = 4, batch_size: int = 16, samples: int = 640) -> Path:
 
 if __name__ == "__main__":
     train()
+

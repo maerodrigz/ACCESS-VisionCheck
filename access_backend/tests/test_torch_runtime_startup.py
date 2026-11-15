@@ -24,7 +24,7 @@ def test_active_backend_without_torch(monkeypatch) -> None:
 
     from app.services.dedicated_ai_detector import active_ai_detector_backend
 
-    assert active_ai_detector_backend() in ("probe", "univfd")
+    assert active_ai_detector_backend() == "probe"
 
 
 def test_probe_unavailable_when_torch_blocked(monkeypatch) -> None:

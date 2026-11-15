@@ -12,7 +12,7 @@ from PIL import Image
 
 from app.services.image_orientation import decode_oriented_bgr, rotate_bgr
 from app.services.media_evaluator import (
-    QUALITY_ENGINE_EFFICIENTNET,
+    QUALITY_ENGINE_MUSIQ_WORKER,
     QUALITY_ENGINE_OPENCV,
     preview_quality_complete,
     resolve_quality_engine_for_bytes,
@@ -149,27 +149,64 @@ def test_run_pipeline_failure_stores_null_scores_not_half() -> None:
     )
 
 
-def test_engine_fallback_is_explicit() -> None:
-    with patch("app.services.media_evaluator.efficientnet_available", return_value=True):
-        with patch("app.services.media_evaluator.ensure_weights", return_value=True):
-            with patch("app.services.media_evaluator.efficientnet_analyze", return_value=None):
-                with patch("app.services.media_evaluator.opencv_available", return_value=True):
-                    with patch("app.services.media_evaluator.opencv_analyze", return_value=dict(_METRICS)) as opencv:
-                        metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
+def test_engine_fallback_is_explicit(monkeypatch) -> None:
+    from app.services import musiq_worker_client as client
+
+    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
+    monkeypatch.setattr(client.settings, "musiq_worker_url", "https://worker.test")
+    monkeypatch.setattr(client.settings, "musiq_worker_token", "secret")
+    unavailable = {
+        "status": "unavailable",
+        "musiq": {"status": "unavailable", "musiq_opq_raw": None, "error": "worker_offline"},
+        "criteria_raw": None,
+        "criteria_q": None,
+    }
+    with patch("app.services.musiq_worker_client.evaluate_bytes", return_value=unavailable):
+        with patch("app.services.media_evaluator.opencv_available", return_value=True):
+            with patch(
+                "app.services.media_evaluator.opencv_analyze",
+                return_value=dict(_METRICS),
+            ) as opencv:
+                metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
     opencv.assert_called_once()
     assert metrics is not None
     assert engine == QUALITY_ENGINE_OPENCV
     assert fallback is True
 
 
-def test_efficientnet_success_does_not_silently_use_opencv() -> None:
-    with patch("app.services.media_evaluator.efficientnet_available", return_value=True):
-        with patch("app.services.media_evaluator.ensure_weights", return_value=True):
-            with patch("app.services.media_evaluator.efficientnet_analyze", return_value=dict(_METRICS)):
-                with patch("app.services.media_evaluator.opencv_analyze") as opencv:
-                    metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
+def test_musiq_success_does_not_silently_use_opencv(monkeypatch) -> None:
+    from app.services import musiq_worker_client as client
+
+    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
+    monkeypatch.setattr(client.settings, "musiq_worker_url", "https://worker.test")
+    monkeypatch.setattr(client.settings, "musiq_worker_token", "secret")
+    payload = {
+        "status": "ok",
+        "classical_map_version": "phase9_a_priori_equal_bin_v1",
+        "musiq": {
+            "status": "ok",
+            "musiq_opq_raw": 70.0,
+            "musiq_scale": "approx_0_100_mos_like",
+            "model_id": "tfhub:google/musiq/paq2piq/1",
+            "model_version": "paq2piq/1",
+            "engine_handle": "x",
+            "error": None,
+        },
+        "criteria_raw": {
+            "sharpness_laplacian_var": 336.0,
+            "brightness_mean": 0.48,
+            "contrast_rms": 0.55,
+            "blocking_flat_frac": 0.12,
+            "noise_residual_std": 7.2,
+            "ringing_edge_lap": 4.0,
+        },
+        "criteria_q": {},
+    }
+    with patch("app.services.musiq_worker_client.evaluate_bytes", return_value=payload):
+        with patch("app.services.media_evaluator.opencv_analyze") as opencv:
+            metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
     opencv.assert_not_called()
-    assert engine == QUALITY_ENGINE_EFFICIENTNET
+    assert engine == QUALITY_ENGINE_MUSIQ_WORKER
     assert fallback is False
     assert metrics is not None
 

@@ -1,8 +1,10 @@
 # EfficientNet-B0 Quality Assessment — Frozen Status
 
-**Status:** FROZEN  
+**Status:** PERMANENTLY RETIRED (2026-11)  
 **Freeze date:** 2026-11-09  
-**Owner decision:** Preserve current weights and inference; no further ENET quality development without explicit approval.
+**Removal:** Scorer module and `ml/efficientnet_b0_heads.pt` deleted. Production path is MUSIQ + OpenCV.  
+**Archive:** `tools/quality_validation/archive_efficientnet_retired/`  
+**Owner decision (historical):** Preserve current weights and inference; no further ENET quality development without explicit approval. Superseded by permanent retirement.
 
 ---
 

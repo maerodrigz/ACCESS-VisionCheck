@@ -3,11 +3,13 @@ import 'dart:typed_data';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/services/image_quality_analyzer.dart';
 
-/// Technical media quality scoring via EfficientNet-B0 pipeline.
+/// Legacy local image-heuristic scorer (not the production server engine).
 ///
+/// Production quality scoring is MUSIQ + OpenCV on the backend. This client helper
+/// is unused by the live evaluate path; kept only for offline/local experiments.
 /// Produces numeric criterion scores (1–5) only — no natural-language feedback.
 abstract final class EfficientNetScoringService {
-  static const modelId = 'efficientnet-b0';
+  static const modelId = 'local-heuristic';
   static const modelVersion = '1.0';
 
   static PhotoEvaluationResult? evaluatePhoto({
@@ -168,7 +170,7 @@ abstract final class EfficientNetScoringService {
           ? 'Minimal halo/ringing near edges.'
           : 'Edge halos suggest sharpening or compression artifacts.',
       _ => highIsGood
-          ? 'Automated EfficientNet-B0 quality signal for $name.'
+          ? 'Automated local heuristic quality signal for $name.'
           : 'Automated artifact detection for $name.',
     };
 

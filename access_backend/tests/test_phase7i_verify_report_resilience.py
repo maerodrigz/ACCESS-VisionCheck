@@ -40,7 +40,8 @@ def _base_report(v7i: ModuleType, **overrides):
         {
             "actual_active_quality_engine": "musiq_worker",
             "production_uses_enet": False,
-            "enet_weights_retained": True,
+            "enet_weights_retained": False,
+            "enet_permanently_retired": True,
             "env_backup_retained": True,
             "vectorized_blocking": True,
             "worker_probe": {"ready": True},
@@ -140,7 +141,8 @@ def test_main_writes_report_when_smoke_raises(
     def _boom(report):
         report["actual_active_quality_engine"] = "musiq_worker"
         report["production_uses_enet"] = False
-        report["enet_weights_retained"] = True
+        report["enet_weights_retained"] = False
+        report["enet_permanently_retired"] = True
         report["env_backup_retained"] = True
         report["vectorized_blocking"] = True
         report["worker_probe"] = {"ready": True}

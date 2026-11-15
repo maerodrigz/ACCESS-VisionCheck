@@ -45,25 +45,14 @@ _STUB_METRICS = {
 
 
 def test_efficientnet_requested_does_not_fallback_to_opencv() -> None:
-    with patch("tools.quality_validation.engines.analyze_image_bytes", create=True):
-        pass
     with patch(
-        "app.services.efficientnet_b0_scorer.analyze_image_bytes",
-        return_value=None,
-    ), patch(
-        "app.services.efficientnet_b0_scorer.efficientnet_available",
-        return_value=True,
-    ), patch(
-        "app.services.efficientnet_b0_scorer.ensure_weights",
-        return_value=True,
-    ), patch(
         "app.services.opencv_quality.analyze_image_bytes",
         return_value=_STUB_METRICS,
     ) as oc:
         metrics, err = analyze_image_metrics(_jpeg_bytes(), ENGINE_EFFICIENTNET)
         oc.assert_not_called()
     assert metrics is None
-    assert err == "efficientnet_inference_failed"
+    assert err == "efficientnet_retired"
 
 
 def test_opencv_only_path() -> None:

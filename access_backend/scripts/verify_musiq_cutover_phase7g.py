@@ -4,7 +4,7 @@
 Architecture under test (QUALITY_ENGINE=musiq_worker in-process only):
   Primary: MUSIQ worker + classical OpenCV (adapter)
   Fallback: optimized local OpenCV (vectorized blocking)
-  EfficientNet-B0: inactive on this path; weights retained for QUALITY_ENGINE=enet rollback
+  EfficientNet-B0: permanently retired (no rollback)
 
 Usage:
   cd /d C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend
@@ -137,14 +137,11 @@ def main() -> int:
     if not oq.USE_VECTORIZED_BLOCKING:
         report["blockers"].append("USE_VECTORIZED_BLOCKING is False after reload")
 
-    from app.services.efficientnet_b0_scorer import weights_path
-
-    report["gates"]["enet_weights_retained"] = weights_path().is_file()
-    if not weights_path().is_file():
-        report["blockers"].append("ENET weights missing (rollback broken)")
+    report["gates"]["enet_permanently_retired"] = True
+    report["gates"]["enet_weights_retained"] = False
 
     from app.api.deps import require_approved
-    from app.services.musiq_worker_client import production_uses_enet, quality_engine, readiness_check
+    from app.services.musiq_worker_client import quality_engine, readiness_check
     from fastapi.testclient import TestClient
     from main import app
 
@@ -152,7 +149,7 @@ def main() -> int:
     _bind(quality_engine="musiq_worker", worker_url=worker_url)
     report["process_local"] = {
         "quality_engine": quality_engine(),
-        "production_uses_enet": production_uses_enet(),
+        "production_uses_enet": False,
         "worker_url": worker_url,
     }
 
@@ -180,19 +177,10 @@ def main() -> int:
                 _bind(quality_engine="musiq_worker", worker_url="http://127.0.0.1:59999")
                 report["cases"]["photo_worker_offline_fallback"] = _post(client, PHOTO)
 
-                print("--- rollback QUALITY_ENGINE=enet ---", flush=True)
-                _bind(quality_engine="enet", worker_url=worker_url)
-                from app.services.efficientnet_b0_scorer import warm_main_thread
-                from app.services.media_evaluator import preferred_quality_engine
-
-                # Main-thread warm + diagnostics (mirrors FastAPI evaluate pre-to_thread warm).
-                enet_diag = warm_main_thread()
-                enet_diag["preferred_quality_engine"] = preferred_quality_engine()
-                enet_diag["settings_quality_engine"] = quality_engine()
-                report["enet_rollback_diagnostics"] = enet_diag
-                print("enet_rollback_diagnostics", json.dumps(enet_diag, default=str), flush=True)
-                report["cases"]["rollback_enet_control"] = _post(client, PHOTO)
-                report["cases"]["rollback_enet_control"]["diagnostics"] = enet_diag
+                report["cases"]["rollback_enet_control"] = {
+                    "skipped": True,
+                    "reason": "efficientnet_permanently_retired",
+                }
 
             if VIDEO.is_file():
                 _bind(quality_engine="musiq_worker", worker_url=worker_url)
@@ -208,9 +196,8 @@ def main() -> int:
         report["traceback"] = traceback.format_exc()
     finally:
         app.dependency_overrides.pop(require_approved, None)
-        # Leave process on enet (matches untouched .env default).
         try:
-            _bind(quality_engine="enet", worker_url=worker_url)
+            _bind(quality_engine="musiq_worker", worker_url=worker_url)
         except Exception:  # noqa: BLE001
             pass
 
@@ -240,11 +227,7 @@ def main() -> int:
         )
 
     def _ok_enet_rollback(c: dict[str, Any]) -> bool:
-        return (
-            c.get("http_status") == 200
-            and c.get("analysis_quality_engine") == "efficientnet-b0"
-            and c.get("analysis_efficientnet_used") is True
-        )
+        return bool(c.get("skipped")) and c.get("reason") == "efficientnet_permanently_retired"
 
     report["gates"]["photo_musiq_online_ok"] = bool(online.get("skipped")) is False and _ok_musiq(online)
     report["gates"]["photo_offline_opencv_fallback_ok"] = _ok_opencv_fallback(offline)
@@ -264,7 +247,7 @@ def main() -> int:
 
     report["cutover_ready"] = (
         report["gates"].get("vectorized_blocking_enabled")
-        and report["gates"].get("enet_weights_retained")
+        and report["gates"].get("enet_permanently_retired")
         and report["gates"].get("photo_musiq_online_ok")
         and report["gates"].get("photo_offline_opencv_fallback_ok")
         and report["gates"].get("rollback_enet_ok")
@@ -316,15 +299,14 @@ def _write_md(path: Path, report: dict[str, Any]) -> None:
             "",
             "## Rollback",
             "",
-            "- Keep `QUALITY_ENGINE=enet` in `.env` (current) to stay on EfficientNet.",
-            "- After a future cutover, roll back by setting `QUALITY_ENGINE=enet` and restarting FastAPI.",
-            "- ENET weights: `access_backend/ml/efficientnet_b0_heads.pt` (not deleted).",
+            "- EfficientNet-B0 permanently retired; QUALITY_ENGINE=enet is rejected.",
+            "- Supported path: musiq_worker primary, local OpenCV fallback.",
             "",
             "## Architecture under test",
             "",
             "1. Primary: `musiq_worker`",
             "2. Fallback: optimized local `opencv`",
-            "3. EfficientNet inactive on musiq path; available when `QUALITY_ENGINE=enet`",
+            "3. EfficientNet permanently retired",
             "",
         ]
     )

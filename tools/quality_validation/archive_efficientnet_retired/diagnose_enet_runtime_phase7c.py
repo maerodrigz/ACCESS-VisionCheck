@@ -1,3 +1,6 @@
+# ARCHIVED — EfficientNet-B0 retired. Non-executable without deleted scorer/weights.
+# See archive_efficientnet_retired/README.md
+
 #!/usr/bin/env python3
 """Phase 7C: diagnose why EfficientNet-B0 was skipped in Phase 7B.
 
@@ -188,3 +191,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

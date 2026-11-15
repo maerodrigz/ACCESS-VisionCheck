@@ -32,6 +32,8 @@ def _reset_shadow_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     )
     monkeypatch.setattr("app.config.settings.quality_shadow_anon_salt", "test-shadow-salt")
     monkeypatch.setattr("app.config.settings.quality_shadow_max_workers", 1)
+    # Unit tests stub local MUSIQ; do not hit a live MUSIQ_WORKER_URL from .env.
+    monkeypatch.setattr("app.config.settings.musiq_worker_prefer_remote", False)
     yield
     shutdown_quality_shadow_executor(wait=True)
     reset_musiq_loader_for_tests()

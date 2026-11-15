@@ -1,6 +1,7 @@
 """Map MUSIQ worker classical OpenCV raw metrics into the production quality contract.
 
-Phase 7A: selectable engine only. EfficientNet-B0 remains the default production scorer.
+Production quality engine is ``QUALITY_ENGINE=musiq_worker`` only (OpenCV fallback).
+EfficientNet-B0 is retired from production routing.
 
 Safety rules:
   - Map from worker ``criteria_raw`` only (production polarities).

@@ -1,9 +1,7 @@
 """HTTPS client for the remote MUSIQ + OpenCV worker.
 
-Default production quality engine remains EfficientNet-B0 (`QUALITY_ENGINE=enet`).
-Phase 7G: `QUALITY_ENGINE=musiq_worker` selects the worker for quality metrics when
-configured; fallback is optimized local OpenCV only (EfficientNet inactive on this
-path). Default stays `enet` for rollback until an explicit .env cutover.
+Production quality engine is ``QUALITY_ENGINE=musiq_worker`` only (MUSIQ primary,
+local OpenCV fallback in media_evaluator). EfficientNet-B0 is retired.
 
 Also used for quality-shadow remote MUSIQ when MUSIQ_WORKER_URL is set.
 
@@ -31,17 +29,7 @@ def musiq_worker_configured() -> bool:
 
 
 def quality_engine() -> str:
-    return (settings.quality_engine or "enet").strip().lower() or "enet"
-
-
-def production_uses_enet() -> bool:
-    """True when production quality should prefer EfficientNet-B0.
-
-    Default ``QUALITY_ENGINE=enet`` keeps ENET. Setting ``musiq_worker`` selects
-    the Docker worker path in media_evaluator (with ENET/OpenCV fallback). Deploy
-    and .env are unchanged in Phase 7A, so live production stays on ENET.
-    """
-    return quality_engine() != "musiq_worker"
+    return (settings.quality_engine or "musiq_worker").strip().lower() or "musiq_worker"
 
 
 def _base_url() -> str:

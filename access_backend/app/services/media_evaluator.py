@@ -1,7 +1,8 @@
-"""Online media evaluation: EfficientNet-B0 scoring + FFmpeg video frames.
+"""Online media evaluation: MUSIQ worker + FFmpeg video frames (OpenCV fallback).
 
-Phase 7A: optional ``QUALITY_ENGINE=musiq_worker`` selects MUSIQ worker classical
-OpenCV metrics (+ MUSIQ OPQ context only). Default remains EfficientNet-B0.
+``QUALITY_ENGINE=musiq_worker`` is the only supported production path:
+MUSIQ worker classical OpenCV metrics (+ MUSIQ OPQ context), with local OpenCV
+fallback when the worker is unavailable. EfficientNet-B0 is retired.
 """
 
 from __future__ import annotations
@@ -10,8 +11,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from app.services.efficientnet_b0_scorer import MODEL_ID, analyze_image_bytes as efficientnet_analyze
-from app.services.efficientnet_b0_scorer import efficientnet_available, ensure_weights
 from app.services.ffmpeg_frames import extract_frames, ffmpeg_available
 from app.services.media_upload_config import DEFAULT_VIDEO_EXTENSIONS
 from app.services.image_quality import legacy_scores_from_payload, parse_client_payload
@@ -39,10 +38,9 @@ from app.services.rule_based_quality_feedback import (
 )
 
 
-SCORING_ENGINE = "efficientnet-b0+ffmpeg+color-heuristics"
-SCORING_ENGINE_MUSIQ = "musiq-worker+opencv+color-heuristics"
+SCORING_ENGINE = "musiq-worker+opencv+color-heuristics"
+SCORING_ENGINE_MUSIQ = SCORING_ENGINE
 SCORING_MODEL_MUSIQ = "musiq-paq2piq+opencv-classical"
-QUALITY_ENGINE_EFFICIENTNET = "efficientnet-b0"
 QUALITY_ENGINE_OPENCV = "opencv"
 QUALITY_ENGINE_MUSIQ_WORKER = "musiq_worker"
 
@@ -70,26 +68,12 @@ _VIDEO_EXTRA_CRITERION_NAMES = ("Flickering", "Motion Stability")
 _LEGACY_PHOTO_CRITERION_NAMES = ("Noise", "Ringing Artifacts")
 
 
-def preferred_quality_engine() -> str | None:
-    """Preferred *local* engine when QUALITY_ENGINE=enet (rollback / pre-cutover).
-
-    Phase 7G cutover path (QUALITY_ENGINE=musiq_worker) does not use this helper for
-    fallback; that path is MUSIQ → optimized local OpenCV only. ENET weights remain
-    on disk for rollback via QUALITY_ENGINE=enet.
-    """
-    if efficientnet_available() and ensure_weights():
-        return QUALITY_ENGINE_EFFICIENTNET
-    if opencv_available():
-        return QUALITY_ENGINE_OPENCV
-    return None
-
-
 def _opencv_only(
     content: bytes,
     *,
     as_fallback: bool,
 ) -> tuple[dict[str, Any] | None, str | None, bool]:
-    """Local OpenCV only (Phase 7G MUSIQ fallback; no EfficientNet)."""
+    """Local OpenCV only (MUSIQ worker fallback)."""
     if opencv_available():
         metrics = analyze_image_for_engine(content, QUALITY_ENGINE_OPENCV)
         if metrics is not None:
@@ -97,36 +81,7 @@ def _opencv_only(
     return None, None, False
 
 
-def _enet_then_opencv(
-    content: bytes,
-    *,
-    from_musiq_fallback: bool = False,
-) -> tuple[dict[str, Any] | None, str | None, bool]:
-    """ENET first, then local OpenCV. Used only for QUALITY_ENGINE=enet rollback path."""
-    # Phase 7G: MUSIQ cutover must not call this (ENET inactive on musiq_worker path).
-    if from_musiq_fallback:
-        return _opencv_only(content, as_fallback=True)
-
-    enet_ready = efficientnet_available() and ensure_weights()
-    if enet_ready:
-        metrics = analyze_image_for_engine(content, QUALITY_ENGINE_EFFICIENTNET)
-        if metrics is not None:
-            return metrics, QUALITY_ENGINE_EFFICIENTNET, False
-    if opencv_available():
-        metrics = analyze_image_for_engine(content, QUALITY_ENGINE_OPENCV)
-        if metrics is not None:
-            # Preserve legacy: OpenCV-only hosts report opencv_fallback=False.
-            # ENET failure → OpenCV reports opencv_fallback=True.
-            opencv_fallback = bool(enet_ready)
-            return metrics, QUALITY_ENGINE_OPENCV, opencv_fallback
-    return None, None, False
-
-
 def analyze_image_for_engine(content: bytes, engine: str) -> dict[str, Any] | None:
-    if engine == QUALITY_ENGINE_EFFICIENTNET:
-        if efficientnet_available() and ensure_weights():
-            return efficientnet_analyze(content)
-        return None
     if engine == QUALITY_ENGINE_OPENCV:
         if opencv_available():
             return opencv_analyze(content)
@@ -155,10 +110,8 @@ def resolve_quality_engine_for_bytes(
     """
     Returns (metrics, engine_used, opencv_fallback).
 
-    Phase 7G target architecture (QUALITY_ENGINE=musiq_worker):
-      MUSIQ worker → optimized local OpenCV only (EfficientNet inactive).
-    Rollback / current default (QUALITY_ENGINE=enet, leave .env unchanged until cutover):
-      EfficientNet-B0 → local OpenCV. Weights retained on disk.
+    Supported architecture (QUALITY_ENGINE=musiq_worker only):
+      MUSIQ worker → optimized local OpenCV fallback.
     """
     from app.services.musiq_worker_client import evaluate_bytes as musiq_evaluate_bytes
     from app.services.musiq_worker_client import musiq_worker_configured, quality_engine
@@ -169,30 +122,27 @@ def resolve_quality_engine_for_bytes(
     if media_norm == "image":
         media_norm = "photo"
 
-    if quality_engine() == "musiq_worker":
-        if musiq_worker_configured() and content:
-            result = musiq_evaluate_bytes(
-                content,
-                media_type=media_norm,
-                filename=filename or "upload.jpg",
-                file_ext=file_ext or "",
-            )
-            # For video worker aggregates, dimension decode uses a sample frame when provided.
-            dim_src = local_bytes if media_norm == "video" else content
-            mapped = metrics_from_worker_result(result, content=dim_src)
-            if mapped is not None:
-                return mapped, QUALITY_ENGINE_MUSIQ_WORKER, False
-        # Cutover fallback: optimized local OpenCV only (no EfficientNet).
-        return _opencv_only(local_bytes, as_fallback=True)
+    engine = quality_engine()
+    if engine != "musiq_worker":
+        # Settings validator should reject this at startup; defensive for tests/monkeypatches.
+        raise RuntimeError(
+            f"Unsupported QUALITY_ENGINE={engine!r}. "
+            "Only 'musiq_worker' is supported (EfficientNet-B0 retired)."
+        )
 
-    # Rollback path: QUALITY_ENGINE=enet
-    preferred = preferred_quality_engine()
-    if preferred == QUALITY_ENGINE_EFFICIENTNET:
-        return _enet_then_opencv(local_bytes, from_musiq_fallback=False)
-    if preferred == QUALITY_ENGINE_OPENCV:
-        metrics = analyze_image_for_engine(local_bytes, QUALITY_ENGINE_OPENCV)
-        return (metrics, QUALITY_ENGINE_OPENCV, False) if metrics else (None, None, False)
-    return None, None, False
+    if musiq_worker_configured() and content:
+        result = musiq_evaluate_bytes(
+            content,
+            media_type=media_norm,
+            filename=filename or "upload.jpg",
+            file_ext=file_ext or "",
+        )
+        # For video worker aggregates, dimension decode uses a sample frame when provided.
+        dim_src = local_bytes if media_norm == "video" else content
+        mapped = metrics_from_worker_result(result, content=dim_src)
+        if mapped is not None:
+            return mapped, QUALITY_ENGINE_MUSIQ_WORKER, False
+    return _opencv_only(local_bytes, as_fallback=True)
 
 
 def deferred_authenticity_preview() -> dict[str, Any]:
@@ -308,54 +258,28 @@ def evaluate_video(
     if not frame_bytes:
         return None
 
-    from app.services.musiq_worker_client import quality_engine as configured_quality_engine
-
     musiq_ctx: dict[str, Any] | None = None
-    if configured_quality_engine() == "musiq_worker":
-        # One worker call for the video aggregate; local frames still drive color/temporal/auth.
-        first, engine, opencv_fallback = resolve_quality_engine_for_bytes(
-            content,
-            media_type="video",
-            filename=file_name or f"upload{ext}",
-            file_ext=ext,
-            local_image_bytes=frame_bytes[0],
-        )
-        if first is None or engine is None:
-            return None
-        if engine == QUALITY_ENGINE_MUSIQ_WORKER:
-            averaged, musiq_ctx = strip_adapter_metadata(first)
-            frame_metrics = [averaged]
-        else:
-            clean_first, _ = strip_adapter_metadata(first)
-            frame_metrics = [clean_first]
-            rest = frame_bytes[1:]
-            if rest:
-                workers = min(4, max(1, len(rest)))
-
-                def _score_fallback_frame(frame: bytes) -> dict[str, Any] | None:
-                    raw = analyze_image_for_engine(frame, engine)
-                    if raw is None:
-                        return None
-                    cleaned, _ = strip_adapter_metadata(raw)
-                    return cleaned
-
-                with ThreadPoolExecutor(max_workers=workers) as pool:
-                    pinned = list(pool.map(_score_fallback_frame, rest))
-                frame_metrics.extend(m for m in pinned if m is not None)
-            if not frame_metrics:
-                return None
-            averaged = _average_metrics(frame_metrics)
+    # One worker call for the video aggregate; local frames still drive color/temporal/auth.
+    first, engine, opencv_fallback = resolve_quality_engine_for_bytes(
+        content,
+        media_type="video",
+        filename=file_name or f"upload{ext}",
+        file_ext=ext,
+        local_image_bytes=frame_bytes[0],
+    )
+    if first is None or engine is None:
+        return None
+    if engine == QUALITY_ENGINE_MUSIQ_WORKER:
+        averaged, musiq_ctx = strip_adapter_metadata(first)
+        frame_metrics = [averaged]
     else:
-        first, engine, opencv_fallback = resolve_quality_engine_for_bytes(frame_bytes[0])
-        if first is None or engine is None:
-            return None
         clean_first, _ = strip_adapter_metadata(first)
         frame_metrics = [clean_first]
         rest = frame_bytes[1:]
         if rest:
             workers = min(4, max(1, len(rest)))
 
-            def _score_frame(frame: bytes) -> dict[str, Any] | None:
+            def _score_fallback_frame(frame: bytes) -> dict[str, Any] | None:
                 raw = analyze_image_for_engine(frame, engine)
                 if raw is None:
                     return None
@@ -363,7 +287,7 @@ def evaluate_video(
                 return cleaned
 
             with ThreadPoolExecutor(max_workers=workers) as pool:
-                pinned = list(pool.map(_score_frame, rest))
+                pinned = list(pool.map(_score_fallback_frame, rest))
             frame_metrics.extend(m for m in pinned if m is not None)
         if not frame_metrics:
             return None
@@ -410,7 +334,7 @@ def evaluate_video(
     return payload
 
 def merge_client_gemini(server_payload: dict[str, Any], client_raw: str | None) -> dict[str, Any]:
-    """Keep authoritative EfficientNet scores; merge Gemini narrative from client metadata."""
+    """Keep authoritative server quality scores; merge Gemini narrative from client metadata."""
     client = parse_client_payload(client_raw)
     if not client:
         return server_payload
@@ -486,7 +410,7 @@ def _photo_criteria(
     color_balance: dict[str, Any],
     color_saturation: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Five retained ENET/OpenCV heads + heuristic Color Balance / Color Saturation."""
+    """Five OpenCV/MUSIQ classical heads + heuristic Color Balance / Color Saturation."""
     return [
         _criterion("Sharpness", _soft_score(m["sharpness"]), high_is_good=True),
         _criterion("Blur", _soft_score(1 - m["blur"]), high_is_good=False),
@@ -678,9 +602,9 @@ def _default_explanation(name: str, score: int, high_is_good: bool) -> str:
     }
     return explanations.get(
         name,
-        f"EfficientNet-B0 quality signal for {name}."
+        f"Automated quality signal for {name}."
         if high_is_good
-        else f"EfficientNet-B0 artifact signal for {name}.",
+        else f"Automated artifact signal for {name}.",
     )
 
 
@@ -729,6 +653,7 @@ def _build_payload(
     frames_analyzed: int | None = None,
     enet_metrics: dict[str, Any] | None = None,
     musiq_opq_context: dict[str, Any] | None = None,
+    frame_sampling: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     scored = _scored_criteria(criteria)
     overall, overall_meta = compute_overall_score_from_criteria(
@@ -767,10 +692,10 @@ def _build_payload(
             ai_detection = deferred_authenticity_preview()
 
     by_name = {c["name"]: int(c["score"]) for c in scored}
-    # Preserve DB legacy noise_score polarity from ENET/OpenCV noise metric (not Color Balance).
-    clean_enet = strip_adapter_metadata(enet_metrics)[0] if isinstance(enet_metrics, dict) else None
-    if clean_enet is not None and "noise" in clean_enet:
-        noise_amount = float(min(max(float(clean_enet["noise"]), 0.0), 1.0))
+    # Preserve DB legacy noise_score polarity from quality-engine noise metric (not Color Balance).
+    clean_metrics = strip_adapter_metadata(enet_metrics)[0] if isinstance(enet_metrics, dict) else None
+    if clean_metrics is not None and "noise" in clean_metrics:
+        noise_amount = float(min(max(float(clean_metrics["noise"]), 0.0), 1.0))
         legacy_noise = round(noise_amount, 3)  # stored high = more noise (historical)
     else:
         legacy_noise = None
@@ -788,12 +713,9 @@ def _build_payload(
     if used_musiq:
         scoring_engine = SCORING_ENGINE_MUSIQ
         scoring_model = SCORING_MODEL_MUSIQ
-    elif used_opencv:
+    else:
         scoring_engine = "opencv+color-heuristics"
         scoring_model = "opencv"
-    else:
-        scoring_engine = SCORING_ENGINE
-        scoring_model = MODEL_ID
     payload = {
         "criteria": criteria,
         "overall_score": overall,
@@ -822,8 +744,8 @@ def _build_payload(
             "engine": scoring_engine,
             "model": scoring_model,
             "quality_engine": quality_engine,
-            "efficientnet_used": quality_engine == QUALITY_ENGINE_EFFICIENTNET,
-            "efficientnet_development_frozen": True,
+            # Kept for historical payload schema; new evals never use EfficientNet.
+            "efficientnet_used": False,
             "quality_estimates": "experimental",
             "ffmpeg_used": ffmpeg_available() if media_type == "video" else False,
             "opencv_fallback": bool(opencv_fallback),
@@ -837,6 +759,12 @@ def _build_payload(
             "overall_factor_count": overall_meta.get("overall_factor_count") or 0,
         },
     }
+    if isinstance(frame_sampling, dict) and frame_sampling:
+        # Safe diagnostics only (counts/method/duration). Never persist paths or media bytes.
+        for key in ("sampled_frame_count", "sampling_method", "probe_duration_sec"):
+            if key in frame_sampling and frame_sampling[key] is not None:
+                payload["analysis"][key] = frame_sampling[key]
+
     if used_musiq and isinstance(musiq_opq_context, dict):
         payload["analysis"]["musiq_opq"] = musiq_opq_context
     # Drop null-only flag when not on musiq path (keep payload shape stable for ENET).

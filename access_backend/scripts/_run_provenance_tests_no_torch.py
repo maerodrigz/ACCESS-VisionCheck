@@ -33,15 +33,6 @@ for name in (
 ):
     sys.modules.setdefault(name, MagicMock())
 
-import types
-
-_eff_stub = types.ModuleType("app.services.efficientnet_b0_scorer")
-_eff_stub.MODEL_ID = "efficientnet-b0"
-_eff_stub.analyze_image_bytes = lambda *_a, **_k: {}  # type: ignore[attr-defined]
-_eff_stub.efficientnet_available = lambda: False  # type: ignore[attr-defined]
-_eff_stub.ensure_weights = lambda: None  # type: ignore[attr-defined]
-sys.modules["app.services.efficientnet_b0_scorer"] = _eff_stub
-
 import pytest
 
 ARGS = sys.argv[1:] or [

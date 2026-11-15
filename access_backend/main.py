@@ -53,13 +53,6 @@ async def _app_lifespan(_app: FastAPI):
 
         await asyncio.to_thread(_warm_probe_detector)
         await asyncio.to_thread(_warm_fcm)
-        # Warm ENET on the event-loop thread (not to_thread) when rollback/default path.
-        from app.services.musiq_worker_client import quality_engine as _qe
-
-        if _qe() == "enet":
-            from app.services.efficientnet_b0_scorer import warm_main_thread
-
-            warm_main_thread()
     # Do not block login/health on PROBE/FCM init (mobile would timeout waiting for startup).
     warm_task = asyncio.create_task(_warm_heavy_services())
     yield

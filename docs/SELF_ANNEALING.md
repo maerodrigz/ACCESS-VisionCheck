@@ -270,6 +270,17 @@ When you hit a new bug:
 
 ---
 
+## Incident 16: Blank verified video + false “XP not awarded”
+
+| | |
+|---|---|
+| **Symptom** | Evaluation Report: gray video preview; Play stops immediately; Verified status with “XP not awarded” even when XP was already granted. |
+| **Cause** | List-safe `supabase-ref` streams via JWT `/media/{id}/stream`. `VideoThumbnail` cannot send Authorization. Players often fail when Authorization is forwarded through 307 to a signed Supabase URL; buffered byte `Response` advertised Accept-Ranges without true Range/206. Flutter XP UI used `xp_points_preview * xp_multiplier` while verified rows kept `xp_multiplier: 0` after award. |
+| **Fix** | Resolve stream redirects to signed URLs for playback/preview (JWT only on API hop / local FileResponse); temp-file FileResponse for buffered blobs; stamp `xp_awarded_points` + restore multiplier on award; Flutter reads award stamps. |
+| **Prevention** | Never treat `xp_multiplier == 0` alone as “not awarded” when `xp_awarded_at_review` is true. Never serve videos as a single non-ranged Response. |
+
+---
+
 ## Database reminders
 
 - Database name: **`access`** (PostgreSQL on `localhost:5432`)

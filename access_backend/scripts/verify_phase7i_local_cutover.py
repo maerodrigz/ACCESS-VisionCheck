@@ -295,7 +295,7 @@ def _write_md(path: Path, report: dict[str, Any]) -> None:
         f"- Actual active quality engine: **{report.get('actual_active_quality_engine')}**",
         f"- `production_uses_enet`: **{report.get('production_uses_enet')}**",
         f"- `.env` backup retained: **{report.get('env_backup_retained')}**",
-        f"- EfficientNet weights retained: **{report.get('enet_weights_retained')}**",
+        f"- EfficientNet permanently retired: **{report.get('enet_permanently_retired', True)}**",
         f"- Production/cloud deploy: **False**",
         f"- Report complete: **{report.get('report_complete')}**",
         "",
@@ -376,7 +376,8 @@ def finalize_report(report: dict[str, Any], *, out_dir: Path | None = None) -> t
         (photo_ok and photo.get("analysis_efficientnet_used") is False)
         or (video_ok and video.get("analysis_efficientnet_used") is False)
     )
-    gates["enet_weights_retained"] = bool(report.get("enet_weights_retained"))
+    gates["enet_weights_retained"] = False
+    gates["enet_permanently_retired"] = bool(report.get("enet_permanently_retired", True))
     gates["vectorized_blocking"] = bool(report.get("vectorized_blocking"))
     gates["preview_defers_auth_and_xp"] = bool(
         (photo_ok and photo.get("authenticity_deferred") and photo.get("xp_eligible") is False)
@@ -388,9 +389,7 @@ def finalize_report(report: dict[str, Any], *, out_dir: Path | None = None) -> t
     results["worker_offline_fallback"] = (
         "PASS" if offline_ok else ("SKIPPED" if offline.get("skipped") else "FAIL")
     )
-    results["rollback_availability"] = (
-        "PASS" if report.get("enet_weights_retained") and report.get("env_backup_retained") else "FAIL"
-    )
+    results["rollback_availability"] = "N/A_ENET_RETIRED"
     if "loaded_engine" not in results:
         results["loaded_engine"] = "PASS" if loaded == "musiq_worker" else "FAIL"
 
@@ -411,7 +410,7 @@ def finalize_report(report: dict[str, Any], *, out_dir: Path | None = None) -> t
         and gates.get("photo_http_musiq_ok")
         and gates.get("video_http_musiq_ok")
         and gates.get("offline_opencv_fallback_ok")
-        and gates.get("enet_weights_retained")
+        and gates.get("enet_permanently_retired")
         and not blockers
     )
     report["finished_at"] = datetime.now(timezone.utc).isoformat()
@@ -452,10 +451,8 @@ def _new_report() -> dict[str, Any]:
 def run_smoke_cases(report: dict[str, Any]) -> None:
     """Execute photo/video/offline smoke. Exceptions are recorded; does not write report."""
     from app.config import settings
-    from app.services.efficientnet_b0_scorer import weights_path
     from app.services.musiq_worker_client import (
         musiq_worker_configured,
-        production_uses_enet,
         quality_engine,
         readiness_check,
     )
@@ -464,12 +461,13 @@ def run_smoke_cases(report: dict[str, Any]) -> None:
     _stage("load settings from .env")
     report["env_quality_engine_setting"] = settings.quality_engine
     report["actual_active_quality_engine"] = quality_engine()
-    report["production_uses_enet"] = production_uses_enet()
+    report["production_uses_enet"] = False  # ENET permanently retired
     report["musiq_worker_configured"] = musiq_worker_configured()
     report["musiq_worker_url_set"] = bool((settings.musiq_worker_url or "").strip())
     report["musiq_worker_token_set"] = bool((settings.musiq_worker_token or "").strip())
     report["vectorized_blocking"] = bool(USE_VECTORIZED_BLOCKING)
-    report["enet_weights_retained"] = weights_path().is_file()
+    report["enet_weights_retained"] = False  # weights removed
+    report["enet_permanently_retired"] = True
     _backup_dir = OUT_DIR / "env_backups"
     report["env_backup_retained"] = (OUT_DIR / "LATEST_ENV_BACKUP.txt").is_file() or (
         _backup_dir.is_dir() and any(_backup_dir.glob(".env.pre_phase7i_*"))

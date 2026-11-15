@@ -9,7 +9,6 @@ import pytest
 from app.services import musiq_worker_client as client
 from app.services import musiq_quality_adapter as adapter
 from app.services.media_evaluator import (
-    QUALITY_ENGINE_EFFICIENTNET,
     QUALITY_ENGINE_MUSIQ_WORKER,
     QUALITY_ENGINE_OPENCV,
     evaluate_photo,
@@ -70,7 +69,7 @@ def _worker_ok_payload(*, opq: float = 78.79, status: str = "ok") -> dict:
 
 @pytest.fixture
 def musiq_settings(monkeypatch):
-    monkeypatch.setattr(client.settings, "quality_engine", "enet")
+    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
     monkeypatch.setattr(client.settings, "musiq_worker_url", "https://worker.test")
     monkeypatch.setattr(client.settings, "musiq_worker_token", "secret")
     monkeypatch.setattr(client.settings, "musiq_worker_timeout_sec", 5.0)
@@ -105,95 +104,61 @@ def test_adapter_rejects_missing_raw_keys(musiq_settings):
     assert adapter.metrics_from_worker_result(bad) is None
 
 
-def test_production_uses_enet_respects_flag(musiq_settings, monkeypatch):
-    monkeypatch.setattr(client.settings, "quality_engine", "enet")
-    assert client.production_uses_enet() is True
-    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
-    assert client.production_uses_enet() is False
+def test_quality_engine_is_musiq_worker(musiq_settings):
+    assert client.quality_engine() == "musiq_worker"
 
 
-def test_default_engine_still_enet(musiq_settings, monkeypatch):
-    monkeypatch.setattr(client.settings, "quality_engine", "enet")
-    with patch("app.services.media_evaluator.efficientnet_available", return_value=True):
-        with patch("app.services.media_evaluator.ensure_weights", return_value=True):
-            with patch(
-                "app.services.media_evaluator.efficientnet_analyze",
-                return_value=dict(_METRICS),
-            ):
-                with patch("app.services.musiq_worker_client.evaluate_bytes") as worker:
-                    metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
-    worker.assert_not_called()
-    assert engine == QUALITY_ENGINE_EFFICIENTNET
-    assert fallback is False
-    assert metrics is not None
-
-
-def test_musiq_worker_selected_when_flag_set(musiq_settings, monkeypatch):
-    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
+def test_musiq_worker_selected(musiq_settings, monkeypatch):
     with patch(
         "app.services.musiq_worker_client.evaluate_bytes",
         return_value=_worker_ok_payload(),
     ) as worker:
-        with patch("app.services.media_evaluator.efficientnet_analyze") as enet:
-            metrics, engine, fallback = resolve_quality_engine_for_bytes(b"fake-jpeg")
+        metrics, engine, fallback = resolve_quality_engine_for_bytes(b"fake-jpeg")
     worker.assert_called_once()
-    enet.assert_not_called()
     assert engine == QUALITY_ENGINE_MUSIQ_WORKER
     assert fallback is False
     assert metrics is not None
     assert metrics["sharpness"] == pytest.approx(0.8)
 
 
-def test_worker_timeout_falls_back_to_opencv_not_enet(musiq_settings, monkeypatch):
-    """Phase 7G: musiq_worker fallback skips EfficientNet (OpenCV only)."""
-    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
+def test_worker_timeout_falls_back_to_opencv(musiq_settings, monkeypatch):
     unavailable = client._unavailable("worker_timeout", media_type="photo")
     with patch("app.services.musiq_worker_client.evaluate_bytes", return_value=unavailable):
-        with patch("app.services.media_evaluator.efficientnet_analyze") as enet:
-            with patch("app.services.media_evaluator.opencv_available", return_value=True):
-                with patch(
-                    "app.services.media_evaluator.opencv_analyze",
-                    return_value=dict(_METRICS),
-                ):
-                    metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
-    enet.assert_not_called()
+        with patch("app.services.media_evaluator.opencv_available", return_value=True):
+            with patch(
+                "app.services.media_evaluator.opencv_analyze",
+                return_value=dict(_METRICS),
+            ):
+                metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
     assert engine == QUALITY_ENGINE_OPENCV
     assert fallback is True
     assert metrics["sharpness"] == 0.7
 
 
 def test_worker_offline_falls_back_to_opencv(musiq_settings, monkeypatch):
-    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
     unavailable = client._unavailable("worker_timeout", media_type="photo")
     with patch("app.services.musiq_worker_client.evaluate_bytes", return_value=unavailable):
-        with patch("app.services.media_evaluator.efficientnet_available", return_value=True):
-            with patch("app.services.media_evaluator.ensure_weights", return_value=True):
-                with patch("app.services.media_evaluator.efficientnet_analyze") as enet:
-                    with patch("app.services.media_evaluator.opencv_available", return_value=True):
-                        with patch(
-                            "app.services.media_evaluator.opencv_analyze",
-                            return_value=dict(_METRICS),
-                        ):
-                            metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
-    enet.assert_not_called()
+        with patch("app.services.media_evaluator.opencv_available", return_value=True):
+            with patch(
+                "app.services.media_evaluator.opencv_analyze",
+                return_value=dict(_METRICS),
+            ):
+                metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
     assert engine == QUALITY_ENGINE_OPENCV
     assert fallback is True
     assert metrics is not None
 
 
 def test_unmappable_worker_schema_falls_back_to_opencv(musiq_settings, monkeypatch):
-    monkeypatch.setattr(client.settings, "quality_engine", "musiq_worker")
     bad = _worker_ok_payload()
     bad["criteria_raw"] = {"sharpness_laplacian_var": 100.0}  # incomplete
     with patch("app.services.musiq_worker_client.evaluate_bytes", return_value=bad):
-        with patch("app.services.media_evaluator.efficientnet_analyze") as enet:
-            with patch("app.services.media_evaluator.opencv_available", return_value=True):
-                with patch(
-                    "app.services.media_evaluator.opencv_analyze",
-                    return_value=dict(_METRICS),
-                ):
-                    _metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
-    enet.assert_not_called()
+        with patch("app.services.media_evaluator.opencv_available", return_value=True):
+            with patch(
+                "app.services.media_evaluator.opencv_analyze",
+                return_value=dict(_METRICS),
+            ):
+                _metrics, engine, fallback = resolve_quality_engine_for_bytes(b"jpg")
     assert engine == QUALITY_ENGINE_OPENCV
     assert fallback is True
 

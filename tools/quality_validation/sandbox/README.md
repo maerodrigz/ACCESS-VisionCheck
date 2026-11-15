@@ -9,7 +9,7 @@ Side-by-side comparison of **two engines** on one uploaded photograph:
 
 | Engine | Role |
 |--------|------|
-| **A — EfficientNet-B0** | Production baseline (read-only import of `efficientnet_b0_scorer` + production `_soft_score`). Never silently substituted with OpenCV. |
+| **A — EfficientNet-B0 (retired)** | Permanently unavailable stub. Scorer/weights removed; never silently substituted with OpenCV. |
 | **B — Experimental Classical Combined v1** | Research detectors (Sharpness/Blur/Brightness/Contrast v2, Blocking v3, Noise/Ringing v2). |
 
 Both show all seven criteria with scores (or N/A), engine identity, limitations, and **separate runtimes**.

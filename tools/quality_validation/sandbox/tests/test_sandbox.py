@@ -166,35 +166,14 @@ def test_solid_images_classical(value, label):
 # ── Missing weights / ENET honesty ────────────────────────────────────────────
 
 def test_missing_weights_reports_unavailable_without_opencv(monkeypatch):
-    import app.services.efficientnet_b0_scorer as enet
-
-    fake_path = Path("/nonexistent/efficientnet_b0_heads.pt")
-    monkeypatch.setattr(enet, "weights_path", lambda: fake_path)
-    monkeypatch.setattr(enet, "efficientnet_available", lambda: True)
-    monkeypatch.setattr(enet, "ensure_weights", lambda: False)
-
-    # Re-import path uses the module functions inside _run_efficientnet via fresh imports;
-    # patch at the module the evaluator imports from.
-    with mock.patch(
-        "app.services.efficientnet_b0_scorer.weights_path",
-        return_value=fake_path,
-    ), mock.patch(
-        "app.services.efficientnet_b0_scorer.efficientnet_available",
-        return_value=True,
-    ), mock.patch(
-        "app.services.efficientnet_b0_scorer.ensure_weights",
-        return_value=False,
-    ), mock.patch(
-        "app.services.efficientnet_b0_scorer.analyze_image_bytes",
-        side_effect=AssertionError("analyze must not be called when weights missing"),
-    ):
-        result = evaluate(_textured())
+    _ = monkeypatch
+    result = evaluate(_textured())
 
     a = result["engine_a"]
     assert a["engine_available"] is False
     assert a["opencv_fallback_used"] is False
     assert a["unavailable_reason"]
-    assert "OpenCV fallback was NOT used" in a["unavailable_reason"] or "missing" in a["unavailable_reason"].lower()
+    assert "retired" in a["unavailable_reason"].lower() or "OpenCV fallback was NOT used" in a["unavailable_reason"]
     assert len(a["criteria"]) == 7
     assert all(c["badge"] is None for c in a["criteria"])
     # Classical must still run
@@ -203,8 +182,8 @@ def test_missing_weights_reports_unavailable_without_opencv(monkeypatch):
 
 def test_enet_status_reports_weights_path():
     status = enet_status()
-    assert "engine_available" in status
-    assert "weights_path" in status or "error" in status
+    assert status.get("engine_available") is False
+    assert status.get("status") == "permanently_retired" or "error" in status
 
 
 # ── Invalid uploads / decode ──────────────────────────────────────────────────

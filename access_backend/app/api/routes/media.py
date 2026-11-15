@@ -297,7 +297,7 @@ async def evaluate_media(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_approved),
 ):
-    """Quality preview: EfficientNet-B0 + FFmpeg (no DB save, no authenticity model). Gemini via POST /ai/media-evaluation-feedback."""
+    """Quality preview: MUSIQ worker + FFmpeg (no DB save, no authenticity model). Gemini via POST /ai/media-evaluation-feedback."""
     _ = current_user
     if not settings_crud.is_ai_media_evaluation_enabled(db):
         raise HTTPException(
@@ -310,15 +310,6 @@ async def evaluate_media(
     is_video = is_video_extension(db, ext, MEDIA_CATEGORY_EVALUATION)
     if is_video:
         assert_evaluation_video_duration(db, ext, content)
-
-    # Phase 7G: load EfficientNet on the event-loop thread before to_thread so
-    # QUALITY_ENGINE=enet rollback does not silently prefer OpenCV (7B/7G failure mode).
-    from app.services.musiq_worker_client import quality_engine as _quality_engine
-
-    if _quality_engine() == "enet":
-        from app.services.efficientnet_b0_scorer import ensure_weights
-
-        ensure_weights()
 
     payload = await asyncio.to_thread(
         evaluate_bytes,
@@ -335,7 +326,10 @@ async def evaluate_media(
     return MediaEvaluateOut(
         evaluation=payload,
         media_type="video" if is_video else "photo",
-        scoring_engine=payload.get("scoring_engine", "efficientnet-b0+ffmpeg"),
+        scoring_engine=payload.get(
+            "scoring_engine",
+            "musiq-worker+opencv+color-heuristics",
+        ),
     )
 
 

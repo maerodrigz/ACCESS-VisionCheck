@@ -17,7 +17,7 @@ describe('admin quality score display', () => {
         available: true,
         overall_percent: 80,
         opencv_fallback: false,
-        quality_engine: 'efficientnet-b0',
+        quality_engine: 'musiq_worker',
         criteria: [
           { name: 'Noise', score: 4, percent: 80, higher_is_better: true },
           { name: 'Blur', score: 4, percent: 80, higher_is_better: true },

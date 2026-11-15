@@ -37,6 +37,7 @@ def evaluate_bytes_validation(
 
 
 def _evaluate_photo(content: bytes, *, engine: EngineId) -> dict[str, Any]:
+    from app.services.color_quality_criteria import analyze_color_criteria_bytes
     from app.services.media_evaluator import _build_payload, _photo_criteria, _quality_warnings
 
     metrics, err = analyze_image_metrics(content, engine)
@@ -48,7 +49,12 @@ def _evaluate_photo(content: bytes, *, engine: EngineId) -> dict[str, Any]:
             frame_count=0,
         )
 
-    criteria = _photo_criteria(metrics)
+    color_balance, color_saturation = analyze_color_criteria_bytes(content)
+    criteria = _photo_criteria(
+        metrics,
+        color_balance=color_balance,
+        color_saturation=color_saturation,
+    )
     warnings = _quality_warnings(metrics)
     payload = _build_payload(
         criteria,
@@ -67,6 +73,7 @@ def _evaluate_video(
     engine: EngineId,
     video_sample_frames: int | None,
 ) -> dict[str, Any]:
+    from app.services.color_quality_criteria import analyze_color_criteria_from_frames
     from app.services.ffmpeg_frames import extract_frames
     from app.services.media_evaluator import (
         _average_metrics,
@@ -77,7 +84,6 @@ def _evaluate_video(
         _quality_warnings,
         SCORING_ENGINE,
     )
-    from app.services.efficientnet_b0_scorer import MODEL_ID
 
     max_frames = video_sample_frames
     frame_bytes = extract_frames(content, ext, max_frames=max_frames)
@@ -112,8 +118,13 @@ def _evaluate_video(
         )
 
     averaged = _average_metrics(frame_metrics)
+    color_balance, color_saturation = analyze_color_criteria_from_frames(frame_bytes)
     criteria = [
-        *_photo_criteria(averaged),
+        *_photo_criteria(
+            averaged,
+            color_balance=color_balance,
+            color_saturation=color_saturation,
+        ),
         _flickering(frame_metrics),
         _motion_stability(frame_metrics),
     ]
@@ -136,7 +147,9 @@ def _evaluate_video(
         video_sample_frames=sample_config,
     )
     result["analysis"]["engine"] = SCORING_ENGINE
-    result["analysis"]["model"] = MODEL_ID if engine == "efficientnet" else "opencv-heuristics"
+    result["analysis"]["model"] = (
+        "efficientnet-b0-retired" if engine == "efficientnet" else "opencv-heuristics"
+    )
     result["analysis"]["validation_engine"] = engine
     if frame_errors:
         result["partial_frame_errors"] = frame_errors

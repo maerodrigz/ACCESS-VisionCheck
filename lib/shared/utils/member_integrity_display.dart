@@ -1091,6 +1091,21 @@ MemberReportXpStatus memberReportXpStatus(
       colorKind: MemberIntegrityColorKind.accent,
     );
   }
+  if (result.xpAlreadyAwardedEffective) {
+    final awarded = result.memberXpAwardedPoints ?? 0;
+    if (awarded > 0) {
+      return MemberReportXpStatus(
+        headline: '$awarded XP awarded',
+        detail: 'XP already awarded for this submission.',
+        colorKind: MemberIntegrityColorKind.green,
+      );
+    }
+    return const MemberReportXpStatus(
+      headline: 'Already awarded',
+      detail: 'XP already awarded for this submission.',
+      colorKind: MemberIntegrityColorKind.green,
+    );
+  }
   final awarded = result.memberXpAwardedPoints;
   if (awarded != null && awarded > 0) {
     return MemberReportXpStatus(
@@ -1109,7 +1124,7 @@ MemberReportXpStatus memberReportXpStatus(
   if (result.xpPendingEffective || result.scoresHeldForReview) {
     return const MemberReportXpStatus(
       headline: 'Pending',
-      detail: 'XP is not released until verification and scoring rules are satisfied.',
+      detail: 'XP pending.',
       colorKind: MemberIntegrityColorKind.yellow,
     );
   }
@@ -1122,7 +1137,7 @@ MemberReportXpStatus memberReportXpStatus(
   }
   return const MemberReportXpStatus(
     headline: 'Pending',
-    detail: 'XP status will update when scoring and verification complete.',
+    detail: 'XP pending.',
     colorKind: MemberIntegrityColorKind.yellow,
   );
 }
@@ -1139,6 +1154,13 @@ String memberReportReviewDecisionXpLine(
   if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
     return 'XP not awarded until a replacement upload is approved.';
   }
+  if (result.xpAlreadyAwardedEffective) {
+    final awarded = result.memberXpAwardedPoints ?? 0;
+    if (awarded > 0) {
+      return '$awarded XP already awarded for this submission.';
+    }
+    return 'XP already awarded for this submission.';
+  }
   final awarded = result.memberXpAwardedPoints;
   if (awarded != null && awarded > 0) {
     return '$awarded XP awarded for this submission.';
@@ -1152,12 +1174,12 @@ String memberReportReviewDecisionXpLine(
     if (result.xpPointsPreviewEffective > 0) {
       return 'XP pending. Up to ${result.xpPointsPreviewEffective} XP if approved after review.';
     }
-    return 'XP pending until administrator review completes.';
+    return 'XP pending.';
   }
   if (result.xpEligibleEffective == false) {
     return 'XP not awarded for this submission.';
   }
-  return 'XP pending until scoring and verification complete.';
+  return 'XP pending.';
 }
 
 /// Saved evaluation report: single authoritative admin / XP summary for members.

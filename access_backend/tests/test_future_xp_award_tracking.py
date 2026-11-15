@@ -56,6 +56,8 @@ def test_normal_chain_award_records_amount_timestamp_member_and_event() -> None:
     assert events[0]["payload"]["points"] == 61
     data = json.loads(ev.criteria_json)
     assert data["xp_awarded_at_review"] is True
+    assert data["xp_awarded_points"] == 61
+    assert data["xp_multiplier"] == 1.0
     assert data["xp_chain_id"] == 9
 
 

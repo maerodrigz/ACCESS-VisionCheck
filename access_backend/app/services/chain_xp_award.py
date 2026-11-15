@@ -151,6 +151,8 @@ def _award_on_chain(
     data["xp_pending"] = False
     data["xp_awarded_at_review"] = True
     data["xp_eligible"] = True
+    data["xp_multiplier"] = 1.0
+    data["xp_awarded_points"] = points
     data["xp_chain_id"] = chain.id
     data["xp_chain_award_role"] = "chain_creditor"
     data["xp_awarded_at"] = awarded_at.isoformat()
@@ -167,6 +169,7 @@ def _award_on_chain(
         data["xp_awarded_at_review"] = False
         data["xp_pending"] = True
         data.pop("xp_awarded_at", None)
+        data.pop("xp_awarded_points", None)
         data.pop("xp_chain_id", None)
         data.pop("xp_chain_award_role", None)
         ev.criteria_json = json.dumps(data)
@@ -203,6 +206,9 @@ def _legacy_direct_award(db: Session, media_id: int, member_id: int, points: int
             if isinstance(data, dict):
                 data["xp_awarded_at_review"] = True
                 data["xp_pending"] = False
+                data["xp_eligible"] = True
+                data["xp_multiplier"] = 1.0
+                data["xp_awarded_points"] = points
                 data["xp_award_path"] = "legacy_untracked"
                 data["xp_awarded_at"] = datetime.now(timezone.utc).isoformat()
                 ev.criteria_json = json.dumps(data)

@@ -523,6 +523,8 @@ class PhotoEvaluationResult {
     this.qualityProvisional,
     this.xpEligible,
     this.xpMultiplier,
+    this.xpAwardedAtReview,
+    this.xpAwardedPoints,
     this.memberIntegrityMessage,
     this.xpPending,
     this.xpPointsPreview,
@@ -554,6 +556,10 @@ class PhotoEvaluationResult {
   final bool? qualityProvisional;
   final bool? xpEligible;
   final double? xpMultiplier;
+  /// Backend stamp when chain/legacy award already wrote ranking XP for this eval.
+  final bool? xpAwardedAtReview;
+  /// Exact points written when [xpAwardedAtReview] is true.
+  final int? xpAwardedPoints;
   final String? memberIntegrityMessage;
   final bool? xpPending;
   final int? xpPointsPreview;
@@ -609,8 +615,22 @@ class PhotoEvaluationResult {
   int get xpPointsPreviewEffective =>
       xpPointsPreview ?? ((overallScore <= 1.0 ? overallScore : overallScore / 5.0) * 100).round();
 
-  /// Awarded XP when scores are released and XP is eligible (not a pending preview cap).
+  bool get xpAlreadyAwardedEffective =>
+      xpAwardedAtReview == true ||
+      (xpAwardedPoints != null && xpAwardedPoints! > 0);
+
+  /// Awarded XP from backend stamps, or preview × multiplier when released/eligible.
+  ///
+  /// Verified submissions often keep xp_multiplier: 0 from the integrity hold
+  /// even after xp_awarded_at_review is true. Prefer explicit award fields.
   int? get memberXpAwardedPoints {
+    if (xpAwardedPoints != null && xpAwardedPoints! > 0) {
+      return xpAwardedPoints;
+    }
+    if (xpAwardedAtReview == true) {
+      final preview = xpPointsPreviewEffective;
+      return preview > 0 ? preview : 0;
+    }
     if (xpPendingEffective) return null;
     if (!memberScoresReleasedEffective) return null;
     if (xpEligibleEffective == false) return 0;
@@ -703,6 +723,8 @@ class PhotoEvaluationResult {
       if (qualityProvisional != null) 'quality_provisional': qualityProvisional,
       if (xpEligible != null) 'xp_eligible': xpEligible,
       if (xpMultiplier != null) 'xp_multiplier': xpMultiplier,
+      if (xpAwardedAtReview != null) 'xp_awarded_at_review': xpAwardedAtReview,
+      if (xpAwardedPoints != null) 'xp_awarded_points': xpAwardedPoints,
       if (memberIntegrityMessage != null) 'member_integrity_message': memberIntegrityMessage,
       if (xpPending != null) 'xp_pending': xpPending,
       if (xpPointsPreview != null) 'xp_points_preview': xpPointsPreview,
@@ -820,6 +842,8 @@ class PhotoEvaluationResult {
       qualityProvisional: j['quality_provisional'] as bool?,
       xpEligible: j['xp_eligible'] as bool?,
       xpMultiplier: (j['xp_multiplier'] as num?)?.toDouble(),
+      xpAwardedAtReview: j['xp_awarded_at_review'] as bool?,
+      xpAwardedPoints: (j['xp_awarded_points'] as num?)?.round(),
       memberIntegrityMessage: j['member_integrity_message'] as String?,
       xpPending: j['xp_pending'] as bool?,
       xpPointsPreview: (j['xp_points_preview'] as num?)?.round(),
@@ -866,6 +890,8 @@ class PhotoEvaluationResult {
       qualityProvisional: qualityProvisional,
       xpEligible: xpEligible,
       xpMultiplier: xpMultiplier,
+      xpAwardedAtReview: xpAwardedAtReview,
+      xpAwardedPoints: xpAwardedPoints,
       memberIntegrityMessage: memberIntegrityMessage,
       xpPending: xpPending,
       xpPointsPreview: xpPointsPreview,
@@ -886,6 +912,8 @@ class PhotoEvaluationResult {
     bool? qualityProvisional,
     bool? xpEligible,
     double? xpMultiplier,
+    bool? xpAwardedAtReview,
+    int? xpAwardedPoints,
     String? memberIntegrityMessage,
     bool? xpPending,
     int? xpPointsPreview,
@@ -913,6 +941,8 @@ class PhotoEvaluationResult {
         qualityProvisional: qualityProvisional ?? this.qualityProvisional,
         xpEligible: xpEligible ?? this.xpEligible,
         xpMultiplier: xpMultiplier ?? this.xpMultiplier,
+        xpAwardedAtReview: xpAwardedAtReview ?? this.xpAwardedAtReview,
+        xpAwardedPoints: xpAwardedPoints ?? this.xpAwardedPoints,
         memberIntegrityMessage: memberIntegrityMessage ?? this.memberIntegrityMessage,
         xpPending: xpPending ?? this.xpPending,
         xpPointsPreview: xpPointsPreview ?? this.xpPointsPreview,
@@ -957,6 +987,8 @@ class PhotoEvaluationResult {
         qualityProvisional: qualityProvisional,
         xpEligible: xpEligible,
         xpMultiplier: xpMultiplier,
+        xpAwardedAtReview: xpAwardedAtReview,
+        xpAwardedPoints: xpAwardedPoints,
         memberIntegrityMessage: memberIntegrityMessage,
         xpPending: xpPending,
         xpPointsPreview: xpPointsPreview,

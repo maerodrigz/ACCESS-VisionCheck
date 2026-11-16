@@ -6,17 +6,26 @@ Usage (from access_backend/):
   python seed_sample_data.py
 
 Requires tables and default users from create_tables.py first.
+Refused when APP_ENV is production.
 """
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
+from app.config import settings
 from app.database import SessionLocal
+from app.db_init_safety import ProductionDbInitError, assert_sample_seed_allowed
 from app.seed.sample_data import seed_sample_dataset
 
 
 def main() -> None:
+    try:
+        assert_sample_seed_allowed(is_production=settings.is_production)
+    except ProductionDbInitError as exc:
+        print(f"ERROR: {exc}")
+        raise SystemExit(1) from exc
+
     print("ACCESS — seeding PostgreSQL sample data...")
     db = SessionLocal()
     try:

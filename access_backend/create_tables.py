@@ -6,12 +6,20 @@ Usage:
   2. pip install -r requirements.txt
   3. python create_tables.py
 
-Optional — drop and recreate (development only):
+Optional — drop and recreate (development / testing only; refused in production):
   set RECREATE_DB=true
   python create_tables.py
+
+Production admin bootstrap (never uses admin@access.edu / admin123):
+  set BOOTSTRAP_ADMIN_EMAIL=...
+  set BOOTSTRAP_ADMIN_PASSWORD=...
+  python create_tables.py
+  # or after tables exist:
+  python manage.py bootstrap_admin --email ... --password ...
 """
 
 import os
+import sys
 
 from dotenv import load_dotenv
 from sqlalchemy import text
@@ -21,8 +29,16 @@ load_dotenv()
 from app.config import settings
 from app.core.security import hash_password
 from app.database import Base, SessionLocal, engine
+from app.db_init_safety import (
+    ProductionDbInitError,
+    assert_recreate_db_allowed,
+    clear_bootstrap_password_from_environ,
+    resolve_bootstrap_admin,
+    seed_demo_data_enabled as _seed_demo_data_enabled,
+)
 from app.models import (  # noqa: F401 — register every model with Base.metadata
     AiDetectionResult,
+    AiReviewHistory,
     AnalyticsReport,
     Announcement,
     AnnouncementMemberRead,
@@ -43,6 +59,8 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     SubmissionChainEvent,
     MemberMilestone,
     MemberRanking,
+    SkillProgressionV2Activation,
+    SkillProgressionV2CohortMember,
     Notification,
     MemberNotificationPreference,
     RequestAssignment,
@@ -55,6 +73,8 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     PushDeviceToken,
     RegistrationEmailOtp,
     PasswordResetEmailOtp,
+    PasswordResetSmsOtp,
+    PhoneVerificationOtp,
     PendingStorageDeletion,
 )
 
@@ -124,26 +144,51 @@ def _seed_user(
 
 
 def seed_demo_data_enabled() -> bool:
-    """Optional local demo users, sample requests, and rankings (off by default)."""
-    return os.environ.get("SEED_DEMO_DATA", "").strip().lower() in ("1", "true", "yes")
+    """Optional local demo users/sample data. Always False when APP_ENV is production."""
+    return _seed_demo_data_enabled(is_production=settings.is_production)
 
 
 def seed_default_users(db, role_ids: dict[str, int], skill_ids: dict[str, int]) -> None:
-    """Bootstrap admin login only. Demo member/org accounts require SEED_DEMO_DATA=true."""
-    if _seed_user(
+    """
+    Bootstrap the first admin account.
+
+    Development: defaults to admin@access.edu / admin123 unless BOOTSTRAP_ADMIN_* is set.
+    Production: creates an admin only from BOOTSTRAP_ADMIN_EMAIL + BOOTSTRAP_ADMIN_PASSWORD
+    (or skips with instructions). Never prints passwords.
+    """
+    creds = resolve_bootstrap_admin(is_production=settings.is_production)
+    if creds is None:
+        print(
+            "  -> No production admin seeded. Set BOOTSTRAP_ADMIN_EMAIL and "
+            "BOOTSTRAP_ADMIN_PASSWORD, or run: python manage.py bootstrap_admin"
+        )
+        return
+    created = _seed_user(
         db,
-        email="admin@access.edu",
-        fullname="Admin User",
-        password="admin123",
+        email=creds.email,
+        fullname=creds.fullname,
+        password=creds.password,
         role_id=role_ids["Admin"],
         skill_level_id=skill_ids["Master"],
         status="approved",
-    ):
-        print("  -> Admin: admin@access.edu / admin123")
+    )
+    if created:
+        if creds.source == "development_default":
+            # Local-only convenience: password is intentional for developers.
+            print(f"  -> Admin: {creds.email} / {creds.password}")
+        else:
+            print(f"  -> Admin created: {creds.email} (password not shown)")
+    else:
+        print(f"  -> Admin already exists: {creds.email}")
+    if settings.is_production:
+        clear_bootstrap_password_from_environ()
 
 
 def seed_demo_accounts(db, role_ids: dict[str, int], skill_ids: dict[str, int]) -> None:
     """Sample member, organization, and USTP student accounts for local UI testing."""
+    if settings.is_production:
+        print("  -> Demo accounts skipped (production).")
+        return
     accounts = [
         ("member@access.edu", "Juan Dela Cruz", "member123", "Member", skill_ids["Beginner"], "approved"),
         ("org@access.edu", "USTP Engineering Society", "org123", "Organization", None, "approved"),
@@ -574,7 +619,8 @@ def upgrade_notification_schema() -> None:
 
 
 def recreate_public_schema() -> None:
-    """Drop every table in public schema (removes legacy + new tables)."""
+    """Drop every table in public schema (removes legacy + new tables). Development only."""
+    assert_recreate_db_allowed(is_production=settings.is_production)
     with engine.begin() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE"))
         conn.execute(text("CREATE SCHEMA public"))
@@ -586,6 +632,12 @@ def main() -> None:
     print("ACCESS VisionCheck — creating database tables...")
     masked_url = settings.database_url.replace(settings.db_password, "****")
     print(f"Database: {masked_url}")
+
+    try:
+        assert_recreate_db_allowed(is_production=settings.is_production)
+    except ProductionDbInitError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
 
     if os.getenv("RECREATE_DB", "").lower() in ("1", "true", "yes"):
         print("RECREATE_DB=true — resetting public schema...")
@@ -621,7 +673,11 @@ def main() -> None:
     try:
         role_ids = seed_roles(db)
         skill_ids = seed_skill_levels(db)
-        seed_default_users(db, role_ids, skill_ids)
+        try:
+            seed_default_users(db, role_ids, skill_ids)
+        except ProductionDbInitError as exc:
+            print(f"ERROR: {exc}")
+            sys.exit(1)
         if seed_demo_data_enabled():
             seed_demo_accounts(db, role_ids, skill_ids)
             seed_member_demo(db)
@@ -629,6 +685,11 @@ def main() -> None:
             from app.seed.sample_data import seed_sample_dataset
 
             seed_sample_dataset(db)
+        elif settings.is_production and os.environ.get("SEED_DEMO_DATA", "").strip():
+            print(
+                "  -> Demo accounts and sample requests skipped "
+                "(SEED_DEMO_DATA is ignored when APP_ENV is production)."
+            )
         else:
             print("  -> Demo accounts and sample requests skipped (set SEED_DEMO_DATA=true to enable).")
         _print_setup_success()
@@ -644,8 +705,12 @@ def _print_setup_success() -> None:
         print(f"  • {name}")
     print()
     print("Next: python manage.py runserver")
-    print("Optional demo data: set SEED_DEMO_DATA=true && python create_tables.py")
-    print("Or: python seed_sample_data.py  (re-apply sample rows on existing DB)")
+    if settings.is_production:
+        print("Production admin: python manage.py bootstrap_admin --email ... --password ...")
+        print("Never set RECREATE_DB or SEED_DEMO_DATA in production.")
+    else:
+        print("Optional demo data: set SEED_DEMO_DATA=true && python create_tables.py")
+        print("Or: python seed_sample_data.py  (re-apply sample rows on existing DB)")
 
 
 SAMPLE_APPROVED_TITLE = "Sample Approved Event"

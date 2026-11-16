@@ -17,12 +17,30 @@ Copy `.env.example` to `.env`, set `DB_PASSWORD`, then run:
 python create_tables.py
 ```
 
-To reset tables during development:
+To reset tables during **development / testing only** (`RECREATE_DB` is refused when `APP_ENV=production`):
 
 ```bash
 set RECREATE_DB=true
 python create_tables.py
 ```
+
+### Production / fresh Supabase PostgreSQL (safe)
+
+1. Point `.env` at the Supabase Postgres URL (`DATABASE_URL` or `DB_*`), with `APP_ENV=production`.
+2. **Do not** set `RECREATE_DB` or `SEED_DEMO_DATA`.
+3. Create schema (idempotent `create_all` + inline upgrades; does not drop existing data):
+
+```bash
+python manage.py create_tables
+```
+
+4. Bootstrap the first Admin (password never printed):
+
+```bash
+python manage.py bootstrap_admin --email ops@example.com --password "your-strong-password"
+```
+
+Or set `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` before `create_tables`. Never use `admin@access.edu` / `admin123` in production.
 
 ## Recommended folder structure
 
@@ -136,10 +154,11 @@ erDiagram
 
 ## Default seed data
 
-- **Roles:** Admin, Member, Organization  
-- **Skill levels:** Novice → Master (score ranges 0.0–1.0)  
-- **Admin user:** `admin@access.edu` / `admin123` (created by `create_tables.py`)  
-- **Demo members, sample requests, rankings:** only when `SEED_DEMO_DATA=true` (or run `python seed_sample_data.py`)
+- **Roles:** Admin, Member, Organization
+- **Skill levels:** Novice → Master (score ranges 0.0–1.0)
+- **Admin user (development):** `admin@access.edu` / `admin123` from `create_tables.py`
+- **Admin user (production):** only via `BOOTSTRAP_ADMIN_*` or `manage.py bootstrap_admin` (no hardcoded credentials)
+- **Demo members, sample requests, rankings:** only when `SEED_DEMO_DATA=true` **and** not production (or `python seed_sample_data.py` in development)
 
 ## Reset operational data (keep accounts)
 

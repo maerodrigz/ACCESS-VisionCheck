@@ -308,6 +308,20 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _refuse_recreate_db_in_production(self) -> "Settings":
+        # Read process env directly so a leftover RECREATE_DB=true cannot wipe prod.
+        if self.is_production and os.environ.get("RECREATE_DB", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
+            raise ValueError(
+                "RECREATE_DB=true is not allowed when APP_ENV is production. "
+                "Unset RECREATE_DB before starting the API or running create_tables."
+            )
+        return self
+
+    @model_validator(mode="after")
     def _refuse_quality_shadow_in_production(self) -> "Settings":
         if self.is_production and self.quality_shadow_enabled:
             raise ValueError(

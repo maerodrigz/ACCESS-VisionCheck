@@ -7,6 +7,7 @@ Usage:
   python manage.py runserver --port 3001
   python manage.py runserver --env-file .env.waverep_test --host 127.0.0.1 --port 3002
   python manage.py create_tables
+  python manage.py bootstrap_admin --email admin@example.com --password '...'
   python manage.py check
 """
 
@@ -113,10 +114,92 @@ def cmd_create_tables(_: argparse.Namespace) -> None:
     create_tables_main()
 
 
-def cmd_createuser(args: argparse.Namespace) -> None:
+def cmd_bootstrap_admin(args: argparse.Namespace) -> None:
+    """Create the first approved Admin using env and/or CLI credentials (never prints password)."""
+    from app.config import settings
     from app.crud import user as user_crud
     from app.database import SessionLocal
-    from app.models import Role, SkillLevel
+    from app.db_init_safety import (
+        ProductionDbInitError,
+        clear_bootstrap_password_from_environ,
+        resolve_bootstrap_admin,
+    )
+    from app.models import Role
+
+    try:
+        creds = resolve_bootstrap_admin(
+            is_production=settings.is_production,
+            cli_email=args.email,
+            cli_password=args.password,
+            cli_fullname=args.name,
+        )
+    except ProductionDbInitError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
+
+    if creds is None:
+        print(
+            "ERROR: Provide --email/--password or set BOOTSTRAP_ADMIN_EMAIL and "
+            "BOOTSTRAP_ADMIN_PASSWORD. Passwords are never printed."
+        )
+        sys.exit(1)
+
+    db = SessionLocal()
+    try:
+        if not db.query(Role).first():
+            print("ERROR: Run `python manage.py create_tables` first (roles missing).")
+            sys.exit(1)
+        existing = user_crud.get_by_email(db, creds.email)
+        if existing:
+            print(f"Admin already exists: {existing.email} (id={existing.id})")
+            sys.exit(0)
+        user = user_crud.create_user(
+            db,
+            creds.fullname,
+            creds.email,
+            creds.password,
+            "Admin",
+            status="approved",
+        )
+        print("Admin bootstrapped successfully.")
+        print(f"  ID:     {user.id}")
+        print(f"  Name:   {user.fullname}")
+        print(f"  Email:  {user.email}")
+        print(f"  Role:   {user.role.role_name}")
+        print(f"  Status: {user.status}")
+        print("  Password: (not shown)")
+    finally:
+        db.close()
+        clear_bootstrap_password_from_environ()
+
+
+def cmd_createuser(args: argparse.Namespace) -> None:
+    from app.config import settings
+    from app.crud import user as user_crud
+    from app.database import SessionLocal
+    from app.db_init_safety import DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD, ProductionDbInitError
+    from app.models import Role
+
+    if settings.is_production and args.role == "Admin":
+        email_n = (args.email or "").strip().lower()
+        if email_n == DEV_ADMIN_EMAIL and (args.password or "").strip() == DEV_ADMIN_PASSWORD:
+            print(
+                "ERROR: Refusing to create production Admin with known development credentials."
+            )
+            sys.exit(1)
+        if (args.password or "").strip().lower() in {
+            DEV_ADMIN_PASSWORD.lower(),
+            "password",
+            "password123",
+            "admin",
+            "123456",
+            "changeme",
+        }:
+            print("ERROR: Refusing weak/default Admin password in production.")
+            sys.exit(1)
+        if len(args.password or "") < 12:
+            print("ERROR: Production Admin password must be at least 12 characters.")
+            sys.exit(1)
 
     db = SessionLocal()
     try:
@@ -141,6 +224,11 @@ def cmd_createuser(args: argparse.Namespace) -> None:
         print(f"  Email:  {user.email}")
         print(f"  Role:   {user.role.role_name}")
         print(f"  Status: {user.status}")
+        if settings.is_production:
+            print("  Password: (not shown)")
+    except ProductionDbInitError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
     finally:
         db.close()
 
@@ -186,8 +274,33 @@ def main() -> None:
     run.set_defaults(func=cmd_runserver)
 
     # python manage.py create_tables
-    ct = sub.add_parser("create_tables", help="Create all database tables + seed admin")
+    ct = sub.add_parser(
+        "create_tables",
+        help="Create all database tables + seed roles (dev admin or BOOTSTRAP_ADMIN_*)",
+    )
     ct.set_defaults(func=cmd_create_tables)
+
+    # python manage.py bootstrap_admin
+    ba = sub.add_parser(
+        "bootstrap_admin",
+        help="Create the first approved Admin from CLI/env credentials (never prints password)",
+    )
+    ba.add_argument(
+        "--name",
+        default=None,
+        help="Full name (optional; or BOOTSTRAP_ADMIN_NAME)",
+    )
+    ba.add_argument(
+        "--email",
+        default=None,
+        help="Login email (or BOOTSTRAP_ADMIN_EMAIL)",
+    )
+    ba.add_argument(
+        "--password",
+        default=None,
+        help="Login password (or BOOTSTRAP_ADMIN_PASSWORD). Never printed.",
+    )
+    ba.set_defaults(func=cmd_bootstrap_admin)
 
     # python manage.py createuser --email ... --password ...
     cu = sub.add_parser("createuser", help="Add a user account to the database")
@@ -212,6 +325,15 @@ def main() -> None:
     chk.set_defaults(func=cmd_check)
 
     def cmd_reset_data(args: argparse.Namespace) -> None:
+        from app.config import settings
+        from app.db_init_safety import ProductionDbInitError, assert_reset_data_allowed
+
+        try:
+            assert_reset_data_allowed(is_production=settings.is_production)
+        except ProductionDbInitError as exc:
+            print(f"ERROR: {exc}")
+            sys.exit(1)
+
         from scripts.reset_operational_data import main as reset_main
 
         sys.argv = ["reset_operational_data.py"]
@@ -227,7 +349,7 @@ def main() -> None:
 
     reset = sub.add_parser(
         "reset_data",
-        help="Remove media, requests, notifications; keep Admin + real registered emails",
+        help="Remove media, requests, notifications; keep Admin + real registered emails (dev/test only)",
     )
     reset.add_argument("--dry-run", action="store_true", help="Preview only (default)")
     reset.add_argument("--confirm", action="store_true", help="Apply reset (needs RESET_ACCESS_DATA=YES)")

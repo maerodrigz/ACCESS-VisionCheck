@@ -1,4 +1,6 @@
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
+import 'package:access_mobile/shared/models/rule_based_quality_feedback.dart';
+import 'package:access_mobile/shared/utils/criterion_explanation_sanitize.dart';
 
 /// Structured photo evaluation result (1–5 per criterion).
 class CriterionScore {
@@ -7,17 +9,27 @@ class CriterionScore {
     required this.score,
     required this.explanation,
     required this.suggestion,
+    this.available = true,
   });
 
   final String name;
+  /// 1–5 when [available]; ignored when unavailable (N/A).
   final int score;
   final String explanation;
   final String suggestion;
+  final bool available;
 
-  String get label => scoreLabel(score);
+  String get label => available ? scoreLabel(score) : 'N/A';
 
-  /// 0–100 display score (internal 1–5 scale × 20).
-  int get percentScore => ((score / 5) * 100).round().clamp(0, 100);
+  /// Compact five-level display (e.g. `3/5`), or `N/A` when unavailable.
+  String get displayScoreText => available ? '$score/5' : 'N/A';
+
+  /// Five-level score with qualitative label (e.g. `3/5 · Fair`).
+  String get displayScoreWithLabel =>
+      available ? '$displayScoreText · $label' : 'N/A';
+
+  /// 0–100 derived display (internal 1–5 × 20). Prefer [displayScoreText] in UI.
+  int get percentScore => available ? ((score / 5) * 100).round().clamp(0, 100) : 0;
 
   static String scoreLabel(int score) => switch (score) {
         5 => 'Excellent',
@@ -29,18 +41,24 @@ class CriterionScore {
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'score': score,
+        'score': available ? score : null,
         'label': label,
         'explanation': explanation,
         'suggestion': suggestion,
+        'available': available,
       };
 
-  factory CriterionScore.fromJson(Map<String, dynamic> j) => CriterionScore(
-        name: j['name'] as String? ?? '',
-        score: (j['score'] as num?)?.round().clamp(1, 5) ?? 3,
-        explanation: j['explanation'] as String? ?? '',
-        suggestion: j['suggestion'] as String? ?? '',
-      );
+  factory CriterionScore.fromJson(Map<String, dynamic> j) {
+    final available = j['available'] != false && j['score'] != null;
+    final rawScore = (j['score'] as num?)?.round();
+    return CriterionScore(
+      name: j['name'] as String? ?? '',
+      score: available ? (rawScore?.clamp(1, 5) ?? 3) : 0,
+      explanation: sanitizeCriterionExplanation(j['explanation'] as String? ?? ''),
+      suggestion: j['suggestion'] as String? ?? '',
+      available: available,
+    );
+  }
 }
 
 class AiDetectionResult {
@@ -56,6 +74,16 @@ class AiDetectionResult {
     this.cameraProvenanceStrength,
     this.provenancePolicyOutcome,
     this.visualRiskLevel,
+    this.detectorBackend,
+    this.waverepFramesAnalyzed,
+    this.waverepRequestedFrames,
+    this.waverepProcessingStatus,
+    this.waverepAnalysisUnavailable,
+    this.exifMetadata,
+    this.provenanceContainerFields = const [],
+    this.isVideoProvenanceFlag,
+    this.primaryReviewDriver,
+    this.adminReviewTriggers = const [],
   });
 
   final String verdict;
@@ -70,6 +98,19 @@ class AiDetectionResult {
   final String? cameraProvenanceStrength;
   final String? provenancePolicyOutcome;
   final String? visualRiskLevel;
+  final String? detectorBackend;
+  final int? waverepFramesAnalyzed;
+  final int? waverepRequestedFrames;
+  final String? waverepProcessingStatus;
+  final bool? waverepAnalysisUnavailable;
+  /// Stored `exif_metadata` from ai_detection when the backend includes it.
+  final Map<String, dynamic>? exifMetadata;
+  /// Container / EXIF field rows (`key`, `label`, `value`) from evaluation JSON.
+  final List<Map<String, String>> provenanceContainerFields;
+  /// Top-level `is_video_provenance` when present on ai_detection.
+  final bool? isVideoProvenanceFlag;
+  final String? primaryReviewDriver;
+  final List<String> adminReviewTriggers;
 
   bool get isDeferredAuthenticity =>
       analysisStatus == 'deferred' || isFinal == false || verdict == 'deferred';
@@ -110,7 +151,72 @@ class AiDetectionResult {
 
   bool get isCameraProvenanceStrong =>
       (cameraProvenanceStrength ?? '').toLowerCase() == 'strong';
+
+  bool get isCameraProvenancePartial =>
+      (cameraProvenanceStrength ?? '').toLowerCase() == 'partial' ||
+      (provenancePolicyOutcome ?? '').toLowerCase() == 'source_partially_verified';
+
+  bool get isCameraProvenanceAbsent {
+    final strength = (cameraProvenanceStrength ?? '').toLowerCase();
+    if (strength == 'absent') return true;
+    final outcome = (provenancePolicyOutcome ?? '').toLowerCase();
+    return outcome == 'source_unverified' && !isCameraProvenancePartial;
+  }
+
+  bool get isWaverepBackend =>
+      (detectorBackend ?? '').trim().toLowerCase() == 'waverep_g4';
+
+  bool get isAiAnalysisUnavailable =>
+      waverepAnalysisUnavailable == true ||
+      (waverepProcessingStatus ?? '').toLowerCase() == 'unavailable';
+
+  bool get isProvenancePartialAndroidHold {
+    final driver = (primaryReviewDriver ?? '').toLowerCase();
+    if (driver == 'provenance_partial_android') return true;
+    return adminReviewTriggers
+        .map((t) => t.toLowerCase())
+        .contains('provenance_partial_android');
+  }
+
   bool get isBlocked => isAiGenerated;
+
+  static Map<String, dynamic>? _parseExifMetadata(dynamic raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  static List<Map<String, String>> _parseProvenanceFieldRows(Map<String, dynamic> ai) {
+    final rows = <Map<String, String>>[];
+    void ingest(dynamic source) {
+      if (source is! List) return;
+      for (final item in source) {
+        if (item is! Map) continue;
+        final m = Map<String, dynamic>.from(item);
+        final key = (m['key'] ?? m['label'] ?? '').toString().trim();
+        final label = (m['label'] ?? key).toString().trim();
+        final value = (m['value'] ?? '').toString().trim();
+        if (key.isEmpty && label.isEmpty) continue;
+        if (value.isEmpty) continue;
+        rows.add({'key': key.isEmpty ? label : key, 'label': label, 'value': value});
+      }
+    }
+
+    ingest(ai['camera_provenance_fields']);
+    final exif = _parseExifMetadata(ai['exif_metadata']);
+    if (exif != null) {
+      ingest(exif['fields']);
+    }
+    return rows;
+  }
+
+  static int? _waverepRequestedFromSupplementary(Map<String, dynamic> ai) {
+    final sup = ai['waverep_supplementary'];
+    if (sup is! Map) return null;
+    final m = Map<String, dynamic>.from(sup);
+    final raw = m['waverep_requested_frames'] ?? m['waverep_processed_frames'];
+    return (raw as num?)?.toInt();
+  }
 
   Map<String, dynamic> toJson() => {
         if (!isDeferredAuthenticity) 'verdict': verdict,
@@ -122,6 +228,16 @@ class AiDetectionResult {
         if (isDeferredAuthenticity && analysisStatus == null) 'analysis_status': 'deferred',
         if (isDeferredAuthenticity && isFinal) 'is_final': false,
       };
+
+  static double? _syntheticProbabilityFromMap(Map<String, dynamic> ai) {
+    final direct = (ai['probability'] as num?)?.toDouble() ??
+        (ai['raw_detector_probability'] as num?)?.toDouble();
+    if (direct != null) return direct;
+    final exif = _parseExifMetadata(ai['exif_metadata']);
+    if (exif == null) return null;
+    return (exif['visual_ai_probability'] as num?)?.toDouble() ??
+        (exif['raw_detector_probability'] as num?)?.toDouble();
+  }
 
   static AiDetectionResult? fromJsonMap(Map<String, dynamic>? ai) {
     if (ai == null) return null;
@@ -141,8 +257,7 @@ class AiDetectionResult {
       verdict: ai['verdict'] as String? ?? 'authentic',
       confidence: (ai['confidence'] as num?)?.toDouble() ?? 0.85,
       detail: ai['detail'] as String? ?? '',
-      probability: (ai['probability'] as num?)?.toDouble() ??
-          (ai['raw_detector_probability'] as num?)?.toDouble(),
+      probability: _syntheticProbabilityFromMap(ai),
       analysisStatus: status,
       isFinal: isFinal,
       riskLevel: ai['risk_level'] as String?,
@@ -150,11 +265,33 @@ class AiDetectionResult {
       cameraProvenanceStrength: ai['camera_provenance_strength'] as String?,
       provenancePolicyOutcome: ai['provenance_policy_outcome'] as String?,
       visualRiskLevel: ai['visual_risk_level'] as String?,
+      detectorBackend: ai['detector_backend'] as String?,
+      waverepFramesAnalyzed: (ai['waverep_frames_analyzed'] as num?)?.toInt(),
+      waverepRequestedFrames: (ai['waverep_requested_frames'] as num?)?.toInt() ??
+          _waverepRequestedFromSupplementary(Map<String, dynamic>.from(ai)),
+      waverepProcessingStatus: ai['waverep_processing_status'] as String?,
+      waverepAnalysisUnavailable: ai['waverep_analysis_unavailable'] as bool?,
+      exifMetadata: _parseExifMetadata(ai['exif_metadata']),
+      provenanceContainerFields: _parseProvenanceFieldRows(ai),
+      isVideoProvenanceFlag: ai['is_video_provenance'] as bool?,
+      primaryReviewDriver: ai['primary_review_driver'] as String?,
+      adminReviewTriggers: _parseReviewTriggers(ai),
     );
+  }
+
+  static List<String> _parseReviewTriggers(Map<String, dynamic> ai) {
+    final raw = ai['admin_review_triggers'];
+    if (raw is! List) {
+      final exif = _parseExifMetadata(ai['exif_metadata']);
+      final nested = exif?['admin_review_triggers'];
+      if (nested is! List) return const [];
+      return nested.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    }
+    return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
   }
 }
 
-/// Gemini-generated narrative feedback (scores come only from EfficientNet-B0).
+/// Narrative mentor feedback (Gemini when available; otherwise rule-based from scores).
 class MediaEvaluationFeedback {
   const MediaEvaluationFeedback({
     required this.explanation,
@@ -208,46 +345,35 @@ class MediaEvaluationFeedback {
     return full.split(RegExp(r'\s+')).first;
   }
 
-  factory MediaEvaluationFeedback.fromLocal(PhotoEvaluationResult result) {
-    final isVideo = result.isVideo;
-    final mediaLabel = isVideo ? 'video' : 'photo';
+  factory MediaEvaluationFeedback.fromLocal(
+    PhotoEvaluationResult result, {
+    List<String>? qualityWarnings,
+  }) {
     final firstName = _memberFirstNameForFeedback();
-    final namePrefix = firstName.isNotEmpty ? '$firstName, ' : '';
-    final strong = result.criteria.where((c) => c.score >= 4).toList();
-    final weak = result.criteria.where((c) => c.score <= 2).toList();
-
-    final strengths = result.strengths.isNotEmpty
-        ? result.strengths
-        : strong
-            .map((c) => c.explanation.trim().isNotEmpty ? c.explanation : 'Your ${c.name.toLowerCase()} looks solid.')
-            .toList();
-    final improvements = result.weaknesses.isNotEmpty
-        ? result.weaknesses
-        : weak
-            .map((c) => c.explanation.trim().isNotEmpty ? c.explanation : 'There is room to improve ${c.name.toLowerCase()}.')
-            .toList();
-    final tips = result.criteria
-        .where((c) => c.score <= 3 && c.suggestion.isNotEmpty)
-        .map((c) => c.suggestion)
-        .toSet()
-        .toList();
-
-    final opening = strong.isNotEmpty
-        ? '${namePrefix}Great effort on this $mediaLabel! You are already showing strength in ${strong.map((c) => c.name.toLowerCase()).join(', ')}!'
-        : '${namePrefix}Thank you for sharing this $mediaLabel. Every submission is a step forward in building your documentation skills!';
-
-    final summary = result.overallPercent >= 75
-        ? ' Your overall quality is coming together nicely.'
-        : result.overallPercent >= 60
-            ? ' You have a good foundation to build on with a bit more polish.'
-            : ' There is clear potential here. Small adjustments to technique will make a noticeable difference.';
-
+    final warnings = qualityWarnings ?? result.qualityWarnings;
+    final built = RuleBasedQualityFeedback.build(
+      criteria: [
+        for (final c in result.criteria)
+          RuleBasedQualityInput(
+            name: c.name,
+            score: c.score,
+            available: c.available,
+            explanation: c.explanation,
+            suggestion: c.suggestion,
+          ),
+      ],
+      isVideo: result.isVideo,
+      overallScore: result.overallScore,
+      qualityLevel: result.qualityLevel,
+      memberFirstName: firstName.isEmpty ? null : firstName,
+      qualityWarnings: warnings,
+    );
     return MediaEvaluationFeedback(
-      explanation: energeticFeedbackText('$opening$summary'),
-      strengths: strengths,
-      improvements: improvements,
-      tips: tips,
-      closingMessage: 'Keep practicing and submitting. Consistency is how great documenters are made!',
+      explanation: energeticFeedbackText(built.explanation),
+      strengths: built.strengths,
+      improvements: built.improvements,
+      tips: built.tips,
+      closingMessage: built.closingMessage,
     );
   }
 
@@ -259,6 +385,24 @@ class MediaEvaluationFeedback {
         closingMessage: closingMessage.trim().isEmpty
             ? closingMessage
             : (closingMessage.trim().endsWith('!') ? closingMessage : '${closingMessage.trim()}!'),
+      );
+
+  /// Strip score-like numbers from narrative fields (metric cards keep their own scores).
+  MediaEvaluationFeedback withoutNarrativeMeasurements() => MediaEvaluationFeedback(
+        explanation: RuleBasedQualityFeedback.stripNarrativeMeasurements(explanation),
+        strengths: strengths
+            .map(RuleBasedQualityFeedback.stripNarrativeMeasurements)
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        improvements: improvements
+            .map(RuleBasedQualityFeedback.stripNarrativeMeasurements)
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        tips: tips
+            .map(RuleBasedQualityFeedback.stripNarrativeMeasurements)
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        closingMessage: RuleBasedQualityFeedback.stripNarrativeMeasurements(closingMessage),
       );
 }
 
@@ -278,6 +422,86 @@ String energeticFeedbackText(String text) {
   if (rest.startsWith('!')) return trimmed;
 
   return '$opener!${rest.startsWith('.') ? rest.substring(1) : rest}';
+}
+
+/// Feedback-only color balance or composition hint (not part of the 1–5 rubric).
+class SupplementaryQualityInsight {
+  const SupplementaryQualityInsight({
+    required this.status,
+    required this.headline,
+    required this.feedback,
+  });
+
+  final String status;
+  final String headline;
+  final String feedback;
+
+  bool get isUnavailable => status == 'unavailable';
+
+  factory SupplementaryQualityInsight.fromJson(Map<String, dynamic>? j) {
+    if (j == null) {
+      return const SupplementaryQualityInsight(
+        status: 'unavailable',
+        headline: 'Unavailable',
+        feedback: '',
+      );
+    }
+    return SupplementaryQualityInsight(
+      status: j['status'] as String? ?? 'inconclusive',
+      headline: j['headline'] as String? ?? 'Inconclusive',
+      feedback: j['feedback'] as String? ?? '',
+    );
+  }
+}
+
+class AdditionalQualityInsights {
+  const AdditionalQualityInsights({
+    this.colorBalance,
+    this.compositionFraming,
+    this.motionStability,
+    this.mediaType,
+    this.framesAnalyzed,
+  });
+
+  final SupplementaryQualityInsight? colorBalance;
+  final SupplementaryQualityInsight? compositionFraming;
+  final SupplementaryQualityInsight? motionStability;
+  final String? mediaType;
+  final int? framesAnalyzed;
+
+  bool get hasDisplayableData {
+    final color = colorBalance;
+    final comp = compositionFraming;
+    final motion = motionStability;
+    final colorOk = color != null && !color.isUnavailable && color.feedback.trim().isNotEmpty;
+    final compOk = comp != null && !comp.isUnavailable && comp.feedback.trim().isNotEmpty;
+    final motionOk =
+        motion != null && !motion.isUnavailable && motion.feedback.trim().isNotEmpty;
+    return colorOk || compOk || motionOk;
+  }
+
+  factory AdditionalQualityInsights.fromJson(Map<String, dynamic>? j) {
+    if (j == null) return const AdditionalQualityInsights();
+    return AdditionalQualityInsights(
+      colorBalance: j['color_balance'] is Map
+          ? SupplementaryQualityInsight.fromJson(
+              Map<String, dynamic>.from(j['color_balance'] as Map),
+            )
+          : null,
+      compositionFraming: j['composition_framing'] is Map
+          ? SupplementaryQualityInsight.fromJson(
+              Map<String, dynamic>.from(j['composition_framing'] as Map),
+            )
+          : null,
+      motionStability: j['motion_stability'] is Map
+          ? SupplementaryQualityInsight.fromJson(
+              Map<String, dynamic>.from(j['motion_stability'] as Map),
+            )
+          : null,
+      mediaType: j['media_type'] as String?,
+      framesAnalyzed: (j['frames_analyzed'] as num?)?.toInt(),
+    );
+  }
 }
 
 class PhotoEvaluationResult {
@@ -300,11 +524,19 @@ class PhotoEvaluationResult {
     this.qualityProvisional,
     this.xpEligible,
     this.xpMultiplier,
+    this.xpAwardedAtReview,
+    this.xpAwardedPoints,
     this.memberIntegrityMessage,
     this.xpPending,
     this.xpPointsPreview,
     this.memberScoresReleased,
     this.reviewGateMessage,
+    this.additionalQualityInsights,
+    this.evaluationAvailable = true,
+    this.qualityEngine,
+    this.opencvFallback = false,
+    this.qualityWarnings = const [],
+    this.scoringFormulaVersion,
   });
 
   final List<CriterionScore> criteria;
@@ -325,13 +557,38 @@ class PhotoEvaluationResult {
   final bool? qualityProvisional;
   final bool? xpEligible;
   final double? xpMultiplier;
+  /// Backend stamp when chain/legacy award already wrote ranking XP for this eval.
+  final bool? xpAwardedAtReview;
+  /// Exact points written when [xpAwardedAtReview] is true.
+  final int? xpAwardedPoints;
   final String? memberIntegrityMessage;
   final bool? xpPending;
   final int? xpPointsPreview;
   final bool? memberScoresReleased;
   final String? reviewGateMessage;
+  final AdditionalQualityInsights? additionalQualityInsights;
+  final bool evaluationAvailable;
+  final String? qualityEngine;
+  final bool opencvFallback;
+  /// Backend `quality_warnings` used for directional rule-based tips (e.g. underexposure).
+  final List<String> qualityWarnings;
 
-  int get overallPercent => ((overallScore / 5) * 100).round().clamp(0, 100);
+  /// Backend scoring formula: `v1` seven-criterion mean, `v2` unified Clarity.
+  /// Missing value means historical v1. Flutter never recomputes overall from criteria.
+  final String? scoringFormulaVersion;
+
+  /// Effective formula for display/debug; historical payloads without the field are v1.
+  String get scoringFormulaVersionEffective {
+    final raw = (scoringFormulaVersion ?? '').trim().toLowerCase();
+    if (raw == 'v2' || raw == 'v1') return raw;
+    return 'v1';
+  }
+
+  int get overallPercent =>
+      evaluationAvailable ? ((overallScore / 5) * 100).round().clamp(0, 100) : 0;
+
+  bool get hasAdditionalQualityInsights =>
+      additionalQualityInsights?.hasDisplayableData ?? false;
   bool get isVideo => mediaType == 'video';
 
   bool get memberScoresReleasedEffective {
@@ -359,6 +616,30 @@ class PhotoEvaluationResult {
   int get xpPointsPreviewEffective =>
       xpPointsPreview ?? ((overallScore <= 1.0 ? overallScore : overallScore / 5.0) * 100).round();
 
+  bool get xpAlreadyAwardedEffective =>
+      xpAwardedAtReview == true ||
+      (xpAwardedPoints != null && xpAwardedPoints! > 0);
+
+  /// Awarded XP from backend stamps, or preview × multiplier when released/eligible.
+  ///
+  /// Verified submissions often keep `xp_multiplier: 0` from the integrity hold
+  /// even after `xp_awarded_at_review` is true. Prefer explicit award fields.
+  int? get memberXpAwardedPoints {
+    if (xpAwardedPoints != null && xpAwardedPoints! > 0) {
+      return xpAwardedPoints;
+    }
+    if (xpAwardedAtReview == true) {
+      final preview = xpPointsPreviewEffective;
+      return preview > 0 ? preview : 0;
+    }
+    if (xpPendingEffective) return null;
+    if (!memberScoresReleasedEffective) return null;
+    if (xpEligibleEffective == false) return 0;
+    final mult = xpMultiplier ?? 1.0;
+    if (mult <= 0) return 0;
+    return (xpPointsPreviewEffective * mult).round();
+  }
+
   String _sourceUnverifiedDetailOrFallback() {
     final detail = aiDetection.detail.trim();
     if (detail.isNotEmpty) return detail;
@@ -378,17 +659,28 @@ class PhotoEvaluationResult {
   static const photoCriteriaOrder = [
     'Sharpness',
     'Blur',
-    'Noise',
     'Brightness',
     'Contrast',
     'Blocking Artifacts',
+    'Color Balance',
+    'Color Saturation',
+    // Historical criteria still ordered when present on older evaluations.
+    'Noise',
     'Ringing Artifacts',
   ];
 
   static const videoCriteriaOrder = [
-    ...photoCriteriaOrder,
+    'Sharpness',
+    'Blur',
+    'Brightness',
+    'Contrast',
+    'Blocking Artifacts',
+    'Color Balance',
+    'Color Saturation',
     'Motion Stability',
     'Flickering',
+    'Noise',
+    'Ringing Artifacts',
   ];
 
   /// Criteria in display order; video-only metrics omitted for photos.
@@ -408,6 +700,7 @@ class PhotoEvaluationResult {
     final noise = s('Noise', 'Technical Quality');
     final brightness = s('Brightness', 'Lighting and Exposure');
     final contrast = s('Contrast', 'Color and White Balance');
+    final hasNoise = criteria.any((c) => c.name == 'Noise' && c.available);
 
     return {
       'criteria': criteria.map((c) => c.toJson()).toList(),
@@ -419,8 +712,11 @@ class PhotoEvaluationResult {
       'ai_detection': aiDetection.toJson(),
       'media_type': mediaType,
       'scoring_model': scoringModel,
+      if (scoringFormulaVersion != null) 'scoring_formula_version': scoringFormulaVersion,
       'strengths': strengths,
       'weaknesses': weaknesses,
+      'quality_disclaimer':
+          'Quality ratings are automated estimates and may not reflect artistic intent or human judgment.',
       if (geminiFeedback != null) 'gemini_feedback': geminiFeedback!.toJson(),
       if (geminiFeedbackIsLocal) 'gemini_feedback_is_local': true,
       if (integrityTier != null) 'integrity_tier': integrityTier,
@@ -428,6 +724,8 @@ class PhotoEvaluationResult {
       if (qualityProvisional != null) 'quality_provisional': qualityProvisional,
       if (xpEligible != null) 'xp_eligible': xpEligible,
       if (xpMultiplier != null) 'xp_multiplier': xpMultiplier,
+      if (xpAwardedAtReview != null) 'xp_awarded_at_review': xpAwardedAtReview,
+      if (xpAwardedPoints != null) 'xp_awarded_points': xpAwardedPoints,
       if (memberIntegrityMessage != null) 'member_integrity_message': memberIntegrityMessage,
       if (xpPending != null) 'xp_pending': xpPending,
       if (xpPointsPreview != null) 'xp_points_preview': xpPointsPreview,
@@ -444,7 +742,8 @@ class PhotoEvaluationResult {
         'brightness_score': brightness / 5,
         'contrast_score': contrast / 5,
         'blur_score': blur / 5,
-        'noise_score': 1 - noise / 5,
+        // Historical field only when Noise criterion exists on older payloads.
+        if (hasNoise) 'noise_score': 1 - noise / 5,
         'overall_score': overallScore / 5,
       },
     };
@@ -457,9 +756,13 @@ class PhotoEvaluationResult {
     map.remove('gemini_feedback_is_local');
     map['member_scores_released'] = memberScoresReleasedEffective;
     map['show_quality_feedback'] = showQualityFeedbackEffective;
-    map['scoring_engine'] = scoringModel.contains('efficientnet')
-        ? 'efficientnet-b0+ffmpeg'
-        : (scoringModel.isNotEmpty ? scoringModel : 'efficientnet-b0+ffmpeg');
+    map['scoring_engine'] = scoringModel.contains('musiq')
+        ? 'musiq-worker+opencv+color-heuristics'
+        : scoringModel.contains('efficientnet')
+            ? 'efficientnet-b0+ffmpeg' // historical rows only
+            : (scoringModel.isNotEmpty
+                ? scoringModel
+                : 'musiq-worker+opencv+color-heuristics');
     return map;
   }
 
@@ -483,21 +786,39 @@ class PhotoEvaluationResult {
           ? (legacyOverall * 5).clamp(0.0, 5.0)
           : legacyOverall.clamp(0.0, 5.0);
     }
-    return 3;
+    return 0;
+  }
+
+  static bool payloadMarksEvaluationFailed(Map<String, dynamic> j) {
+    final status = (j['evaluation_status'] as String?)?.trim().toLowerCase() ?? '';
+    if (status == 'failed' || status == 'unavailable' || status == 'error') {
+      return true;
+    }
+    return j['evaluation_available'] == false;
   }
 
   static PhotoEvaluationResult? fromJson(Map<String, dynamic>? j) {
     if (j == null) return null;
+    final analysis = j['analysis'] is Map ? Map<String, dynamic>.from(j['analysis'] as Map) : null;
+    final failed = payloadMarksEvaluationFailed(j);
     final raw = j['criteria'];
-    final list = raw is List
-        ? raw.map((e) => CriterionScore.fromJson(Map<String, dynamic>.from(e as Map))).toList()
-        : <CriterionScore>[];
+    final list = failed
+        ? <CriterionScore>[]
+        : raw is List
+            ? raw
+                .whereType<Map>()
+                .where(_keepCriterionMap)
+                .map((e) => CriterionScore.fromJson(Map<String, dynamic>.from(e)))
+                .toList()
+            : <CriterionScore>[];
     final ai = j['ai_detection'];
     final geminiRaw = j['gemini_feedback'];
     return PhotoEvaluationResult(
       criteria: list,
-      overallScore: parseOverallScoreFromJson(j),
-      qualityLevel: j['quality_level'] as String? ?? 'Fair',
+      overallScore: failed ? 0 : parseOverallScoreFromJson(j),
+      qualityLevel: failed
+          ? 'Unavailable'
+          : (j['quality_level'] as String? ?? 'Fair'),
       feedback: j['ai_feedback'] as String? ?? j['feedback'] as String? ?? '',
       improvementSuggestions: j['improvement_suggestions'] as String? ?? '',
       recommendation: j['recommendation'] as String? ?? 'Needs Improvement',
@@ -526,11 +847,67 @@ class PhotoEvaluationResult {
       qualityProvisional: j['quality_provisional'] as bool?,
       xpEligible: j['xp_eligible'] as bool?,
       xpMultiplier: (j['xp_multiplier'] as num?)?.toDouble(),
+      xpAwardedAtReview: j['xp_awarded_at_review'] as bool?,
+      xpAwardedPoints: (j['xp_awarded_points'] as num?)?.round(),
       memberIntegrityMessage: j['member_integrity_message'] as String?,
       xpPending: j['xp_pending'] as bool?,
       xpPointsPreview: (j['xp_points_preview'] as num?)?.round(),
       memberScoresReleased: j['member_scores_released'] as bool?,
       reviewGateMessage: j['review_gate_message'] as String?,
+      additionalQualityInsights: j['additional_quality_insights'] is Map
+          ? AdditionalQualityInsights.fromJson(
+              Map<String, dynamic>.from(j['additional_quality_insights'] as Map),
+            )
+          : null,
+      evaluationAvailable: !failed,
+      qualityEngine: analysis?['quality_engine'] as String? ?? j['scoring_engine'] as String?,
+      opencvFallback: analysis?['opencv_fallback'] == true,
+      qualityWarnings: (j['quality_warnings'] as List?)
+              ?.map((e) => e.toString())
+              .where((s) => s.trim().isNotEmpty)
+              .toList() ??
+          const [],
+      scoringFormulaVersion: j['scoring_formula_version'] as String? ??
+          analysis?['scoring_formula_version'] as String?,
+    );
+  }
+
+  /// Prefer saved scores; only corrects [mediaType] for display/routing.
+  PhotoEvaluationResult withMediaType(String nextMediaType) {
+    final normalized = nextMediaType.trim().isEmpty ? mediaType : nextMediaType.trim();
+    if (normalized == mediaType) return this;
+    return PhotoEvaluationResult(
+      criteria: criteria,
+      overallScore: overallScore,
+      qualityLevel: qualityLevel,
+      feedback: feedback,
+      improvementSuggestions: improvementSuggestions,
+      recommendation: recommendation,
+      aiDetection: aiDetection,
+      mediaType: normalized,
+      scoringModel: scoringModel,
+      strengths: strengths,
+      weaknesses: weaknesses,
+      geminiFeedback: geminiFeedback,
+      geminiFeedbackIsLocal: geminiFeedbackIsLocal,
+      integrityTier: integrityTier,
+      showQualityFeedback: showQualityFeedback,
+      qualityProvisional: qualityProvisional,
+      xpEligible: xpEligible,
+      xpMultiplier: xpMultiplier,
+      xpAwardedAtReview: xpAwardedAtReview,
+      xpAwardedPoints: xpAwardedPoints,
+      memberIntegrityMessage: memberIntegrityMessage,
+      xpPending: xpPending,
+      xpPointsPreview: xpPointsPreview,
+      memberScoresReleased: memberScoresReleased,
+      reviewGateMessage: reviewGateMessage,
+      additionalQualityInsights: additionalQualityInsights,
+      evaluationAvailable: evaluationAvailable,
+      qualityEngine: qualityEngine,
+      opencvFallback: opencvFallback,
+      qualityWarnings: qualityWarnings,
+      scoringFormulaVersion: scoringFormulaVersion,
     );
   }
 
@@ -540,6 +917,8 @@ class PhotoEvaluationResult {
     bool? qualityProvisional,
     bool? xpEligible,
     double? xpMultiplier,
+    bool? xpAwardedAtReview,
+    int? xpAwardedPoints,
     String? memberIntegrityMessage,
     bool? xpPending,
     int? xpPointsPreview,
@@ -567,11 +946,19 @@ class PhotoEvaluationResult {
         qualityProvisional: qualityProvisional ?? this.qualityProvisional,
         xpEligible: xpEligible ?? this.xpEligible,
         xpMultiplier: xpMultiplier ?? this.xpMultiplier,
+        xpAwardedAtReview: xpAwardedAtReview ?? this.xpAwardedAtReview,
+        xpAwardedPoints: xpAwardedPoints ?? this.xpAwardedPoints,
         memberIntegrityMessage: memberIntegrityMessage ?? this.memberIntegrityMessage,
         xpPending: xpPending ?? this.xpPending,
         xpPointsPreview: xpPointsPreview ?? this.xpPointsPreview,
         memberScoresReleased: memberScoresReleased ?? this.memberScoresReleased,
         reviewGateMessage: reviewGateMessage ?? this.reviewGateMessage,
+        additionalQualityInsights: additionalQualityInsights,
+        evaluationAvailable: evaluationAvailable,
+        qualityEngine: qualityEngine,
+        opencvFallback: opencvFallback,
+        qualityWarnings: qualityWarnings,
+        scoringFormulaVersion: scoringFormulaVersion,
       );
 
   PhotoEvaluationResult copyWithGemini(MediaEvaluationFeedback gf, {bool geminiFeedbackIsLocal = false}) {
@@ -605,9 +992,19 @@ class PhotoEvaluationResult {
         qualityProvisional: qualityProvisional,
         xpEligible: xpEligible,
         xpMultiplier: xpMultiplier,
+        xpAwardedAtReview: xpAwardedAtReview,
+        xpAwardedPoints: xpAwardedPoints,
         memberIntegrityMessage: memberIntegrityMessage,
         xpPending: xpPending,
         xpPointsPreview: xpPointsPreview,
+        memberScoresReleased: memberScoresReleased,
+        reviewGateMessage: reviewGateMessage,
+        additionalQualityInsights: additionalQualityInsights,
+        evaluationAvailable: evaluationAvailable,
+        qualityEngine: qualityEngine,
+        opencvFallback: opencvFallback,
+        qualityWarnings: qualityWarnings,
+        scoringFormulaVersion: scoringFormulaVersion,
       );
   }
 }
@@ -628,9 +1025,23 @@ const _sourceUnverifiedIntegrityMessage =
 /// Canonical display order for AI criterion bars.
 const _videoOnlyCriteria = {'Motion Stability', 'Flickering'};
 
+bool _keepCriterionMap(Map<dynamic, dynamic> e) {
+  final name = (e['name'] as String?)?.trim() ?? '';
+  if (name.isEmpty) return false;
+  // Keep explicit N/A rows (available: false, score: null). Do not invent scores.
+  if (e['available'] == false) return true;
+  return e['score'] != null;
+}
+
 List<CriterionScore> orderCriteriaForDisplay(List<CriterionScore> criteria, {required bool isVideo}) {
-  final order = isVideo ? PhotoEvaluationResult.videoCriteriaOrder : PhotoEvaluationResult.photoCriteriaOrder;
-  final filtered = isVideo ? criteria : criteria.where((c) => !_videoOnlyCriteria.contains(c.name));
+  // If video-only criteria were saved, keep them visible even when media_type was
+  // missing/defaulted to photo (common for older rows and some notification paths).
+  final hasVideoOnlyCriteria = criteria.any((c) => _videoOnlyCriteria.contains(c.name));
+  final treatAsVideo = isVideo || hasVideoOnlyCriteria;
+  final order =
+      treatAsVideo ? PhotoEvaluationResult.videoCriteriaOrder : PhotoEvaluationResult.photoCriteriaOrder;
+  final filtered =
+      treatAsVideo ? criteria : criteria.where((c) => !_videoOnlyCriteria.contains(c.name));
   final sorted = filtered.toList()
     ..sort((a, b) {
       final ai = order.indexOf(a.name);

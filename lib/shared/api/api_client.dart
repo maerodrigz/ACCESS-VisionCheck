@@ -127,7 +127,16 @@ class ApiClient {
       return;
     }
     final saved = ApiConfig.runtimeBaseUrl.value?.trim();
-    if (saved != null && saved.isNotEmpty && saved != baseUrl) return;
+    if (saved != null && saved.isNotEmpty && saved != baseUrl) {
+      try {
+        final savedHost = Uri.parse(saved).host;
+        final newHost = Uri.parse(baseUrl).host;
+        if (ApiConfig.isSameIpv4Subnet24(savedHost, newHost)) {
+          await ApiConfig.runtimeBaseUrl.save(baseUrl);
+        }
+      } catch (_) {}
+      return;
+    }
     if (baseUrl.contains('10.0.2.2') && saved == null) {
       return;
     }
@@ -162,17 +171,84 @@ class ApiClient {
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters}) =>
-      _request('GET', path, query: queryParameters);
+  Future<dynamic> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Duration? timeout,
+  }) =>
+      _request('GET', path, query: queryParameters, requestTimeout: timeout);
   Future<dynamic> post(String path, Map<String, dynamic> body) =>
       _request('POST', path, body: body);
 
-  /// Login must not failover across every LAN IP (wrong host → false "Invalid credentials").
-  Future<dynamic> postLogin(String path, Map<String, dynamic> body) =>
-      _request('POST', path, body: body, hosts: ApiConfig.loginBaseUrls());
+  /// Hosts for sign-in and password recovery.
+  ///
+  /// Prefer the pinned backend (last successful call, e.g. SMS reset) first, then
+  /// [ApiConfig.loginBaseUrls]. Login must not roam across every LAN IP — a
+  /// reachable wrong host returns 401 "Invalid credentials" without failover.
+  List<String> _authCriticalBaseUrls() {
+    final out = <String>[];
+    void add(String? raw) {
+      if (raw == null) return;
+      final normalized = raw.trim().replaceAll(RegExp(r'/+$'), '');
+      if (normalized.isEmpty || out.contains(normalized)) return;
+      out.add(normalized);
+    }
+
+    add(_pinnedBaseUrl);
+    for (final base in ApiConfig.loginBaseUrls()) {
+      add(base);
+    }
+    if (out.isEmpty) {
+      add(ApiConfig.baseUrl);
+    }
+    return out;
+  }
+
+  /// Login / SMS password reset / phone verify: same host policy.
+  ///
+  /// Uses a **single** authoritative host. Never fans the same password across
+  /// LAN fallbacks — a timeout after the server already counted a failure would
+  /// otherwise multiply lockout attempts.
+  Future<dynamic> postLogin(String path, Map<String, dynamic> body) {
+    final hosts = _authCriticalBaseUrls();
+    final primary = hosts.isEmpty ? ApiConfig.baseUrl : hosts.first;
+    return _request('POST', path, body: body, hosts: [primary]);
+  }
+
+  /// Alias for auth flows that must hit the same backend as login (password reset).
+  Future<dynamic> postAuthCritical(String path, Map<String, dynamic> body) =>
+      postLogin(path, body);
   Future<dynamic> patch(String path, Map<String, dynamic> body) =>
       _request('PATCH', path, body: body);
   Future<dynamic> delete(String path) => _request('DELETE', path);
+
+  /// Practice uploads: do not re-send the file across every LAN fallback IP.
+  List<String> _multipartBaseUrls() {
+    final out = <String>[];
+    void add(String? raw) {
+      if (raw == null) return;
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return;
+      final normalized = trimmed.replaceAll(RegExp(r'/+$'), '');
+      if (!out.contains(normalized)) out.add(normalized);
+    }
+
+    add(ApiConfig.runtimeBaseUrl.value);
+    add(_pinnedBaseUrl);
+    add(ApiConfig.effectiveBaseUrl);
+    add(ApiConfig.baseUrl);
+    // USB `adb reverse tcp:3001 tcp:3001`: phone 127.0.0.1 is the PC.
+    // Fail-fast if reverse is off (connection refused). Not the Android default.
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        ApiConfig.isPhysicalAndroidDevice) {
+      add(ApiConfig.originalUsbDevBaseUrl);
+    }
+    if (out.isEmpty) {
+      add('http://${ApiConfig.host}:${ApiConfig.port}');
+    }
+    return out;
+  }
 
   Future<dynamic> postMultipart(
     String path, {
@@ -183,8 +259,10 @@ class ApiClient {
   }) async {
     final effectiveTimeout = timeout ?? ApiClient.timeout;
     Object? lastError;
-    for (final baseUrl in _basesToTry()) {
+    Uri? lastUri;
+    for (final baseUrl in _multipartBaseUrls()) {
       final uri = _uriForBase(baseUrl, path);
+      lastUri = uri;
       _log('POST (multipart) $uri  fields=${fields.keys.toList()} file=$fileName (${fileBytes.length} B)');
       final request = http.MultipartRequest('POST', uri);
       if (_token != null) {
@@ -222,7 +300,7 @@ class ApiClient {
       }
     }
     // All candidates failed.
-    final uri = _uriForBase(ApiConfig.baseUrl, path);
+    final uri = lastUri ?? _uriForBase(ApiConfig.baseUrl, path);
     throw _connectionError(lastError ?? Exception('Connection failed'), method: 'POST', uri: uri);
   }
 
@@ -293,6 +371,7 @@ class ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
     List<String>? hosts,
+    Duration? requestTimeout,
   }) async {
     final hostList = hosts ?? _basesToTry();
     if (hosts == null && _pinnedBaseUrl == null) {
@@ -309,7 +388,7 @@ class ApiClient {
           case 'GET':
             response = await _client
                 .get(uri, headers: _headers)
-                .timeout(_timeoutForBase(baseUrl, path: path));
+                .timeout(requestTimeout ?? _timeoutForBase(baseUrl, path: path));
             break;
           case 'POST':
             response = await _client

@@ -56,7 +56,7 @@ def preflight() -> dict[str, Any]:
         "probe_low_risk_threshold": float(settings.probe_low_risk_threshold),
         "probe_high_risk_threshold": float(settings.probe_high_risk_threshold),
         "max_media_evaluation_workers": int(settings.max_media_evaluation_workers),
-        "code_default_backend": "univfd",
+        "code_default_backend": "probe",
         "real_image_exists": REAL_IMAGE.is_file(),
         "video_exists": VIDEO.is_file(),
     }

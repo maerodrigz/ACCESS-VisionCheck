@@ -26,6 +26,11 @@ abstract final class MemberReviewStatus {
     return n == 'verified_human';
   }
 
+  /// Admin accepted the media as human (verified or accepted with warning).
+  static bool isAdminVerified(String? raw) {
+    return isAdminConfirmedHuman(raw) || isAcceptedWithWarning(raw);
+  }
+
   static bool isAdminConfirmedAi(String? raw) {
     final n = normalize(raw);
     return n == 'confirmed_ai_generated' ||

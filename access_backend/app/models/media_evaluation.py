@@ -16,12 +16,12 @@ class MediaEvaluation(Base):
     media_id: Mapped[int] = mapped_column(
         ForeignKey("media_files.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    sharpness_score: Mapped[float] = mapped_column(Float, nullable=False)
-    brightness_score: Mapped[float] = mapped_column(Float, nullable=False)
-    contrast_score: Mapped[float] = mapped_column(Float, nullable=False)
-    blur_score: Mapped[float] = mapped_column(Float, nullable=False)
-    noise_score: Mapped[float] = mapped_column(Float, nullable=False)
-    overall_score: Mapped[float] = mapped_column(Float, nullable=False, index=True)
+    sharpness_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    brightness_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    contrast_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    blur_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    noise_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    overall_score: Mapped[float | None] = mapped_column(Float, nullable=True, index=True)
     feedback: Mapped[str | None] = mapped_column(Text)
     criteria_json: Mapped[str | None] = mapped_column(Text)
     quality_level: Mapped[str | None] = mapped_column(String(40))

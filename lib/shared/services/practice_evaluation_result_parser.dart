@@ -17,10 +17,33 @@ PhotoEvaluationResult? photoEvaluationResultFromApiRow(Map<String, dynamic> row)
   }
   if (payload == null) return null;
 
+  final ai = payload['ai_detection'];
+  final topProb = (row['ai_probability'] as num?)?.toDouble();
+  if (topProb != null && ai is Map) {
+    final aiMap = Map<String, dynamic>.from(ai);
+    if (aiMap['probability'] == null && aiMap['raw_detector_probability'] == null) {
+      aiMap['probability'] = topProb;
+      payload = Map<String, dynamic>.from(payload)..['ai_detection'] = aiMap;
+    }
+  }
+
   final parsed = PhotoEvaluationResult.fromJson(payload);
   if (parsed == null) return null;
-  if (parsed.aiDetection.isDeferredAuthenticity) return null;
   return parsed;
+}
+
+/// True when GET /evaluations row is ready to show (scores or integrity payload).
+bool practiceEvaluationApiRowReady(Map<String, dynamic> row) {
+  if (photoEvaluationResultFromApiRow(row) != null) return true;
+  final criteriaRaw = row['criteria_json'];
+  if (criteriaRaw is String && criteriaRaw.trim().isNotEmpty) return true;
+  if (criteriaRaw is Map && criteriaRaw.isNotEmpty) return true;
+  final review = (row['review_status'] as String?)?.trim();
+  if (review != null && review.isNotEmpty) return true;
+  final feedback = (row['feedback'] as String?)?.trim();
+  if (feedback != null && feedback.isNotEmpty) return true;
+  final score = row['overall_score'];
+  return score is num;
 }
 
 List<String> qualityWarningsFromEvaluationPayload(Map<String, dynamic> payload) {

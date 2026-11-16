@@ -36,7 +36,7 @@ DEFAULTS = {
     "auto_generate_review_alerts": True,
     "require_manual_verification_before_warning": True,
     "enable_ai_media_evaluation": True,
-    "max_evaluation_uploads_per_day": 5,
+    "max_evaluation_uploads_per_day": 3,
     "event_max_upload_mb": None,
     "evaluation_max_upload_mb": None,
     "event_allowed_image_formats": None,
@@ -164,7 +164,7 @@ def is_ai_media_evaluation_enabled(db: Session) -> bool:
 
 
 def max_evaluation_uploads_per_day(db: Session) -> int:
-    return int(settings_payload(db).get("max_evaluation_uploads_per_day", 5))
+    return int(settings_payload(db).get("max_evaluation_uploads_per_day", 3))
 
 
 def update_section(

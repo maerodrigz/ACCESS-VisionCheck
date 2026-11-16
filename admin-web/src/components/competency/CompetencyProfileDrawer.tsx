@@ -127,7 +127,7 @@ export function CompetencyProfileDrawer({
         </div>
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <div>
-            <div className="text-[10px] text-[var(--color-text-secondary)]">Current</div>
+            <div className="text-[10px] text-[var(--color-text-secondary)]">Admin competency</div>
             <CompetencyLevelBadge level={m.currentLevel} overridden={m.levelOverridden} compact />
             {m.levelOverridden ? (
               <p className="mt-0.5 max-w-[140px] text-[10px] leading-snug text-[var(--color-text-secondary)]">
@@ -140,6 +140,10 @@ export function CompetencyProfileDrawer({
             <CompetencyLevelBadge level={m.recommendedLevel} compact />
           </div>
         </div>
+        <p className="mt-2 max-w-sm text-[10px] leading-snug text-[var(--color-text-muted)]">
+          Administrative Competency is for assignment and overrides. It is not the member&apos;s Photo/Video
+          Skill title.
+        </p>
       </div>
 
       <Section title="Availability">
@@ -153,6 +157,22 @@ export function CompetencyProfileDrawer({
           uploadScope="practice"
           emptyMessage="No practice evaluation uploads yet."
         />
+      </Section>
+
+      <Section title="Skill tier vs XP">
+        <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
+          Skill tier uses average quality on eligible, released practice evaluations (gates: 3 / 6 / 10
+          evals for Intermediate / Advanced / Expert). XP ({m.rankingPoints} pts) orders the member
+          leaderboard and does not set skill tier. Admin overrides apply until cleared.
+        </p>
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+          Practice uploads: {m.skillEligibleEvaluationCount} skill-eligible
+          {m.totalPracticeEvaluationRows > m.skillEligibleEvaluationCount
+            ? ` of ${m.totalPracticeEvaluationRows} total (pending/withheld excluded from tier).`
+            : m.totalPracticeEvaluationRows > 0
+              ? ' released evaluation(s).'
+              : ' (none on record).'}
+        </p>
       </Section>
 
       <Section title="Performance metrics">
@@ -169,7 +189,7 @@ export function CompetencyProfileDrawer({
             emptyLabel={acceptance.kind === 'na' ? acceptance.label : undefined}
           />
           <CompetencyProgressBar
-            label="Skill score"
+            label="Skill score (quality only)"
             value={skill.kind === 'value' ? skill.value : null}
             emptyLabel={skill.kind === 'na' ? skill.label : undefined}
             hint={skill.kind === 'value' ? skill.hint : undefined}

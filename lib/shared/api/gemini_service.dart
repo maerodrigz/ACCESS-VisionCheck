@@ -10,7 +10,7 @@ class GeminiService {
     try {
       final raw = await memberApiService.fetchGeminiMediaFeedback(scoresOnly.toGeminiRequestJson());
       if (raw == null) return null;
-      final feedback = MediaEvaluationFeedback.fromJson(raw);
+      final feedback = MediaEvaluationFeedback.fromJson(raw).withoutNarrativeMeasurements();
       return feedback.copyWithEnergeticTone();
     } catch (_) {
       return null;

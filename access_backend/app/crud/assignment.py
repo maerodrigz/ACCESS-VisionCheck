@@ -79,33 +79,18 @@ def get_for_request_member(
 
 
 def get_event_for_request(db: Session, request_id: int) -> EventCalendar | None:
-    return db.scalar(select(EventCalendar).where(EventCalendar.request_id == request_id))
+    from app.crud import event_calendar as event_cal_crud
+
+    return event_cal_crud.get_event_for_request(db, request_id)
 
 
 def _sync_calendar_team(db: Session, request: DocumentationRequest) -> EventCalendar:
-    event = get_event_for_request(db, request.id)
-    if not event:
-        event = EventCalendar(
-            request_id=request.id,
-            title=request.title,
-            description=request.description,
-            start_date=request.event_date,
-            venue=request.venue,
-            status="assigned",
-        )
-        db.add(event)
-        db.flush()
-    accepted = list(
-        db.scalars(
-            select(RequestAssignment).where(
-                RequestAssignment.request_id == request.id,
-                RequestAssignment.status.in_([ACCEPTED, IN_PROGRESS, COMPLETED, LEGACY_ASSIGNED]),
-            )
-        )
-    )
-    if accepted:
-        event.assigned_member_id = accepted[0].member_id
-        event.status = "assigned"
+    from app.crud import event_calendar as event_cal_crud
+
+    event = event_cal_crud.sync_calendar_from_request(db, request)
+    assert event is not None
+    db.commit()
+    db.refresh(event)
     return event
 
 
@@ -146,24 +131,19 @@ def create_assignment(
         db.add(assignment)
     db.flush()
 
-    event = get_event_for_request(db, request.id)
-    if not event:
-        event = EventCalendar(
-            request_id=request.id,
-            title=request.title,
-            description=request.description,
-            start_date=request.event_date,
-            venue=request.venue,
-            status="assigned",
-            admin_remarks=admin_notes,
-        )
-        db.add(event)
-    elif admin_notes:
+    from app.crud import event_calendar as event_cal_crud
+
+    event = event_cal_crud.sync_calendar_from_request(db, request)
+    if event is not None and admin_notes:
         event.admin_remarks = admin_notes
 
     db.commit()
     db.refresh(assignment)
-    db.refresh(event)
+    if event is not None:
+        db.refresh(event)
+    else:
+        event = get_event_for_request(db, request.id)
+    assert event is not None
     return assignment, event
 
 

@@ -1,27 +1,53 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-
 import { Bell, Loader2, Menu, Search } from 'lucide-react'
-
 import { useLocation, useNavigate } from 'react-router-dom'
-
 import { fetchNotifications } from '../api/notifications'
-
 import { useAuth } from '../context/AuthContext'
-
 import { useToast } from '../context/ToastContext'
-
 import { resolveGlobalSearch } from '../lib/globalAdminSearch'
-
 import { NOTIFICATIONS_CHANGED } from '../lib/notificationEvents'
-
 import { parseNotification } from '../lib/notifications'
-
 import { pageTitleForPath } from '../lib/pageTitles'
-
 import { ProfileDropdown } from './ProfileDropdown'
 
 const topIconBtnClass =
   'relative flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
+
+/** Global search stays in the top bar across primary admin surfaces. */
+const SEARCH_THROUGH_PATHS = [
+  '/',
+  '/documentation-requests',
+  '/event-calendar',
+  '/competency',
+  '/media',
+  '/media-integrity',
+  '/feedback',
+  '/analytics',
+  '/account-management',
+  '/notifications',
+] as const
+
+function normalizePath(pathname: string): string {
+  return pathname.replace(/\/+$/, '') || '/'
+}
+
+function showTopBarSearch(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return SEARCH_THROUGH_PATHS.some(
+    (p) => path === p || (p !== '/' && path.startsWith(`${p}/`)),
+  )
+}
+
+function searchPlaceholderForPath(pathname: string): string {
+  const path = normalizePath(pathname)
+  if (path === '/account-management' || path.startsWith('/account-management/')) {
+    return 'Search accounts by name or email…'
+  }
+  if (path === '/notifications' || path.startsWith('/notifications/')) {
+    return 'Search notifications…'
+  }
+  return 'Search requests, events, members, or media...'
+}
 
 interface TopBarProps {
   mobile?: boolean
@@ -30,15 +56,11 @@ interface TopBarProps {
 
 export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
   const { user } = useAuth()
-
   const navigate = useNavigate()
-
   const location = useLocation()
-
   const { showToast } = useToast()
 
   const onNotifications = location.pathname === '/notifications'
-
   const [unread, setUnread] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [searching, setSearching] = useState(false)
@@ -46,9 +68,7 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
   const loadUnread = useCallback(async () => {
     try {
       const raw = await fetchNotifications()
-
       const count = raw.map(parseNotification).filter((n) => n.unread).length
-
       setUnread(count)
     } catch {
       setUnread(0)
@@ -57,19 +77,21 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
 
   useEffect(() => {
     loadUnread()
-
     const interval = window.setInterval(loadUnread, 30000)
-
     const onChanged = () => loadUnread()
-
     window.addEventListener(NOTIFICATIONS_CHANGED, onChanged)
-
     return () => {
       window.clearInterval(interval)
-
       window.removeEventListener(NOTIFICATIONS_CHANGED, onChanged)
     }
   }, [loadUnread, location.pathname])
+
+  useEffect(() => {
+    const path = normalizePath(location.pathname)
+    if (path === '/account-management' || path === '/notifications') {
+      setSearchQuery(new URLSearchParams(location.search).get('q') ?? '')
+    }
+  }, [location.pathname, location.search])
 
   async function handleGlobalSearch(e: FormEvent) {
     e.preventDefault()
@@ -77,6 +99,19 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
     if (!q || searching) return
     setSearching(true)
     try {
+      const path = normalizePath(location.pathname)
+      if (path === '/account-management' || path.startsWith('/account-management/')) {
+        const params = new URLSearchParams(location.search)
+        params.set('q', q)
+        navigate(`/account-management?${params.toString()}`)
+        showToast(`Filtering accounts for "${q}"`, 'info')
+        return
+      }
+      if (path === '/notifications' || path.startsWith('/notifications/')) {
+        navigate(`/notifications?q=${encodeURIComponent(q)}`)
+        showToast(`Filtering notifications for "${q}"`, 'info')
+        return
+      }
       const result = await resolveGlobalSearch(q)
       navigate(result.path)
       showToast(result.hint, 'info')
@@ -91,7 +126,7 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
   if (!user) return null
 
   const pageTitle = pageTitleForPath(location.pathname)
-  const onHome = location.pathname === '/'
+  const searchVisible = showTopBarSearch(location.pathname)
 
   return (
     <header
@@ -112,9 +147,9 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
         </button>
       ) : null}
 
-      {!mobile && onHome ? (
+      {searchVisible ? (
         <form
-          className="relative hidden min-w-0 max-w-md flex-1 md:block"
+          className="relative min-w-0 max-w-xl flex-1"
           onSubmit={handleGlobalSearch}
           role="search"
         >
@@ -127,7 +162,7 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={searching}
-            placeholder="Search requests, events, members, or media..."
+            placeholder={searchPlaceholderForPath(location.pathname)}
             className="h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--topbar-search-bg)] pl-9 pr-10 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] disabled:opacity-70"
             aria-label="Search admin workspace"
           />
@@ -156,7 +191,6 @@ export function TopBar({ mobile = false, onMenuClick }: TopBarProps) {
           aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ''}`}
         >
           <Bell size={18} />
-
           {unread > 0 ? (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[9px] font-bold text-white">
               {unread > 9 ? '9+' : unread}

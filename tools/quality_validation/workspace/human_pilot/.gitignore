@@ -1,0 +1,8 @@
+# Rater images, filled sheets, and facilitator unblind keys.
+facilitator/**
+rater_pack/images/**
+rater_pack/*.csv
+!rater_pack/INSTRUCTIONS.md
+!rater_pack/HUMAN_RATING_RUBRIC.md
+!rater_pack/rating_sheet.html
+!README.md

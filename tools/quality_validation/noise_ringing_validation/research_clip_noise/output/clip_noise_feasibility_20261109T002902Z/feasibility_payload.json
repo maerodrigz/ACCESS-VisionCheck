@@ -1,0 +1,219 @@
+{
+  "generated_utc": "2026-11-09T00:29:02.883462+00:00",
+  "method_id": "clip_noisiness_antonyms_vitb32_openai",
+  "model_name": "ViT-B-32",
+  "pretrained": "openai",
+  "prompts": [
+    "Noise-free image",
+    "noisy image"
+  ],
+  "sigmas": [
+    0,
+    5,
+    10,
+    20,
+    40
+  ],
+  "dev_set": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\noise_ringing_validation\\research_clip_noise\\dev_set",
+  "disjoint_note": "Synthetic procedural RGB panels; never NR001-015 or frozen pilot photographs.",
+  "analysis_by_source": {
+    "DEV-FLAT": {
+      "spearman_rho_noisiness_vs_sigma": -0.3,
+      "spearman_p": 0.623837664781073,
+      "monotonic_nondecreasing_noisiness": false,
+      "delta_noisiness_sigma40_minus_0": -0.07242299999999999,
+      "noisiness_by_sigma": {
+        "0": 0.221514,
+        "5": 0.246299,
+        "10": 0.223535,
+        "20": 0.231153,
+        "40": 0.149091
+      }
+    },
+    "DEV-MILD": {
+      "spearman_rho_noisiness_vs_sigma": 0.3,
+      "spearman_p": 0.623837664781073,
+      "monotonic_nondecreasing_noisiness": false,
+      "delta_noisiness_sigma40_minus_0": 0.05481500000000003,
+      "noisiness_by_sigma": {
+        "0": 0.210633,
+        "5": 0.286533,
+        "10": 0.256702,
+        "20": 0.244609,
+        "40": 0.265448
+      }
+    },
+    "DEV-TEX": {
+      "spearman_rho_noisiness_vs_sigma": 0.7,
+      "spearman_p": 0.1881204043741873,
+      "monotonic_nondecreasing_noisiness": false,
+      "delta_noisiness_sigma40_minus_0": 0.024855000000000016,
+      "noisiness_by_sigma": {
+        "0": 0.23391,
+        "5": 0.258291,
+        "10": 0.266045,
+        "20": 0.288631,
+        "40": 0.258765
+      }
+    }
+  },
+  "gates": {
+    "S1_flat_spearman_ge_0_80": false,
+    "flat_rho": -0.3,
+    "flat_monotonic": false,
+    "directional_consistency_ge_2_of_3": true,
+    "positive_sources": 2
+  },
+  "recommendation": "NO-GO",
+  "recommendation_meaning": "Does not meet controlled-response gates; do not advance without a new approved plan.",
+  "runtime": {
+    "device": "cpu",
+    "model_load_s": 27.013,
+    "n_images": 15,
+    "infer_ms_mean": 208.73,
+    "infer_ms_median": 198.85,
+    "infer_ms_max": 413.07,
+    "rss_mb_before_load": null,
+    "rss_mb_after_load": null,
+    "rss_mb_end": null,
+    "tracemalloc_peak_mb": 145.93,
+    "wall_s_total": 31.82
+  },
+  "rows": [
+    {
+      "image_id": "DEV-FLAT_s0",
+      "source_id": "DEV-FLAT",
+      "sigma": 0,
+      "raw_noisiness_p_noisy": 0.221514,
+      "raw_noise_free_p": 0.778486,
+      "infer_ms": 134.15,
+      "path": "noisy/DEV-FLAT_sigma00.png"
+    },
+    {
+      "image_id": "DEV-FLAT_s5",
+      "source_id": "DEV-FLAT",
+      "sigma": 5,
+      "raw_noisiness_p_noisy": 0.246299,
+      "raw_noise_free_p": 0.753701,
+      "infer_ms": 172.27,
+      "path": "noisy/DEV-FLAT_sigma05.png"
+    },
+    {
+      "image_id": "DEV-FLAT_s10",
+      "source_id": "DEV-FLAT",
+      "sigma": 10,
+      "raw_noisiness_p_noisy": 0.223535,
+      "raw_noise_free_p": 0.776465,
+      "infer_ms": 186.65,
+      "path": "noisy/DEV-FLAT_sigma10.png"
+    },
+    {
+      "image_id": "DEV-FLAT_s20",
+      "source_id": "DEV-FLAT",
+      "sigma": 20,
+      "raw_noisiness_p_noisy": 0.231153,
+      "raw_noise_free_p": 0.768847,
+      "infer_ms": 192.62,
+      "path": "noisy/DEV-FLAT_sigma20.png"
+    },
+    {
+      "image_id": "DEV-FLAT_s40",
+      "source_id": "DEV-FLAT",
+      "sigma": 40,
+      "raw_noisiness_p_noisy": 0.149091,
+      "raw_noise_free_p": 0.850909,
+      "infer_ms": 212.83,
+      "path": "noisy/DEV-FLAT_sigma40.png"
+    },
+    {
+      "image_id": "DEV-MILD_s0",
+      "source_id": "DEV-MILD",
+      "sigma": 0,
+      "raw_noisiness_p_noisy": 0.210633,
+      "raw_noise_free_p": 0.789367,
+      "infer_ms": 209.71,
+      "path": "noisy/DEV-MILD_sigma00.png"
+    },
+    {
+      "image_id": "DEV-MILD_s5",
+      "source_id": "DEV-MILD",
+      "sigma": 5,
+      "raw_noisiness_p_noisy": 0.286533,
+      "raw_noise_free_p": 0.713467,
+      "infer_ms": 204.16,
+      "path": "noisy/DEV-MILD_sigma05.png"
+    },
+    {
+      "image_id": "DEV-MILD_s10",
+      "source_id": "DEV-MILD",
+      "sigma": 10,
+      "raw_noisiness_p_noisy": 0.256702,
+      "raw_noise_free_p": 0.743298,
+      "infer_ms": 192.02,
+      "path": "noisy/DEV-MILD_sigma10.png"
+    },
+    {
+      "image_id": "DEV-MILD_s20",
+      "source_id": "DEV-MILD",
+      "sigma": 20,
+      "raw_noisiness_p_noisy": 0.244609,
+      "raw_noise_free_p": 0.755391,
+      "infer_ms": 197.6,
+      "path": "noisy/DEV-MILD_sigma20.png"
+    },
+    {
+      "image_id": "DEV-MILD_s40",
+      "source_id": "DEV-MILD",
+      "sigma": 40,
+      "raw_noisiness_p_noisy": 0.265448,
+      "raw_noise_free_p": 0.734552,
+      "infer_ms": 213.47,
+      "path": "noisy/DEV-MILD_sigma40.png"
+    },
+    {
+      "image_id": "DEV-TEX_s0",
+      "source_id": "DEV-TEX",
+      "sigma": 0,
+      "raw_noisiness_p_noisy": 0.23391,
+      "raw_noise_free_p": 0.76609,
+      "infer_ms": 201.43,
+      "path": "noisy/DEV-TEX_sigma00.png"
+    },
+    {
+      "image_id": "DEV-TEX_s5",
+      "source_id": "DEV-TEX",
+      "sigma": 5,
+      "raw_noisiness_p_noisy": 0.258291,
+      "raw_noise_free_p": 0.741709,
+      "infer_ms": 198.85,
+      "path": "noisy/DEV-TEX_sigma05.png"
+    },
+    {
+      "image_id": "DEV-TEX_s10",
+      "source_id": "DEV-TEX",
+      "sigma": 10,
+      "raw_noisiness_p_noisy": 0.266045,
+      "raw_noise_free_p": 0.733955,
+      "infer_ms": 187.33,
+      "path": "noisy/DEV-TEX_sigma10.png"
+    },
+    {
+      "image_id": "DEV-TEX_s20",
+      "source_id": "DEV-TEX",
+      "sigma": 20,
+      "raw_noisiness_p_noisy": 0.288631,
+      "raw_noise_free_p": 0.711369,
+      "infer_ms": 413.07,
+      "path": "noisy/DEV-TEX_sigma20.png"
+    },
+    {
+      "image_id": "DEV-TEX_s40",
+      "source_id": "DEV-TEX",
+      "sigma": 40,
+      "raw_noisiness_p_noisy": 0.258765,
+      "raw_noise_free_p": 0.741234,
+      "infer_ms": 214.76,
+      "path": "noisy/DEV-TEX_sigma40.png"
+    }
+  ]
+}

@@ -186,7 +186,7 @@ export function AccountFormModal({
           {!isRequestorRole(form.role) ? (
             <div className={`account-mgmt__field${errors.skillLevel ? ' has-error' : ''}`}>
               <label htmlFor={`${mode}-skill`}>
-                Skill Level <span className="account-mgmt__required">*</span>
+                Administrative Competency <span className="account-mgmt__required">*</span>
               </label>
               <select
                 id={`${mode}-skill`}
@@ -200,6 +200,10 @@ export function AccountFormModal({
                   </option>
                 ))}
               </select>
+              <span className="account-mgmt__field-hint">
+                Assignment/override band only. Member Photo/Video Skill titles come from Quality Skill
+                Classification, not this field.
+              </span>
               {errors.skillLevel ? (
                 <span className="account-mgmt__field-error" role="alert">
                   {errors.skillLevel}

@@ -14,7 +14,9 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_SIGNED_URL_TTL_SEC = 60 * 60 * 24 * 365  # 1 year for client-facing signed URLs (private buckets)
+# Short-lived signed URLs for private-bucket streaming (re-resolved on each API fetch).
+# Historical gallery links that needed year-long TTLs should use refresh via API instead.
+_SIGNED_URL_TTL_SEC = 60 * 60  # 1 hour
 # One probe per bucket per process. True = public URL works. False = sign instead.
 _bucket_is_public: dict[str, bool] = {}
 # Compact DB value — signed Supabase URLs exceed media_files.file_url VARCHAR(500).
@@ -46,7 +48,7 @@ def _parse_storage_ref(ref: str) -> tuple[str, str] | None:
 def _resolve_ref_with_client(ref: str, client: httpx.Client) -> str:
     """Turn a stored ref into a fetchable HTTPS URL using an existing client."""
     parsed = _parse_storage_ref(ref)
-    if parsed is None or not is_supabase_storage_configured():
+    if parsed is None or not can_resolve_supabase_storage():
         return ref.strip()
     bucket, object_path = parsed
     try:
@@ -113,15 +115,39 @@ def resolve_supabase_storage_urls(urls: list[str | None]) -> list[str]:
     if not urls:
         return []
     needs_client = any(is_supabase_storage_ref(url) for url in urls if url and str(url).strip())
-    if not needs_client or not is_supabase_storage_configured():
+    if not needs_client or not can_resolve_supabase_storage():
         return [normalize_supabase_storage_url(url) for url in urls]
     with httpx.Client(timeout=30.0) as client:
         return [_normalize_with_client(url, client) for url in urls]
 
 
-def is_supabase_storage_configured() -> bool:
-    if not (settings.supabase_storage_enabled or "").strip().lower() in ("1", "true", "yes"):
-        return False
+def read_supabase_ref_bytes(ref: str, *, timeout: float = 120.0) -> bytes | None:
+    """Download object bytes with the service role (deferred pipeline / admin tools)."""
+    parsed = _parse_storage_ref(ref)
+    if parsed is None or not can_resolve_supabase_storage():
+        return None
+    bucket, object_path = parsed
+    object_url = (
+        f"{_base_url()}/storage/v1/object/{bucket}/{quote(object_path, safe='/')}"
+    )
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.get(object_url, headers=_headers())
+            if resp.status_code >= 400:
+                logger.error(
+                    "Supabase object GET failed (%s) for %s",
+                    resp.status_code,
+                    object_path,
+                )
+                return None
+            return resp.content
+    except Exception:
+        logger.exception("Supabase object GET failed for %s", object_path)
+        return None
+
+
+def can_resolve_supabase_storage() -> bool:
+    """True when stored supabase-ref rows can be signed for read (independent of upload flag)."""
     if not (settings.supabase_url or "").strip():
         return False
     if not (settings.supabase_service_role_key or "").strip():
@@ -129,6 +155,12 @@ def is_supabase_storage_configured() -> bool:
     if not (settings.supabase_storage_bucket or "").strip():
         return False
     return True
+
+
+def is_supabase_storage_configured() -> bool:
+    if not (settings.supabase_storage_enabled or "").strip().lower() in ("1", "true", "yes"):
+        return False
+    return can_resolve_supabase_storage()
 
 
 def supabase_max_upload_bytes() -> int:
@@ -215,6 +247,24 @@ def normalize_supabase_storage_url(url: str | None) -> str:
     normalized = url.strip()
     if is_supabase_storage_ref(normalized):
         return _resolve_supabase_storage_ref(normalized)
+    return _fix_legacy_object_path(normalized)
+
+
+def member_list_file_url(url: str | None, *, storage_removed: bool = False) -> str:
+    """Member evaluation LIST / card URL without remote Supabase signing.
+
+    Keeps compact ``supabase-ref:`` values so Flutter can use authenticated
+    ``GET /api/media/{id}/stream``. Does not expose service-role keys or make
+    the bucket public. Use [normalize_supabase_storage_url] only when a
+    fetchable HTTPS URL is required (stream redirect, single-object fetch).
+    """
+    if storage_removed:
+        return ""
+    if not url or not str(url).strip():
+        return ""
+    normalized = str(url).strip()
+    if is_supabase_storage_ref(normalized):
+        return normalized
     return _fix_legacy_object_path(normalized)
 
 
@@ -305,13 +355,7 @@ def object_path_from_supabase_url(url: str) -> tuple[str, str] | None:
     return None
 
 
-def delete_supabase_url(url: str | None) -> bool:
-    if not url or not is_supabase_storage_configured():
-        return False
-    parsed = object_path_from_supabase_url(url)
-    if not parsed:
-        return False
-    bucket, object_path = parsed
+def _delete_supabase_object_once(bucket: str, object_path: str) -> tuple[bool, str | None]:
     remove_url = f"{_base_url()}/storage/v1/object/{bucket}/remove"
     try:
         with httpx.Client(timeout=30.0) as client:
@@ -321,10 +365,44 @@ def delete_supabase_url(url: str | None) -> bool:
                 json={"prefixes": [object_path]},
             )
             if resp.status_code < 400:
-                return True
+                return True, None
+            if resp.status_code in (404, 400):
+                return True, None
             single = f"{_base_url()}/storage/v1/object/{bucket}/{quote(object_path, safe='/')}"
             resp2 = client.delete(single, headers=_headers())
-            return resp2.status_code < 400
-    except Exception:
+            if resp2.status_code < 400 or resp2.status_code == 404:
+                return True, None
+            return False, f"HTTP {resp2.status_code}"
+    except Exception as exc:
         logger.exception("Supabase delete failed for %s", object_path)
-        return False
+        return False, str(exc)
+
+
+def delete_supabase_url(url: str | None) -> bool:
+    ok, _ = delete_supabase_url_with_retries(url, max_attempts=1)
+    return ok
+
+
+def delete_supabase_url_with_retries(
+    url: str | None,
+    *,
+    max_attempts: int = 3,
+    retry_delay_sec: float = 0.35,
+) -> tuple[bool, str | None]:
+    if not url or not is_supabase_storage_configured():
+        return False, "Supabase storage not configured"
+    parsed = object_path_from_supabase_url(url)
+    if not parsed:
+        return False, "Not a Supabase storage URL"
+    bucket, object_path = parsed
+    last_err: str | None = None
+    import time
+
+    for attempt in range(max(1, max_attempts)):
+        ok, err = _delete_supabase_object_once(bucket, object_path)
+        if ok:
+            return True, None
+        last_err = err
+        if attempt + 1 < max_attempts:
+            time.sleep(retry_delay_sec)
+    return False, last_err or "Supabase delete failed"

@@ -212,7 +212,7 @@ export function savedMediaValues(config: SystemSettingsConfig): MediaFormValues 
     evaluation_max_upload_mb: Number(
       evaluation.max_upload_mb ?? defaults.evaluation_max_upload_mb ?? 100,
     ),
-    max_evaluation_uploads_per_day: Number(evaluation.max_files_per_day ?? 5),
+    max_evaluation_uploads_per_day: Number(evaluation.max_files_per_day ?? 3),
     event_allowed_image_formats: formatsToInput(
       event.allowed_image_formats as string[] | undefined,
     ),

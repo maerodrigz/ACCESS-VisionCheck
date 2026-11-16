@@ -36,7 +36,15 @@ void main() async {
   await ApiConfig.loadLastWorkingBaseUrl();
   await ApiConfig.runtimeBaseUrl.load();
   await ApiConfig.clearStaleEmulatorBackendOverride();
+  final migratedFromQa = await ApiConfig.migrateIsolatedQaBackendToOriginalUsb();
+  await authController.clearIncompatiblePersistedSession(
+    backendMigratedFromQa: migratedFromQa,
+  );
   await ApiConfig.loadBundledMobileBackendDefault();
+  if (ApiConfig.apiBaseUrlOverride.isNotEmpty ||
+      ApiConfig.apiPublicHostOverride.isNotEmpty) {
+    apiClient.resetConnection();
+  }
   await apiClient.warmUpConnection();
   await authController.waitForInitialization();
   // Branding loads on the splash screen so the branded UI appears immediately.

@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_screen.dart';
-import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_result_media_check.dart';
+import 'package:access_mobile/shared/utils/member_integrity_display.dart';
 import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/shared/models/member_review_status.dart';
@@ -119,13 +120,10 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
   @override
   Widget build(BuildContext context) {
     final showQuality = widget.result.showQualityFeedbackEffective;
-    final heldForReview =
-        widget.result.scoresHeldForReview && !widget.result.aiDetection.isAiGenerated;
-
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: kBg,
+        backgroundColor: Colors.transparent,
         foregroundColor: kTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -158,11 +156,15 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
                 dense: true,
                 useBreakdownCard: true,
                 showOverallHeader: false,
+                mergeSupplementaryInsights: true,
                 feedbackIsLocalFallback: _geminiFeedback == null &&
                     (widget.result.geminiFeedbackIsLocal || widget.fetchLiveGemini),
               ),
               const SizedBox(height: 10),
-            ] else ...[
+            ] else if (!memberShouldHideIntegrityOnlyReviewCard(
+              result: widget.result,
+              adminReviewStatus: widget.adminReviewStatus,
+            )) ...[
               IntegrityOnlyMessageCard(
                 result: widget.result,
                 layout: IntegrityOnlyCardLayout.resultCompact,
@@ -179,11 +181,8 @@ class _EvaluationResultScreenState extends State<EvaluationResultScreen> {
               ),
               const SizedBox(height: 8),
             ],
-            AiDetectionBanner(
-              aiDetection: widget.result.aiDetection,
-              compact: true,
-              minimal: showQuality && !heldForReview && !widget.result.aiDetection.requiresReview,
-              practiceFinalCopy: true,
+            EvaluationResultMediaCheckCard(
+              result: widget.result,
               adminReviewStatus: widget.adminReviewStatus,
             ),
             const SizedBox(height: 12),

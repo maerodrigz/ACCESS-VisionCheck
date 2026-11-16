@@ -56,6 +56,11 @@ export interface TeamMemberProfile {
   isActiveAccount: boolean
   skillLevel: string | null
   skillTier: SkillLevelTier
+  /** Quality Skill Classification (Photo) from backend quality_skill_* — not admin competency. */
+  qualitySkillPhotoTitle: string | null
+  qualitySkillVideoTitle: string | null
+  qualitySkillPhotoAverage: number | null
+  qualitySkillVideoAverage: number | null
   performanceScore: number
   completedTasks: number
   assignedTasks: number
@@ -141,6 +146,18 @@ export function skillLevelLabel(member: TeamMemberProfile): string {
   const raw = member.skillLevel ?? ''
   if (raw) return raw
   return member.skillTier.charAt(0).toUpperCase() + member.skillTier.slice(1)
+}
+
+/** Compact Quality Skill Classification line for admin UI (never invents titles). */
+export function qualitySkillCompactLabel(member: TeamMemberProfile): string {
+  const photo = member.qualitySkillPhotoTitle?.trim() || null
+  const video = member.qualitySkillVideoTitle?.trim() || null
+  const photoOk = Boolean(photo && photo !== 'Not Yet Classified')
+  const videoOk = Boolean(video && video !== 'Not Yet Classified')
+  if (!photoOk && !videoOk) return 'Not Yet Classified'
+  if (photoOk && videoOk) return `Photo Skill ${photo} · Video Skill ${video}`
+  if (photoOk) return `Photo Skill: ${photo}`
+  return `Video Skill: ${video}`
 }
 
 export type MemberAccountLabel = 'Active' | 'Inactive' | 'Pending'
@@ -405,10 +422,14 @@ export function buildTeamProfiles(input: {
     const assigned = Number(u.assigned_tasks ?? 0)
     const completed = Number(u.completed_tasks ?? 0)
     const mediaScore = Number(u.media_eval_score ?? u.avg_score ?? 0)
-    const skillRaw = (u.skill_level as string | null) ?? null
     const coverageRole = coverageRoleFromTaskRole(u.primary_task_role as string | undefined)
 
     const ranking = rankingByUser.get(id)
+    const skillRaw =
+      (u.skill_level as string | null) ??
+      (ranking
+        ? String(ranking.computed_skill_level ?? ranking.skill_level ?? '') || null
+        : null)
     const aiRating = Number(
       ranking?.ai_authenticity_score ?? ranking?.admin_evaluation_score ?? mediaScore,
     )
@@ -468,6 +489,14 @@ export function buildTeamProfiles(input: {
       isActiveAccount: isActive,
       skillLevel: skillRaw,
       skillTier: skillTier(skillRaw),
+      qualitySkillPhotoTitle:
+        u.quality_skill_photo_title != null ? String(u.quality_skill_photo_title) : null,
+      qualitySkillVideoTitle:
+        u.quality_skill_video_title != null ? String(u.quality_skill_video_title) : null,
+      qualitySkillPhotoAverage:
+        u.quality_skill_photo_average != null ? Number(u.quality_skill_photo_average) : null,
+      qualitySkillVideoAverage:
+        u.quality_skill_video_average != null ? Number(u.quality_skill_video_average) : null,
       performanceScore: performance,
       completedTasks: completed,
       assignedTasks: assigned,

@@ -10,7 +10,14 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 
 enum _AlbumMediaFilter { all, photos, videos }
 
-/// Event media detail — approved event photos/videos only (from [appState.eventGallery]).
+const _kAlbumDetailBg = Color(0xFFF2F9FD);
+const _kAlbumDetailCyan = Color(0xFF00C4E8);
+
+/// Shared event album detail for Member and Requestor browse.
+///
+/// Layout matches the Requestor album experience. [requestorMode] only gates
+/// Requestor-only capabilities (currently download in the media viewer) and the
+/// "Your event" badge — it does not change media access rules.
 class EventAlbumScreen extends StatefulWidget {
   const EventAlbumScreen({
     super.key,
@@ -43,6 +50,9 @@ class _EventAlbumScreenState extends State<EventAlbumScreen> {
     }
   }
 
+  int get _livePhotoCount => _albumMedia.where((m) => m.isPhoto).length;
+  int get _liveVideoCount => _albumMedia.where((m) => m.isVideo).length;
+
   String? get _eventDescription {
     final fromAlbum = widget.album.eventDescription?.trim();
     if (fromAlbum != null && fromAlbum.isNotEmpty) return fromAlbum;
@@ -55,105 +65,144 @@ class _EventAlbumScreenState extends State<EventAlbumScreen> {
         if (d.isNotEmpty) return d;
       }
     }
+    for (final req in appState.serviceRequests) {
+      if (req.requestId == reqId) {
+        final d = req.description?.trim();
+        if (d != null && d.isNotEmpty) return d;
+      }
+    }
     return null;
   }
 
   int _gridCrossAxisCount(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    if (w >= 900) return 5;
-    if (w >= 600) return 4;
-    if (w >= 380) return 3;
-    return 2;
+    final mq = MediaQuery.of(context);
+    final w = mq.size.width;
+    final textScale = mq.textScaler.scale(1.0);
+    // Shared album grid: Infinix X695 (~392 logical px) → 3 columns; narrow / large text → 2.
+    if (w < 340 || textScale >= 1.35) return 2;
+    return 3;
   }
 
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
-    // Request notes / coverage instructions live on Calendar and My Assignments, not gallery browse.
-    final description = widget.requestorMode ? _eventDescription : null;
+    final description = _eventDescription;
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: _kAlbumDetailBg,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _EventDetailHeader(
-              album: widget.album,
-              description: description,
-              requestorMode: widget.requestorMode,
-              onBack: () => Navigator.of(context).maybePop(),
-            ),
-            _EventDetailFilterTabs(
-              selected: _filter,
-              onSelected: (f) => setState(() => _filter = f),
-            ),
-            Expanded(
-              child: ListenableBuilder(
-                listenable: Listenable.merge([appState, memberDataController]),
-                builder: (_, __) {
-                  if (memberDataController.eventGalleryLoading && _albumMedia.isEmpty) {
-                    return _EventAlbumLoadingGrid(
-                      padding: padding,
-                      crossAxisCount: _gridCrossAxisCount(context),
-                    );
-                  }
+        child: ListenableBuilder(
+          listenable: Listenable.merge([appState, memberDataController]),
+          builder: (context, _) {
+            final galleryError = memberDataController.eventGalleryError;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _AlbumDetailHeader(
+                  album: widget.album,
+                  description: description,
+                  photoCount: _livePhotoCount,
+                  videoCount: _liveVideoCount,
+                  badgeLabel:
+                      widget.requestorMode ? 'Your event' : null,
+                  onBack: () => Navigator.of(context).maybePop(),
+                ),
+                _AlbumEventMediaHeading(
+                  totalCount: _albumMedia.length,
+                ),
+                _EventDetailFilterTabs(
+                  selected: _filter,
+                  onSelected: (f) => setState(() => _filter = f),
+                ),
+                Expanded(
+                  child: Builder(
+                    builder: (_) {
+                      if (memberDataController.eventGalleryLoading &&
+                          _albumMedia.isEmpty) {
+                        return _EventAlbumLoadingGrid(
+                          padding: padding,
+                          crossAxisCount: _gridCrossAxisCount(context),
+                        );
+                      }
 
-                  final filtered = _filtered;
-                  if (filtered.isEmpty) {
-                    return MobileEmptyState(
-                      icon: _filter == _AlbumMediaFilter.videos
-                          ? Icons.videocam_outlined
-                          : _filter == _AlbumMediaFilter.photos
-                              ? Icons.photo_outlined
-                              : Icons.photo_library_outlined,
-                      title: 'No media in this filter',
-                      subtitle: _filter == _AlbumMediaFilter.all
-                          ? 'Approved photos and videos for this event will appear here.'
-                          : 'No ${_filter == _AlbumMediaFilter.photos ? 'photos' : 'videos'} for this event yet.',
-                    );
-                  }
+                      if (_albumMedia.isEmpty &&
+                          galleryError != null &&
+                          galleryError.trim().isNotEmpty) {
+                        return MobileEmptyState(
+                          icon: Icons.wifi_off_rounded,
+                          title: 'Could not load album media',
+                          subtitle: galleryError.trim(),
+                          actionLabel: 'Retry',
+                          onAction: () =>
+                              memberDataController.refreshEventGallery(),
+                        );
+                      }
 
-                  final crossAxisCount = _gridCrossAxisCount(context);
-                  final compact = MediaQuery.sizeOf(context).width < 360;
+                      final filtered = _filtered;
+                      if (filtered.isEmpty) {
+                        return MobileEmptyState(
+                          icon: _filter == _AlbumMediaFilter.videos
+                              ? Icons.videocam_outlined
+                              : _filter == _AlbumMediaFilter.photos
+                                  ? Icons.photo_outlined
+                                  : Icons.photo_library_outlined,
+                          title: 'No media in this filter',
+                          subtitle: _filter == _AlbumMediaFilter.all
+                              ? 'Approved photos and videos for this event will appear here.'
+                              : 'No ${_filter == _AlbumMediaFilter.photos ? 'photos' : 'videos'} for this event yet.',
+                        );
+                      }
 
-                  return RefreshIndicator(
-                    color: kMemberDashboardAccent,
-                    onRefresh: () => memberDataController.refreshEventGallery(),
-                    child: CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      slivers: [
-                        SliverPadding(
-                          padding: EdgeInsets.fromLTRB(padding, 4, padding, 24),
-                          sliver: SliverGrid(
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              crossAxisSpacing: compact ? 5 : 6,
-                              mainAxisSpacing: compact ? 5 : 6,
-                              childAspectRatio: 1,
-                            ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final item = filtered[index];
-                                return _EventMediaGridTile(
-                                  item: item,
-                                  onTap: () => _openMedia(context, item),
-                                );
-                              },
-                              childCount: filtered.length,
-                            ),
+                      final crossAxisCount = _gridCrossAxisCount(context);
+                      final compact = MediaQuery.sizeOf(context).width < 360;
+                      final gap = compact ? 6.0 : 7.0;
+
+                      return RefreshIndicator(
+                        color: _kAlbumDetailCyan,
+                        onRefresh: () =>
+                            memberDataController.refreshEventGallery(),
+                        child: CustomScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
                           ),
+                          slivers: [
+                            SliverPadding(
+                              padding: EdgeInsets.fromLTRB(
+                                padding,
+                                2,
+                                padding,
+                                24,
+                              ),
+                              sliver: SliverGrid(
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  crossAxisSpacing: gap,
+                                  mainAxisSpacing: gap,
+                                  childAspectRatio: 1,
+                                ),
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    final item = filtered[index];
+                                    return _EventMediaGridTile(
+                                      item: item,
+                                      onTap: () => _openMedia(context, item),
+                                    );
+                                  },
+                                  childCount: filtered.length,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -168,626 +217,307 @@ class _EventAlbumScreenState extends State<EventAlbumScreen> {
       initialIndex: index >= 0 ? index : 0,
       eventName: widget.album.name,
       eventDate: widget.album.date,
+      // Download remains Requestor-only.
       allowDownload: widget.requestorMode,
     );
   }
 }
 
-class _EventDetailHeader extends StatelessWidget {
-  const _EventDetailHeader({
+/// Compact light-blue album summary shared by Member and Requestor album detail.
+class _AlbumDetailHeader extends StatelessWidget {
+  const _AlbumDetailHeader({
     required this.album,
     required this.description,
+    required this.photoCount,
+    required this.videoCount,
     required this.onBack,
-    this.requestorMode = false,
+    this.badgeLabel,
   });
 
   final EventGalleryAlbum album;
   final String? description;
+  final int photoCount;
+  final int videoCount;
   final VoidCallback onBack;
-  final bool requestorMode;
-
-  @override
-  Widget build(BuildContext context) {
-    if (requestorMode) {
-      return _RequestorEventDetailHeader(
-        album: album,
-        description: description,
-        onBack: onBack,
-      );
-    }
-    return _MemberEventDetailHeader(
-      album: album,
-      onBack: onBack,
-    );
-  }
-}
-
-/// Cover-image hero header for requestor event albums.
-class _RequestorEventDetailHeader extends StatelessWidget {
-  const _RequestorEventDetailHeader({
-    required this.album,
-    required this.description,
-    required this.onBack,
-  });
-
-  final EventGalleryAlbum album;
-  final String? description;
-  final VoidCallback onBack;
-
-  static const _heroHeight = 132.0;
+  final String? badgeLabel;
 
   @override
   Widget build(BuildContext context) {
     final padding = mobilePagePaddingOf(context);
     final compact = MediaQuery.sizeOf(context).width < 360;
-    final coverUrl = album.coverUrl.trim();
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(padding, compact ? 4 : 6, padding, compact ? 6 : 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-          border: Border.all(color: kBorder),
-          boxShadow: memberDashboardCardShadows(tint: kAccent),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              height: _heroHeight,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (coverUrl.isNotEmpty)
-                    Image.network(
-                      coverUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _RequestorAlbumCoverFallback(),
-                    )
-                  else
-                    const _RequestorAlbumCoverFallback(),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.18),
-                          Colors.black.withValues(alpha: 0.52),
-                          Colors.black.withValues(alpha: 0.78),
-                        ],
-                        stops: const [0.0, 0.45, 1.0],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: _RequestorHeroBackButton(onBack: onBack),
-                  ),
-                  Positioned(
-                    left: 14,
-                    right: 14,
-                    bottom: 12,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: kAccent.withValues(alpha: 0.88),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Your event',
-                            style: dashText(const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            )),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          album.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: dashText(const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            height: 1.15,
-                            letterSpacing: -0.2,
-                          )),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_month_rounded,
-                              size: 13,
-                              color: Colors.white.withValues(alpha: 0.88),
-                            ),
-                            const SizedBox(width: 5),
-                            Expanded(
-                              child: Text(
-                                album.dateLabel,
-                                style: dashText(TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.88),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                )),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                compact ? 12 : 14,
-                compact ? 12 : 14,
-                compact ? 12 : 14,
-                compact ? 12 : 14,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (album.eventCategory != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: kBlueDim,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: kAccent.withValues(alpha: 0.18)),
-                      ),
-                      child: Text(
-                        album.eventCategory!,
-                        style: memberDashboardMetaStyle.copyWith(
-                          fontSize: compact ? 11 : 12,
-                          color: kAccent,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: compact ? 10 : 12),
-                  ],
-                  if (description != null) ...[
-                    Text(
-                      description!,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: memberDashboardBodyStyle.copyWith(
-                        fontSize: compact ? 12 : 13,
-                        height: 1.45,
-                        color: kTextSecondary,
-                      ),
-                    ),
-                    SizedBox(height: compact ? 12 : 14),
-                  ],
-                  Row(
-                    children: [
-                      if (album.photoCount > 0)
-                        Expanded(
-                          child: _RequestorMediaStatTile(
-                            icon: Icons.photo_library_rounded,
-                            value: '${album.photoCount}',
-                            label: album.photoCount == 1 ? 'Photo' : 'Photos',
-                            accent: kCyan,
-                            background: kCyanDim,
-                            compact: compact,
-                          ),
-                        ),
-                      if (album.photoCount > 0 && album.videoCount > 0)
-                        SizedBox(width: compact ? 8 : 10),
-                      if (album.videoCount > 0)
-                        Expanded(
-                          child: _RequestorMediaStatTile(
-                            icon: Icons.videocam_rounded,
-                            value: '${album.videoCount}',
-                            label: album.videoCount == 1 ? 'Video' : 'Videos',
-                            accent: kDashStatPurpleIcon,
-                            background: kPurpleDim,
-                            compact: compact,
-                          ),
-                        ),
-                      if (album.photoCount == 0 && album.videoCount == 0)
-                        Expanded(
-                          child: _RequestorMediaStatTile(
-                            icon: Icons.photo_library_outlined,
-                            value: '0',
-                            label: 'Media',
-                            accent: kAccent,
-                            background: kBlueDim,
-                            compact: compact,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RequestorAlbumCoverFallback extends StatelessWidget {
-  const _RequestorAlbumCoverFallback();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            kAccent.withValues(alpha: 0.85),
-            const Color(0xFF0F2744),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.photo_library_rounded,
-          size: 40,
-          color: Colors.white.withValues(alpha: 0.35),
-        ),
-      ),
-    );
-  }
-}
-
-class _RequestorHeroBackButton extends StatelessWidget {
-  const _RequestorHeroBackButton({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onBack,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.38),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-          ),
-          child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-class _RequestorMediaStatTile extends StatelessWidget {
-  const _RequestorMediaStatTile({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.accent,
-    required this.background,
-    required this.compact,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color accent;
-  final Color background;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final stacked = constraints.maxWidth < 110;
-
-        return Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: stacked ? 8 : (compact ? 10 : 12),
-            vertical: stacked ? 10 : (compact ? 10 : 11),
-          ),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: accent.withValues(alpha: 0.2)),
-          ),
-          child: stacked
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: Icon(icon, color: accent, size: 16),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      value,
-                      style: dashText(TextStyle(
-                        color: kTextPrimary,
-                        fontSize: compact ? 15 : 16,
-                        fontWeight: FontWeight.w800,
-                        height: 1,
-                      )),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: dashText(TextStyle(
-                        color: kTextSecondary,
-                        fontSize: compact ? 10 : 11,
-                        fontWeight: FontWeight.w500,
-                      )),
-                    ),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: Icon(icon, color: accent, size: 17),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            value,
-                            style: dashText(TextStyle(
-                              color: kTextPrimary,
-                              fontSize: compact ? 16 : 17,
-                              fontWeight: FontWeight.w800,
-                              height: 1,
-                            )),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            label,
-                            style: dashText(TextStyle(
-                              color: kTextSecondary,
-                              fontSize: compact ? 11 : 12,
-                              fontWeight: FontWeight.w500,
-                            )),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-        );
-      },
-    );
-  }
-}
-
-class _MemberEventDetailHeader extends StatelessWidget {
-  const _MemberEventDetailHeader({
-    required this.album,
-    required this.onBack,
-  });
-
-  final EventGalleryAlbum album;
-  final VoidCallback onBack;
-
-  static const _coverAspectRatio = 16 / 9;
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 360;
-    final padding = mobilePagePaddingOf(context);
-    final coverUrl = album.coverUrl.trim();
-
-    return ColoredBox(
-      color: kBg,
+      padding: EdgeInsets.fromLTRB(padding, compact ? 4 : 6, padding, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(padding, compact ? 4 : 6, padding, 8),
-            child: Row(
-              children: [
-                Material(
-                  color: kSurface,
-                  shape: const CircleBorder(),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: onBack,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.arrow_back_rounded,
-                        size: compact ? 20 : 22,
-                        color: kTextPrimary,
-                      ),
+          Row(
+            children: [
+              Material(
+                color: kSurface,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                elevation: 0,
+                child: InkWell(
+                  onTap: onBack,
+                  customBorder: const CircleBorder(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.arrow_back_rounded,
+                      size: compact ? 20 : 22,
+                      color: kTextPrimary,
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Event album',
-                    style: memberDashboardMetaStyle.copyWith(
-                      fontSize: compact ? 12 : 13,
-                      fontWeight: FontWeight.w600,
-                      color: kTextSecondary,
-                    ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Event album',
+                  style: memberDashboardMetaStyle.copyWith(
+                    fontSize: compact ? 12 : 13,
+                    fontWeight: FontWeight.w600,
+                    color: kTextSecondary,
                   ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: compact ? 8 : 10),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(
+              compact ? 12 : 14,
+              compact ? 12 : 13,
+              compact ? 12 : 14,
+              compact ? 12 : 13,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFE8F6FC),
+                  Color(0xFFF2F9FD),
+                  Color(0xFFEAF2FF),
+                ],
+              ),
+              border: Border.all(color: kBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: padding),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: AspectRatio(
-                aspectRatio: _coverAspectRatio,
-                child: coverUrl.isNotEmpty
-                    ? Image.network(
-                        coverUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const _MemberAlbumCoverFallback(),
-                      )
-                    : const _MemberAlbumCoverFallback(),
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              padding,
-              compact ? 10 : 12,
-              padding,
-              compact ? 10 : 12,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  album.name,
-                  style: memberDashboardSectionTitleStyle.copyWith(
-                    fontSize: compact ? 17 : 18,
-                    height: 1.25,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        album.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: dashText(TextStyle(
+                          color: kTextPrimary,
+                          fontSize: compact ? 16 : 17,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          letterSpacing: -0.2,
+                        )),
+                      ),
+                    ),
+                    if (badgeLabel != null && badgeLabel!.trim().isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: kAccent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: kAccent.withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: Text(
+                          badgeLabel!,
+                          style: dashText(const TextStyle(
+                            color: kAccent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.15,
+                          )),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Icon(
-                      Icons.calendar_today_outlined,
-                      size: compact ? 13 : 14,
+                      Icons.calendar_month_rounded,
+                      size: 14,
                       color: kAccent,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      album.dateLabel,
-                      style: TextStyle(
-                        color: kTextSecondary,
-                        fontSize: compact ? 12 : 13,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        album.dateLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: dashText(TextStyle(
+                          color: kTextSecondary,
+                          fontSize: compact ? 12 : 12.5,
+                          fontWeight: FontWeight.w500,
+                        )),
                       ),
                     ),
                   ],
                 ),
-                if (album.eventCategory != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: kAccent.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: kAccent.withValues(alpha: 0.2)),
-                    ),
-                    child: Text(
-                      album.eventCategory!,
-                      style: TextStyle(
-                        color: kAccent,
-                        fontSize: compact ? 11 : 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                if (description != null && description!.isNotEmpty) ...[
+                  SizedBox(height: compact ? 8 : 9),
+                  Text(
+                    description!,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: dashText(TextStyle(
+                      color: kTextSecondary,
+                      fontSize: compact ? 12 : 12.5,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                    )),
                   ),
                 ],
-                const SizedBox(height: 10),
-                _EventDetailMediaSummary(album: album, compact: compact),
+                SizedBox(height: compact ? 10 : 11),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _AlbumCountChip(
+                      icon: Icons.photo_library_rounded,
+                      label:
+                          '$photoCount photo${photoCount == 1 ? '' : 's'}',
+                      iconColor: kGreen,
+                      background: kGreenDim,
+                      compact: compact,
+                    ),
+                    _AlbumCountChip(
+                      icon: Icons.videocam_rounded,
+                      label:
+                          '$videoCount video${videoCount == 1 ? '' : 's'}',
+                      iconColor: _kAlbumDetailCyan,
+                      background: kCyanDim,
+                      compact: compact,
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          Divider(height: 1, thickness: 1, color: kBorder.withValues(alpha: 0.7)),
         ],
       ),
     );
   }
 }
 
-class _MemberAlbumCoverFallback extends StatelessWidget {
-  const _MemberAlbumCoverFallback();
+class _AlbumCountChip extends StatelessWidget {
+  const _AlbumCountChip({
+    required this.icon,
+    required this.label,
+    required this.iconColor,
+    required this.background,
+    required this.compact,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color iconColor;
+  final Color background;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: kSurfaceAlt,
-      child: Center(
-        child: Icon(Icons.photo_library_outlined, size: 40, color: kAccent.withValues(alpha: 0.55)),
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 9,
+        vertical: compact ? 5 : 6,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: iconColor.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: compact ? 13 : 14, color: iconColor),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: dashText(TextStyle(
+              color: kTextPrimary,
+              fontSize: compact ? 11 : 11.5,
+              fontWeight: FontWeight.w700,
+            )),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _EventDetailMediaSummary extends StatelessWidget {
-  const _EventDetailMediaSummary({
-    required this.album,
-    required this.compact,
-  });
+class _AlbumEventMediaHeading extends StatelessWidget {
+  const _AlbumEventMediaHeading({required this.totalCount});
 
-  final EventGalleryAlbum album;
-  final bool compact;
+  final int totalCount;
 
   @override
   Widget build(BuildContext context) {
-    final parts = <String>[];
-    if (album.photoCount > 0) {
-      parts.add('${album.photoCount} Photo${album.photoCount == 1 ? '' : 's'}');
-    }
-    if (album.videoCount > 0) {
-      parts.add('${album.videoCount} Video${album.videoCount == 1 ? '' : 's'}');
-    }
-    if (parts.isEmpty) return const SizedBox.shrink();
-    final label = parts.join(' • ');
+    final padding = mobilePagePaddingOf(context);
+    final compact = MediaQuery.sizeOf(context).width < 360;
 
-    return Row(
-      children: [
-        Icon(
-          Icons.photo_library_outlined,
-          size: compact ? 14 : 15,
-          color: kAccent,
-        ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: TextStyle(
-            color: kAccent,
-            fontSize: compact ? 12 : 13,
-            fontWeight: FontWeight.w700,
-            height: 1.2,
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        padding,
+        compact ? 12 : 14,
+        padding,
+        compact ? 6 : 8,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Event Media',
+              style: dashText(TextStyle(
+                color: kTextPrimary,
+                fontSize: compact ? 15 : 16,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.15,
+              )),
+            ),
           ),
-        ),
-      ],
+          Text(
+            '$totalCount',
+            style: dashText(TextStyle(
+              color: kTextSecondary,
+              fontSize: compact ? 13 : 14,
+              fontWeight: FontWeight.w700,
+            )),
+          ),
+        ],
+      ),
     );
   }
 }
-
-
-
 
 class _EventDetailFilterTabs extends StatelessWidget {
   const _EventDetailFilterTabs({
@@ -816,34 +546,22 @@ class _EventDetailFilterTabs extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 360;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(padding, 6, padding, compact ? 8 : 10),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Row(
-            children: _AlbumMediaFilter.values.map((filter) {
-              return Expanded(
-                child: _EventDetailFilterTab(
-                  label: _labels[filter]!,
-                  icon: _icons[filter]!,
-                  inactiveIconColor: switch (filter) {
-                    _AlbumMediaFilter.all => kAccent,
-                    _AlbumMediaFilter.photos => kGreen,
-                    _AlbumMediaFilter.videos => kCyan,
-                  },
-                  active: selected == filter,
-                  compact: compact,
-                  onTap: () => onSelected(filter),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
+      padding: EdgeInsets.fromLTRB(padding, 0, padding, compact ? 6 : 8),
+      child: Row(
+        children: [
+          for (var i = 0; i < _AlbumMediaFilter.values.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: _EventDetailFilterTab(
+                label: _labels[_AlbumMediaFilter.values[i]]!,
+                icon: _icons[_AlbumMediaFilter.values[i]]!,
+                active: selected == _AlbumMediaFilter.values[i],
+                compact: compact,
+                onTap: () => onSelected(_AlbumMediaFilter.values[i]),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -853,7 +571,6 @@ class _EventDetailFilterTab extends StatelessWidget {
   const _EventDetailFilterTab({
     required this.label,
     required this.icon,
-    required this.inactiveIconColor,
     required this.active,
     required this.compact,
     required this.onTap,
@@ -861,62 +578,64 @@ class _EventDetailFilterTab extends StatelessWidget {
 
   final String label;
   final IconData icon;
-  final Color inactiveIconColor;
   final bool active;
   final bool compact;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            padding: EdgeInsets.symmetric(vertical: compact ? 9 : 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              gradient: active ? kMemberDashboardAccentGradient : null,
-              boxShadow: active
-                  ? [
-                      BoxShadow(
-                        color: kMemberDashboardAccent.withValues(alpha: 0.22),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          height: 40,
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 4 : 6,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: active ? _kAlbumDetailCyan : kSurface,
+            border: Border.all(
+              color: active ? _kAlbumDetailCyan : kBorder,
             ),
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: compact ? 14 : 15,
-                  color: active ? Colors.white : inactiveIconColor,
+            boxShadow: active
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: compact ? 14 : 15,
+                color: active ? Colors.white : kTextSecondary,
+              ),
+              SizedBox(width: compact ? 4 : 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: dashText(TextStyle(
+                    color: active ? Colors.white : kTextSecondary,
+                    fontSize: compact ? 12 : 13,
+                    fontWeight: FontWeight.w700,
+                  )),
                 ),
-                SizedBox(width: compact ? 4 : 5),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: dashText(TextStyle(
-                      color: active ? Colors.white : kTextSecondary,
-                      fontSize: compact ? 12 : 13,
-                      fontWeight: FontWeight.w700,
-                    )),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -937,36 +656,41 @@ class _EventMediaGridTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: kSurface,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (item.isPhoto)
-              GalleryMediaThumbnail(url: item.thumbnailUrl, isVideo: false)
-            else
-              GalleryMediaThumbnail(url: item.thumbnailUrl, isVideo: true),
-            if (item.isVideo)
-              Container(
-                color: Colors.black.withValues(alpha: 0.22),
-                alignment: Alignment.center,
+            GalleryMediaThumbnail(
+              url: item.thumbnailUrl,
+              isVideo: item.isVideo,
+              fallbackIconSize: 28,
+            ),
+            if (item.isVideo) ...[
+              ColoredBox(
+                color: Colors.black.withValues(alpha: 0.18),
+              ),
+              Center(
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.55),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.45),
+                    ),
                   ),
                   child: const Icon(
                     Icons.play_arrow_rounded,
                     color: Colors.white,
-                    size: 22,
+                    size: 20,
                   ),
                 ),
               ),
+            ],
           ],
         ),
       ),

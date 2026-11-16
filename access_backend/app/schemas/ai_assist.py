@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class MediaEvaluationFeedbackIn(BaseModel):
-    evaluation: dict[str, Any] = Field(description="EfficientNet evaluation payload from /media/evaluate")
+    evaluation: dict[str, Any] = Field(description="Quality evaluation payload from /media/evaluate (MUSIQ + OpenCV)")
 
 
 class MediaEvaluationFeedbackOut(BaseModel):

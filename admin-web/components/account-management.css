@@ -271,15 +271,90 @@
 }
 
 .account-mgmt__col-status {
-  width: 14%;
+  width: 12%;
+}
+
+.account-mgmt__col-presence {
+  width: 10%;
+}
+
+.account-mgmt__col-seen {
+  width: 16%;
 }
 
 .account-mgmt__col-date {
-  width: 20%;
+  width: 12%;
 }
 
 .account-mgmt__col-actions {
-  width: 12%;
+  width: 10%;
+}
+
+.account-mgmt__presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--am-text-secondary);
+}
+
+.account-mgmt__presence-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.account-mgmt__presence--online {
+  color: #047857;
+}
+
+.account-mgmt__presence--online .account-mgmt__presence-dot {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.account-mgmt__presence--offline .account-mgmt__presence-dot {
+  background: #94a3b8;
+}
+
+.account-mgmt__inactive-tag {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.account-mgmt__seen-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.account-mgmt__seen-sub {
+  color: var(--am-text-secondary);
+}
+
+.account-mgmt__presence-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--am-border);
+  border-radius: 0.75rem;
+  background: var(--am-surface, #fff);
+  font-size: 0.75rem;
+  color: var(--am-text-secondary);
+}
+
+.account-mgmt__presence-summary strong {
+  color: var(--am-text-primary, #0f172a);
+  font-weight: 700;
 }
 
 .account-mgmt__table thead {
@@ -423,6 +498,11 @@
 .account-mgmt__badge--inactive {
   background: rgba(100, 116, 139, 0.14);
   color: #64748b;
+}
+
+.account-mgmt__badge--disabled {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
 }
 
 .account-mgmt__badge--suspended {

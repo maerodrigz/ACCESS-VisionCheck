@@ -1,0 +1,849 @@
+{
+  "meta": {
+    "preferred_quality_engine": "efficientnet-b0",
+    "ffmpeg_available": true,
+    "source": "Synthetic still (OpenCV colorful documentation-like scene) + FFmpeg transforms",
+    "clip_params": {
+      "width": 640,
+      "height": 360,
+      "fps": 10,
+      "duration_s": 2.0,
+      "codec": "libx264"
+    },
+    "db_writes": false,
+    "authenticity": "deferred (include_authenticity=False)"
+  },
+  "clips": {
+    "baseline_neutral": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\01_baseline_neutral.mp4",
+      "bytes": 98037,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Color channels look reasonably neutral for documentation. Mild warm or cool lighting can still be intentional. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Color channels look reasonably neutral for documentation. Mild warm or cool lighting can still be intentional. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        }
+      ]
+    },
+    "color_strong_tint": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\02_color_strong_tint.mp4",
+      "bytes": 100656,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "A mild color tint is present. This is often normal for indoor or sunset light. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "A mild color tint is present. This is often normal for indoor or sunset light. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        }
+      ]
+    },
+    "color_temporal_tint": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\03_color_temporal_tint.mp4",
+      "bytes": 138857,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "A mild color tint is present. This is often normal for indoor or sunset light. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "A mild color tint is present. This is often normal for indoor or sunset light. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        }
+      ]
+    },
+    "sat_desaturated": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\04_sat_desaturated.mp4",
+      "bytes": 78291,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": null,
+              "available": false,
+              "label": "N/A",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Low color variation or monochrome look. Color balance is not scored (not treated as poor quality)."
+            },
+            "Color Saturation": {
+              "score": null,
+              "available": false,
+              "label": "N/A",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Image appears grayscale or intentionally muted. Saturation is not scored as a defect."
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": null,
+              "available": false,
+              "label": "N/A",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Low color variation or monochrome look. Color balance is not scored (not treated as poor quality)."
+            },
+            "Color Saturation": {
+              "score": null,
+              "available": false,
+              "label": "N/A",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Image appears grayscale or intentionally muted. Saturation is not scored as a defect."
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        }
+      ]
+    },
+    "sat_oversaturated": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\05_sat_oversaturated.mp4",
+      "bytes": 101479,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "A mild color tint is present. This is often normal for indoor or sunset light. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 3,
+              "available": true,
+              "label": "Fair",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation is quite high. This may be intentional but can look unnatural. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "A mild color tint is present. This is often normal for indoor or sunset light. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 3,
+              "available": true,
+              "label": "Fair",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation is quite high. This may be intentional but can look unnatural. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        }
+      ]
+    },
+    "motion_geometric_shake": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\06_motion_geometric_shake.mp4",
+      "bytes": 164759,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Color channels look reasonably neutral for documentation. Mild warm or cool lighting can still be intentional. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Motion looks like a relatively smooth directional move (possible pan) rather than erratic shake. Experimental heuristic; sparse sampling limits certainty."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Color channels look reasonably neutral for documentation. Mild warm or cool lighting can still be intentional. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Motion looks like a relatively smooth directional move (possible pan) rather than erratic shake. Experimental heuristic; sparse sampling limits certainty."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        }
+      ]
+    },
+    "motion_variable_blur": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\07_motion_variable_blur.mp4",
+      "bytes": 94661,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Color channels look reasonably neutral for documentation. Mild warm or cool lighting can still be intentional. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Mild camera movement between sampled frames. Experimental heuristic."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Color channels look reasonably neutral for documentation. Mild warm or cool lighting can still be intentional. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 4,
+              "available": true,
+              "label": "Good",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Mild camera movement between sampled frames. Experimental heuristic."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        }
+      ]
+    },
+    "flicker_brightness_mild": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\08_flicker_brightness_mild.mp4",
+      "bytes": 97010,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Color channels look reasonably neutral for documentation. Mild warm or cool lighting can still be intentional. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Color channels look reasonably neutral for documentation. Mild warm or cool lighting can still be intentional. (Heuristic estimate.)"
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled-frame luminance stays relatively steady. Experimental heuristic using OpenCV mean brightness on FFmpeg samples (not EfficientNet)."
+            }
+          }
+        }
+      ]
+    },
+    "flicker_brightness_extreme": {
+      "path": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\video_four_criteria_validation\\assets\\09_flicker_brightness_extreme.mp4",
+      "bytes": 30856,
+      "runs": [
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": null,
+              "available": false,
+              "label": "N/A",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Very dark or bright exposure makes color cast estimation unreliable."
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 2,
+              "available": true,
+              "label": "Needs Improvement",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Large luminance swings between sampled frames. Experimental heuristic."
+            }
+          }
+        },
+        {
+          "ok": true,
+          "quality_engine": "efficientnet-b0",
+          "opencv_fallback": false,
+          "efficientnet_used": true,
+          "ffmpeg_used": true,
+          "frames_analyzed": 4,
+          "criteria": {
+            "Color Balance": {
+              "score": null,
+              "available": false,
+              "label": "N/A",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Very dark or bright exposure makes color cast estimation unreliable."
+            },
+            "Color Saturation": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Saturation looks within a typical range for documentation photos. (Heuristic estimate.)"
+            },
+            "Motion Stability": {
+              "score": 5,
+              "available": true,
+              "label": "Excellent",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Sampled frames show little camera jitter. Experimental heuristic based on sparse feature tracking between FFmpeg samples."
+            },
+            "Flickering": {
+              "score": 2,
+              "available": true,
+              "label": "Needs Improvement",
+              "estimate_kind": "heuristic_experimental",
+              "explanation": "Large luminance swings between sampled frames. Experimental heuristic."
+            }
+          }
+        }
+      ]
+    }
+  },
+  "determinism": {
+    "baseline_neutral": "identical",
+    "color_strong_tint": "identical",
+    "color_temporal_tint": "identical",
+    "sat_desaturated": "identical",
+    "sat_oversaturated": "identical",
+    "motion_geometric_shake": "identical",
+    "motion_variable_blur": "identical",
+    "flicker_brightness_mild": "identical",
+    "flicker_brightness_extreme": "identical"
+  },
+  "comparisons": [
+    {
+      "criterion": "Color Balance",
+      "altered_clip": "color_strong_tint",
+      "baseline_score": 5,
+      "altered_score": 4,
+      "expected": "lower",
+      "actual": "5->4 (lower, as expected)",
+      "verdict": "pass",
+      "note": "Strong global hue cast should lower heuristic Color Balance vs neutral mid-frame."
+    },
+    {
+      "criterion": "Color Balance",
+      "altered_clip": "color_temporal_tint",
+      "baseline_score": 5,
+      "altered_score": 4,
+      "expected": "lower",
+      "actual": "5->4 (lower, as expected)",
+      "verdict": "pass",
+      "note": "Second-half tint only; mid sampled frame may miss early neutral or late tint."
+    },
+    {
+      "criterion": "Color Saturation",
+      "altered_clip": "sat_desaturated",
+      "baseline_score": 5,
+      "altered_score": "N/A",
+      "expected": "na_or_lower",
+      "actual": "N/A",
+      "verdict": "pass",
+      "note": "Muted/near-mono may score N/A or lower than typical-range baseline."
+    },
+    {
+      "criterion": "Color Saturation",
+      "altered_clip": "sat_oversaturated",
+      "baseline_score": 5,
+      "altered_score": 3,
+      "expected": "lower",
+      "actual": "5->3 (lower, as expected)",
+      "verdict": "pass",
+      "note": "Heavy oversaturation should leave typical-range (5) toward 3 or 2."
+    },
+    {
+      "criterion": "Motion Stability",
+      "altered_clip": "motion_geometric_shake",
+      "baseline_score": 5,
+      "altered_score": 4,
+      "expected": "lower",
+      "actual": "5->4 (lower, as expected)",
+      "verdict": "pass",
+      "note": "Crop/shake without blur: sharpness proxy may not detect pure translation."
+    },
+    {
+      "criterion": "Motion Stability",
+      "altered_clip": "motion_variable_blur",
+      "baseline_score": 5,
+      "altered_score": 4,
+      "expected": "lower",
+      "actual": "5->4 (lower, as expected)",
+      "verdict": "pass",
+      "note": "Time-varying blur should increase frame-to-frame sharpness deltas."
+    },
+    {
+      "criterion": "Flickering",
+      "altered_clip": "flicker_brightness_mild",
+      "baseline_score": 5,
+      "altered_score": 5,
+      "expected": "lower",
+      "actual": "5->5 (unchanged)",
+      "verdict": "inconclusive",
+      "note": "Mild FFmpeg brightness oscillation; sparse samples + soft_score may keep score at 5."
+    },
+    {
+      "criterion": "Flickering",
+      "altered_clip": "flicker_brightness_extreme",
+      "baseline_score": 5,
+      "altered_score": 2,
+      "expected": "lower",
+      "actual": "5->2 (lower, as expected)",
+      "verdict": "pass",
+      "note": "Extreme alternating dark/bright frames (stress test for brightness-delta proxy)."
+    }
+  ]
+}

@@ -11,7 +11,8 @@ import { DocumentationRequestsTable } from '../components/documentation-requests
 import { RequestReviewPanel } from '../components/documentation-requests/RequestReviewPanel'
 
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { PageToolbarRefreshButton } from '../components/PageToolbar'
 
 import { useToast } from '../context/ToastContext'
@@ -266,9 +267,10 @@ export function DocumentationRequestsPage() {
   return (
 
     <div className="mx-auto max-w-[1400px] space-y-3">
-      <AdminPageHeader
-        title="Documentation Requests"
-        subtitle="Review, approve, and assign members to organization documentation requests."
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.documentationRequests.icon}
+        title={FEATURE_HEADERS.documentationRequests.title}
+        description={FEATURE_HEADERS.documentationRequests.description}
         backTo="/"
         actions={<PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />}
       />

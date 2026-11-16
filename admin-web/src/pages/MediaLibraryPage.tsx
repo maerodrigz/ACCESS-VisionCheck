@@ -18,6 +18,7 @@ import {
 import { ApiError } from '../api/client'
 import {
   bulkPublishEventMediaToFacebook,
+  checkFacebookConnection,
   fetchEventMedia,
   fetchFacebookConfigStatus,
   fetchFacebookPublishHistory,
@@ -25,9 +26,11 @@ import {
   type FacebookConfigStatus,
   type FacebookHistoryEntry,
 } from '../api/eventMedia'
+import { FacebookConnectionHealth } from '../components/media-library/FacebookConnectionHealth'
 import { AdminCard } from '../components/AdminCard'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { pageToolbarBtnClass } from '../components/PageToolbar'
 import { AdminConfirmDialog } from '../components/AdminConfirmDialog'
 import { MoveAlbumModal } from '../components/media-library/MoveAlbumModal'
@@ -82,6 +85,7 @@ export function MediaLibraryPage() {
   const [requests, setRequests] = useState<Record<string, unknown>[]>([])
   const [fbHistory, setFbHistory] = useState<FacebookHistoryEntry[]>([])
   const [fbConfig, setFbConfig] = useState<FacebookConfigStatus | null>(null)
+  const [fbChecking, setFbChecking] = useState(false)
   const [fbExtrasLoading, setFbExtrasLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -114,6 +118,7 @@ export function MediaLibraryPage() {
     try {
       const [history, fbStatus] = await Promise.all([
         fetchFacebookPublishHistory(30).catch(() => [] as FacebookHistoryEntry[]),
+        // Cached only — does not call Meta Graph on gallery render.
         fetchFacebookConfigStatus().catch(() => null),
       ])
       setFbHistory(history)
@@ -122,6 +127,27 @@ export function MediaLibraryPage() {
       setFbExtrasLoading(false)
     }
   }, [])
+
+  const handleCheckFacebookConnection = useCallback(async () => {
+    setFbChecking(true)
+    try {
+      const status = await checkFacebookConnection()
+      setFbConfig(status)
+      if (status.page_token_valid) {
+        showToast('Facebook Page connection verified.', 'success')
+      } else {
+        showToast(
+          status.health?.last_error || status.reminder || 'Facebook connection needs attention.',
+          'error',
+        )
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Facebook connection check failed'
+      showToast(msg, 'error')
+    } finally {
+      setFbChecking(false)
+    }
+  }, [showToast])
 
   const applyGalleryCore = useCallback(
     (eventRows: Awaited<ReturnType<typeof fetchEventMedia>>, reqs: Record<string, unknown>[]) => {
@@ -757,9 +783,10 @@ export function MediaLibraryPage() {
 
   return (
     <div className="space-y-4 pb-24">
-      <AdminPageHeader
-        title="Media Gallery"
-        subtitle="Event documentation photos and videos. Star best picks, then publish to your org page."
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.mediaGallery.icon}
+        title={FEATURE_HEADERS.mediaGallery.title}
+        description={FEATURE_HEADERS.mediaGallery.description}
         backTo="/"
         actions={
           <>
@@ -820,7 +847,14 @@ export function MediaLibraryPage() {
       <AdminOperationBanner banner={operationBanner} onDismiss={clearOperationBanner} />
 
       {fbExtrasLoading && !fbConfig ? (
-        <p className="text-xs text-[var(--color-text-muted)]">Checking Facebook publish settings…</p>
+        <p className="text-xs text-[var(--color-text-muted)]">Loading Facebook connection health…</p>
+      ) : null}
+      {isAdmin ? (
+        <FacebookConnectionHealth
+          config={fbConfig}
+          checking={fbChecking}
+          onCheckConnection={() => void handleCheckFacebookConnection()}
+        />
       ) : null}
       {fbConfig && fbCanPublish && !fbConfig.configured && (
         <FacebookCredentialsReminder config={fbConfig} />

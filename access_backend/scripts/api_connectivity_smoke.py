@@ -7,20 +7,29 @@ Usage:
   python manage.py runserver --port 3001
   python scripts/api_connectivity_smoke.py
 
-Optional env:
-  SMOKE_API_BASE=http://127.0.0.1:3001/api
+Optional env (or copy .env.smoke.example → .env.smoke.local):
+  SMOKE_API_BASE=http://127.0.0.1:3003/api
   SMOKE_ADMIN_EMAIL=admin@access.edu
-  SMOKE_ADMIN_PASSWORD=admin123
-  SMOKE_MEMBER_EMAIL=member@access.edu
-  SMOKE_MEMBER_PASSWORD=member123
+  SMOKE_MEMBER_EMAIL / SMOKE_ORG_EMAIL — use isolated QA accounts on access_waverep_test
 """
 
 from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 import httpx
+
+_ROOT = Path(__file__).resolve().parents[1]
+_SMOKE_LOCAL = _ROOT / ".env.smoke.local"
+if _SMOKE_LOCAL.is_file():
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(_SMOKE_LOCAL, override=False)
+    except ImportError:
+        pass
 
 API_BASE = os.environ.get("SMOKE_API_BASE", "http://127.0.0.1:3001/api").rstrip("/")
 ADMIN_EMAIL = os.environ.get("SMOKE_ADMIN_EMAIL", "admin@access.edu")
@@ -41,6 +50,14 @@ def fail(label: str, detail: str) -> None:
 
 def main() -> int:
     print(f"API base: {API_BASE}")
+    if _SMOKE_LOCAL.is_file():
+        print(f"Loaded: {_SMOKE_LOCAL.name}")
+    if ":3003" in API_BASE and MEMBER_EMAIL.endswith("@access.edu"):
+        print(
+            "NOTE: access_waverep_test usually lacks member@access.edu / org@access.edu. "
+            "Use .env.smoke.local (see .env.smoke.example) for QA accounts.",
+            file=sys.stderr,
+        )
     errors = 0
 
     with httpx.Client(timeout=30.0) as client:
@@ -75,6 +92,8 @@ def main() -> int:
                     "/evaluations?mine=true",
                     "/notifications",
                     "/rankings",
+                    "/events?scope=assignments",
+                    "/events?scope=campus",
                 ),
             ),
             (
@@ -85,7 +104,7 @@ def main() -> int:
                     "/profile",
                     "/service-requests",
                     "/notifications",
-                    "/events",
+                    "/events?scope=campus",
                 ),
             ),
         ):

@@ -137,11 +137,6 @@ class _CompactRequestTrack extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final steps = track.steps;
-    final current = steps.cast<RequestTrackStep?>().firstWhere(
-          (s) => s!.state == RequestTrackStepState.current ||
-              s.state == RequestTrackStepState.declined,
-          orElse: () => steps.isNotEmpty ? steps.last : null,
-        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,12 +144,12 @@ class _CompactRequestTrack extends StatelessWidget {
         Row(
           children: [
             for (var i = 0; i < steps.length; i++) ...[
-              _Dot(step: steps[i], size: 8),
+              _Dot(step: steps[i], size: 7),
               if (i < steps.length - 1)
                 Expanded(
                   child: Container(
                     height: 2,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
                     color: steps[i].state == RequestTrackStepState.complete ||
                             steps[i].state == RequestTrackStepState.current
                         ? steps[i].accent.withValues(alpha: 0.45)
@@ -164,21 +159,37 @@ class _CompactRequestTrack extends StatelessWidget {
             ],
           ],
         ),
-        if (current != null) ...[
-          const SizedBox(height: 6),
-          Text(
-            track.declined
-                ? 'Request declined'
-                : 'Tracking: ${current.label}',
-            style: memberDashboardMetaStyle.copyWith(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: current.state == RequestTrackStepState.declined
-                  ? kRed
-                  : kTextSecondary,
-            ),
-          ),
-        ],
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            for (var i = 0; i < steps.length; i++)
+              Expanded(
+                child: Text(
+                  steps[i].label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: i == 0
+                      ? TextAlign.left
+                      : (i == steps.length - 1
+                          ? TextAlign.right
+                          : TextAlign.center),
+                  style: memberDashboardMetaStyle.copyWith(
+                    fontSize: 9.5,
+                    fontWeight: steps[i].state == RequestTrackStepState.current ||
+                            steps[i].state == RequestTrackStepState.declined
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: switch (steps[i].state) {
+                      RequestTrackStepState.declined => kRed,
+                      RequestTrackStepState.current => kTextPrimary,
+                      RequestTrackStepState.complete => kTextSecondary,
+                      RequestTrackStepState.upcoming => kIconInactive,
+                    },
+                  ),
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }

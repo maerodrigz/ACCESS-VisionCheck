@@ -102,9 +102,9 @@ def test_evaluate_media_to_thread_runs_sync_work_off_loop() -> None:
     assert out.evaluation["ai_detection"]["analysis_status"] == "deferred"
 
 
-def test_default_detector_univfd() -> None:
+def test_default_detector_probe() -> None:
     from app.config import settings
     from app.services.dedicated_ai_detector import active_ai_detector_backend
 
-    assert settings.ai_detector_backend == "univfd"
-    assert active_ai_detector_backend() == "univfd"
+    assert settings.ai_detector_backend == "probe"
+    assert active_ai_detector_backend() == "probe"

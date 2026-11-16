@@ -24,7 +24,7 @@ class EvaluationHowItWorksGuide extends StatelessWidget {
     (
       icon: Icons.auto_awesome_rounded,
       title: 'Server Analysis',
-      description: 'ACCESS scores quality and integrity on the server (EfficientNet-B0 and PROBE).',
+      description: 'ACCESS scores quality and integrity on the server (MUSIQ + OpenCV and PROBE).',
       accent: kAccent,
     ),
     (

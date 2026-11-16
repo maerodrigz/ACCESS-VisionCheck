@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
+import 'package:access_mobile/shared/utils/camera_provenance_member_evidence.dart';
 
 /// Member-facing integrity banner copy (automated PROBE vs final admin decision).
 class MemberIntegrityBannerModel {
@@ -31,22 +32,625 @@ enum MemberIntegrityColorKind { green, yellow, red, accent, neutral }
 
 enum MemberIntegrityIconKind { verified, warning, ai, pending, neutral }
 
-/// Member-facing automated integrity tier (copy only; thresholds unchanged).
-String memberAutomatedIntegrityTierLabel(AiDetectionResult automated) {
-  if (automated.isDeferredAuthenticity) return 'Needs Review';
-  final risk = (automated.riskLevel ?? automated.visualRiskLevel ?? '').toLowerCase();
+/// AI authenticity tier only (excludes camera provenance / admin review gates).
+String memberAutomatedAiRiskTierLabel(AiDetectionResult automated) {
+  if (automated.isDeferredAuthenticity) return 'Analysis pending';
+  if (automated.isAiAnalysisUnavailable) return 'Analysis unavailable';
+  final risk = (automated.visualRiskLevel ?? automated.riskLevel ?? '').toLowerCase();
   if (automated.isAiGenerated || risk == 'high') return 'High AI Risk';
-  if (automated.isSuspicious ||
-      risk == 'suspicious' ||
-      risk == 'medium' ||
-      automated.isSourceUnverified) {
+  if (automated.isSuspicious || risk == 'suspicious' || risk == 'medium') {
     return 'Needs Review';
   }
+  if (risk == 'low' || automated.isLowProbeRisk) return 'Low AI Risk';
   if (automated.requiresReview && !automated.isLowProbeRisk) return 'Needs Review';
   return 'Low AI Risk';
 }
 
+/// Source provenance label from existing backend outcome/strength only.
+/// Does not treat Android version, codec, timestamps, or make/model tags as proof
+/// of original capture. "Partially Verified" / "Unverified" are metadata states.
+String memberSourceProvenanceStatusLabel(AiDetectionResult automated) {
+  final outcome = (automated.provenancePolicyOutcome ?? '').toLowerCase();
+  final strength = (automated.cameraProvenanceStrength ?? '').toLowerCase();
+
+  if (outcome == 'source_partially_verified' || strength == 'partial') {
+    return 'Partially Verified';
+  }
+  if (outcome == 'source_unverified' || strength == 'absent') {
+    return 'Unverified';
+  }
+  if (strength == 'strong' || outcome == 'low_ai_risk') {
+    // Claimed container/EXIF device tags only — not confirmed original capture.
+    return 'Device metadata present';
+  }
+  return 'Unknown';
+}
+
+/// Admin workflow label for the separated integrity strip (display only).
+String memberAdminVerificationStatusLabel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return 'Re-upload Required';
+  }
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus) ||
+      MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    return 'Rejected';
+  }
+  if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus) ||
+      MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    return 'Verified';
+  }
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus) &&
+      !memberShowOverallMediaUnderReview(
+        automated: automated,
+        adminReviewStatus: adminReviewStatus,
+      )) {
+    return 'Not required';
+  }
+  if (memberShowOverallMediaUnderReview(
+        automated: automated,
+        adminReviewStatus: adminReviewStatus,
+      ) ||
+      automated.isAiAnalysisUnavailable ||
+      automated.isDeferredAuthenticity) {
+    return 'Pending Verification';
+  }
+  return 'Not required';
+}
+
+/// Separated AI risk / source provenance / admin verification (existing fields only).
+class MemberSeparatedIntegrityStatus {
+  const MemberSeparatedIntegrityStatus({
+    required this.aiRiskLabel,
+    required this.sourceProvenanceLabel,
+    required this.adminVerificationLabel,
+  });
+
+  final String aiRiskLabel;
+  final String sourceProvenanceLabel;
+  final String adminVerificationLabel;
+}
+
+MemberSeparatedIntegrityStatus memberSeparatedIntegrityStatus({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  return MemberSeparatedIntegrityStatus(
+    aiRiskLabel: memberAutomatedAiRiskTierLabel(automated),
+    sourceProvenanceLabel: memberSourceProvenanceStatusLabel(automated),
+    adminVerificationLabel: memberAdminVerificationStatusLabel(
+      automated: automated,
+      adminReviewStatus: adminReviewStatus,
+    ),
+  );
+}
+
+/// Member-facing automated integrity tier (copy only; thresholds unchanged).
+String memberAutomatedIntegrityTierLabel(AiDetectionResult automated) {
+  return memberAutomatedAiRiskTierLabel(automated);
+}
+
+/// Synthetic-media probability (0–1) for member-facing AI score on photo/video practice evals.
+double? memberSyntheticAiProbability(AiDetectionResult automated) {
+  if (automated.isAiAnalysisUnavailable || automated.isDeferredAuthenticity) {
+    return null;
+  }
+  if (automated.probability != null) return automated.probability;
+  final exif = automated.exifMetadata;
+  if (exif != null) {
+    final visual = exif['visual_ai_probability'];
+    if (visual is num) return visual.toDouble();
+    final raw = exif['raw_detector_probability'];
+    if (raw is num) return raw.toDouble();
+  }
+  return null;
+}
+
+String formatMemberAiProbabilityPercent(AiDetectionResult automated) {
+  final p = memberSyntheticAiProbability(automated);
+  if (p == null) return 'N/A';
+  final pct = p * 100;
+  return '${pct.toStringAsFixed(1)}%';
+}
+
+bool memberPracticePhotoOrVideoMediaType(String? mediaType) {
+  final mt = (mediaType ?? '').trim().toLowerCase();
+  if (mt.isEmpty) return true;
+  return mt == 'photo' || mt == 'video';
+}
+
+/// Member-facing AI card: score only (no frames, detector names, or admin metadata).
+String? memberFacingAiScoreLine(AiDetectionResult automated) {
+  final p = memberSyntheticAiProbability(automated);
+  if (p == null) return null;
+  return 'AI Score: ${formatMemberAiProbabilityPercent(automated)}';
+}
+
+bool memberShouldHideIntegrityOnlyReviewCard({
+  required PhotoEvaluationResult result,
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) return false;
+  if (result.aiDetection.isAiGenerated) return false;
+  if (!result.scoresHeldForReview) return false;
+  return memberShowOverallMediaUnderReview(
+    automated: result.aiDetection,
+    adminReviewStatus: adminReviewStatus,
+  );
+}
+
+String memberOverallReviewPanelDetail({PhotoEvaluationResult? result}) {
+  var detail =
+      'Administrative review is required before this submission is finalized. '
+      'Scores, feedback, and XP remain pending until an officer completes review.';
+  if (result != null &&
+      result.xpPendingEffective &&
+      result.xpPointsPreviewEffective > 0) {
+    detail +=
+        ' Up to ${result.xpPointsPreviewEffective} XP may be awarded after review if approved.';
+  }
+  return detail;
+}
+
+bool memberShowOverallMediaUnderReview({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) return false;
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus)) return false;
+  return automated.requiresReview ||
+      MemberReviewStatus.isReviewPending(adminReviewStatus);
+}
+
+bool memberShowCameraProvenancePanel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) return false;
+  if (!automated.requiresReview && !MemberReviewStatus.isReviewPending(adminReviewStatus)) {
+    return false;
+  }
+  return automated.isSourceUnverified || automated.isCameraProvenancePartial;
+}
+
+/// Positive AI + provenance wording only when automated results already justify both.
+bool memberQualifiesForCameraCapturedPositiveMessage({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) return false;
+  if (memberAutomatedAiRiskTierLabel(automated) != 'Low AI Risk') return false;
+  if (memberShowCameraProvenancePanel(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    return false;
+  }
+  if (!automated.isCameraProvenanceStrong) return false;
+  if (automated.isCameraProvenancePartial || automated.isSourceUnverified) return false;
+  return true;
+}
+
+bool memberLowAiWithCameraVerificationPending({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (memberAutomatedAiRiskTierLabel(automated) != 'Low AI Risk') return false;
+  return memberShowCameraProvenancePanel(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  );
+}
+
+MemberIntegrityPanelModel memberCameraProvenanceAdminCompletedPanelModel() {
+  return const MemberIntegrityPanelModel(
+    sectionTitle: 'Camera Metadata / Provenance',
+    tierLabel: 'Administrator verification completed',
+    detail:
+        'An administrator completed review using the available evidence. '
+        'This reflects an administrative decision, not new automated metadata extraction.',
+    colorKind: MemberIntegrityColorKind.green,
+    iconKind: MemberIntegrityIconKind.verified,
+  );
+}
+
+/// Admin queue / outcome only (independent of AI risk and camera metadata tiers).
+MemberIntegrityPanelModel? memberAdminVerificationPanelModel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+  PhotoEvaluationResult? evaluationResult,
+}) {
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus)) {
+    return null;
+  }
+
+  const sectionTitle = 'Admin Verification Status';
+
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) {
+    if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
+      return const MemberIntegrityPanelModel(
+        sectionTitle: sectionTitle,
+        tierLabel: 'Verified as human',
+        detail:
+            'An administrator verified this submission as human-captured. '
+            'This is separate from the automated AI risk and camera metadata results below.',
+        colorKind: MemberIntegrityColorKind.green,
+        iconKind: MemberIntegrityIconKind.verified,
+      );
+    }
+    if (MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus) ||
+        MemberReviewStatus.isAdminRejected(adminReviewStatus)) {
+      return const MemberIntegrityPanelModel(
+        sectionTitle: sectionTitle,
+        tierLabel: 'Admin review complete',
+        detail:
+            'An administrator completed review and recorded the outcome below. '
+            'This reflects an administrative decision, not a new automated scan.',
+        colorKind: MemberIntegrityColorKind.red,
+        iconKind: MemberIntegrityIconKind.ai,
+      );
+    }
+    if (MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+      return const MemberIntegrityPanelModel(
+        sectionTitle: sectionTitle,
+        tierLabel: 'Accepted with warning',
+        detail: 'Your submission was reviewed and accepted with an admin warning on record.',
+        colorKind: MemberIntegrityColorKind.yellow,
+        iconKind: MemberIntegrityIconKind.warning,
+      );
+    }
+    if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+      return const MemberIntegrityPanelModel(
+        sectionTitle: sectionTitle,
+        tierLabel: 'Reupload requested',
+        detail: 'An administrator requested a new upload. See admin remarks if provided.',
+        colorKind: MemberIntegrityColorKind.accent,
+        iconKind: MemberIntegrityIconKind.neutral,
+      );
+    }
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Admin review complete',
+      detail: memberIntegrityBannerModel(
+        automated: automated,
+        adminReviewStatus: adminReviewStatus,
+      ).detail,
+      colorKind: MemberIntegrityColorKind.neutral,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  if (!memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    return null;
+  }
+
+  return MemberIntegrityPanelModel(
+    sectionTitle: sectionTitle,
+    tierLabel: 'Pending Verification',
+    detail:
+        'This submission is waiting for an administrator to complete verification. '
+        '${memberOverallReviewPanelDetail(result: evaluationResult)}',
+    colorKind: MemberIntegrityColorKind.yellow,
+    iconKind: MemberIntegrityIconKind.pending,
+  );
+}
+
+/// Overall submission workflow label (evaluations list and summary chips).
+String memberSubmissionWorkflowStatusLabel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (automated.isDeferredAuthenticity) return 'Processing';
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return 'Re-upload Required';
+  }
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus)) return 'Rejected';
+  if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) return 'Verified';
+  if (MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) return 'Verified';
+  if (MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) return 'Rejected';
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus) &&
+      !memberShowOverallMediaUnderReview(
+        automated: automated,
+        adminReviewStatus: adminReviewStatus,
+      )) {
+    return 'Verified';
+  }
+  if (memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    return 'Pending Verification';
+  }
+  if (automated.isAiAnalysisUnavailable) return 'Pending Verification';
+  return 'Verified';
+}
+
+bool memberProvenancePartialAndroidPendingReview({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) return false;
+  if (memberAutomatedAiRiskTierLabel(automated) != 'Low AI Risk') return false;
+  if (!automated.isProvenancePartialAndroidHold) return false;
+  return memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  );
+}
+
+/// Camera metadata classification on the result screen (including after admin verification).
+bool memberShowCameraMetadataPanel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  if (automated.isCameraProvenancePartial ||
+      automated.isSourceUnverified ||
+      automated.isCameraProvenanceAbsent) {
+    return true;
+  }
+  if (automated.isCameraProvenanceStrong &&
+      !memberShowOverallMediaUnderReview(
+        automated: automated,
+        adminReviewStatus: adminReviewStatus,
+      )) {
+    return true;
+  }
+  return false;
+}
+
+MemberIntegrityPanelModel memberCameraProvenancePanelModel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  const sectionTitle = 'Camera Metadata / Provenance';
+  final evidenceLines = memberCameraProvenanceEvidenceLines(automated);
+  final isVideo = memberAiDetectionIsVideoContainerProvenance(automated);
+  final adminComplete = MemberReviewStatus.isFinalAdminDecision(adminReviewStatus);
+  final reviewPending = memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  );
+
+  if (automated.isCameraProvenancePartial) {
+    final detail = isVideo
+        ? 'Recording metadata was detected (such as timestamp or Android version), but camera manufacturer and model are not available in this file. '
+            'Incomplete metadata does not mean the video is AI-generated. '
+            'Android version, codec, and timestamps are not proof of original camera capture.'
+        : 'Some camera metadata is present, but manufacturer and model information is incomplete or missing in this file. '
+            'Incomplete metadata does not mean the photo is AI-generated. '
+            'Timestamps and software tags are not proof of original camera capture.';
+    if (reviewPending && !adminComplete) {
+      return MemberIntegrityPanelModel(
+        sectionTitle: sectionTitle,
+        tierLabel: 'Partially Verified',
+        detail: '$detail Administrator verification is still required.',
+        colorKind: MemberIntegrityColorKind.yellow,
+        iconKind: MemberIntegrityIconKind.warning,
+        evidenceLines: evidenceLines,
+      );
+    }
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Partially Verified',
+      detail: detail,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+      evidenceLines: evidenceLines,
+    );
+  }
+
+  if (automated.isCameraProvenanceStrong) {
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Device metadata present',
+      detail:
+          'Device make/model tags and creation time were present in this file. '
+          'These are unverified metadata claims and do not by themselves prove original camera capture.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+      evidenceLines: evidenceLines,
+    );
+  }
+
+  final absentDetail =
+      'No reliable original camera provenance was found in this file. '
+      'This is not a claim that the media is AI-generated.';
+  return MemberIntegrityPanelModel(
+    sectionTitle: sectionTitle,
+    tierLabel: 'Unverified',
+    detail: reviewPending && !adminComplete
+        ? '$absentDetail Administrator verification is still required.'
+        : absentDetail,
+    colorKind: MemberIntegrityColorKind.yellow,
+    iconKind: MemberIntegrityIconKind.warning,
+    evidenceLines: evidenceLines,
+  );
+}
+
+MemberIntegrityPanelModel memberAiAuthenticityPanelModel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  const sectionTitle = 'AI Authenticity Assessment';
+
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) {
+    final tier = memberIntegrityTierLabel(
+      automated: automated,
+      adminReviewStatus: adminReviewStatus,
+    );
+    final detail = MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)
+        ? 'An administrator completed review using the available evidence. '
+            'This reflects an administrative decision, not a new automated scan.'
+        : MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus) ||
+                MemberReviewStatus.isAdminRejected(adminReviewStatus)
+            ? 'An administrator completed review and recorded the outcome below. '
+                'This reflects an administrative decision, not a new automated scan.'
+            : memberIntegrityBannerModel(
+                automated: automated,
+                adminReviewStatus: adminReviewStatus,
+              ).detail;
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: tier == 'Low AI Risk' && automated.isCameraProvenanceStrong
+          ? 'Consistent with Camera-Captured Media'
+          : tier,
+      detail: detail,
+      colorKind: tier == 'High AI Risk'
+          ? MemberIntegrityColorKind.red
+          : tier == 'Needs Review'
+              ? MemberIntegrityColorKind.yellow
+              : MemberIntegrityColorKind.green,
+      iconKind: tier == 'High AI Risk'
+          ? MemberIntegrityIconKind.ai
+          : tier == 'Needs Review'
+              ? MemberIntegrityIconKind.warning
+              : MemberIntegrityIconKind.verified,
+      statsLine: memberFacingAiScoreLine(automated),
+    );
+  }
+
+  if (automated.isAiAnalysisUnavailable) {
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Analysis Unavailable',
+      detail:
+          'AI authenticity analysis could not be completed. '
+          "The media's origin cannot be assessed using the available AI result.",
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (automated.isDeferredAuthenticity) {
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Analysis pending',
+      detail: automated.detail,
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  final aiTier = memberAutomatedAiRiskTierLabel(automated);
+
+  if (memberQualifiesForCameraCapturedPositiveMessage(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Consistent with Camera-Captured Media',
+      detail:
+          'AI analysis indicates low AI-generation risk, and device metadata tags were present. '
+          'Metadata tags are unverified claims and do not by themselves prove original camera capture.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+      statsLine: memberFacingAiScoreLine(automated),
+    );
+  }
+
+  if (memberLowAiWithCameraVerificationPending(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Low AI Risk',
+      detail:
+          'AI analysis indicates low AI-generation risk. '
+          'Camera metadata is assessed separately below and does not change this AI screening result.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+      statsLine: memberFacingAiScoreLine(automated),
+    );
+  }
+
+  if (aiTier == 'High AI Risk') {
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'High AI Risk',
+      detail:
+          'The analysis identified elevated AI-generation indicators. '
+          'Administrative review is required.',
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.ai,
+      statsLine: memberFacingAiScoreLine(automated),
+    );
+  }
+
+  if (aiTier == 'Needs Review') {
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Needs Review',
+      detail:
+          'The analysis detected patterns that require further verification. '
+          'Administrative review is recommended.',
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+      statsLine: memberFacingAiScoreLine(automated),
+    );
+  }
+
+  if (aiTier == 'Low AI Risk') {
+    return MemberIntegrityPanelModel(
+      sectionTitle: sectionTitle,
+      tierLabel: 'Low AI Risk',
+      detail:
+          'AI analysis indicates low AI-generation risk. '
+          'This is a screening result only and does not verify capture source by itself.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+      statsLine: memberFacingAiScoreLine(automated),
+    );
+  }
+
+  return MemberIntegrityPanelModel(
+    sectionTitle: sectionTitle,
+    tierLabel: aiTier,
+    detail: automated.detail.isNotEmpty ? automated.detail : 'Automated authenticity screening is in progress.',
+    colorKind: MemberIntegrityColorKind.accent,
+    iconKind: MemberIntegrityIconKind.pending,
+    statsLine: memberFacingAiScoreLine(automated),
+  );
+}
+
+class MemberIntegrityPanelModel {
+  const MemberIntegrityPanelModel({
+    required this.sectionTitle,
+    required this.tierLabel,
+    required this.detail,
+    required this.colorKind,
+    required this.iconKind,
+    this.statsLine,
+    this.evidenceLines = const [],
+  });
+
+  final String sectionTitle;
+  final String tierLabel;
+  final String detail;
+  final MemberIntegrityColorKind colorKind;
+  final MemberIntegrityIconKind iconKind;
+  final String? statsLine;
+  final List<String> evidenceLines;
+}
+
 /// Tier label for saved evaluations (admin review + automated PROBE).
+/// Compact list-row label (Evaluations tab): overall review gate vs AI-only tier.
+String memberEvaluationListIntegrityLabel({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+}) {
+  return memberSubmissionWorkflowStatusLabel(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  );
+}
+
 String memberIntegrityTierLabel({
   required AiDetectionResult automated,
   String? adminReviewStatus,
@@ -61,8 +665,10 @@ String memberIntegrityTierLabel({
     }
     return 'Needs Review';
   }
-  if (MemberReviewStatus.isReviewPending(adminReviewStatus)) return 'Needs Review';
-  return memberAutomatedIntegrityTierLabel(automated);
+  if (MemberReviewStatus.isReviewPending(adminReviewStatus)) {
+    return memberAutomatedAiRiskTierLabel(automated);
+  }
+  return memberAutomatedAiRiskTierLabel(automated);
 }
 
 Color memberIntegrityTierColor(String tierLabel) {
@@ -70,18 +676,29 @@ Color memberIntegrityTierColor(String tierLabel) {
     case 'High AI Risk':
       return kRed;
     case 'Needs Review':
+    case 'Analysis unavailable':
+    case 'Analysis Unavailable':
+      return kYellow;
+    case 'Analysis pending':
+      return kAccent;
+    case 'Under review':
+    case 'Pending Verification':
+    case 'Processing':
+    case 'Re-upload Required':
       return kYellow;
     case 'Low AI Risk':
+    case 'Consistent with Camera-Captured Media':
     default:
       return kGreen;
   }
 }
 
 String automatedScreeningSecondaryLine(AiDetectionResult automated) {
-  final pct = automated.probability != null ? (automated.probability! * 100).round() : null;
+  final pct =
+      memberSyntheticAiProbability(automated) != null ? formatMemberAiProbabilityPercent(automated) : null;
   final band = _automatedBandLabel(automated);
   if (pct != null) {
-    return 'Automated screening initially reported $band AI authenticity risk ($pct%).';
+    return 'Automated screening initially reported $band AI authenticity risk ($pct).';
   }
   return 'Automated screening initially reported $band AI authenticity risk.';
 }
@@ -108,7 +725,8 @@ MemberIntegrityBannerModel memberIntegrityBannerModel({
       heading: 'Low AI authenticity risk',
       subtitle: 'Auto-cleared',
       detail:
-          'Automated screening found low AI-generation risk with acceptable provenance. '
+          'Automated screening found low AI-generation risk under current policy. '
+          'Device metadata tags, when present, are unverified claims and are not proof of original capture. '
           'No administrator review is required for this submission.',
       colorKind: MemberIntegrityColorKind.green,
       iconKind: MemberIntegrityIconKind.verified,
@@ -223,10 +841,30 @@ MemberIntegrityBannerModel memberIntegrityBannerModel({
     );
   }
 
+  if (memberProvenancePartialAndroidPendingReview(
+    automated: automated,
+    adminReviewStatus: admin,
+  )) {
+    return MemberIntegrityBannerModel(
+      heading: 'Pending Verification',
+      subtitle: 'Low AI authenticity risk',
+      detail:
+          'Automated screening shows low AI-generation risk. Some Android recording metadata '
+          'is present, but camera make and model are not in this file. This is not treated as '
+          'AI-generated content. An officer must still confirm the file before scores and XP are released.',
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.pending,
+      showPendingReviewFooter: true,
+      pendingReviewFooter:
+          'Scores and XP stay pending until verification completes.',
+      secondaryAutomatedLine: automatedScreeningSecondaryLine(automated),
+    );
+  }
+
   if (automated.isSourceUnverified && !MemberReviewStatus.isFinalAdminDecision(admin)) {
     return MemberIntegrityBannerModel(
-      heading: 'Source unverified',
-      subtitle: 'Review required',
+      heading: 'Pending Verification',
+      subtitle: 'Source metadata incomplete',
       detail: automated.detail.isNotEmpty
           ? automated.detail
           : 'No reliable original camera provenance was found. Administrative review is required.',
@@ -246,7 +884,8 @@ MemberIntegrityBannerModel memberIntegrityBannerModel({
       iconKind: MemberIntegrityIconKind.ai,
       showPendingReviewFooter: true,
       pendingReviewFooter:
-          'This submission may be flagged for officer review before it counts toward rankings.',
+          'Automated screening only. This is not confirmation that media is AI-generated. '
+          'Officers may review before it counts toward rankings.',
     );
   }
 
@@ -277,6 +916,697 @@ MemberIntegrityBannerModel memberIntegrityBannerModel({
     iconKind: MemberIntegrityIconKind.verified,
   );
 }
+
+/// Compact evaluation report: verification title + one-line explanation.
+class MemberReportVerificationStatus {
+  const MemberReportVerificationStatus({
+    required this.title,
+    required this.explanation,
+    required this.colorKind,
+    required this.iconKind,
+  });
+
+  final String title;
+  final String explanation;
+  final MemberIntegrityColorKind colorKind;
+  final MemberIntegrityIconKind iconKind;
+}
+
+MemberReportVerificationStatus memberReportVerificationStatus({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+  PhotoEvaluationResult? evaluationResult,
+}) {
+  if (automated.isDeferredAuthenticity) {
+    return const MemberReportVerificationStatus(
+      title: 'Processing',
+      explanation: 'Authenticity screening is still running for this submission.',
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return const MemberReportVerificationStatus(
+      title: 'Re-upload Required',
+      explanation: 'An administrator needs a new file before this evaluation can continue.',
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.neutral,
+    );
+  }
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus) ||
+      MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    return const MemberReportVerificationStatus(
+      title: 'Rejected',
+      explanation: 'An administrator completed review and did not approve this submission for scoring or XP.',
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.ai,
+    );
+  }
+  if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
+    return const MemberReportVerificationStatus(
+      title: 'Verified as Human',
+      explanation: 'An administrator verified this upload as human-captured.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+  if (MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    return const MemberReportVerificationStatus(
+      title: 'Verified as Human',
+      explanation: 'Review completed and accepted with an admin warning on record.',
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus)) {
+    return const MemberReportVerificationStatus(
+      title: 'Verified',
+      explanation: 'Auto-cleared under integrity policy. No administrator review was required.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+  if (memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    if (memberProvenancePartialAndroidPendingReview(
+      automated: automated,
+      adminReviewStatus: adminReviewStatus,
+    )) {
+      return const MemberReportVerificationStatus(
+        title: 'Pending Verification',
+        explanation:
+            'Low AI risk, but camera metadata is incomplete. This is not treated as AI-generated; an officer must still confirm the file.',
+        colorKind: MemberIntegrityColorKind.yellow,
+        iconKind: MemberIntegrityIconKind.pending,
+      );
+    }
+    final aiTier = memberAutomatedAiRiskTierLabel(automated);
+    if (aiTier == 'High AI Risk' || aiTier == 'Needs Review') {
+      return MemberReportVerificationStatus(
+        title: 'Pending Verification',
+        explanation: aiTier == 'High AI Risk'
+            ? 'Elevated AI-generation risk requires an administrator decision before scores and XP are final.'
+            : 'Elevated screening signals require administrator review before scores and XP are final.',
+        colorKind: MemberIntegrityColorKind.yellow,
+        iconKind: MemberIntegrityIconKind.pending,
+      );
+    }
+    return MemberReportVerificationStatus(
+      title: 'Pending Verification',
+      explanation: evaluationResult != null
+          ? 'Scores and XP stay pending until an administrator completes verification.'
+          : 'Administrative verification is required before this submission is finalized.',
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+  if (automated.isAiAnalysisUnavailable) {
+    return const MemberReportVerificationStatus(
+      title: 'Pending Verification',
+      explanation: 'AI authenticity screening did not complete; administrator review is required.',
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+  return const MemberReportVerificationStatus(
+    title: 'Verified',
+    explanation: 'No administrator review is required for this submission.',
+    colorKind: MemberIntegrityColorKind.green,
+    iconKind: MemberIntegrityIconKind.verified,
+  );
+}
+
+String memberCompactProvenanceStatusLabel(AiDetectionResult automated) {
+  if (automated.isCameraProvenanceStrong) return 'Strong';
+  if (automated.isCameraProvenancePartial) return 'Partial';
+  return 'Unavailable';
+}
+
+String memberCompactProvenanceBrief(
+  AiDetectionResult automated, {
+  String? adminReviewStatus,
+}) {
+  if (automated.isCameraProvenanceStrong) {
+    return 'Camera or container metadata supports the reported capture source.';
+  }
+  if (automated.isCameraProvenancePartial) {
+    return memberAiDetectionIsVideoContainerProvenance(automated)
+        ? 'Some recording metadata is present; missing make/model is not proof of AI generation.'
+        : 'Some camera metadata is present; incomplete tags are not proof of AI generation.';
+  }
+  return 'Reliable in-camera provenance was not found. This alone is not proof of AI generation.';
+}
+
+/// Compact XP line for evaluation report (never treats preview as awarded XP).
+class MemberReportXpStatus {
+  const MemberReportXpStatus({
+    required this.headline,
+    required this.detail,
+    required this.colorKind,
+  });
+
+  final String headline;
+  final String detail;
+  final MemberIntegrityColorKind colorKind;
+}
+
+MemberReportXpStatus memberReportXpStatus(
+  PhotoEvaluationResult result, {
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus) ||
+      MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    return const MemberReportXpStatus(
+      headline: 'Not awarded',
+      detail: 'XP was not granted for this submission after administrator review.',
+      colorKind: MemberIntegrityColorKind.red,
+    );
+  }
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return const MemberReportXpStatus(
+      headline: 'Not awarded',
+      detail: 'Upload a replacement file to continue. XP is not applied until review succeeds.',
+      colorKind: MemberIntegrityColorKind.accent,
+    );
+  }
+  if (result.xpAlreadyAwardedEffective) {
+    final awarded = result.memberXpAwardedPoints ?? 0;
+    if (awarded > 0) {
+      return MemberReportXpStatus(
+        headline: '$awarded XP awarded',
+        detail: 'XP already awarded for this submission.',
+        colorKind: MemberIntegrityColorKind.green,
+      );
+    }
+    return const MemberReportXpStatus(
+      headline: 'Already awarded',
+      detail: 'XP already awarded for this submission.',
+      colorKind: MemberIntegrityColorKind.green,
+    );
+  }
+  final awarded = result.memberXpAwardedPoints;
+  if (awarded != null && awarded > 0) {
+    return MemberReportXpStatus(
+      headline: '$awarded XP awarded',
+      detail: 'Rewards were released after verification and scoring.',
+      colorKind: MemberIntegrityColorKind.green,
+    );
+  }
+  if (awarded == 0 && result.memberScoresReleasedEffective && !result.xpPendingEffective) {
+    return const MemberReportXpStatus(
+      headline: 'Not awarded',
+      detail: 'Scores may be visible, but XP was not granted for this submission.',
+      colorKind: MemberIntegrityColorKind.neutral,
+    );
+  }
+  if (result.xpPendingEffective || result.scoresHeldForReview) {
+    return const MemberReportXpStatus(
+      headline: 'Pending',
+      detail: 'XP pending.',
+      colorKind: MemberIntegrityColorKind.yellow,
+    );
+  }
+  if (result.xpEligibleEffective == false) {
+    return const MemberReportXpStatus(
+      headline: 'Not awarded',
+      detail: 'This submission is not eligible for XP under the current integrity outcome.',
+      colorKind: MemberIntegrityColorKind.neutral,
+    );
+  }
+  return const MemberReportXpStatus(
+    headline: 'Pending',
+    detail: 'XP pending.',
+    colorKind: MemberIntegrityColorKind.yellow,
+  );
+}
+
+/// One-line XP outcome for the member saved evaluation report.
+String memberReportReviewDecisionXpLine(
+  PhotoEvaluationResult result, {
+  String? adminReviewStatus,
+}) {
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus) ||
+      MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    return 'XP not awarded for this submission.';
+  }
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return 'XP not awarded until a replacement upload is approved.';
+  }
+  if (result.xpAlreadyAwardedEffective) {
+    final awarded = result.memberXpAwardedPoints ?? 0;
+    if (awarded > 0) {
+      return '$awarded XP already awarded for this submission.';
+    }
+    return 'XP already awarded for this submission.';
+  }
+  final awarded = result.memberXpAwardedPoints;
+  if (awarded != null && awarded > 0) {
+    return '$awarded XP awarded for this submission.';
+  }
+  if (awarded == 0 &&
+      result.memberScoresReleasedEffective &&
+      !result.xpPendingEffective) {
+    return 'XP not awarded for this submission.';
+  }
+  if (result.xpPendingEffective || result.scoresHeldForReview) {
+    if (result.xpPointsPreviewEffective > 0) {
+      return 'XP pending. Up to ${result.xpPointsPreviewEffective} XP if approved after review.';
+    }
+    return 'XP pending.';
+  }
+  if (result.xpEligibleEffective == false) {
+    return 'XP not awarded for this submission.';
+  }
+  return 'XP pending.';
+}
+
+/// Saved evaluation report: single authoritative admin / XP summary for members.
+class MemberReportReviewDecision {
+  const MemberReportReviewDecision({
+    required this.statusTitle,
+    required this.reason,
+    required this.xpOutcomeLine,
+    required this.colorKind,
+    required this.iconKind,
+    this.administratorRemarks,
+  });
+
+  final String statusTitle;
+  final String reason;
+  final String? administratorRemarks;
+  final String xpOutcomeLine;
+  final MemberIntegrityColorKind colorKind;
+  final MemberIntegrityIconKind iconKind;
+}
+
+String? _dedupeAdministratorRemarks({
+  required String? adminRemarks,
+  required String reason,
+}) {
+  final remarks = adminRemarks?.trim() ?? '';
+  if (remarks.isEmpty) return null;
+  final reasonLower = reason.trim().toLowerCase();
+  if (reasonLower.isEmpty) return remarks;
+  final r = remarks.toLowerCase();
+  if (r == reasonLower) return null;
+  if (reasonLower.contains(r) || r.contains(reasonLower)) return null;
+  return remarks;
+}
+
+MemberReportReviewDecision memberEvaluationReportReviewDecision({
+  required PhotoEvaluationResult result,
+  String? adminReviewStatus,
+  String? adminRemarks,
+}) {
+  final xpLine = memberReportReviewDecisionXpLine(
+    result,
+    adminReviewStatus: adminReviewStatus,
+  );
+  final automated = result.aiDetection;
+  final remarksForCard = _dedupeAdministratorRemarks(
+    adminRemarks: adminRemarks,
+    reason: '',
+  );
+
+  if (MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    const reason =
+        'The administrator confirmed this submission as AI-generated.';
+    return MemberReportReviewDecision(
+      statusTitle: 'Submission Rejected',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.ai,
+    );
+  }
+
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus)) {
+    const fallbackReason =
+        'An administrator completed review and did not approve this submission.';
+    final remarks = adminRemarks?.trim() ?? '';
+    final reason = remarks.isNotEmpty ? remarks : fallbackReason;
+    return MemberReportReviewDecision(
+      statusTitle: 'Submission Rejected',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    const fallback =
+        'An administrator requested a new upload before this evaluation can continue.';
+    final remarks = adminRemarks?.trim() ?? '';
+    final reason = remarks.isNotEmpty ? remarks : fallback;
+    return MemberReportReviewDecision(
+      statusTitle: 'Re-upload Required',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.neutral,
+    );
+  }
+
+  if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
+    const reason = 'An administrator verified this upload as human-captured.';
+    return MemberReportReviewDecision(
+      statusTitle: 'Approved',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  if (MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    const reason =
+        'An administrator accepted this submission and recorded a warning on file.';
+    return MemberReportReviewDecision(
+      statusTitle: 'Approved with Warning',
+      reason: reason,
+      administratorRemarks: _dedupeAdministratorRemarks(
+        adminRemarks: adminRemarks,
+        reason: reason,
+      ),
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus)) {
+    const reason =
+        'Automated screening cleared this upload. No administrator review was required.';
+    return MemberReportReviewDecision(
+      statusTitle: 'Approved',
+      reason: reason,
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  if (automated.isDeferredAuthenticity) {
+    return MemberReportReviewDecision(
+      statusTitle: 'Processing',
+      reason: 'Authenticity screening is still running for this submission.',
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  if (MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) {
+    final normalized = MemberReviewStatus.normalize(adminReviewStatus);
+    return MemberReportReviewDecision(
+      statusTitle: 'Review Complete',
+      reason:
+          'Administrator review status: ${normalized.replaceAll('_', ' ')}.',
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.neutral,
+      iconKind: MemberIntegrityIconKind.neutral,
+    );
+  }
+
+  if (memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    String reason;
+    if (memberProvenancePartialAndroidPendingReview(
+      automated: automated,
+      adminReviewStatus: adminReviewStatus,
+    )) {
+      reason =
+          'Screening found no major AI concerns, but an officer must still confirm this file. '
+          'Incomplete camera metadata alone does not mean the media is fake.';
+    } else {
+      final aiTier = memberAutomatedAiRiskTierLabel(automated);
+      if (aiTier == 'High AI Risk' || automated.isAiGenerated) {
+        reason =
+            'Screening raised concerns that require an administrator decision. '
+            'This is not a final rejection until review completes.';
+      } else if (aiTier == 'Needs Review') {
+        reason =
+            'Screening flagged this upload for a closer look. Scores and XP stay pending until review completes.';
+      } else {
+        reason =
+            'An administrator must complete review before this submission is finalized.';
+      }
+    }
+    return MemberReportReviewDecision(
+      statusTitle: 'Pending Administrator Review',
+      reason: reason,
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  if (automated.isAiAnalysisUnavailable) {
+    return MemberReportReviewDecision(
+      statusTitle: 'Pending Administrator Review',
+      reason:
+          'Automated screening could not finish. An administrator must review this submission.',
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (automated.isAiGenerated &&
+      !MemberReviewStatus.isFinalAdminDecision(adminReviewStatus)) {
+    return MemberReportReviewDecision(
+      statusTitle: 'Pending Administrator Review',
+      reason:
+          'Screening flagged this upload for review. An administrator must decide before scores and XP are final.',
+      administratorRemarks: remarksForCard,
+      xpOutcomeLine: xpLine,
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  return MemberReportReviewDecision(
+    statusTitle: 'Approved',
+    reason: 'No administrator review is required for this submission.',
+    administratorRemarks: remarksForCard,
+    xpOutcomeLine: xpLine,
+    colorKind: MemberIntegrityColorKind.green,
+    iconKind: MemberIntegrityIconKind.verified,
+  );
+}
+
+/// Plain-English media integrity status on the member Evaluation Result screen.
+class MemberMediaCheckPresentation {
+  const MemberMediaCheckPresentation({
+    required this.statusLabel,
+    required this.summary,
+    this.detail,
+    required this.colorKind,
+    required this.iconKind,
+  });
+
+  final String statusLabel;
+  final String summary;
+  final String? detail;
+  final MemberIntegrityColorKind colorKind;
+  final MemberIntegrityIconKind iconKind;
+}
+
+MemberMediaCheckPresentation memberEvaluationResultMediaCheck({
+  required AiDetectionResult automated,
+  String? adminReviewStatus,
+  PhotoEvaluationResult? evaluationResult,
+}) {
+  if (MemberReviewStatus.isReuploadRequested(adminReviewStatus)) {
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Reupload Required',
+      summary: 'An administrator needs a new photo or video before this evaluation can continue.',
+      detail: evaluationResult?.reviewGateMessage?.trim().isNotEmpty == true
+          ? evaluationResult!.reviewGateMessage!.trim()
+          : null,
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.neutral,
+    );
+  }
+
+  if (MemberReviewStatus.isAdminRejected(adminReviewStatus) ||
+      MemberReviewStatus.isAdminConfirmedAi(adminReviewStatus)) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'Needs Attention',
+      summary:
+          'Review did not approve this upload for scoring or XP. '
+          'Contact your officer if you have questions.',
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (automated.isAiGenerated &&
+      !MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus) &&
+      !MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Needs Attention',
+      summary:
+          'This upload was flagged during screening. '
+          'Quality coaching may be limited until review is complete.',
+      detail: _memberMediaCheckGateDetail(evaluationResult),
+      colorKind: MemberIntegrityColorKind.red,
+      iconKind: MemberIntegrityIconKind.ai,
+    );
+  }
+
+  if (automated.isDeferredAuthenticity) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'Under Review',
+      summary: 'Your file is still being checked. Results may update when screening finishes.',
+      colorKind: MemberIntegrityColorKind.accent,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  if (memberShowOverallMediaUnderReview(
+    automated: automated,
+    adminReviewStatus: adminReviewStatus,
+  )) {
+    final aiTier = memberAutomatedAiRiskTierLabel(automated);
+    String summary;
+    if (memberProvenancePartialAndroidPendingReview(
+      automated: automated,
+      adminReviewStatus: adminReviewStatus,
+    )) {
+      summary =
+          'Screening found no major AI concerns, but an officer still needs to confirm this file. '
+          'Missing camera details alone do not mean the media is fake.';
+    } else if (aiTier == 'High AI Risk') {
+      summary =
+          'Screening raised concerns that require an officer review before scores and XP are final.';
+    } else if (aiTier == 'Needs Review') {
+      summary =
+          'Screening flagged this upload for a closer look. Scores and XP stay pending until review completes.';
+    } else {
+      summary =
+          'An officer is reviewing this upload. Scores, coaching, and XP may stay pending until review finishes.';
+    }
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Under Review',
+      summary: summary,
+      detail: _memberMediaCheckGateDetail(evaluationResult),
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.pending,
+    );
+  }
+
+  if (automated.isAiAnalysisUnavailable) {
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Under Review',
+      summary:
+          'Automated screening could not finish. An officer review is required before this submission is finalized.',
+      detail: _memberMediaCheckGateDetail(evaluationResult),
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (MemberReviewStatus.isAdminConfirmedHuman(adminReviewStatus)) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'No Major Concerns',
+      summary:
+          'An officer verified this upload after review. '
+          'Automated checks cannot prove a photo or video is authentic.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  if (MemberReviewStatus.isAcceptedWithWarning(adminReviewStatus)) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'No Major Concerns',
+      summary:
+          'Review completed and your upload was accepted with an admin note on record.',
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  if (MemberReviewStatus.isAutomatedLowAiRisk(adminReviewStatus)) {
+    return const MemberMediaCheckPresentation(
+      statusLabel: 'No Major Concerns',
+      summary:
+          'Nothing flagged that needs your action right now. '
+          'Automated checks look for common signs of edited or AI-generated media; they cannot prove authenticity.',
+      colorKind: MemberIntegrityColorKind.green,
+      iconKind: MemberIntegrityIconKind.verified,
+    );
+  }
+
+  final aiTier = memberAutomatedAiRiskTierLabel(automated);
+  if (aiTier == 'High AI Risk' || aiTier == 'Needs Review') {
+    return MemberMediaCheckPresentation(
+      statusLabel: 'Needs Attention',
+      summary:
+          'Screening flagged this upload. An officer may need to review it before scores and XP are final.',
+      detail: _memberMediaCheckGateDetail(evaluationResult),
+      colorKind: MemberIntegrityColorKind.yellow,
+      iconKind: MemberIntegrityIconKind.warning,
+    );
+  }
+
+  return const MemberMediaCheckPresentation(
+    statusLabel: 'No Major Concerns',
+    summary:
+        'Nothing flagged that needs your action right now. '
+        'Automated checks look for common signs of edited or AI-generated media; they cannot prove authenticity.',
+    colorKind: MemberIntegrityColorKind.green,
+    iconKind: MemberIntegrityIconKind.verified,
+  );
+}
+
+String? _memberMediaCheckGateDetail(PhotoEvaluationResult? evaluationResult) {
+  if (evaluationResult == null) return null;
+  final gate = evaluationResult.reviewGateMessage?.trim() ?? '';
+  if (gate.isNotEmpty) return gate;
+  if (evaluationResult.scoresHeldForReview) {
+    return 'Quality scores and coaching stay hidden until review completes.';
+  }
+  if (evaluationResult.xpPendingEffective && evaluationResult.xpPointsPreviewEffective > 0) {
+    return 'Up to ${evaluationResult.xpPointsPreviewEffective} XP may be awarded after review if approved.';
+  }
+  return null;
+}
+
+Color memberIntegrityColorKindToColor(MemberIntegrityColorKind kind) => switch (kind) {
+      MemberIntegrityColorKind.green => kGreen,
+      MemberIntegrityColorKind.yellow => kYellow,
+      MemberIntegrityColorKind.red => kRed,
+      MemberIntegrityColorKind.accent => kAccent,
+      MemberIntegrityColorKind.neutral => kTextSecondary,
+    };
 
 /// Adjust frozen criteria_json flags when admin review has completed.
 PhotoEvaluationResult applyAdminReviewToPhotoResult(

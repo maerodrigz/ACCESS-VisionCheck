@@ -11,7 +11,6 @@ import 'package:access_mobile/shared/widgets/registration_success_dialog.dart';
 import 'package:access_mobile/shared/legal/access_legal_content.dart';
 import 'package:access_mobile/shared/widgets/legal_agreement_widgets.dart';
 import 'package:access_mobile/shared/copy/mobile_registration_copy.dart';
-import 'package:access_mobile/shared/widgets/registration_email_otp_panel.dart';
 
 /// Self-service member registration (pending admin approval).
 class MemberRegistrationScreen extends StatefulWidget {
@@ -26,13 +25,13 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
   final _nameCtrl = TextEditingController();
   final _studentIdCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _loading = false;
   bool _acceptedLegal = false;
-  String? _emailVerificationToken;
   String? _error;
 
   @override
@@ -40,6 +39,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
     _nameCtrl.dispose();
     _studentIdCtrl.dispose();
     _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
@@ -49,10 +49,6 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedLegal) {
       setState(() => _error = MobileRegistrationCopy.agreeLegalError);
-      return;
-    }
-    if (_emailVerificationToken == null) {
-      setState(() => _error = MobileRegistrationCopy.verifyEmailBeforeSubmit);
       return;
     }
     setState(() {
@@ -66,7 +62,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
         password: _passwordCtrl.text,
         role: 'Member',
         studentId: _studentIdCtrl.text.trim(),
-        emailVerificationToken: _emailVerificationToken,
+        contactNumber: _phoneCtrl.text.trim(),
       );
       if (!mounted) return;
       final email = _emailCtrl.text.trim();
@@ -104,6 +100,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
             const MobileAuthSectionHeader(
               title: MobileRegistrationCopy.memberTitle,
               subtitle: MobileRegistrationCopy.memberSubtitle,
+              compact: true,
             )
           else
             const Text(
@@ -146,12 +143,24 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                 mobileAuthStyle: mobileAuth,
               ),
               const SizedBox(height: 14),
-              RegistrationEmailOtpPanel(
-                emailController: _emailCtrl,
-                nameForGreeting: _nameCtrl.text,
-                onVerificationTokenChanged: (token) {
-                  setState(() => _emailVerificationToken = token);
-                },
+              RegistrationFormField(
+                label: 'Mobile Number',
+                controller: _phoneCtrl,
+                hint: '09XX XXX XXXX',
+                icon: Icons.phone_android_rounded,
+                keyboardType: TextInputType.phone,
+                validator: RegistrationValidators.philippineMobile,
+                textInputAction: TextInputAction.next,
+                mobileAuthStyle: mobileAuth,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                MobileRegistrationCopy.phoneRecoveryHint,
+                style: TextStyle(
+                  color: kTextSecondary.withValues(alpha: 0.95),
+                  fontSize: 11.5,
+                  height: 1.35,
+                ),
               ),
               const SizedBox(height: 14),
               RegistrationFormField(
@@ -201,11 +210,10 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
               const SizedBox(height: 28),
               if (mobileAuth)
                 MobileAuthGradientButton(
-                  label: 'Register',
+                  label: 'Create Account',
                   loading: _loading,
-                  onPressed: _loading || !_acceptedLegal || _emailVerificationToken == null
-                      ? null
-                      : _submit,
+                  compact: true,
+                  onPressed: _loading || !_acceptedLegal ? null : _submit,
                 )
               else
                 SizedBox(
@@ -217,9 +225,7 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    onPressed: _loading || !_acceptedLegal || _emailVerificationToken == null
-                        ? null
-                        : _submit,
+                    onPressed: _loading || !_acceptedLegal ? null : _submit,
                     child: _loading
                         ? const SizedBox(
                             width: 22,
@@ -232,23 +238,12 @@ class _MemberRegistrationScreenState extends State<MemberRegistrationScreen> {
                           ),
                   ),
                 ),
-              if (mobileAuth) ...[
-                const SizedBox(height: 20),
-                MobileAuthTextLinkRow(
-                  prompt: 'Already have an account?',
-                  linkLabel: 'Sign In',
-                  onLinkTap: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
             ],
           ),
     );
 
     if (mobileAuth) {
-      return MobileAuthScaffold(body: formBody);
+      return MobileAuthScaffold.signUp(body: formBody);
     }
 
     return Scaffold(

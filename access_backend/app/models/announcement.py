@@ -18,3 +18,8 @@ class Announcement(TimestampMixin, Base):
     )
 
     poster = relationship("User", back_populates="announcements")
+    member_reads = relationship(
+        "AnnouncementMemberRead",
+        back_populates="announcement",
+        cascade="all, delete-orphan",
+    )

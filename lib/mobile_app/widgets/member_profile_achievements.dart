@@ -6,6 +6,7 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/mobile_app/widgets/stat_card.dart';
 import 'package:access_mobile/shared/models/member_milestone.dart';
+import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 
 /// Milestone definitions aligned with [memberBadge] in app_state.dart.
 class _BadgeMilestone {
@@ -79,10 +80,9 @@ class MemberAchievementsResolver {
   }
 
   static List<Achievement> resolve({List<MemberMilestone> serverMilestones = const []}) {
-    final scoredNewestFirst =
-        appState.evaluations.where((e) => e.score > 0).toList();
-    final goodNewestFirst =
-        appState.evaluations.where((e) => e.score >= 0.70).toList();
+    final eligible = skillEligibleEvaluations(appState.evaluations);
+    final scoredNewestFirst = eligible.where((e) => e.displayScore > 0).toList();
+    final goodNewestFirst = eligible.where((e) => e.displayScore >= 0.70).toList();
 
     if (scoredNewestFirst.isEmpty && appState.profileEvaluationsCount <= 0) {
       return const [];

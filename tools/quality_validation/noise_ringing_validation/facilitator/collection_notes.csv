@@ -1,0 +1,16 @@
+media_id,target_bucket,noise_stratum_hint,ringing_stratum_hint,collection_note,rater_visible
+NR001,clean,clean,clean,Daylight landmark; collection target=clean. Not a human label.,no
+NR002,clean,clean,clean,Daylight landscape; collection target=clean. Not a human label.,no
+NR003,clean,clean,clean,Daylight monument; collection target=clean. Not a human label.,no
+NR004,low_light_noise,mild,clean,Author describes unprocessed ISO 1600 night shot; possible grain. Not a label.,no
+NR005,low_light_noise,mild,clean,EXIF ISO 3200 night street; possible luminance noise. Not a label.,no
+NR006,low_light_noise,mild,clean,EXIF ISO 4000 night street; possible grain. Not a label.,no
+NR007,moderate_strong_noise,moderate,clean,EXIF ISO 3200 night skyline; may show stronger noise. Not a label.,no
+NR008,moderate_strong_noise,moderate,clean,Late-night landscape ISO 1250; shadows may show noise. Not a label.,no
+NR009,moderate_strong_noise,moderate,clean,Night-sky style image; shadows often noisy. Not a label.,no
+NR010,possible_ringing,clean,mild,High-contrast neon/signage; inspect for halos (may be absent). Not a label.,no
+NR011,possible_ringing,clean,mild,Lit tower edges against dark sky; possible fringe risk. Not a label.,no
+NR012,possible_ringing,clean,mild,Night structure with bright edges; possible halo risk. Not a label.,no
+NR013,mixed_ambiguous,mild,mild,JPEG quality comparison; compression vs noise ambiguity. Not a label.,no
+NR014,mixed_ambiguous,mild,mild,Bokeh/texture confuser for noise judgment. Not a label.,no
+NR015,mixed_ambiguous,mild,mild,Night architecture with hard edges; mixed noise/edge ambiguity. Not a label.,no

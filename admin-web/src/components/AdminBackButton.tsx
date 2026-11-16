@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const linkClass =
-  'mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-accent-primary)] transition hover:opacity-80 lg:hidden'
+  'mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-accent-primary)] transition hover:opacity-80'
 
 const drawerBtnClass =
   'inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'

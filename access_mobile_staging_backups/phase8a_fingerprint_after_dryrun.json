@@ -1,0 +1,17 @@
+{
+  "database": "postgres",
+  "role": "postgres",
+  "policy": "v1",
+  "counts": {
+    "approved_members": 1,
+    "grandfather_floors": 0,
+    "overrides": 0
+  },
+  "members": [
+    {
+      "user_id": 77,
+      "skill_level_id": 3,
+      "total_points": 208
+    }
+  ]
+}

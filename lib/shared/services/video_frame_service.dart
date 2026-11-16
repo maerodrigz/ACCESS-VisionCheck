@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:video_thumbnail/video_thumbnail.dart';
 
-/// Extracts representative frames from a video for EfficientNet-B0 analysis.
+/// Extracts representative frames from a video for server quality analysis.
 abstract final class VideoFrameService {
   static const _sampleTimesMs = [0, 800, 1600, 2400, 3200, 4000];
 

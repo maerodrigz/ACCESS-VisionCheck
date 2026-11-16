@@ -234,7 +234,7 @@ export function AiEvaluationSettingsSection({
     <ConfigCard
       icon={<Shield size={22} strokeWidth={2} />}
       title="AI Evaluation Settings"
-      description="Member media quality scoring (EfficientNet-B0) and human-friendly feedback (Gemini). Upload limits are configured in Media Settings."
+      description="Member media quality scoring (MUSIQ + OpenCV) and human-friendly feedback (Gemini). Upload limits are configured in Media Settings."
       footer={
         <>
           <button
@@ -254,7 +254,7 @@ export function AiEvaluationSettingsSection({
         label="AI Media Evaluation"
         hint={
           values.enabled
-            ? 'EfficientNet-B0 scoring and Gemini feedback are active for member evaluation uploads.'
+            ? 'MUSIQ + OpenCV scoring and Gemini feedback are active for member evaluation uploads.'
             : 'Member evaluation scoring is paused. Uploads that require AI evaluation will be rejected.'
         }
         checked={values.enabled}
@@ -262,10 +262,10 @@ export function AiEvaluationSettingsSection({
       />
       <AiModelBlock
         title="Quality Evaluation Model"
-        modelName={String(quality.name || 'EfficientNet-B0')}
+        modelName={String(quality.name || 'MUSIQ + OpenCV')}
         description={String(
           quality.description ||
-            'EfficientNet-B0 performs technical media quality evaluation and scoring for member uploads.',
+            'MUSIQ worker provides perceptual quality context with classical OpenCV criteria. Local OpenCV is used if the worker is unavailable.',
         )}
         available={quality.available_on_server as boolean | undefined}
         locked={quality.configurable === false}
@@ -275,7 +275,7 @@ export function AiEvaluationSettingsSection({
         modelName={String(feedback.name || 'Gemini')}
         description={String(
           feedback.description ||
-            'Gemini receives EfficientNet-B0 evaluation results and generates encouraging, human-friendly feedback. It does not change or invent scores.',
+            'Gemini receives measured quality evaluation results and generates encouraging, human-friendly feedback. It does not change or invent scores.',
         )}
         locked={feedback.configurable === false}
       />
@@ -399,7 +399,7 @@ export function MediaSettingsSection({
           <div className="sys-config__workflow-head">
             <h3 className="sys-config__workflow-title">Member AI Quality Evaluation</h3>
             <p className="sys-config__workflow-desc">
-              Practice uploads scored by EfficientNet-B0 on the server. Gemini feedback is generated
+              Practice uploads scored by MUSIQ + OpenCV on the server. Gemini feedback is generated
               separately and never applies to event documentation media.
             </p>
           </div>

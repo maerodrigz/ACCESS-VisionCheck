@@ -1,0 +1,18 @@
+{
+  "source_dataset": "LIVE-VQC",
+  "label_provenance": "human_subjective",
+  "mos_scale": "0-100",
+  "format": "csv",
+  "filename_transform": "strip_extension",
+  "media_id_template": "vqc_{source_media_key_safe}",
+  "dataset_split_column": null,
+  "columns": {
+    "source_media_key": "REPLACE_WITH_VIDEO_NAME_COLUMN",
+    "mos_quality_raw": "REPLACE_WITH_MOS_COLUMN"
+  },
+  "mat": {
+    "scores": "REPLACE_WITH_MAT_MOS_VARIABLE",
+    "filenames": "REPLACE_WITH_MAT_NAMES_VARIABLE"
+  },
+  "_comment": "Set format to mat and fill mat.scores / mat.filenames after inspecting the official data.mat. For CSV exports, use format csv and columns.*."
+}

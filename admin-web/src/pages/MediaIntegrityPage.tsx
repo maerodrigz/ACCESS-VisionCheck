@@ -1,11 +1,12 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Info, Loader2, RefreshCw, Search } from 'lucide-react'
-import { fetchAiDetectionList } from '../api/admin'
+import { fetchAiDetectionForMedia, fetchAiDetectionList } from '../api/admin'
 import type { AiDetectionRow } from '../api/media'
 import { AdminCard } from '../components/AdminCard'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { pageToolbarBtnClass } from '../components/PageToolbar'
 import { AdminSelect } from '../components/AdminSelect'
 import { AiDetectionRowCard } from '../components/ai-detection/AiDetectionRowCard'
@@ -26,6 +27,7 @@ type QueueKind = 'photos' | 'videos'
 
 const INBOX_CHIPS: { id: IntegrityInboxFilter; label: string }[] = [
   { id: 'needs_action', label: 'Needs Action' },
+  { id: 'reupload_requested', label: 'Re-upload Requested' },
   { id: 'all', label: 'All Scans' },
   { id: 'pending_scan', label: 'Pending Scan' },
   { id: 'suspicious', label: 'Suspicious' },
@@ -177,9 +179,10 @@ export function MediaIntegrityPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-3 pb-8">
-      <AdminPageHeader
-        title="Media Integrity"
-        subtitle="Review flagged member uploads. Open Media Gallery for event documentation files."
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.mediaIntegrity.icon}
+        title={FEATURE_HEADERS.mediaIntegrity.title}
+        description={FEATURE_HEADERS.mediaIntegrity.description}
         backTo="/"
         actions={
           <button type="button" onClick={load} disabled={loading} className={pageToolbarBtnClass}>
@@ -323,6 +326,24 @@ export function MediaIntegrityPage() {
           row={selected}
           onClose={() => setSelected(null)}
           onSaved={(nextStatus) => handleReviewSaved(selected.id, nextStatus)}
+          onOpenRelatedMedia={(mediaId) => {
+            const found = rows.find((r) => r.media_id === mediaId)
+            if (found) {
+              setSelected(found)
+              return
+            }
+            void fetchAiDetectionForMedia(mediaId)
+              .then((raw) => {
+                const row = parseAiDetectionRow(raw)
+                if (row) {
+                  setInboxFilter('all')
+                  setSelected(row)
+                }
+              })
+              .catch(() => {
+                /* keep modal; chain panel already shows media id */
+              })
+          }}
         />
       )}
     </div>

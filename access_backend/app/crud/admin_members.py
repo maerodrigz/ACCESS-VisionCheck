@@ -8,44 +8,56 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.crud import member_profile as profile_crud
+from app.services.member_presence import presence_fields, utc_now
 from app.services.supabase_storage import apply_display_profile_images, display_profile_image
 from app.models.audit_log import AuditLog
 from app.models.login_history import LoginHistory
-from app.models.media_evaluation import MediaEvaluation
-from app.models.media_file import MediaFile
 from app.models.request_assignment import RequestAssignment
 from app.models.user import User
 
 
-def _last_active(db: Session, user_id: int, created_at: datetime | None) -> datetime | None:
-    candidates: list[datetime] = []
-    if created_at:
-        candidates.append(created_at)
+def _member_skill_tier_fields(db: Session, user: User) -> dict[str, str | None]:
+    from app.services.skill_progression import build_skill_progression_snapshot
 
-    login_at = db.scalar(
-        select(func.max(LoginHistory.login_time)).where(LoginHistory.user_id == user_id)
+    stored = user.skill_level.level_name if user.skill_level else None
+    if user.role and user.role.role_name != "Member":
+        return {
+            "skill_level": stored,
+            "skill_effective_tier": stored,
+            "skill_tier_stored_legacy": stored,
+        }
+    snap = build_skill_progression_snapshot(db, user.id)
+    effective = snap.effective_tier
+    return {
+        "skill_level": effective,
+        "skill_effective_tier": effective,
+        "skill_tier_stored_legacy": stored,
+    }
+
+
+def _presence_payload(user: User, *, now: datetime | None = None) -> dict:
+    return presence_fields(
+        is_active=bool(user.is_active),
+        last_seen_at=getattr(user, "last_seen_at", None),
+        last_login_at=getattr(user, "last_login_at", None),
+        now=now,
     )
-    if login_at:
-        candidates.append(login_at)
 
-    media_at = db.scalar(
-        select(func.max(MediaFile.uploaded_at)).where(MediaFile.uploaded_by == user_id)
-    )
-    if media_at:
-        candidates.append(media_at)
 
-    eval_at = db.scalar(
-        select(func.max(MediaEvaluation.evaluated_at))
-        .join(MediaFile, MediaEvaluation.media_id == MediaFile.id)
-        .where(MediaFile.uploaded_by == user_id)
-    )
-    if eval_at:
-        candidates.append(eval_at)
+def _quality_skill_fields(db: Session, user: User) -> dict:
+    """Quality Skill Classification titles — not XP / skill progression tiers."""
+    if user.role and user.role.role_name != "Member":
+        return {
+            "quality_skill_photo_title": None,
+            "quality_skill_video_title": None,
+            "quality_skill_photo_average": None,
+            "quality_skill_video_average": None,
+            "quality_skill_photo_evaluations": None,
+            "quality_skill_video_evaluations": None,
+        }
+    from app.services.quality_skill_classification import admin_classification_summary
 
-    if not candidates:
-        return None
-    return max(candidates)
-
+    return admin_classification_summary(db, user.id)
 
 def _primary_task_role(db: Session, user_id: int) -> str | None:
     row = db.execute(
@@ -83,11 +95,15 @@ def list_admin_members(db: Session) -> list[dict]:
     if remover_ids:
         for row in db.scalars(select(User).where(User.id.in_(remover_ids))):
             remover_names[row.id] = row.fullname
+    now = utc_now()
     rows: list[dict] = []
     for u in users:
         assigned = profile_crud.assignments_total(db, u.id)
         completed = profile_crud.assignments_completed(db, u.id)
         ranking = u.member_ranking
+        tier_fields = _member_skill_tier_fields(db, u)
+        quality_fields = _quality_skill_fields(db, u)
+        presence = _presence_payload(u, now=now)
         rows.append(
             {
                 "user_id": u.id,
@@ -104,11 +120,18 @@ def list_admin_members(db: Session) -> list[dict]:
                 "adviser_name": u.adviser_name,
                 "rejection_reason": u.rejection_reason,
                 "approved_at": u.approved_at,
-                "skill_level": u.skill_level.level_name if u.skill_level else None,
+                **tier_fields,
+                **quality_fields,
                 "assigned_tasks": assigned,
                 "completed_tasks": completed,
                 "media_eval_score": _avg_media_score(db, u.id),
-                "last_active": _last_active(db, u.id, u.created_at),
+                "last_active": presence["last_active"],
+                "account_status": presence["account_status"],
+                "presence": presence["presence"],
+                "is_online": presence["is_online"],
+                "is_inactive": presence["is_inactive"],
+                "last_seen_at": presence["last_seen_at"],
+                "last_login_at": presence["last_login_at"],
                 "primary_task_role": _primary_task_role(db, u.id),
                 "profile_image": u.profile_image,
                 "good_evaluations": ranking.total_points if ranking else 0,
@@ -139,6 +162,9 @@ def get_admin_member(db: Session, user_id: int) -> dict | None:
     assigned = profile_crud.assignments_total(db, u.id)
     completed = profile_crud.assignments_completed(db, u.id)
     ranking = u.member_ranking
+    tier_fields = _member_skill_tier_fields(db, u)
+    quality_fields = _quality_skill_fields(db, u)
+    presence = _presence_payload(u)
     return {
         "user_id": u.id,
         "name": u.fullname,
@@ -154,11 +180,18 @@ def get_admin_member(db: Session, user_id: int) -> dict | None:
         "adviser_name": u.adviser_name,
         "rejection_reason": u.rejection_reason,
         "approved_at": u.approved_at,
-        "skill_level": u.skill_level.level_name if u.skill_level else None,
+        **tier_fields,
+        **quality_fields,
         "assigned_tasks": assigned,
         "completed_tasks": completed,
         "media_eval_score": _avg_media_score(db, u.id),
-        "last_active": _last_active(db, u.id, u.created_at),
+        "last_active": presence["last_active"],
+        "account_status": presence["account_status"],
+        "presence": presence["presence"],
+        "is_online": presence["is_online"],
+        "is_inactive": presence["is_inactive"],
+        "last_seen_at": presence["last_seen_at"],
+        "last_login_at": presence["last_login_at"],
         "primary_task_role": _primary_task_role(db, u.id),
         "profile_image": display_profile_image(u.profile_image),
         "good_evaluations": ranking.total_points if ranking else 0,

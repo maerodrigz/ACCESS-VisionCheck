@@ -5,7 +5,7 @@ import mimetypes
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -407,10 +407,11 @@ class EvaluationRemarksUpdate(BaseModel):
     admin_remarks: str | None = Field(None, max_length=2000)
 
 
-def _evaluation_json(db: Session, ev) -> dict:
+def _evaluation_json(db: Session, ev, ai=None) -> dict:
     media = ev.media
     uploader = media.uploader if media else None
-    ai = eval_crud.get_ai_for_media(db, ev.media_id)
+    if ai is None:
+        ai = eval_crud.get_ai_for_media(db, ev.media_id)
     name = media.file_name if media else ""
     member = uploader.fullname if uploader else "Unknown"
     is_standalone = media is None or media.request_id is None
@@ -418,6 +419,17 @@ def _evaluation_json(db: Session, ev) -> dict:
     if media and media.request_id and media.request:
         event_title = media.request.title
     source_label = "Practice evaluation" if is_standalone else (event_title or "Event coverage")
+    from app.services.quality_score_display import quality_display_from_evaluation
+
+    quality_display = quality_display_from_evaluation(
+        criteria_json=ev.criteria_json,
+        sharpness_score=ev.sharpness_score,
+        brightness_score=ev.brightness_score,
+        contrast_score=ev.contrast_score,
+        blur_score=ev.blur_score,
+        noise_score=ev.noise_score,
+        overall_score=ev.overall_score,
+    )
     return {
         "id": ev.id,
         "media_id": ev.media_id,
@@ -442,6 +454,7 @@ def _evaluation_json(db: Session, ev) -> dict:
         "quality_level": ev.quality_level,
         "recommendation": ev.recommendation,
         "criteria_json": ev.criteria_json,
+        "quality_display": quality_display,
         "created_at": first_timestamp_iso(ev, "evaluated_at"),
         "evaluated_at": first_timestamp_iso(ev, "evaluated_at"),
         "updated_at": first_timestamp_iso(ev, "evaluated_at"),
@@ -460,7 +473,8 @@ def evaluations_summary(db: Session = Depends(get_db), _: User = Depends(require
 def list_all_evaluations(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     try:
         rows = eval_crud.list_all(db)
-        return [_evaluation_json(db, ev) for ev in rows]
+        ai_map = eval_crud.ai_by_media_ids(db, [ev.media_id for ev in rows])
+        return [_evaluation_json(db, ev, ai=ai_map.get(ev.media_id)) for ev in rows]
     except Exception as exc:
         raise _load_error("media evaluations", exc) from exc
 
@@ -551,6 +565,11 @@ def stream_admin_media(
     if not media or not media.file_url:
         raise HTTPException(status_code=404, detail="Media not found")
 
+    from app.services.media_stream_response import (
+        file_response_from_bytes,
+        stream_suffix_for_content_type,
+    )
+
     file_url = normalize_supabase_storage_url(media.file_url or "")
     content_type = _admin_media_content_type(media.file_name, media.file_type)
     local = local_media_path(file_url)
@@ -570,10 +589,11 @@ def stream_admin_media(
     if not content:
         raise HTTPException(status_code=404, detail="Media file unavailable")
 
-    return Response(
-        content=content,
+    return file_response_from_bytes(
+        content,
         media_type=content_type,
-        headers={"Cache-Control": "private, max-age=120", "Accept-Ranges": "bytes"},
+        filename=media.file_name,
+        suffix=stream_suffix_for_content_type(content_type, media.file_name),
     )
 
 
@@ -591,6 +611,19 @@ def _confidence_level(score: float) -> str:
     return "low"
 
 
+def _additional_quality_insights_from_criteria_json(criteria_json: str | None) -> dict | None:
+    if not criteria_json:
+        return None
+    try:
+        data = json.loads(criteria_json)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    block = data.get("additional_quality_insights")
+    return block if isinstance(block, dict) else None
+
+
 def _parse_stored_exif(raw: str | None) -> dict | None:
     if not raw:
         return None
@@ -606,7 +639,7 @@ def _resolve_exif_metadata(ai) -> dict | None:
     return _parse_stored_exif(getattr(ai, "exif_metadata", None))
 
 
-def _ai_detection_json(ai) -> dict:
+def _ai_detection_json(ai, *, additional_quality_insights: dict | None = None) -> dict:
     media = ai.media
     uploader = media.uploader if media else None
     name = media.file_name if media else ""
@@ -621,7 +654,7 @@ def _ai_detection_json(ai) -> dict:
             review_status = "verified_human" if not is_ai else "verified_ai_generated"
         else:
             review_status = "pending_review"
-    return {
+    out = {
         "id": ai.id,
         "media_id": ai.media_id,
         "media_name": name,
@@ -649,6 +682,9 @@ def _ai_detection_json(ai) -> dict:
         "updated_at": first_timestamp_iso(ai, "updated_at", "reviewed_at", "created_at"),
         "scanned_at": first_timestamp_iso(ai, "created_at"),
     }
+    if additional_quality_insights:
+        out["additional_quality_insights"] = additional_quality_insights
+    return out
 
 
 @router.get("/ai-detection/summary")
@@ -670,9 +706,55 @@ def list_ai_detection(
         if bucket not in ("all", "needs_action", "resolved"):
             bucket = "all"
         rows = eval_crud.list_ai_for_integrity_inbox(db, inbox=bucket)
-        return [_ai_detection_json(ai) for ai in rows]
+        eval_map = eval_crud.evaluations_by_media_ids(db, [ai.media_id for ai in rows])
+        payload: list[dict] = []
+        for ai in rows:
+            insights = None
+            ev = eval_map.get(ai.media_id)
+            if ev is not None:
+                insights = _additional_quality_insights_from_criteria_json(ev.criteria_json)
+            payload.append(_ai_detection_json(ai, additional_quality_insights=insights))
+        return payload
     except Exception as exc:
         raise _load_error("AI detection results", exc) from exc
+
+
+@router.get("/media/{media_id}/ai-detection")
+def ai_detection_for_media(
+    media_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Integrity row for a practice media id (opens review when not in current inbox page)."""
+    ai = eval_crud.get_ai_for_media(db, media_id)
+    if ai is None:
+        raise HTTPException(status_code=404, detail="AI detection record not found for this media")
+    insights = None
+    ev = eval_crud.get_for_media(db, media_id)
+    if ev is not None:
+        insights = _additional_quality_insights_from_criteria_json(ev.criteria_json)
+    return _ai_detection_json(ai, additional_quality_insights=insights)
+
+
+@router.get("/media/{media_id}/submission-chain")
+def admin_submission_chain_timeline(
+    media_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    from app.crud import submission_chain as chain_crud
+    from app.services.submission_chain_timeline import admin_chain_timeline
+
+    chain = chain_crud.get_chain_for_media(db, media_id)
+    if chain is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Submission chain not found for this media. "
+                "Chains are created on practice evaluation upload or when an admin requests re-upload."
+            ),
+        )
+    return admin_chain_timeline(db, chain=chain)
 
 
 @router.patch("/ai-detection/{ai_id}")
@@ -685,15 +767,32 @@ def update_ai_detection_review(
     row = eval_crud.get_ai_by_id(db, ai_id)
     if not row:
         raise HTTPException(status_code=404, detail="AI detection record not found")
-    updated = eval_crud.update_ai_review(
-        db,
-        row,
+    from app.crud.submission_chain import ReplacementUploadError
+    from app.services.admin_review_validation import validate_admin_review_update
+
+    validate_admin_review_update(
         review_status=body.review_status,
         admin_remarks=body.admin_remarks,
-        reviewed_by=admin.id,
     )
+    try:
+        updated = eval_crud.update_ai_review(
+            db,
+            row,
+            review_status=body.review_status,
+            admin_remarks=body.admin_remarks,
+            reviewed_by=admin.id,
+        )
+    except ReplacementUploadError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
     db.refresh(updated)
-    return _ai_detection_json(updated)
+    insights = None
+    ev = eval_crud.get_for_media(db, updated.media_id)
+    if ev is not None:
+        insights = _additional_quality_insights_from_criteria_json(ev.criteria_json)
+    return _ai_detection_json(updated, additional_quality_insights=insights)
 
 
 @router.get("/ai-detection/{ai_id}/history")

@@ -26,6 +26,8 @@ class User(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="approved", index=True)
     student_id: Mapped[str | None] = mapped_column(String(40), index=True)
     contact_number: Mapped[str | None] = mapped_column(String(40))
+    # Set when the user completes SMS phone verification for recovery enrollment.
+    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     adviser_name: Mapped[str | None] = mapped_column(String(120))
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     approved_by: Mapped[int | None] = mapped_column(
@@ -33,6 +35,10 @@ class User(TimestampMixin, Base):
     )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    # Heartbeat-based presence (UTC). Not updated on ordinary API traffic.
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    # Set on successful password login only.
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     failed_login_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

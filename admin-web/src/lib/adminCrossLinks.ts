@@ -1,13 +1,13 @@
 /** Deep-link builders for admin workflow navigation. */
 
-/** Competency portfolio drawer for a member (deep link after data load). */
+/** Competency portfolio drawer for a member (Skills & Rankings tab). */
 export function memberCompetencyProfileUrl(userId: number): string {
-  return `/competency?member=${userId}`
+  return `/competency?tab=skills&member=${userId}`
 }
 
-/** Member management search when user id is unknown. */
+/** Member Overview search when user id is unknown (unified Competency workspace). */
 export function memberManagementUrl(memberName: string): string {
-  return `/members?q=${encodeURIComponent(memberName.trim())}`
+  return `/competency?tab=directory&q=${encodeURIComponent(memberName.trim())}`
 }
 
 export function memberPortfolioUrl(opts: { userId?: number | null; memberName?: string }): string {

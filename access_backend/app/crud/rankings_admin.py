@@ -10,11 +10,12 @@ from sqlalchemy.orm import Session, joinedload
 from app.crud import member_profile as profile_crud
 from app.models.ai_detection_result import AiDetectionResult
 from app.models.enums import RoleName, UserStatus
-from app.models.media_evaluation import MediaEvaluation
 from app.models.media_file import MediaFile
 from app.models.role import Role
+from app.models.submission_chain import SubmissionChain
 from app.models.user import User
 from app.services.supabase_storage import apply_display_profile_images
+from app.services.skill_evaluation_eligibility import eligible_skill_evaluation_stats
 from app.services.skill_scoring import (
     build_skill_payload,
     competency_level_from_skill_score,
@@ -105,43 +106,32 @@ def resolve_member_skill_level(
     effective_level is persisted on the user and shown in rankings/profile.
     When an admin override is set, it wins until cleared.
     """
-    from app.models.member_ranking import MemberRanking
+    from app.services.skill_progression import build_skill_progression_snapshot
 
-    if skill_payload is None:
-        skill_payload = _skill_payload_for_user(db, user_id)
-    if evaluation_count is None:
-        evaluation_count, _ = profile_crud.evaluations_stats(db, user_id)
-
-    override = level_override
-    if override is _OVERRIDE_UNSET:
-        row = db.scalar(select(MemberRanking).where(MemberRanking.user_id == user_id))
-        override = row.competency_level_override if row else None
-
-    computed = effective_skill_level(skill_payload["skill_score"], evaluation_count)
-    recommended = competency_level_from_skill_score(skill_payload["skill_score"])
-
-    if override and str(override).strip():
-        raw = str(override).strip()
-        try:
-            effective = _normalize_competency_level(raw)
-        except ValueError:
-            effective = computed
-    else:
-        effective = computed
-
-    return effective, recommended, computed
+    score_override = None
+    if skill_payload is not None:
+        score_override = float(skill_payload.get("skill_score") or 0)
+    snap = build_skill_progression_snapshot(
+        db,
+        user_id,
+        skill_score_pct=score_override,
+        eligible_count=evaluation_count,
+        level_override=level_override,
+    )
+    return snap.effective_tier, snap.competency_recommended, snap.computed_tier_active
 
 
 def _skill_payload_for_user(db: Session, user_id: int) -> dict:
     total_uploads = profile_crud.uploads_count(db, user_id)
     approved_uploads = profile_crud.approved_uploads_count(db, user_id)
-    _, avg_score = profile_crud.evaluations_stats(db, user_id)
+    eligible = eligible_skill_evaluation_stats(db, user_id)
+    avg_score = eligible.average_score
     completed_tasks = profile_crud.assignments_completed(db, user_id)
     assigned_tasks = profile_crud.assignments_total(db, user_id)
     admin_eval = profile_crud.admin_evaluation_score(db, user_id)
     human, ai_gen, suspicious = _ai_counts(db, user_id)
     total_checked = human + ai_gen + suspicious
-    return build_skill_payload(
+    payload = build_skill_payload(
         average_quality_score=avg_score,
         approved_uploads=approved_uploads,
         total_uploads=total_uploads,
@@ -151,6 +141,19 @@ def _skill_payload_for_user(db: Session, user_id: int) -> dict:
         human_verified_uploads=human,
         total_checked_uploads=total_checked,
     )
+    payload["skill_eligible_evaluation_count"] = eligible.count
+    payload["skill_eligible_distinct_upload_days"] = eligible.distinct_upload_days
+    payload["skill_eligible_photo_count"] = eligible.photo_count
+    payload["skill_eligible_video_count"] = eligible.video_count
+    payload["skill_eligible_photo_average"] = round(
+        eligible.photo_average_score * 100.0 if eligible.photo_average_score <= 1.0 else eligible.photo_average_score,
+        2,
+    )
+    payload["skill_eligible_video_average"] = round(
+        eligible.video_average_score * 100.0 if eligible.video_average_score <= 1.0 else eligible.video_average_score,
+        2,
+    )
+    return payload
 
 
 def _ai_summary(human: int, ai_gen: int, suspicious: int) -> str:
@@ -196,17 +199,27 @@ def _month_start_utc() -> datetime:
 
 
 def monthly_points_for_user(db: Session, user_id: int) -> int:
-    """XP earned this calendar month from evaluations (same formula as media_pipeline)."""
+    """XP awarded this UTC calendar month from submission-chain awards.
+
+    Attribution policy: use ``submission_chains.xp_awarded_at`` (when XP was
+    actually credited), including delayed admin releases that cross a month
+    boundary. Amount is ``xp_awarded_total`` (already rounded at award time).
+
+    Chains with awarded points but a missing ``xp_awarded_at`` are excluded
+    (cannot attribute safely). Legacy awards without a chain row are not
+    reconstructed from evaluation scores; they remain in all-time
+    ``member_rankings.total_points`` only.
+    """
     month_start = _month_start_utc()
-    scores = db.scalars(
-        select(MediaEvaluation.overall_score)
-        .join(MediaFile, MediaEvaluation.media_id == MediaFile.id)
-        .where(
-            MediaFile.uploaded_by == user_id,
-            MediaEvaluation.evaluated_at >= month_start,
+    total = db.scalar(
+        select(func.coalesce(func.sum(SubmissionChain.xp_awarded_total), 0)).where(
+            SubmissionChain.member_id == user_id,
+            SubmissionChain.xp_awarded_total > 0,
+            SubmissionChain.xp_awarded_at.is_not(None),
+            SubmissionChain.xp_awarded_at >= month_start,
         )
-    ).all()
-    return sum(int(score * 100) for score in scores)
+    )
+    return int(total or 0)
 
 
 def list_rankings(db: Session) -> list[dict]:
@@ -223,7 +236,10 @@ def list_rankings(db: Session) -> list[dict]:
         monthly_points = monthly_points_for_user(db, u.id)
         total_uploads = profile_crud.uploads_count(db, u.id)
         approved_uploads = profile_crud.approved_uploads_count(db, u.id)
-        eval_count, avg_score = profile_crud.evaluations_stats(db, u.id)
+        eligible = eligible_skill_evaluation_stats(db, u.id)
+        eval_count = eligible.count
+        avg_score = eligible.average_score
+        _, all_eval_count = profile_crud.evaluations_stats(db, u.id)
         completed_tasks = profile_crud.assignments_completed(db, u.id)
         assigned_tasks = profile_crud.assignments_total(db, u.id)
         admin_eval = profile_crud.admin_evaluation_score(db, u.id)
@@ -242,16 +258,7 @@ def list_rankings(db: Session) -> list[dict]:
             last_activity=last_activity,
         )
 
-        skill = build_skill_payload(
-            average_quality_score=avg_score,
-            approved_uploads=approved_uploads,
-            total_uploads=total_uploads,
-            completed_tasks=completed_tasks,
-            assigned_tasks=assigned_tasks,
-            admin_evaluation_score=admin_eval,
-            human_verified_uploads=human,
-            total_checked_uploads=total_checked,
-        )
+        skill = _skill_payload_for_user(db, u.id)
         level_override = ranking.competency_level_override if ranking else None
         effective_level, competency_recommended, computed_level = resolve_member_skill_level(
             db,
@@ -274,6 +281,11 @@ def list_rankings(db: Session) -> list[dict]:
                 "monthly_points": monthly_points,
                 "good_evaluations": points,
                 "evaluation_count": eval_count,
+                "total_evaluation_rows": all_eval_count,
+                "skill_eligible_photo_count": skill.get("skill_eligible_photo_count", 0),
+                "skill_eligible_video_count": skill.get("skill_eligible_video_count", 0),
+                "skill_eligible_photo_average": skill.get("skill_eligible_photo_average", 0),
+                "skill_eligible_video_average": skill.get("skill_eligible_video_average", 0),
                 "uploads": total_uploads,
                 "total_uploads": total_uploads,
                 "approved_uploads": approved_uploads,
@@ -301,12 +313,32 @@ def list_rankings(db: Session) -> list[dict]:
             }
         )
 
+    # Skill-oriented order for admin/competency surfaces (unchanged).
     result.sort(key=lambda x: (x["skill_score"], x["points"], x["uploads"]), reverse=True)
     for idx, row in enumerate(result, start=1):
         row["rank"] = idx
         row["rank_position"] = idx
+
+    assign_xp_rank_positions(result)
     apply_display_profile_images(result)
     return result
+
+
+def assign_xp_rank_positions(rows: list[dict]) -> None:
+    """Set ``xp_rank_position`` from all-time awarded XP (points), independent of skill sort.
+
+    Ordering: XP descending, name ascending (case-insensitive), user_id ascending.
+    """
+    xp_ordered = sorted(
+        rows,
+        key=lambda x: (
+            -int(x.get("points") or 0),
+            str(x.get("name") or "").lower(),
+            int(x.get("user_id") or 0),
+        ),
+    )
+    for idx, row in enumerate(xp_ordered, start=1):
+        row["xp_rank_position"] = idx
 
 
 def rankings_summary(rows: list[dict]) -> dict:

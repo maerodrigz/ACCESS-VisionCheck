@@ -2,7 +2,12 @@ import 'dart:convert';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart'
-    show ChangeNotifier, defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show
+        ChangeNotifier,
+        defaultTargetPlatform,
+        kIsWeb,
+        kReleaseMode,
+        TargetPlatform;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,6 +47,12 @@ class ApiConfig {
 
   /// Default port for FastAPI (`API_PORT` in `access_backend/.env`).
   static const int defaultPort = 3001;
+
+  /// USB + `adb reverse tcp:3001 tcp:3001` — original backend on the dev PC.
+  static const String originalUsbDevBaseUrl = 'http://127.0.0.1:3001';
+
+  /// Isolated QA stack (access_waverep_test) — must not override original app.
+  static const int isolatedQaApiPort = 3003;
 
   /// Full base URL override (highest priority). Example:
   /// `--dart-define=API_BASE_URL=http://192.168.1.42:3001`
@@ -129,7 +140,10 @@ class ApiConfig {
   /// Used for automatic failover in [ApiClient] so the app can keep working
   /// when the PC changes networks without forcing a recompile or manual entry.
   static const List<String> knownLanHosts = [
-    '192.168.8.97',
+    '10.159.240.169',
+    '192.168.8.98',
+    '10.216.233.169',
+    '10.210.8.169',
     '192.168.8.94',
     '192.168.8.96',
     '192.168.8.98',
@@ -163,6 +177,9 @@ class ApiConfig {
   /// Host that last answered an API call (failover) or user/runtime override.
   /// Use for [mediaUrl] so uploaded logos match web admin on physical phones.
   static String get effectiveBaseUrl {
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
+    }
     final runtime = runtimeBaseUrl.value;
     if (runtime != null && runtime.trim().isNotEmpty) {
       return runtime.trim().replaceAll(RegExp(r'/+$'), '');
@@ -221,6 +238,8 @@ class ApiConfig {
   /// Drop saved 10.0.2.2 override — that host is emulator-only and breaks physical phones.
   static Future<void> clearStaleEmulatorBackendOverride() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    // Compile-time base (e.g. emulator --dart-define=API_BASE_URL=10.0.2.2:3002) wins.
+    if (apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty) return;
     final saved = runtimeBaseUrl.value?.trim().toLowerCase() ?? '';
     if (saved.contains('10.0.2.2')) {
       await runtimeBaseUrl.clear();
@@ -229,6 +248,98 @@ class ApiConfig {
         _lastWorkingBaseUrl!.toLowerCase().contains('10.0.2.2')) {
       await forgetLastWorkingBaseUrl(_lastWorkingBaseUrl!);
     }
+  }
+
+  static bool isIsolatedQaBackendUrl(String? raw) {
+    final trimmed = raw?.trim() ?? '';
+    if (trimmed.isEmpty) return false;
+    if (trimmed.contains(':3003')) return true;
+    try {
+      final uri = Uri.parse(
+        trimmed.startsWith('http') ? trimmed : 'http://$trimmed',
+      );
+      return uri.port == isolatedQaApiPort;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static bool isLocalOriginalUsbBackendUrl(String? raw) {
+    final trimmed = raw?.trim() ?? '';
+    if (trimmed.isEmpty) return false;
+    try {
+      final uri = Uri.parse(
+        trimmed.startsWith('http') ? trimmed : 'http://$trimmed',
+      );
+      return (uri.host == '127.0.0.1' || uri.host == 'localhost') &&
+          uri.port == defaultPort;
+    } catch (_) {
+      return trimmed.contains('127.0.0.1:3001');
+    }
+  }
+
+  static String _originalDevBackendTarget() {
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
+    }
+    return originalUsbDevBaseUrl;
+  }
+
+  /// Rewrites saved QA `:3003` overrides to the original USB backend (`:3001`).
+  static Future<bool> migrateIsolatedQaBackendToOriginalUsb() async {
+    if (kIsWeb) return false;
+    if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.iOS) {
+      return false;
+    }
+    final target = _originalDevBackendTarget();
+    var migrated = false;
+
+    final runtime = runtimeBaseUrl.value?.trim();
+    if (isIsolatedQaBackendUrl(runtime)) {
+      await runtimeBaseUrl.save(target);
+      migrated = true;
+    }
+
+    if (_lastWorkingBaseUrl != null &&
+        isIsolatedQaBackendUrl(_lastWorkingBaseUrl)) {
+      final stale = _lastWorkingBaseUrl!;
+      await forgetLastWorkingBaseUrl(stale);
+      await saveLastWorkingBaseUrl(target);
+      migrated = true;
+    }
+
+    return migrated;
+  }
+
+  /// Same /24 IPv4 prefix (e.g. home Wi-Fi DHCP last-octet changes).
+  static bool isSameIpv4Subnet24(String hostA, String hostB) {
+    final a = hostA.split('.');
+    final b = hostB.split('.');
+    if (a.length != 4 || b.length != 4) return false;
+    return '${a[0]}.${a[1]}.${a[2]}' == '${b[0]}.${b[1]}.${b[2]}';
+  }
+
+  /// Drop saved URLs on the same LAN /24 as [bundledBase] when the host octet changed.
+  static Future<void> migrateStaleDeviceUrlsForBundledDevBase(String bundledBase) async {
+    try {
+      final bundledHost = Uri.parse(bundledBase).host;
+      final existing = runtimeBaseUrl.value?.trim();
+      if (existing != null && existing.isNotEmpty) {
+        final existingHost =
+            Uri.parse(existing.startsWith('http') ? existing : 'http://$existing').host;
+        if (isSameIpv4Subnet24(existingHost, bundledHost) && existingHost != bundledHost) {
+          await runtimeBaseUrl.save(bundledBase);
+        }
+      }
+      final last = _lastWorkingBaseUrl;
+      if (last != null && last.trim().isNotEmpty) {
+        final lastHost = Uri.parse(last).host;
+        if (isSameIpv4Subnet24(lastHost, bundledHost) && lastHost != bundledHost) {
+          await forgetLastWorkingBaseUrl(last);
+        }
+      }
+    } catch (_) {}
   }
 
   static Future<void> loadBundledMobileBackendDefault() async {
@@ -240,18 +351,34 @@ class ApiConfig {
     if (apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty) {
       return;
     }
+    // Bundled LAN IP breaks the Android emulator; use 10.0.2.2 default instead.
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        _androidIsPhysicalDevice == false) {
+      return;
+    }
     try {
       final raw = await rootBundle.loadString('config/api.json');
       final map = jsonDecode(raw) as Map<String, dynamic>;
       final base = (map['API_BASE_URL'] as String?)?.trim();
       if (base == null || base.isEmpty) return;
+      await migrateStaleDeviceUrlsForBundledDevBase(base);
       final existing = runtimeBaseUrl.value?.trim();
       if (existing == null || existing.isEmpty) {
         await runtimeBaseUrl.save(base);
         return;
       }
+      if (isLocalOriginalUsbBackendUrl(existing) ||
+          isIsolatedQaBackendUrl(existing)) {
+        return;
+      }
       // Refresh when bundled dev IP changed (e.g. Wi-Fi DHCP) or stale emulator host.
-      if (existing.contains('10.0.2.2') || existing != base) {
+      if (existing.contains('10.0.2.2')) {
+        await runtimeBaseUrl.save(base);
+        return;
+      }
+      if (existing != base &&
+          !isLocalOriginalUsbBackendUrl(existing) &&
+          !existing.contains('127.0.0.1')) {
         await runtimeBaseUrl.save(base);
         return;
       }
@@ -306,6 +433,12 @@ class ApiConfig {
   /// Set from [initAndroidDeviceProfile] in mobile main() before API calls.
   static bool? _androidIsPhysicalDevice;
 
+  /// Physical Android phone (not Studio emulator). USB reverse may apply.
+  static bool get isPhysicalAndroidDevice {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    return _androidIsPhysicalDevice != false;
+  }
+
   static Future<void> initAndroidDeviceProfile() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
@@ -331,6 +464,41 @@ class ApiConfig {
   /// Physical phone: saved/runtime URL first, then LAN fallbacks.
   /// Emulator (no override): [10.0.2.2] first so login is not delayed by stale LAN IPs.
   static List<String> candidateBaseUrls() {
+    // Release builds must use an explicit HTTPS API (no LAN probing / cleartext).
+    if (kReleaseMode) {
+      String? httpsOnly(String? raw) {
+        if (raw == null) return null;
+        final trimmed = raw.trim().replaceAll(RegExp(r'/+$'), '');
+        if (trimmed.isEmpty) return null;
+        if (trimmed.startsWith('https://')) return trimmed;
+        if (trimmed.startsWith('http://')) {
+          // Reject cleartext in release; host-only forms become https://…
+          return null;
+        }
+        return 'https://$trimmed';
+      }
+
+      if (apiBaseUrlOverride.isNotEmpty) {
+        final forced = httpsOnly(apiBaseUrlOverride);
+        if (forced != null) return [forced];
+        return const <String>[];
+      }
+      if (apiPublicHostOverride.isNotEmpty) {
+        final host = httpsOnly(apiPublicHostOverride);
+        if (host != null) return [host];
+        return const <String>[];
+      }
+      final runtime = httpsOnly(runtimeBaseUrl.value);
+      if (runtime != null) return [runtime];
+      return const <String>[];
+    }
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return [apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
+    }
+    if (apiPublicHostOverride.isNotEmpty) {
+      return [baseUrl];
+    }
+
     final out = <String>[];
 
     void add(String? v) {
@@ -355,7 +523,8 @@ class ApiConfig {
     if (!explicitCompileTimeHost) {
       add(runtime);
       add(_lastWorkingBaseUrl);
-      if (_androidIsPhysicalDevice != false) {
+      if (isPhysicalAndroidDevice) {
+        add(originalUsbDevBaseUrl);
         add('http://${knownLanHosts.first}:$port');
       }
       if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
@@ -377,7 +546,7 @@ class ApiConfig {
     }
 
     if (kIsWeb && _webSameOriginBaseUrl == null) {
-      add('http://$apiWebHostOverride:$defaultPort');
+      add('http://$apiWebHostOverride:$port');
     }
 
     return out;
@@ -385,6 +554,13 @@ class ApiConfig {
 
   /// Sign-in: prefer saved/device URL, then configured host, then same-subnet LAN fallbacks.
   static List<String> loginBaseUrls() {
+    if (apiBaseUrlOverride.isNotEmpty) {
+      return [apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
+    }
+    if (apiPublicHostOverride.isNotEmpty) {
+      return [baseUrl];
+    }
+
     final out = <String>[];
 
     void add(String? v) {
@@ -395,32 +571,27 @@ class ApiConfig {
       if (!out.contains(normalized)) out.add(normalized);
     }
 
-    final explicitCompileTimeHost =
-        apiBaseUrlOverride.isNotEmpty || apiPublicHostOverride.isNotEmpty;
     final emulatorDefault = androidEmulatorDefault;
 
     add(runtimeBaseUrl.value);
     add(_lastWorkingBaseUrl);
-    add(apiBaseUrlOverride);
-    if (explicitCompileTimeHost) {
-      add(baseUrl);
+    if (isPhysicalAndroidDevice) {
+      add(originalUsbDevBaseUrl);
     }
     add(_webSameOriginBaseUrl);
 
-    if (!explicitCompileTimeHost) {
-      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-        add(baseUrl);
-      } else if (emulatorDefault) {
-        add('http://$androidEmulatorHost:$port');
-      } else {
-        add(baseUrl);
-      }
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      add(baseUrl);
+    } else if (emulatorDefault) {
+      add('http://$androidEmulatorHost:$port');
+    } else {
+      add(baseUrl);
     }
 
     _addLoginSubnetLanFallbacks(out, add);
 
     if (kIsWeb && _webSameOriginBaseUrl == null) {
-      add('http://$apiWebHostOverride:$defaultPort');
+      add('http://$apiWebHostOverride:$port');
     }
 
     if (out.isEmpty) {

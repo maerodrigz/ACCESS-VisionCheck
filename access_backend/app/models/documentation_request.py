@@ -41,6 +41,10 @@ class DocumentationRequest(TimestampMixin, Base):
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
+    # Requestor soft-hide preference (independent of admin archived_at / status).
+    requestor_archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
 
     def reschedule_history_list(self) -> list[dict]:
         if not self.reschedule_history:

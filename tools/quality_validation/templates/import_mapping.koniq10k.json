@@ -1,0 +1,33 @@
+{
+  "source_dataset": "KonIQ-10k",
+  "label_provenance": "human_subjective_aggregate_mos",
+  "mos_scale": "1-5",
+  "mos_direction": "higher_is_better",
+  "format": "tab_or_csv",
+  "filename_transform": "basename",
+  "media_id_template": "KONIQ-{source_media_key_safe}",
+  "expected_headers": [
+    "image_name",
+    "c1",
+    "c2",
+    "c3",
+    "c4",
+    "c5",
+    "c_total",
+    "MOS",
+    "SD",
+    "MOS_zscore"
+  ],
+  "required_headers": ["image_name", "MOS"],
+  "columns": {
+    "source_media_key": "image_name",
+    "mos_quality_raw": "MOS"
+  },
+  "optional_columns": {
+    "mos_zscore_raw": "MOS_zscore",
+    "mos_sd_raw": "SD",
+    "judgment_count": "c_total"
+  },
+  "header_source": "https://database.mmsp-kn.de/koniq-10k-database.html",
+  "notes": "MOS is 5-point ACR mean. MOS_zscore is a different normalized scale and must not be mapped as ACCESS 1-5. c1-c5 are category counts, not three ACCESS raters."
+}

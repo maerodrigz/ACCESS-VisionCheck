@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/models/requestor_type.dart';
 import 'package:access_mobile/shared/screens/organization_registration_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_navigation.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
 import 'package:access_mobile/shared/copy/mobile_registration_copy.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_widgets.dart';
@@ -23,11 +24,9 @@ class _RequestorTypeSelectionScreenState extends State<RequestorTypeSelectionScr
     final type = _selected;
     if (type == null) return;
 
-    final email = await Navigator.push<String>(
+    final email = await pushMobileAuthPage<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => RequestorRegistrationScreen(requestorType: type),
-      ),
+      RequestorRegistrationScreen(requestorType: type),
     );
     if (email != null && mounted) {
       Navigator.pop(context, email);
@@ -43,6 +42,7 @@ class _RequestorTypeSelectionScreenState extends State<RequestorTypeSelectionScr
         const MobileAuthSectionHeader(
           title: MobileRegistrationCopy.requestorTypeTitle,
           subtitle: MobileRegistrationCopy.requestorTypeSubtitle,
+          compact: true,
         ),
         const SizedBox(height: 20),
         for (var i = 0; i < RequestorType.values.length; i++) ...[
@@ -58,17 +58,6 @@ class _RequestorTypeSelectionScreenState extends State<RequestorTypeSelectionScr
           label: 'Continue',
           onPressed: _selected == null ? null : _continue,
         ),
-        if (!kIsWeb) ...[
-          const SizedBox(height: 16),
-          MobileAuthTextLinkRow(
-            prompt: 'Already have an account?',
-            linkLabel: 'Sign In',
-            onLinkTap: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-          ),
-        ],
       ],
     );
 
@@ -84,7 +73,7 @@ class _RequestorTypeSelectionScreenState extends State<RequestorTypeSelectionScr
       );
     }
 
-    return MobileAuthScaffold(body: body);
+    return MobileAuthScaffold.signUp(body: body);
   }
 }
 

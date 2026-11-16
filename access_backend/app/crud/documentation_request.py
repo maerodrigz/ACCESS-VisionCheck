@@ -15,18 +15,33 @@ def create(db: Session, requestor_id: int, data: dict) -> DocumentationRequest:
     return row
 
 
+def _normalize_time_label(value: str | None) -> str:
+    from app.services.schedule_conflict import parse_flexible_time
+
+    if value is None or not str(value).strip():
+        return ""
+    parsed = parse_flexible_time(value)
+    if parsed is None:
+        return str(value).strip().lower()
+    return parsed.strftime("%H:%M:%S")
+
+
 def find_recent_duplicate(
     db: Session,
     requestor_id: int,
     title: str,
     event_date: date,
     *,
+    start_time: str | None = None,
+    end_time: str | None = None,
     window_minutes: int = 30,
 ) -> DocumentationRequest | None:
-    """Same requestor re-submitting after a partial API failure (saved row, error response)."""
+    """Same requestor re-submitting an identical pending request (idempotent retry)."""
     title_norm = title.strip().lower()
     if not title_norm:
         return None
+    start_norm = _normalize_time_label(start_time)
+    end_norm = _normalize_time_label(end_time)
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
     rows = db.scalars(
         select(DocumentationRequest)
@@ -40,8 +55,13 @@ def find_recent_duplicate(
         .order_by(DocumentationRequest.created_at.desc())
     ).all()
     for row in rows:
-        if (row.title or "").strip().lower() == title_norm:
-            return row
+        if (row.title or "").strip().lower() != title_norm:
+            continue
+        if _normalize_time_label(row.start_time) != start_norm:
+            continue
+        if _normalize_time_label(row.end_time) != end_norm:
+            continue
+        return row
     return None
 
 
@@ -142,6 +162,37 @@ def unarchive_request(db: Session, row: DocumentationRequest) -> DocumentationRe
     if row.archived_at is None:
         return row
     row.archived_at = None
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+_REQUESTOR_ARCHIVE_STATUSES = frozenset({"completed", "rejected"})
+
+
+def requestor_archive_request(
+    db: Session, row: DocumentationRequest
+) -> DocumentationRequest:
+    """Owner soft-hide for completed/declined requests. Does not change status."""
+    status = (row.status or "").strip().lower()
+    if status not in _REQUESTOR_ARCHIVE_STATUSES:
+        raise ValueError(
+            "Only completed or declined documentation requests can be archived."
+        )
+    if row.requestor_archived_at is None:
+        row.requestor_archived_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(row)
+    return row
+
+
+def requestor_restore_request(
+    db: Session, row: DocumentationRequest
+) -> DocumentationRequest:
+    """Clear requestor soft-hide. Idempotent if already active."""
+    if row.requestor_archived_at is None:
+        return row
+    row.requestor_archived_at = None
     db.commit()
     db.refresh(row)
     return row

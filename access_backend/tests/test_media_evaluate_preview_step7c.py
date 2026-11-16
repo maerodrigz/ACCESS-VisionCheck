@@ -59,12 +59,20 @@ def test_photo_full_analysis_still_calls_detector() -> None:
 
 
 def test_video_preview_skips_frame_authenticity() -> None:
+    from app.services.ffmpeg_frames import FrameExtractionResult, SAMPLING_METHOD_FFMPEG
+    from app.services.media_evaluator import QUALITY_ENGINE_OPENCV
+
     frames = [_jpeg_bytes(), _jpeg_bytes()]
     metrics = {"sharpness": 0.5, "blur": 0.2, "noise": 0.1, "brightness": 0.5, "contrast": 0.4, "blocking_artifacts": 0.1, "ringing_artifacts": 0.1, "width": 640, "height": 480}
-    with patch("app.services.media_evaluator.extract_frames", return_value=frames):
-        with patch("app.services.media_evaluator._analyze_image", return_value=metrics):
-            with patch("app.services.media_evaluator.detect_ai_generated_from_frames") as detect_frames:
-                payload = evaluate_video(b"video", ext=".mp4", include_authenticity=False)
+    extraction = FrameExtractionResult(frames=frames, sampling_method=SAMPLING_METHOD_FFMPEG, probe_duration_sec=1.0)
+    with patch("app.services.media_evaluator.extract_frames_detailed", return_value=extraction):
+        with patch(
+            "app.services.media_evaluator.resolve_quality_engine_for_bytes",
+            return_value=(metrics, QUALITY_ENGINE_OPENCV, True),
+        ):
+            with patch("app.services.media_evaluator.analyze_image_for_engine", return_value=metrics):
+                with patch("app.services.media_evaluator.detect_ai_generated_from_frames") as detect_frames:
+                    payload = evaluate_video(b"video", ext=".mp4", include_authenticity=False)
 
     detect_frames.assert_not_called()
     assert payload is not None
@@ -91,12 +99,28 @@ def test_deferred_metadata_not_accepted_as_final_preview() -> None:
 
 
 def test_final_metadata_still_fast_path_when_not_deferred() -> None:
+    names = (
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation",
+    )
     preview = {
-        "criteria": [{"name": "Sharpness", "score": 4}],
+        "criteria": [{"name": n, "score": 4} for n in names],
         "overall_score": 4.0,
         "ai_detection": {"verdict": "authentic", "confidence": 0.8, "probability": 0.1, "detail": "x"},
         "scoring_model": "efficientnet-b0",
-        "legacy": {"overall_score": 0.8},
+        "legacy": {
+            "sharpness_score": 0.8,
+            "brightness_score": 0.8,
+            "contrast_score": 0.8,
+            "blur_score": 0.8,
+            "noise_score": 0.2,
+            "overall_score": 0.8,
+        },
     }
     assert _payload_from_preview_metadata(json.dumps(preview)) is not None
 
@@ -104,19 +128,46 @@ def test_final_metadata_still_fast_path_when_not_deferred() -> None:
 def test_background_pipeline_runs_full_evaluate_when_metadata_deferred() -> None:
     db = MagicMock()
     media = MagicMock(id=1, file_name="p.jpg", file_url="/uploads/p.jpg", file_type="photo", uploaded_by=2)
+    names = (
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation",
+    )
     deferred_meta = json.dumps(
         {
-            "criteria": [{"name": "Sharpness", "score": 4}],
+            "criteria": [{"name": n, "score": 4} for n in names],
             "overall_score": 4.0,
             "ai_detection": deferred_authenticity_preview(),
             "scoring_model": "efficientnet-b0",
-            "legacy": {"overall_score": 0.8},
+            "legacy": {
+                "sharpness_score": 0.8,
+                "brightness_score": 0.8,
+                "contrast_score": 0.8,
+                "blur_score": 0.8,
+                "noise_score": 0.2,
+                "overall_score": 0.8,
+            },
         }
     )
 
-    user = MagicMock(fullname="Member")
+    user = MagicMock(fullname="Member", id=2)
+    auth_payload = {
+        "verdict": "authentic",
+        "probability": 0.1,
+        "confidence": 0.9,
+        "detail": "d",
+        "requires_review": False,
+        "detector_backend": "probe",
+    }
     with patch("app.services.media_pipeline.eval_crud.get_for_media", return_value=None):
-        with patch("app.services.media_pipeline.evaluate_bytes", return_value={"legacy": {"overall_score": 0.8}, "ai_detection": {"verdict": "authentic", "probability": 0.1, "confidence": 0.9, "detail": "d"}, "criteria": [{"name": "Sharpness", "score": 4}], "overall_score": 4.0, "xp_eligible": True}) as ev:
+        with patch(
+            "app.services.media_pipeline.evaluate_authenticity_bytes",
+            return_value=auth_payload,
+        ) as ev_auth:
             with patch("app.services.media_pipeline.merge_client_gemini", side_effect=lambda p, _m: p):
                 with patch("app.services.media_pipeline.scores_from_payload", return_value={"overall_score": 0.8, "sharpness_score": 0.8, "brightness_score": 0.8, "contrast_score": 0.8, "blur_score": 0.8, "noise_score": 0.8}):
                     with patch("app.services.media_pipeline.eval_crud.create_evaluation", return_value=MagicMock()):
@@ -125,12 +176,21 @@ def test_background_pipeline_runs_full_evaluate_when_metadata_deferred() -> None
                                 with patch("app.services.media_pipeline.user_crud.recalculate_skill_level"):
                                     with patch("app.services.media_pipeline.ranking_crud.add_points"):
                                         with patch(
-                                            "app.services.ai_review_workflow.initial_review_status",
-                                            return_value="verified_human",
+                                            "app.crud.member_profile.evaluations_stats",
+                                            return_value=(1, 0.8),
                                         ):
-                                            run_pipeline(db, media, b"bytes", evaluation_metadata=deferred_meta)
+                                            with patch(
+                                                "app.services.member_milestones.on_evaluation_completed"
+                                            ):
+                                                with patch(
+                                                    "app.services.ai_review_workflow.initial_review_status",
+                                                    return_value="verified_human",
+                                                ):
+                                                    run_pipeline(
+                                                        db, media, b"bytes", evaluation_metadata=deferred_meta
+                                                    )
 
-    ev.assert_called_once()
+    ev_auth.assert_called_once()
 
 
 def test_gemini_quality_fields_present_on_preview() -> None:

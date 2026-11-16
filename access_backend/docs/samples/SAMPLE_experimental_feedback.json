@@ -1,0 +1,55 @@
+{
+  "feedback_ruleset_version": "hybrid_feedback_rules_v1",
+  "research_only": true,
+  "production_feedback_mutated": false,
+  "musiq_excluded_from_criterion_feedback": true,
+  "musiq_context": {
+    "musiq_opq_raw": 71.25,
+    "musiq_status": "ok",
+    "note": "MUSIQ overall perceptual quality is logged separately and is not used to generate criterion observations."
+  },
+  "issue_count": 2,
+  "experimental_summary": "Fine detail looks severely soft on the Laplacian focus signal. Edges and texture are hard to resolve for documentation. Contrast looks limited; subject-background separation may be weak.",
+  "disclaimer": "Experimental research feedback. Not independently validated. Not shown to members or admins.",
+  "observations": [
+    {
+      "criterion": "sharpness",
+      "raw_measurement": 80.0,
+      "raw_key": "sharpness_laplacian_var",
+      "q_value": 0.19,
+      "rule_id": "sharpness_severe_v1",
+      "rule_description": "sharpness hybrid band=severe using q < 0.25",
+      "threshold": {"metric": "q", "op": "<", "value": 0.25},
+      "observation": "Fine detail looks severely soft on the Laplacian focus signal. Edges and texture are hard to resolve for documentation.",
+      "suggested_improvement": "Tap to focus on the main subject, hold the camera steady, and avoid digital zoom when possible.",
+      "observation_kind": "issue",
+      "confidence": "research_unvalidated",
+      "uncertainty_note": "Experimental hybrid rule. Not independently validated for ACCESS documentation.",
+      "suppressed": false,
+      "severity": "severe"
+    },
+    {
+      "criterion": "blur",
+      "raw_measurement": 0.84,
+      "raw_key": "blur_inv_laplacian",
+      "q_value": 0.19,
+      "rule_id": "blur_severe_v1",
+      "observation_kind": "suppressed_duplicate",
+      "suppressed": true,
+      "suppression_reason": "shared_laplacian_axis_with_sharpness; sharpness_q=0.1900 blur_q=0.1900",
+      "observation": "Suppressed to avoid duplicate/contradictory focus feedback. Sharpness and blur share the same Laplacian quality axis.",
+      "suggested_improvement": "See the sharpness / focus observation.",
+      "confidence": "suppressed_duplicate"
+    },
+    {
+      "criterion": "contrast",
+      "q_value": 0.40,
+      "rule_id": "contrast_moderate_v1",
+      "observation_kind": "issue",
+      "severity": "moderate",
+      "observation": "Contrast looks limited; subject-background separation may be weak.",
+      "suggested_improvement": "Improve lighting direction or avoid flat overcast washout.",
+      "confidence": "research_unvalidated"
+    }
+  ]
+}

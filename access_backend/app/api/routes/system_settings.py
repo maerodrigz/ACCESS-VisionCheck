@@ -14,8 +14,14 @@ from app.database import get_db
 from app.models.media_file import MediaFile
 from app.models.system_branding import SystemBranding
 from app.models.user import User
-from app.services.efficientnet_b0_scorer import MODEL_ID, efficientnet_available
-from app.services.media_evaluator import SCORING_ENGINE
+from app.services import gemini_service
+from app.services.media_evaluator import (
+    SCORING_ENGINE,
+    SCORING_MODEL_MUSIQ,
+    QUALITY_ENGINE_MUSIQ_WORKER,
+)
+from app.services.musiq_worker_client import musiq_worker_configured
+from app.services.opencv_quality import opencv_available
 from app.services.media_upload_config import admin_media_payload
 from app.services.security_policy import SECURITY_DEFAULTS
 from app.schemas.system_settings import (
@@ -52,32 +58,44 @@ def _storage_usage_percent(db: Session) -> float:
     return round(max(12.0, min(96.0, estimated)), 1)
 
 
+def _feedback_generation_payload() -> dict:
+    """Gemini status for admins — never includes API key values."""
+    status = gemini_service.gemini_configuration_status()
+    return {
+        "name": "Gemini",
+        "description": (
+            "After automated image quality assessment produces criterion scores, Gemini "
+            "receives those measured results and generates encouraging, human-friendly "
+            "feedback for members. Gemini does not change scores, inspect the original "
+            "image, or make authenticity conclusions."
+        ),
+        "configured": status["api_key_configured"],
+        "model": status["model"] or "gemini-3.8-flash",
+        "model_configured": status["model_configured"],
+        "model_looks_supported": status["model_looks_supported"],
+        "ready": status["ready"],
+        "configurable": False,
+    }
+
+
 def _ai_evaluation_payload(cfg: dict) -> dict:
     """Public AI evaluation config — never exposes keys, weights paths, or credentials."""
     return {
         "enabled": cfg["enable_ai_media_evaluation"],
         "quality_model": {
-            "id": MODEL_ID,
-            "name": "EfficientNet-B0",
+            "id": SCORING_MODEL_MUSIQ,
+            "name": "MUSIQ + OpenCV",
             "engine": SCORING_ENGINE,
+            "quality_engine": QUALITY_ENGINE_MUSIQ_WORKER,
             "description": (
-                "EfficientNet-B0 analyzes uploaded photos and video frames to score technical "
-                "quality — sharpness, blur, noise, brightness, contrast, and compression artifacts."
+                "MUSIQ worker scores perceptual quality context and classical OpenCV criteria "
+                "for sharpness, blur, brightness, contrast, and compression artifacts. "
+                "If the worker is unavailable, local OpenCV is used as fallback."
             ),
-            "available_on_server": efficientnet_available(),
+            "available_on_server": musiq_worker_configured() or opencv_available(),
             "configurable": False,
         },
-        "feedback_generation": {
-            "name": "Gemini",
-            "description": (
-                "After EfficientNet-B0 produces criterion scores, Gemini receives those results "
-                "and generates encouraging, human-friendly feedback for members. Gemini does not "
-                "change or invent scores."
-            ),
-            "configured": bool((settings.gemini_api_key or "").strip()),
-            "model": (settings.gemini_model or "").strip() or "gemini-3.8-flash",
-            "configurable": False,
-        },
+        "feedback_generation": _feedback_generation_payload(),
         "max_evaluation_uploads_per_day": cfg["max_evaluation_uploads_per_day"],
     }
 

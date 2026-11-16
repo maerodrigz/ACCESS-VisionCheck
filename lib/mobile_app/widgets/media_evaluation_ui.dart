@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
 import 'package:access_mobile/mobile_app/widgets/integrity_evaluation_notice.dart';
 import 'package:access_mobile/mobile_app/widgets/quality_breakdown_card.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
+import 'package:access_mobile/shared/utils/member_supplementary_insights_display.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
 Color qualityLevelColor(String? level) => switch (level) {
@@ -80,6 +82,7 @@ class EvaluationCriterionChip extends StatelessWidget {
   final CriterionScore criterion;
 
   Color get _color {
+    if (!criterion.available) return kTextSecondary;
     if (criterion.score >= 4) return kGreen;
     if (criterion.score == 3) return kAccent;
     if (criterion.score == 2) return kYellow;
@@ -104,7 +107,7 @@ class EvaluationCriterionChip extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${criterion.score}/5',
+            criterion.available ? '${criterion.score}/5' : 'N/A',
             style: TextStyle(color: _color, fontSize: 12, fontWeight: FontWeight.w800),
           ),
         ],
@@ -125,7 +128,9 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
     this.showOverallHeader = true,
     this.showFeedbackCard = true,
     this.useBreakdownCard = false,
+    this.showBreakdownOverallScore = true,
     this.feedbackIsLocalFallback = false,
+    this.mergeSupplementaryInsights = false,
   });
 
   final PhotoEvaluationResult result;
@@ -136,7 +141,10 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
   final bool showOverallHeader;
   final bool showFeedbackCard;
   final bool useBreakdownCard;
+  /// Forwarded to [QualityBreakdownCard.showOverallScoreHeader].
+  final bool showBreakdownOverallScore;
   final bool feedbackIsLocalFallback;
+  final bool mergeSupplementaryInsights;
 
   @override
   Widget build(BuildContext context) {
@@ -149,12 +157,25 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
     if (!showQuality) {
       return IntegrityOnlyMessageCard(result: result);
     }
+    if (!result.evaluationAvailable) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'Quality evaluation unavailable. This is not a measured score.',
+          style: TextStyle(color: kTextSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (useBreakdownCard) ...[
-          QualityBreakdownCard(result: result, dense: dense),
+          QualityBreakdownCard(
+            result: result,
+            dense: dense,
+            showOverallScoreHeader: showBreakdownOverallScore,
+          ),
         ] else ...[
           if (showOverallHeader) ...[
             Row(
@@ -183,8 +204,18 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${result.overallPercent}% · ${result.recommendation}',
+                        '${result.overallPercent}/100 · ${result.recommendation}',
                         style: TextStyle(color: kTextPrimary, fontSize: compact ? 11 : 12, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        kOverallFromFiveLevelNote,
+                        style: TextStyle(
+                          color: kTextSecondary,
+                          fontSize: compact ? 10 : 11,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       if (mediaTypeLabel != null) ...[
                         const SizedBox(height: 4),
@@ -201,12 +232,22 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
             const SizedBox(height: 16),
           ],
           Text(
-            'AI SCORES',
+            'TECHNICAL QUALITY',
             style: TextStyle(
               color: kTextSecondary,
               fontSize: dense ? 9 : 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
+            ),
+          ),
+          SizedBox(height: dense ? 4 : 6),
+          Text(
+            kFiveLevelCriteriaIntro,
+            style: TextStyle(
+              color: kTextSecondary,
+              fontSize: dense ? 10 : 11,
+              height: 1.35,
+              fontWeight: FontWeight.w500,
             ),
           ),
           SizedBox(height: dense ? 6 : 10),
@@ -223,7 +264,23 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
             const LocalFeedbackNotice(),
             const SizedBox(height: 8),
           ],
-          AiFeedbackCard(feedback: gf, dense: dense),
+          AiFeedbackCard(
+            feedback: mergeSupplementaryInsights
+                ? MediaEvaluationFeedback(
+                    explanation: gf.explanation,
+                    strengths: gf.strengths,
+                    improvements: gf.improvements,
+                    tips: mergePracticalTipsWithSupplementaryInsights(
+                      tips: gf.tips,
+                      improvements: gf.improvements,
+                      insights: result.additionalQualityInsights,
+                    ),
+                    closingMessage: gf.closingMessage,
+                  )
+                : gf,
+            dense: dense,
+            isLocalFallback: feedbackIsLocalFallback,
+          ),
         ],
       ],
     );
@@ -251,7 +308,7 @@ class LocalFeedbackNotice extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Gemini feedback is unavailable right now. Showing an offline summary from your scores.',
+              'Live AI mentor feedback is unavailable right now. Showing score-based quality feedback from your measured results (not Gemini-generated).',
               style: evalBodyStyle.copyWith(
                 fontSize: 12,
                 color: kTextPrimary,
@@ -268,10 +325,16 @@ class LocalFeedbackNotice extends StatelessWidget {
 
 /// Card wrapper for Gemini mentor feedback below technical scores.
 class AiFeedbackCard extends StatelessWidget {
-  const AiFeedbackCard({super.key, required this.feedback, this.dense = false});
+  const AiFeedbackCard({
+    super.key,
+    required this.feedback,
+    this.dense = false,
+    this.isLocalFallback = false,
+  });
 
   final MediaEvaluationFeedback feedback;
   final bool dense;
+  final bool isLocalFallback;
 
   @override
   Widget build(BuildContext context) {
@@ -291,12 +354,16 @@ class AiFeedbackCard extends StatelessWidget {
                   gradient: kEvalSoftGradient,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: kEvalSecondary, size: 17),
+                child: Icon(
+                  isLocalFallback ? Icons.insights_rounded : Icons.auto_awesome_rounded,
+                  color: kEvalSecondary,
+                  size: 17,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'AI Feedback',
+                  isLocalFallback ? 'Score-based quality feedback' : 'AI Feedback',
                   style: evalCardTitleStyle.copyWith(fontSize: dense ? 14 : 15),
                 ),
               ),

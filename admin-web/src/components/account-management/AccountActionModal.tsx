@@ -35,7 +35,7 @@ const CONFIRM_CONFIG: Record<
   'confirm-deactivate': {
     title: 'Deactivate Account',
     text: (name) =>
-      `Deactivate ${name}? They will not be able to sign in until reactivated.`,
+      `Deactivate ${name}? Sign-in will be blocked until you reactivate the account. Uploads and history are kept.`,
     confirm: 'Deactivate Account',
     danger: true,
   },

@@ -25,18 +25,22 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     AiDetectionResult,
     AnalyticsReport,
     Announcement,
+    AnnouncementMemberRead,
     Archive,
     AuditLog,
     DocumentationRequest,
     EventCalendar,
     FacebookPost,
     FacebookSetting,
+    FacebookPageTokenHealth,
     AssignmentMemberFeedback,
     Feedback,
     LoginHistory,
     MediaComment,
     MediaEvaluation,
     MediaFile,
+    SubmissionChain,
+    SubmissionChainEvent,
     MemberMilestone,
     MemberRanking,
     Notification,
@@ -51,6 +55,7 @@ from app.models import (  # noqa: F401 — register every model with Base.metada
     PushDeviceToken,
     RegistrationEmailOtp,
     PasswordResetEmailOtp,
+    PendingStorageDeletion,
 )
 
 
@@ -337,6 +342,30 @@ def upgrade_users_registration_schema() -> None:
             conn.execute(text(stmt))
 
 
+def upgrade_sms_password_recovery_schema() -> None:
+    """
+    Additive SMS recovery / phone verification schema.
+    Does NOT drop password_reset_email_otps (see migrations review SQL).
+    """
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ"
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_users_verified_contact_number
+                ON users (contact_number)
+                WHERE phone_verified_at IS NOT NULL
+                  AND contact_number IS NOT NULL
+                  AND btrim(contact_number) <> ''
+                """
+            )
+        )
+
+
 def upgrade_media_evaluation_schema() -> None:
     """Extended criteria breakdown for member photo evaluation."""
     with engine.begin() as conn:
@@ -346,6 +375,16 @@ def upgrade_media_evaluation_schema() -> None:
             "ALTER TABLE media_evaluations ADD COLUMN IF NOT EXISTS recommendation VARCHAR(80)",
         ):
             conn.execute(text(stmt))
+        if engine.dialect.name == "postgresql":
+            for stmt in (
+                "ALTER TABLE media_evaluations ALTER COLUMN sharpness_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN brightness_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN contrast_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN blur_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN noise_score DROP NOT NULL",
+                "ALTER TABLE media_evaluations ALTER COLUMN overall_score DROP NOT NULL",
+            ):
+                conn.execute(text(stmt))
 
 
 def upgrade_media_files_schema() -> None:
@@ -418,6 +457,35 @@ def upgrade_media_storage_removed_schema() -> None:
         )
 
 
+def upgrade_pending_storage_deletions_schema() -> None:
+    """Queue failed Supabase/local deletes during permanent account removal."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS pending_storage_deletions (
+                    id SERIAL PRIMARY KEY,
+                    media_id INTEGER REFERENCES media_files(id) ON DELETE SET NULL,
+                    owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    file_url TEXT NOT NULL,
+                    bucket VARCHAR(120),
+                    object_path TEXT,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_pending_storage_owner "
+                "ON pending_storage_deletions (owner_user_id)"
+            )
+        )
+
+
 def upgrade_media_curation_schema() -> None:
     """Server-side best picks and album grouping for event media."""
     with engine.begin() as conn:
@@ -434,6 +502,29 @@ def upgrade_media_files_file_url_text() -> None:
         conn.execute(text("ALTER TABLE media_files ALTER COLUMN file_url TYPE TEXT"))
 
 
+def upgrade_media_files_evaluation_file_hash() -> None:
+    """SHA-256 duplicate detection for member practice evaluation uploads."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE media_files ADD COLUMN IF NOT EXISTS file_hash VARCHAR(64)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_media_files_file_hash "
+                "ON media_files (file_hash) WHERE file_hash IS NOT NULL"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_media_files_member_eval_file_hash "
+                "ON media_files (uploaded_by, file_hash) "
+                "WHERE media_category = 'member_evaluation' AND file_hash IS NOT NULL"
+            )
+        )
+
+
 def upgrade_documentation_requests_schema() -> None:
     """Extended requestor form fields (time, coverage requirements, reschedule history)."""
     with engine.begin() as conn:
@@ -444,8 +535,15 @@ def upgrade_documentation_requests_schema() -> None:
             "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS original_event_date DATE",
             "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS last_rescheduled_at TIMESTAMPTZ",
             "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS reschedule_history TEXT",
+            "ALTER TABLE documentation_requests ADD COLUMN IF NOT EXISTS requestor_archived_at TIMESTAMPTZ",
         ):
             conn.execute(text(stmt))
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_documentation_requests_requestor_archived_at "
+                "ON documentation_requests (requestor_archived_at)"
+            )
+        )
 
 
 def upgrade_request_assignments_schema() -> None:
@@ -502,6 +600,7 @@ def main() -> None:
     upgrade_documentation_requests_schema()
     upgrade_request_assignments_schema()
     upgrade_users_registration_schema()
+    upgrade_sms_password_recovery_schema()
     upgrade_users_removal_schema()
     upgrade_notification_schema()
     upgrade_media_evaluation_schema()
@@ -511,7 +610,12 @@ def main() -> None:
     upgrade_feedback_admin_review_schema()
     upgrade_media_curation_schema()
     upgrade_media_storage_removed_schema()
+    upgrade_pending_storage_deletions_schema()
     upgrade_media_files_file_url_text()
+    upgrade_media_files_evaluation_file_hash()
+    from app.migrations.submission_chains_phase1 import upgrade_submission_chains_phase1
+
+    upgrade_submission_chains_phase1(engine)
 
     db = SessionLocal()
     try:

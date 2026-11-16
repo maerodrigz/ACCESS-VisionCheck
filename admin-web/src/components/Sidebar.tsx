@@ -70,7 +70,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                           'flex items-center gap-2 rounded-lg px-1.5 py-1.5 text-[12px] font-semibold leading-tight tracking-tight transition-all',
                           isActive
                             ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active-text)] shadow-sm'
-                            : 'text-[var(--color-sidebar-text)] hover:bg-white/45 hover:text-[var(--color-sidebar-text)]',
+                            : 'text-[var(--color-sidebar-text)] hover:bg-[#F4FBFF]/80 hover:text-[var(--color-sidebar-text)]',
                         ].join(' ')
                       }
                     >

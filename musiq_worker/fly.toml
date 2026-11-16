@@ -1,0 +1,59 @@
+# Fly.io app config for the MUSIQ worker.
+# Deploy from any machine with flyctl (uses Fly remote builders; local Docker not required):
+#   fly auth login
+#   fly apps create access-musiq-worker
+#   fly volumes create musiq_tfhub --region sin --size 5
+#   fly secrets set MUSIQ_WORKER_TOKEN="..."
+#   fly deploy --remote-only --config musiq_worker/fly.toml
+#
+# Rename `app` if the name is taken. Region `sin` (Singapore) is a reasonable
+# default for ACCESS hosts in the Philippines; change if your users are elsewhere.
+#
+# This file does NOT deploy by itself. No hosting is purchased by committing it.
+
+app = "access-musiq-worker"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  WORKER_HOST = "0.0.0.0"
+  PORT = "8080"
+  PRELOAD_MUSIQ = "true"
+  CUDA_VISIBLE_DEVICES = "-1"
+  TFHUB_CACHE_DIR = "/models/tfhub"
+  ALLOW_INSECURE_EMPTY_TOKEN = "false"
+  VIDEO_SAMPLE_FRAMES = "4"
+  REQUEST_TIMEOUT_SEC = "120"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Keep 1 warm machine to avoid multi-minute TF cold starts during staging tests.
+  # Set to 0 later to reduce idle cost once latency is acceptable.
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 8
+    soft_limit = 4
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "300s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "8gb"
+  cpus = 2
+
+[mounts]
+  source = "musiq_tfhub"
+  destination = "/models/tfhub"

@@ -16,6 +16,7 @@ List<Evaluation> practiceEvaluationsForDisplay({
     if (mediaId == null) continue;
     final id = 'MED-$mediaId';
     if (byId.containsKey(id)) continue;
+    if (evaluations.any((e) => e.practiceMediaId == mediaId)) continue;
     merged.add(
       Evaluation(
         id: id,

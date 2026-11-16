@@ -44,7 +44,63 @@ class AssignTeamBody(BaseModel):
     replaces_assignment_id: int | None = None
 
 
+class EventCampusOut(BaseModel):
+    """Public campus calendar row (Option C — All Events)."""
+
+    id: int
+    title: str
+    start_date: date
+    end_date: date | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    venue: str | None = None
+    location: str | None = None
+    status: str = "upcoming"
+
+
+class EventMemberAssignmentOut(BaseModel):
+    """Member assignment calendar row (Option C — My Assignments)."""
+
+    id: int
+    request_id: int
+    title: str
+    description: str | None = None
+    start_date: date
+    end_date: date | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    venue: str | None = None
+    location: str | None = None
+    status: str = "upcoming"
+    request_status: str | None = None
+    assigned_member_name: str | None = None
+    documentation_team: list[str] = Field(default_factory=list)
+    assignment_id: int
+    assignment_status: str
+    task_role: str
+
+
+class EventRequestorOut(BaseModel):
+    """Requestor-owned documentation event (Option C — My Requests)."""
+
+    id: int
+    request_id: int
+    title: str
+    description: str | None = None
+    start_date: date
+    end_date: date | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    venue: str | None = None
+    location: str | None = None
+    status: str = "upcoming"
+    request_status: str | None = None
+    documentation_team: list[str] = Field(default_factory=list)
+
+
 class EventOut(BaseModel):
+    """Deprecated aggregate shape; kept for internal mapping only."""
+
     id: int
     request_id: int | None = None
     title: str
@@ -102,8 +158,18 @@ class AnnouncementOut(BaseModel):
     content: str
     posted_by_name: str | None = None
     created_at: datetime
+    is_read: bool = False
+    first_read_at: datetime | None = None
+    expires_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class AnnouncementReadOut(BaseModel):
+    announcement_id: int
+    is_read: bool = True
+    first_read_at: datetime
+    expires_at: datetime
 
 
 class MediaOut(BaseModel):
@@ -141,7 +207,7 @@ class GalleryMediaOut(BaseModel):
 class MediaEvaluateOut(BaseModel):
     evaluation: dict[str, Any]
     media_type: str
-    scoring_engine: str = "efficientnet-b0+ffmpeg"
+    scoring_engine: str | None = None
 
 
 class EvaluationOut(BaseModel):
@@ -149,12 +215,12 @@ class EvaluationOut(BaseModel):
     media_id: int
     file_name: str
     file_url: str
-    sharpness_score: float
-    brightness_score: float
-    contrast_score: float
-    blur_score: float
-    noise_score: float
-    overall_score: float
+    sharpness_score: float | None = None
+    brightness_score: float | None = None
+    contrast_score: float | None = None
+    blur_score: float | None = None
+    noise_score: float | None = None
+    overall_score: float | None = None
     feedback: str | None
     evaluated_at: datetime
     ai_probability: float | None = None
@@ -165,6 +231,16 @@ class EvaluationOut(BaseModel):
     recommendation: str | None = None
     criteria_json: str | None = None
     storage_removed: bool = False
+    submission_chain_id: int | None = None
+    chain_root_media_id: int | None = None
+    replaces_media_id: int | None = None
+    chain_role: str | None = None
+    replacement_lifecycle: str | None = None
+    xp_reconciliation_status: str | None = None
+    active_replacement_media_id: int | None = None
+    awaiting_replacement_media_id: int | None = None
+    can_reupload: bool = False
+    replacement_verified: bool = False
 
 
 class FeedbackCreate(BaseModel):
@@ -223,12 +299,24 @@ class ProfileOut(BaseModel):
     name: str
     email: str
     role: str
+    # Registration workflow status (pending | approved | rejected) — not account enablement.
     status: str
+    # Account enablement (DB users.is_active). Same source as Admin Member Management.
+    is_active: bool = True
+    account_status: str = "Active"
+    presence: str = "Offline"
+    is_online: bool = False
+    last_seen_at: datetime | None = None
+    last_login_at: datetime | None = None
     student_id: str | None = None
     contact_number: str | None = None
+    phone_verified: bool = False
+    phone_verified_at: datetime | None = None
     adviser_name: str | None = None
     profile_image: str | None = None
     skill_level: str | None = None
+    skill_effective_tier: str | None = None
+    skill_tier_stored_legacy: str | None = None
     total_points: int = 0
     rank_position: int | None = None
     uploads_count: int = 0
@@ -244,17 +332,65 @@ class ProfileUpdate(BaseModel):
     new_password: str | None = Field(default=None, min_length=6, max_length=128)
 
 
+class MediaQualityClassificationOut(BaseModel):
+    media_kind: str
+    title: str
+    average_score: float | None = None
+    average_score_display: float | None = None
+    qualifying_evaluations: int = 0
+    window_size: int = 10
+    formula_version: str | None = None
+    next_title: str | None = None
+    score_gap: float | None = None
+    evaluations_gap: int | None = None
+    progress_summary: str = ""
+    classified: bool = False
+
+
+class QualitySkillClassificationOut(BaseModel):
+    photo: MediaQualityClassificationOut
+    video: MediaQualityClassificationOut
+    disclaimer: str
+    photo_title: str
+    video_title: str
+    guide: list[dict] = Field(default_factory=list)
+
+
 class ParticipationOut(BaseModel):
     assignments_total: int
     assignments_completed: int
     uploads_count: int
     evaluations_count: int
     evaluations_today: int = 0
-    daily_evaluation_limit: int = 5
+    daily_evaluation_limit: int = 3
     evaluation_max_upload_mb: int = 350
     evaluation_max_video_seconds: int = 30
     evaluation_daily_timezone: str = "Asia/Manila"
     average_score: float
+    skill_eligible_evaluations_count: int = 0
+    skill_eligible_average_score: float = 0.0
+    skill_eligible_distinct_upload_days: int = 0
+    skill_quality_average: float = 0.0
+    skill_computed_tier: str = "Beginner"
+    skill_effective_tier: str = "Beginner"
+    skill_computed_tier_v2_preview: str = "Beginner"
+    skill_computed_tier_v1: str = "Beginner"
+    skill_computed_tier_v2_strict: str = "Beginner"
+    skill_computed_tier_v2_grandfather_adjusted: str = "Beginner"
+    skill_tier_grandfather_floor: str | None = None
+    skill_tier_stored_legacy: str | None = None
+    skill_admin_competency_override: str | None = None
+    skill_next_tier_required_evaluations: int | None = None
+    skill_next_tier_required_days: int | None = None
+    skill_remaining_eligible_evaluations: int = 0
+    skill_remaining_distinct_upload_days: int = 0
+    skill_remaining_quality_points: int = 0
+    skill_progression_policy_version: str = "v1"
+    skill_progression_policy_configured: str = "v1"
+    skill_progression_v2_blocked_reason: str | None = None
+    skill_progression_v2_activation_sealed: bool = False
+    skill_progression_v2_activation_sealed_at: datetime | None = None
+    skill_progression_grandfather_cohort_member: bool = False
     total_points: int
     rank_position: int | None = None
 

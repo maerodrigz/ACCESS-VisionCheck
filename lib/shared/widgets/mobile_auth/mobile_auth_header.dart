@@ -6,16 +6,20 @@ import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/auth_wave_painter.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
 
-/// Upper hero: gradient, org seal, ACCESS VisionCheck, tagline. No background photo.
+/// Upper hero: org seal, ACCESS VisionCheck, tagline (gradient or image-backed).
 class MobileAuthHeader extends StatelessWidget {
   const MobileAuthHeader({
     super.key,
     this.compact = false,
     this.minimal = false,
+    this.imageBacked = false,
   });
 
   final bool compact;
   final bool minimal;
+
+  /// Sign-in uses [signin_background.png]; skip painted gradient and wave chrome.
+  final bool imageBacked;
 
   @override
   Widget build(BuildContext context) {
@@ -23,21 +27,25 @@ class MobileAuthHeader extends StatelessWidget {
       fit: StackFit.expand,
       clipBehavior: Clip.hardEdge,
       children: [
-        const DecoratedBox(decoration: BoxDecoration(gradient: MobileAuthConstants.headerGradient)),
-        const _MobileAuthHeroGlow(),
+        if (!imageBacked)
+          const DecoratedBox(decoration: BoxDecoration(gradient: MobileAuthConstants.headerGradient)),
+        if (!imageBacked) const _MobileAuthHeroGlow(),
         SafeArea(
+          top: !imageBacked,
           bottom: false,
           child: Padding(
             padding: EdgeInsets.fromLTRB(
-              18,
-              minimal ? 2 : (compact ? 2 : 10),
-              18,
-              minimal ? 6 : (compact ? 46 : 52),
+              16,
+              minimal ? 2 : (compact ? (imageBacked ? 6 : 2) : 10),
+              16,
+              minimal ? 6 : (compact ? (imageBacked ? 12 : 46) : 52),
             ),
-            child: minimal ? _minimalTitle() : (compact ? _signInBrandRow() : _registrationBrandColumn()),
+            child: minimal
+                ? _minimalTitle()
+                : (compact || imageBacked ? _signInBrandRow(imageBacked: imageBacked) : _registrationBrandColumn()),
           ),
         ),
-        if (minimal)
+        if (minimal && !imageBacked)
           const Positioned(
             left: 0,
             right: 0,
@@ -47,7 +55,7 @@ class MobileAuthHeader extends StatelessWidget {
               child: SizedBox(height: 12),
             ),
           )
-        else
+        else if (!minimal && !imageBacked)
           const Positioned(left: 0, right: 0, bottom: 0, child: AuthWaveDivider()),
       ],
     );
@@ -75,68 +83,89 @@ class MobileAuthHeader extends StatelessWidget {
     );
   }
 
-  /// Sign-in: seal + wordmark + tagline in one row (fits short header, no clipping).
-  Widget _signInBrandRow() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ListenableBuilder(
-        listenable: brandingController,
-        builder: (context, _) {
-          final wordmark = loginWordmarkLines(brandingController.appName);
-          final heroTagline = brandingController.loginHeroTagline;
-          final taglineText =
-              heroTagline.isNotEmpty ? heroTagline : MobileAuthConstants.tagline;
+  /// Sign-in / sign-up: seal + wordmark + tagline; kept left to clear scanner art on the right.
+  Widget _signInBrandRow({required bool imageBacked}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = MediaQuery.sizeOf(context).width;
+        final logoSize = MobileAuthConstants.headerLogoSize(w);
+        final titleSize = MobileAuthConstants.headerAccessFontSize(w);
+        final subtitleSize = MobileAuthConstants.headerVisionCheckFontSize(w);
+        final taglineSize = MobileAuthConstants.headerTaglineFontSize(w);
+        final maxBrandWidth = (w * 0.54).clamp(190.0, 240.0);
+        final logoGap = w < 360 ? 8.0 : 9.0;
+        final blockGap = w < 360 ? 3.0 : 4.0;
 
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AccessOrgSealLogo(
-                size: 58,
-                showShadow: true,
-                showWhitePlate: true,
-                paddingFraction: 0.03,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+        return Align(
+          alignment: imageBacked
+              ? MobileAuthConstants.imageBackedBrandAlignment
+              : Alignment.topLeft,
+          child: ListenableBuilder(
+            listenable: brandingController,
+            builder: (context, _) {
+              final wordmark = loginWordmarkLines(brandingController.appName);
+              final taglineText = imageBacked
+                  ? MobileAuthConstants.tagline
+                  : (brandingController.loginHeroTagline.isNotEmpty
+                      ? brandingController.loginHeroTagline
+                      : MobileAuthConstants.tagline);
+
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxBrandWidth),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _WordmarkLine(
-                      title: wordmark.title,
-                      subtitle: wordmark.subtitle,
-                      titleSize: 18,
-                      subtitleSize: 22,
-                      onCyanHeader: true,
+                    AccessOrgSealLogo(
+                      size: logoSize,
+                      showShadow: true,
+                      showWhitePlate: true,
+                      paddingFraction: 0.03,
                     ),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: 36,
-                      height: 2,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      taglineText,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.92),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                        shadows: const [
-                          Shadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 1)),
+                    SizedBox(width: logoGap),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _WordmarkLine(
+                            title: wordmark.title,
+                            subtitle: wordmark.subtitle,
+                            titleSize: titleSize,
+                            subtitleSize: subtitleSize,
+                            onCyanHeader: true,
+                          ),
+                          SizedBox(height: blockGap),
+                          Container(
+                            width: 28,
+                            height: 1.5,
+                            color: Colors.white.withValues(alpha: 0.92),
+                          ),
+                          SizedBox(height: blockGap),
+                          Text(
+                            taglineText,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              fontSize: taglineSize,
+                              fontWeight: FontWeight.w600,
+                              height: 1.25,
+                              shadows: const [
+                                Shadow(color: Color(0x66000000), blurRadius: 6, offset: Offset(0, 1)),
+                                Shadow(color: Color(0x33000000), blurRadius: 2, offset: Offset(0, 1)),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          );
-        },
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -219,12 +248,13 @@ class _WordmarkLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final align = center ? WrapAlignment.center : WrapAlignment.start;
     final titleColor = onCyanHeader ? Colors.white : kCyan;
-    final subtitleColor = onCyanHeader ? kAccent : Colors.white;
+    final subtitleColor =
+        onCyanHeader ? MobileAuthConstants.visionCheckBrightCyan : Colors.white;
 
     return Wrap(
       alignment: align,
       crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 6,
+      spacing: 4,
       runSpacing: 0,
       children: [
         Text(

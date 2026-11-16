@@ -5,6 +5,7 @@ import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/user_model.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/utils/practice_media_title.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
 
@@ -349,10 +350,11 @@ String formatTaskRole(String role) {
   return role[0].toUpperCase() + role.substring(1);
 }
 
+/// Member-facing skill chip: Quality Skill Classification only (not XP / competency tier).
 String memberDashboardCompetencyLevel() {
-  final skill = appState.profileSkillLevel?.trim();
-  if (skill != null && skill.isNotEmpty) return skill;
-  return 'Beginner';
+  final snap = memberDataController.qualitySkillClassification;
+  if (snap != null) return snap.compactChipLabel;
+  return 'Not Yet Classified';
 }
 
 Challenge? memberActiveAssignment() {
@@ -367,6 +369,58 @@ Challenge? memberActiveAssignment() {
     }
   }
   return accepted;
+}
+
+DateTime? memberAssignmentEventDay(Challenge task) {
+  final event = calendarEventForAssignment(task);
+  if (event != null) {
+    return DateTime(
+      event.startDate.year,
+      event.startDate.month,
+      event.startDate.day,
+    );
+  }
+  return null;
+}
+
+bool memberAssignmentIsPast(Challenge task) {
+  final day = memberAssignmentEventDay(task);
+  if (day == null) return false;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  return day.isBefore(today);
+}
+
+/// Next assignment for Member Home — skips past-dated events without changing status.
+Challenge? memberNextAssignment() {
+  Challenge? soonestUndated;
+  Challenge? soonestDated;
+  DateTime? soonestDay;
+
+  for (final task in appState.challenges) {
+    if (task.completed) continue;
+    final status = task.status.toLowerCase();
+    if (status == 'cancelled' ||
+        status == 'canceled' ||
+        status == 'declined' ||
+        status == 'completed' ||
+        status == 'done') {
+      continue;
+    }
+    if (memberAssignmentIsPast(task)) continue;
+
+    final day = memberAssignmentEventDay(task);
+    if (day == null) {
+      soonestUndated ??= task;
+      continue;
+    }
+    if (soonestDay == null || day.isBefore(soonestDay)) {
+      soonestDay = day;
+      soonestDated = task;
+    }
+  }
+
+  return soonestDated ?? soonestUndated;
 }
 
 /// Assignment status pill — aligned with [MyAssignmentsScreen] backend values.
@@ -507,7 +561,12 @@ String eventNameForUpload(GalleryItem item) {
       }
     }
   }
-  if (item.category == 'Practice') return 'Practice Upload';
+  if (item.category == 'Practice') {
+    return practiceMediaDisplayTitle(
+      item.title,
+      isVideo: item.mediaType == MediaType.video,
+    );
+  }
   if (item.category.isNotEmpty) return item.category;
   return 'Event Coverage';
 }
@@ -736,6 +795,7 @@ class MemberDashboardPrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.color = kMemberButtonPrimary,
+    this.minHeight,
   });
 
   final String label;
@@ -743,8 +803,12 @@ class MemberDashboardPrimaryButton extends StatelessWidget {
   final IconData? icon;
   final Color color;
 
+  /// When set (e.g. 46 on Profile), keeps tap target while reducing visual bulk.
+  final double? minHeight;
+
   @override
   Widget build(BuildContext context) {
+    final height = minHeight ?? kMobileMinTouch;
     return SizedBox(
       width: double.infinity,
       child: FilledButton.icon(
@@ -755,7 +819,8 @@ class MemberDashboardPrimaryButton extends StatelessWidget {
           backgroundColor: color,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size.fromHeight(kMobileMinTouch),
+          minimumSize: Size.fromHeight(height),
+          padding: EdgeInsets.symmetric(vertical: height <= 48 ? 10 : 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(kMemberDashboardButtonRadius),
           ),

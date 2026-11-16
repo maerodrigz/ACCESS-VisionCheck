@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
@@ -8,8 +8,12 @@ import 'package:access_mobile/shared/controllers/branding_controller.dart';
 import 'package:access_mobile/shared/screens/registration_choice_screen.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
+import 'package:access_mobile/shared/widgets/login/login_error_toast.dart';
 import 'package:access_mobile/shared/widgets/login/login_form_panel.dart';
+import 'package:access_mobile/shared/widgets/login/login_notice_host.dart';
 import 'package:access_mobile/shared/widgets/login/login_page_tokens.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_navigation.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_scaffold.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_sign_in_form.dart';
 import 'package:access_mobile/shared/widgets/forgot_password_dialog.dart';
@@ -22,7 +26,23 @@ bool _isBackendConnectivityMessage(String message) {
       lower.contains("can't reach") ||
       lower.contains('pc backend') ||
       lower.contains('backend url') ||
-      lower.contains('wi-fi ip');
+      lower.contains('wi-fi ip') ||
+      lower.contains('timed out') ||
+      lower.contains('server timeout') ||
+      lower.contains('fix connection');
+}
+
+/// Builds the lockout body from the backend detail (remaining minutes).
+/// Never hardcodes a duration; falls back when the API omits a timer.
+@visibleForTesting
+String lockoutSupportingMessage(String raw) {
+  final match = RegExp(r'(\d+)\s+minutes?', caseSensitive: false).firstMatch(raw);
+  if (match != null) {
+    final minutes = match.group(1)!;
+    final unit = minutes == '1' ? 'minute' : 'minutes';
+    return 'Please try again in $minutes $unit.';
+  }
+  return 'Please try again later.';
 }
 
 /// Enterprise login for ACCESS VisionCheck — web admin and mobile.
@@ -35,7 +55,8 @@ class VisionLoginScreen extends StatefulWidget {
   State<VisionLoginScreen> createState() => _VisionLoginScreenState();
 }
 
-class _VisionLoginScreenState extends State<VisionLoginScreen> {
+class _VisionLoginScreenState extends State<VisionLoginScreen>
+    with LoginNoticeHost<VisionLoginScreen> {
   static const _rememberKey = 'login_remember_email';
 
   final _emailCtrl = TextEditingController();
@@ -43,7 +64,8 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   bool _obscure = true;
   bool _rememberMe = false;
   bool _loading = false;
-  String? _error;
+  /// Guards rapid re-entry before the first [setState] paints `loading`.
+  bool _submitLocked = false;
 
   @override
   void initState() {
@@ -55,7 +77,10 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     if (kIsWeb) {
       final ended = authController.consumeSessionEndMessage();
       if (ended != null && ended.isNotEmpty) {
-        _error = ended;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          showLoginNotice(ended, LoginNoticeKind.server);
+        });
       }
     } else {
       authController.consumeSessionEndMessage();
@@ -67,36 +92,40 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     unawaited(_recoverWhenBackendIsReachable());
   }
 
-  void _setLoginError(String? message) {
-    setState(() => _error = message);
-  }
-
   /// Clears stale offline banners and restores JWT when the PC backend comes back.
   Future<void> _recoverWhenBackendIsReachable() async {
     final reachable = await apiClient.checkReachable();
     if (!mounted) return;
     if (!reachable) return;
 
-    final backendBanner = _error != null && _isBackendConnectivityMessage(_error!);
+    final backendBanner = loginNoticeMessage != null &&
+        _isBackendConnectivityMessage(loginNoticeMessage!);
     if (!backendBanner) return;
 
     final restored = await authController.retryPersistedSession();
     if (!mounted) return;
     if (restored) {
-      setState(() => _error = null);
+      dismissLoginNotice();
       widget.onAuthenticated?.call();
       return;
     }
     if (kIsWeb) {
       final ended = authController.consumeSessionEndMessage();
-      setState(() => _error = ended);
+      if (ended != null && ended.isNotEmpty) {
+        showLoginNotice(ended, LoginNoticeKind.server);
+      } else {
+        dismissLoginNotice();
+      }
     } else {
       authController.consumeSessionEndMessage();
+      dismissLoginNotice();
     }
   }
 
   @override
   void dispose() {
+    disposeLoginNotice();
+    _passCtrl.clear();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
@@ -105,12 +134,19 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   Future<void> _loadRememberedEmail() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_rememberKey);
-    if (saved != null && saved.isNotEmpty && mounted) {
-      setState(() {
-        _emailCtrl.text = saved;
-        _rememberMe = true;
-      });
+    if (!mounted || saved == null || saved.isEmpty) return;
+    // Never overwrite email the user already started typing.
+    if (_emailCtrl.text.trim().isNotEmpty) {
+      setState(() => _rememberMe = true);
+      return;
     }
+    setState(() {
+      _emailCtrl.value = TextEditingValue(
+        text: saved,
+        selection: TextSelection.collapsed(offset: saved.length),
+      );
+      _rememberMe = true;
+    });
   }
 
   Future<void> _persistRememberMe() async {
@@ -123,53 +159,124 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Future<void> _submit() async {
+    if (_loading || _submitLocked) return;
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
     if (email.isEmpty || pass.isEmpty) {
-      _setLoginError('Please fill in all fields.');
+      showLoginNotice('Please fill in all fields.', LoginNoticeKind.validation);
       return;
     }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    _submitLocked = true;
+    setState(() => _loading = true);
+    dismissLoginNotice();
+    // Snapshot credentials once — never rewrite controllers on failure.
     try {
       await authController.login(email, pass);
       await _persistRememberMe();
       if (!mounted) return;
       FocusManager.instance.primaryFocus?.unfocus();
-      setState(() {
-        _loading = false;
-        _error = null;
-      });
+      _passCtrl.clear();
+      dismissLoginNotice();
+      setState(() => _loading = false);
       widget.onAuthenticated?.call();
     } on ApiException catch (e) {
-      final message = switch (e.code) {
-        'pending' || 'rejected' => e.message,
-        'removed' => 'Your account has been removed. Please contact the administrator.',
-        _ => _loginFailureMessage(e),
-      };
+      if (!mounted) return;
       setState(() => _loading = false);
-      _setLoginError(message);
-    } catch (e) {
+      // Keep email/password text and focus exactly as the user left them.
+      _presentApiLoginError(e);
+    } catch (_) {
+      if (!mounted) return;
       setState(() => _loading = false);
-      _setLoginError(e.toString());
+      showLoginNotice(
+        'Something went wrong. Please try again.',
+        LoginNoticeKind.server,
+      );
+    } finally {
+      _submitLocked = false;
+    }
+  }
+
+  void _presentApiLoginError(ApiException e) {
+    final kind = _classifyLoginError(e);
+    final message = _compactLoginMessage(e, kind);
+    final title = kind == LoginNoticeKind.lockout
+        ? 'Account temporarily locked'
+        : null;
+    final showFix = kind == LoginNoticeKind.network && !kIsWeb;
+    showLoginNotice(
+      message,
+      kind,
+      title: title,
+      actionLabel: showFix ? 'Fix connection' : null,
+      onAction: showFix ? _fixMobileBackendConnection : null,
+    );
+  }
+
+  LoginNoticeKind _classifyLoginError(ApiException e) {
+    final lower = e.message.toLowerCase();
+    final code = e.code?.toLowerCase();
+    if (code == 'pending' || code == 'rejected' || code == 'removed') {
+      return LoginNoticeKind.server;
+    }
+    if (e.statusCode == 403 && lower.contains('locked')) {
+      return LoginNoticeKind.lockout;
+    }
+    if (e.statusCode == 401 ||
+        lower.contains('invalid credentials') ||
+        lower.contains('invalid email or password')) {
+      return LoginNoticeKind.credentials;
+    }
+    if (e.statusCode == null || _isBackendConnectivityMessage(e.message)) {
+      return LoginNoticeKind.network;
+    }
+    if (e.statusCode != null && e.statusCode! >= 500) {
+      return LoginNoticeKind.server;
+    }
+    if (_isBackendConnectivityMessage(e.message)) {
+      return LoginNoticeKind.network;
+    }
+    return LoginNoticeKind.server;
+  }
+
+  String _compactLoginMessage(ApiException e, LoginNoticeKind kind) {
+    switch (kind) {
+      case LoginNoticeKind.credentials:
+        return 'Invalid email or password.';
+      case LoginNoticeKind.lockout:
+        return lockoutSupportingMessage(e.message);
+      case LoginNoticeKind.network:
+        return 'Cannot reach the server. Check your connection.';
+      case LoginNoticeKind.validation:
+        return e.message;
+      case LoginNoticeKind.server:
+        final code = e.code?.toLowerCase();
+        if (code == 'pending' || code == 'rejected' || code == 'removed') {
+          if (code == 'removed') {
+            return 'Your account has been removed. Please contact the administrator.';
+          }
+          return e.message.trim().isEmpty
+              ? 'Unable to sign in right now.'
+              : e.message.trim();
+        }
+        return 'Something went wrong. Please try again.';
     }
   }
 
   Future<void> _openRegistration() async {
-    final registeredEmail = await Navigator.push<String>(
+    final registeredEmail = await pushMobileAuthPage<String>(
       context,
-      MaterialPageRoute(builder: (_) => const RegistrationChoiceScreen()),
+      const RegistrationChoiceScreen(),
     );
     if (!mounted || registeredEmail == null || registeredEmail.isEmpty) return;
     setState(() {
       _emailCtrl.text = registeredEmail;
-      _error = null;
     });
+    dismissLoginNotice();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Registration submitted. Sign in after an administrator approves your account.'),
+        content: Text(
+          'Registration submitted. Sign in after an administrator approves your account.',
+        ),
         backgroundColor: kGreen,
         behavior: SnackBarBehavior.floating,
       ),
@@ -177,19 +284,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   }
 
   Future<void> _forgotPassword() async {
-    await showForgotPasswordDialog(context, initialEmail: _emailCtrl.text.trim());
-  }
-
-  String _loginFailureMessage(ApiException e) {
-    final lower = e.message.toLowerCase();
-    if (e.statusCode == 401 &&
-        (lower.contains('invalid credentials') || lower.contains('invalid email'))) {
-      return 'Invalid email or password. Use the exact email on your account '
-          '(check Profile if you changed it). On a phone, open Account settings and '
-          'confirm Backend connection points to your PC.';
-    }
-    if (lower.contains('locked')) return e.message;
-    return e.message;
+    await showForgotPasswordDialog(context);
   }
 
   @override
@@ -197,21 +292,25 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     final wide = MediaQuery.sizeOf(context).width >= 900;
 
     // One scaffold only on phone sign-in (nested scaffolds leave a colored strip above the keyboard).
+    final Widget content;
     if (!kIsWeb && !wide) {
-      return _mobileSignInScaffold();
+      content = _mobileSignInScaffold();
+    } else {
+      content = Scaffold(
+        backgroundColor: wide ? LoginPageTokens.background : const Color(0xFF0C3340),
+        resizeToAvoidBottomInset: true,
+        body: wide ? _wideLayout() : _narrowLayout(),
+      );
     }
 
-    return Scaffold(
-      backgroundColor: wide ? LoginPageTokens.background : const Color(0xFF0C3340),
-      resizeToAvoidBottomInset: true,
-      body: wide ? _wideLayout() : _narrowLayout(),
-    );
+    return buildWithLoginNotice(content);
   }
 
   Widget _mobileSignInScaffold() {
     return MobileAuthScaffold(
       scrollable: false,
       fixedViewport: true,
+      backgroundAsset: MobileAuthConstants.signInBackgroundAsset,
       body: MobileAuthSignInForm(
         key: const ValueKey('mobile_sign_in_form'),
         emailController: _emailCtrl,
@@ -219,13 +318,11 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
         obscurePassword: _obscure,
         rememberMe: _rememberMe,
         loading: _loading,
-        loginError: _error,
         onToggleObscure: () => setState(() => _obscure = !_obscure),
         onRememberMeChanged: (v) => setState(() => _rememberMe = v),
         onSubmit: _submit,
         onForgotPassword: _forgotPassword,
         onCreateAccount: _openRegistration,
-        onFixConnection: kIsWeb ? null : _fixMobileBackendConnection,
       ),
     );
   }
@@ -234,7 +331,7 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
     final changed = await showBackendUrlDialog(context);
     if (!mounted) return;
     if (changed) {
-      setState(() => _error = null);
+      dismissLoginNotice();
       apiClient.resetConnection();
       await apiClient.warmUpConnection();
     }
@@ -252,7 +349,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
             obscurePassword: _obscure,
             rememberMe: _rememberMe,
             loading: _loading,
-            error: _error,
             onToggleObscure: () => setState(() => _obscure = !_obscure),
             onRememberMeChanged: (v) => setState(() => _rememberMe = v),
             onSubmit: _submit,
@@ -267,8 +363,10 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
   Widget _narrowLayout() {
     const cardSideInset = 12.0;
     final topInset = MediaQuery.paddingOf(context).top;
+    final viewHeight = MediaQuery.sizeOf(context).height;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final hideBrandHero = keyboardOpen;
+    // Web embeds / short viewports: hero + card exceed height without scroll.
+    final hideBrandHero = keyboardOpen || viewHeight < 560;
 
     final formPanel = LoginFormPanel(
       key: const ValueKey('mobile-login-card'),
@@ -278,7 +376,6 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
       obscurePassword: _obscure,
       rememberMe: _rememberMe,
       loading: _loading,
-      error: _error,
       onToggleObscure: () => setState(() => _obscure = !_obscure),
       onRememberMeChanged: (v) => setState(() => _rememberMe = v),
       onSubmit: _submit,
@@ -297,26 +394,39 @@ class _VisionLoginScreenState extends State<VisionLoginScreen> {
           bottom: false,
           child: Padding(
             padding: EdgeInsets.only(top: topInset + 4, bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (!hideBrandHero)
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeInOut,
-                    alignment: Alignment.topCenter,
-                    child: const LoginBrandPanel(compact: true),
-                  ),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(cardSideInset, 6, cardSideInset, 0),
-                      child: formPanel,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (!hideBrandHero)
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeInOut,
+                            alignment: Alignment.topCenter,
+                            child: const LoginBrandPanel(compact: true),
+                          ),
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              cardSideInset,
+                              6,
+                              cardSideInset,
+                              0,
+                            ),
+                            child: formPanel,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),

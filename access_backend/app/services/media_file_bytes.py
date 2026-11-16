@@ -16,7 +16,10 @@ def is_video_file_name(file_name: str) -> bool:
 
 
 def local_media_path(file_url: str) -> Path | None:
-    """Resolve a stored file_url to a path under UPLOAD_DIR when the file is on disk."""
+    """Resolve a stored file_url to a path under UPLOAD_DIR when the file is on disk.
+
+    Rejects path traversal (``..``) and any resolved path outside UPLOAD_DIR.
+    """
     url = (file_url or "").strip()
     if not url:
         return None
@@ -36,15 +39,32 @@ def local_media_path(file_url: str) -> Path | None:
     rel = url.lstrip("/")
     if rel.startswith("uploads/"):
         rel = rel[len("uploads/") :]
-    local = Path(settings.upload_dir) / rel
+    if not rel or ".." in Path(rel).parts:
+        return None
+    upload_root = Path(settings.upload_dir).resolve()
+    local = (upload_root / rel).resolve()
+    try:
+        local.relative_to(upload_root)
+    except ValueError:
+        return None
     return local if local.is_file() else None
 
 
 def read_media_file_bytes(file_url: str, *, timeout: float = 12.0) -> bytes | None:
     """Read media bytes from `/uploads/...` paths or http(s) URLs."""
-    from app.services.supabase_storage import normalize_supabase_storage_url
+    from app.services.supabase_storage import (
+        is_supabase_storage_ref,
+        normalize_supabase_storage_url,
+        read_supabase_ref_bytes,
+    )
 
-    url = normalize_supabase_storage_url((file_url or "").strip())
+    raw = (file_url or "").strip()
+    if is_supabase_storage_ref(raw):
+        direct = read_supabase_ref_bytes(raw, timeout=timeout)
+        if direct:
+            return direct
+
+    url = normalize_supabase_storage_url(raw)
     if not url:
         return None
 

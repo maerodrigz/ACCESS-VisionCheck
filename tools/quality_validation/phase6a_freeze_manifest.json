@@ -1,0 +1,71 @@
+{
+  "phase": "6A",
+  "title": "Independent 100-image human validation package freeze",
+  "freeze_id": "phase6a_freeze_20261114T011001Z",
+  "frozen_at_utc": "2026-11-14T01:10:01.982022+00:00",
+  "status": "FROZEN_FOR_HUMAN_RATING_COLLECTION",
+  "note": "Do not change these versions after human rating begins. Re-freeze with a new freeze_id if hybrid/MUSIQ/feedback code changes.",
+  "inherits_phase4a_freeze_id": "phase4a_freeze_20261113",
+  "holdout": {
+    "source": "phase4a_indval",
+    "selection_seed": "20261113_phase4a_indval",
+    "n": 100,
+    "blind_ids": "INDVAL-001..INDVAL-100"
+  },
+  "musiq": {
+    "model_id": "tfhub:google/musiq/paq2piq/1",
+    "model_version": "paq2piq/1",
+    "engine_handle": "https://tfhub.dev/google/musiq/paq2piq/1",
+    "scale": "approx_0_100_mos_like",
+    "worker_ready_at_freeze": true,
+    "worker_probe": {
+      "reachable": true,
+      "ready_body": {
+        "status": "ready",
+        "musiq_ready": true,
+        "model_id": "tfhub:google/musiq/paq2piq/1",
+        "model_version": "paq2piq/1",
+        "engine_handle": "https://tfhub.dev/google/musiq/paq2piq/1"
+      }
+    }
+  },
+  "opencv_classical": {
+    "classical_map_version": "phase9_a_priori_equal_bin_v1",
+    "lap_scale": 420.0,
+    "block_ratio_ref": 1.0,
+    "resize_cap": 1024,
+    "equal_bin_label": "experimental_uncalibrated_a_priori",
+    "soft_score_applied_to_musiq": false,
+    "soft_score_applied_to_hybrid_q": false
+  },
+  "experimental_feedback": {
+    "feedback_ruleset_version": "hybrid_feedback_rules_v1",
+    "musiq_excluded_from_criterion_feedback": true,
+    "not_distributed_to_raters": true,
+    "validated": false
+  },
+  "production_unchanged": {
+    "efficientnet_b0": true,
+    "probe_dinov2": true,
+    "waverep_g4": true,
+    "production_feedback": true,
+    "xp_rankings": true,
+    "flutter_admin_ui": true,
+    "db_evaluation_records": true,
+    "quality_shadow_enabled_default": false
+  },
+  "human_rubric": {
+    "source": "human_pilot/rater_pack/HUMAN_RATING_RUBRIC.md",
+    "scale": "1=poorest .. 5=best (higher always better, including blur/noise)",
+    "criteria": [
+      "sharpness",
+      "blur",
+      "noise",
+      "brightness",
+      "contrast",
+      "blocking_artifacts",
+      "ringing_artifacts",
+      "overall_visual_quality"
+    ]
+  }
+}

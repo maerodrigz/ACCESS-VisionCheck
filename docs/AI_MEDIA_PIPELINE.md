@@ -21,10 +21,10 @@ Preview is fast and **does not** run final authenticity. Save triggers a **defer
 
 ## 3. Authenticity-risk evaluation (PROBE)
 
-- **Model:** PROBE-DINOv2 (when `AI_DETECTOR_BACKEND=probe`).
+- **Model:** PROBE-DINOv2 (`AI_DETECTOR_BACKEND=probe` only; UnivFD permanently retired).
 - **Resize:** Max long edge **1344 px** before tiling (`PROBE_MAX_LONG_EDGE`).
 - **Output:** Raw **P(fake)** in \[0, 1\]. This is a **risk signal**, not proof of AI or human origin.
-- **Default backend in code:** `univfd` (UnivFD). PROBE is enabled **only** via environment configuration for controlled staging/capstone.
+- **Default backend in code:** `probe`. Practice videos use WaveRep when `WAVEREP_ENABLED=true`.
 
 **Risk bands (validated candidate thresholds, not universal calibration):**
 
@@ -42,7 +42,7 @@ If PROBE is selected but the checkpoint is missing, corrupt, or inference fails,
 
 1. Quality analysis runs on the request thread (offloaded with `asyncio.to_thread`).
 2. **`include_authenticity=False`:** authenticity is **deferred** (`analysis_status: deferred`, `is_final: false`).
-3. PROBE/UnivFD **not** invoked on preview.
+3. PROBE/WaveRep **not** invoked on preview.
 4. Client may merge Gemini narrative before save.
 
 ## 5. Final save flow (`POST /api/media/upload`)
@@ -93,7 +93,7 @@ Admin AI alerts fire for PROBE when `requires_review` is true (suspicious/high),
 
 ## 12. Runtime configuration (capstone / demo)
 
-Set in process environment (or `.env` for local capstone only). **Do not** change the code default from `univfd`.
+Set in process environment (or `.env`). **Do not** set `AI_DETECTOR_BACKEND=univfd` (rejected at startup).
 
 ```env
 AI_DETECTOR_BACKEND=probe
@@ -101,6 +101,7 @@ PROBE_MAX_LONG_EDGE=1344
 PROBE_LOW_RISK_THRESHOLD=0.30
 PROBE_HIGH_RISK_THRESHOLD=0.45
 MAX_MEDIA_EVALUATION_WORKERS=1
+WAVEREP_ENABLED=true
 ```
 
 Optional: `PROBE_CHECKPOINT_PATH` if checkpoint is not in the default experiments path.

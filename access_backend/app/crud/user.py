@@ -21,6 +21,54 @@ def get_by_email(db: Session, email: str) -> User | None:
     )
 
 
+def get_by_verified_phone(db: Session, phone_e164: str) -> User | None:
+    """Active user with this normalized contact number and phone_verified_at set."""
+    phone = (phone_e164 or "").strip()
+    if not phone:
+        return None
+    return db.scalar(
+        select(User)
+        .options(joinedload(User.role), joinedload(User.skill_level))
+        .where(
+            User.contact_number == phone,
+            User.phone_verified_at.is_not(None),
+            User.is_active.is_(True),
+        )
+    )
+
+
+def find_verified_phone_conflict(db: Session, phone_e164: str, *, exclude_user_id: int | None = None) -> User | None:
+    phone = (phone_e164 or "").strip()
+    if not phone:
+        return None
+    stmt = (
+        select(User)
+        .options(joinedload(User.role), joinedload(User.skill_level))
+        .where(
+            User.contact_number == phone,
+            User.phone_verified_at.is_not(None),
+            User.is_active.is_(True),
+        )
+    )
+    if exclude_user_id is not None:
+        stmt = stmt.where(User.id != exclude_user_id)
+    return db.scalar(stmt)
+
+
+def mark_phone_verified(db: Session, user: User, phone_e164: str) -> User:
+    user.contact_number = phone_e164
+    user.phone_verified_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def clear_phone_verification(db: Session, user: User) -> None:
+    user.phone_verified_at = None
+    db.commit()
+    db.refresh(user)
+
+
 def get_by_id(db: Session, user_id: int) -> User | None:
     return db.scalar(
         select(User)
@@ -76,6 +124,19 @@ def create_user(
     else:
         account_status = status.strip().lower()
 
+    from app.services.skill_progression_activation_coord import (
+        acquire_member_approval_seal_coordination_lock,
+        member_approval_requires_activation_coord_lock,
+    )
+
+    # Creating an already-approved Member can race with activation sealing.
+    if member_approval_requires_activation_coord_lock(
+        previous_status=None,
+        new_status=account_status,
+        role_name=role,
+    ):
+        acquire_member_approval_seal_coordination_lock(db)
+
     user = User(
         fullname=name.strip(),
         email=email.lower(),
@@ -112,43 +173,44 @@ def permanently_delete_member(
     user: User,
     *,
     acting_admin_id: int,
-    delete_uploads: bool = False,
-) -> tuple[int, int]:
+    delete_uploads: bool = True,
+) -> "PermanentDeletionStats":
     """
-    Remove a Member or Organization (requestor) row from the database.
-    Returns (media_deleted, media_failed). Raises RuntimeError when blocked.
+    Remove a Member or Organization row after owned media and storage cleanup.
+    Raises RuntimeError when blocked or storage cleanup incomplete.
     """
     from sqlalchemy.exc import IntegrityError
 
-    from app.crud import media as media_crud
     from app.crud import session as session_crud
-    from app.models.request_assignment import RequestAssignment
+    from app.services.member_permanent_deletion import (
+        PermanentDeletionIncompleteError,
+        PermanentDeletionStats,
+        assert_requestor_permanent_delete_allowed,
+        cleanup_member_assignments,
+        delete_owned_media_for_user,
+    )
 
     role_name = user.role.role_name if user.role else None
     if role_name not in (RoleName.MEMBER, RoleName.ORGANIZATION):
         raise RuntimeError("Only Member or Organization accounts can be permanently deleted.")
     if user.id == acting_admin_id:
         raise RuntimeError("You cannot delete your own account.")
+    if role_name == RoleName.ADMIN:
+        raise RuntimeError("Administrator accounts cannot be permanently deleted here.")
 
-    media_deleted = 0
-    media_failed = 0
-    if delete_uploads:
-        media_deleted, media_failed = media_crud.delete_all_for_uploader(db, user.id)
+    assert_requestor_permanent_delete_allowed(db, user)
 
     session_crud.revoke_sessions_for_user(db, user.id)
 
-    if role_name == RoleName.MEMBER:
-        for row in db.scalars(
-            select(RequestAssignment).where(RequestAssignment.assigned_by == user.id)
-        ).all():
-            row.assigned_by = acting_admin_id
+    stats = delete_owned_media_for_user(
+        db,
+        user.id,
+        include_event_gallery=bool(delete_uploads),
+    )
+    stats.assignments_removed = cleanup_member_assignments(db, user, acting_admin_id=acting_admin_id)
 
-        for row in db.scalars(
-            select(RequestAssignment).where(RequestAssignment.member_id == user.id)
-        ).all():
-            db.delete(row)
-
-    db.flush()
+    if stats.media_failed > 0 or stats.storage_queued > 0:
+        raise PermanentDeletionIncompleteError(stats)
 
     account_kind = "requestor" if role_name == RoleName.ORGANIZATION else "member"
     try:
@@ -161,17 +223,20 @@ def permanently_delete_member(
             "Try deactivating the account instead, or contact support."
         ) from exc
 
-    return media_deleted, media_failed
+    return stats
 
 
-def remove_member(
+def deactivate_account(
     db: Session,
     user: User,
     *,
     removed_by: int,
     removal_reason: str | None = None,
 ) -> User:
-    """Soft-delete a member account — blocks login and hides from active lists."""
+    """
+    Disable sign-in while preserving the user row, status, and all related history.
+    Does not delete media or change registration status (rejected vs approved).
+    """
     from app.crud import session as session_crud
 
     user.is_active = False
@@ -184,6 +249,19 @@ def remove_member(
     return user
 
 
+def remove_member(
+    db: Session,
+    user: User,
+    *,
+    removed_by: int,
+    removal_reason: str | None = None,
+) -> User:
+    """Alias for deactivate_account (legacy admin members route)."""
+    return deactivate_account(
+        db, user, removed_by=removed_by, removal_reason=removal_reason
+    )
+
+
 def list_users(db: Session) -> list[User]:
     return list(
         db.scalars(
@@ -192,8 +270,18 @@ def list_users(db: Session) -> list[User]:
     )
 
 
-def set_password(db: Session, user: User, new_password: str) -> User:
+def set_password(
+    db: Session,
+    user: User,
+    new_password: str,
+    *,
+    clear_lockout: bool = False,
+) -> User:
+    """Hash and store a new password. Optionally clear failed-login lockout in the same commit."""
     user.password = hash_password(new_password)
+    if clear_lockout:
+        user.failed_login_count = 0
+        user.locked_until = None
     db.commit()
     db.refresh(user)
     return user
@@ -215,6 +303,12 @@ def update_user_by_admin(
     if other and other.id != user.id:
         raise ValueError("Email already registered")
 
+    from app.services.skill_progression_activation_coord import (
+        acquire_member_approval_seal_coordination_lock,
+        member_approval_requires_activation_coord_lock,
+    )
+
+    previous_status = user.status
     user.fullname = name.strip()
     user.email = email.lower().strip()
     user.role_id = _role_id_for_name(db, role)
@@ -223,6 +317,13 @@ def update_user_by_admin(
         user.skill_level_id = skill_id
 
     normalized = status.strip().lower()
+    if member_approval_requires_activation_coord_lock(
+        previous_status=previous_status,
+        new_status=normalized,
+        role_name=role,
+    ):
+        acquire_member_approval_seal_coordination_lock(db)
+
     user.status = normalized
     if normalized == UserStatus.APPROVED:
         user.rejection_reason = None
@@ -273,7 +374,25 @@ def update_status(
     rejection_reason: str | None = None,
     approved_by: int | None = None,
 ) -> User:
+    from app.services.skill_progression_activation_coord import (
+        acquire_member_approval_seal_coordination_lock,
+        member_approval_requires_activation_coord_lock,
+    )
+
     normalized = status.strip().lower()
+    previous_status = user.status
+    role_name = user.role.role_name if user.role else None
+    if role_name is None and user.role_id is not None:
+        role_row = db.get(Role, user.role_id)
+        role_name = role_row.role_name if role_row else None
+    if member_approval_requires_activation_coord_lock(
+        previous_status=previous_status,
+        new_status=normalized,
+        role_name=role_name,
+    ):
+        # Serialize with Skill Progression v2 activation sealing.
+        acquire_member_approval_seal_coordination_lock(db)
+
     user.status = normalized
     if normalized == UserStatus.REJECTED:
         user.rejection_reason = (rejection_reason or "").strip() or None
@@ -283,6 +402,10 @@ def update_status(
         user.rejection_reason = None
         user.approved_by = approved_by
         user.approved_at = datetime.now(timezone.utc)
+        user.is_active = True
+        user.removed_at = None
+        user.removed_by = None
+        user.removal_reason = None
     else:
         user.rejection_reason = None
         user.approved_by = None
@@ -304,15 +427,23 @@ def recalculate_skill_level(db: Session, user: User) -> str:
     """
     from app.crud.rankings_admin import resolve_member_skill_level
     from app.services import member_milestones as milestone_service
+    from app.services.skill_progression import build_skill_progression_snapshot
 
     old_level = user.skill_level.level_name if user.skill_level else None
+    old_snap = build_skill_progression_snapshot(db, user.id)
     effective, _, _ = resolve_member_skill_level(db, user.id)
     skill_id = _skill_level_id_for_name(db, effective)
     if skill_id:
         user.skill_level_id = skill_id
     db.flush()
+    new_snap = build_skill_progression_snapshot(db, user.id)
     milestone_service.on_skill_level_recalculated(
-        db, user.id, old_level=old_level, new_level=effective
+        db,
+        user.id,
+        old_level=old_level,
+        new_level=effective,
+        old_computed_tier=old_snap.computed_tier_active,
+        new_computed_tier=new_snap.computed_tier_active,
     )
     db.commit()
     return effective

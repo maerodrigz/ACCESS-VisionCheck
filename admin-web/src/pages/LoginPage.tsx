@@ -3,7 +3,6 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LoginBrandPanel } from '../components/LoginBrandPanel'
 import { LoginFormPanel } from '../components/LoginFormPanel'
-import { LoginSplitCurve } from '../components/LoginSplitCurve'
 import loginCameraBg from '../assets/login-camera-bg.png'
 import '../styles/login.css'
 
@@ -84,19 +83,18 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-shell">
-        <div className="login-shell__hero">
+        <aside className="login-shell__hero" aria-hidden={false}>
           <div className="login-shell__photo" aria-hidden>
             <div
               className="login-shell__photo-bg"
               style={{ '--login-hero-image': `url(${loginCameraBg})` } as React.CSSProperties}
             />
+            <div className="login-shell__scrim" />
           </div>
-          <div className="login-shell__scrim" aria-hidden />
-          <LoginSplitCurve />
           <div className="login-shell__brand">
             <LoginBrandPanel />
           </div>
-        </div>
+        </aside>
         <main className="login-shell__auth">
           <LoginFormPanel {...formProps} />
         </main>

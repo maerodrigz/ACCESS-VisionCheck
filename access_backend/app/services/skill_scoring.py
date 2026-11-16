@@ -33,9 +33,8 @@ def ai_authenticity_percent(human_verified: int, total_checked: int) -> float:
     return round(_pct(float(human_verified), float(total_checked)), 2)
 
 
-# Skill level is driven only by evaluation quality and media integrity.
-_MEDIA_QUALITY_WEIGHT = 0.70
-_INTEGRITY_WEIGHT = 0.30
+# Skill tier is driven by eligible practice media quality only (see skill_evaluation_eligibility).
+# AI authenticity is tracked separately for Media Integrity; it is not blended into skill_score.
 
 # Members need sustained evaluations before higher tiers unlock (not one lucky upload).
 MIN_EVALUATIONS_FOR_INTERMEDIATE = 3
@@ -48,13 +47,11 @@ _SKILL_TIER_ORDER = ("Beginner", "Intermediate", "Advanced", "Expert")
 def compute_skill_score(
     *,
     media_quality_score: float,
-    ai_authenticity_score: float,
+    ai_authenticity_score: float | None = None,
 ) -> float:
-    return round(
-        media_quality_score * _MEDIA_QUALITY_WEIGHT
-        + ai_authenticity_score * _INTEGRITY_WEIGHT,
-        2,
-    )
+    """Quality-only skill score (0–100). ai_authenticity_score is ignored (integrity is separate)."""
+    del ai_authenticity_score
+    return round(float(media_quality_score), 2)
 
 
 def skill_level_from_score(skill_score: float) -> str:
@@ -111,10 +108,7 @@ def build_skill_payload(
     task_q = task_participation_percent(completed_tasks, assigned_tasks)
     admin_q = round(min(100.0, max(0.0, admin_evaluation_score)), 2)
     ai_q = ai_authenticity_percent(human_verified_uploads, total_checked_uploads)
-    skill_score = compute_skill_score(
-        media_quality_score=media_q,
-        ai_authenticity_score=ai_q,
-    )
+    skill_score = compute_skill_score(media_quality_score=media_q)
     return {
         "average_quality_score": media_q,
         "approved_uploads": approved_uploads,

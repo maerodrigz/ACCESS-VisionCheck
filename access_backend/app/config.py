@@ -7,8 +7,13 @@ from dotenv import load_dotenv
 from pydantic import AliasChoices, Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.env_bootstrap import active_env_file_path, bootstrap_environment
+
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 ENV_FILE = BACKEND_ROOT / ".env"
+
+# Before Settings() — includes uvicorn reload workers (ACCESS_ENV_FILE from parent).
+bootstrap_environment()
 
 
 class Settings(BaseSettings):
@@ -28,9 +33,16 @@ class Settings(BaseSettings):
 
     database_url_override: str | None = Field(default=None, alias="DATABASE_URL")
 
-    jwt_secret: str = "access_visioncheck_dev_secret"
-    jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 10080
+    # Required from environment — insecure placeholders are rejected (see jwt_secret_policy).
+    jwt_secret: str = Field(default="", alias="JWT_SECRET")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_minutes: int = Field(default=10080, alias="JWT_EXPIRE_MINUTES")
+
+    # Environment marker (development | testing | production). Used for fail-safe guards.
+    app_env: str = Field(default="development", alias="APP_ENV")
+    # Login lockout (5 failures / 30 min). Default ON. Set false only for local UI testing.
+    # Refuse AUTH_LOCKOUT_ENABLED=false when APP_ENV is production.
+    auth_lockout_enabled: bool = Field(default=True, alias="AUTH_LOCKOUT_ENABLED")
 
     # Bind address (0.0.0.0 = listen on all interfaces for LAN/mobile access)
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
@@ -73,6 +85,9 @@ class Settings(BaseSettings):
     evaluation_max_upload_mb: int = Field(default=350, alias="EVALUATION_MAX_UPLOAD_MB")
     evaluation_max_video_seconds: int = Field(default=30, alias="EVALUATION_MAX_VIDEO_SECONDS")
     evaluation_video_sample_frames: int = Field(default=4, alias="EVALUATION_VIDEO_SAMPLE_FRAMES")
+    motion_insight_burst_count: int = Field(default=5, alias="MOTION_INSIGHT_BURST_COUNT")
+    motion_insight_frames_per_burst: int = Field(default=6, alias="MOTION_INSIGHT_FRAMES_PER_BURST")
+    motion_insight_max_width: int = Field(default=480, alias="MOTION_INSIGHT_MAX_WIDTH")
 
     # Firebase Storage — photos/videos (optional; mobile can also send cloud_file_url)
     firebase_storage_bucket: str = Field(default="", alias="FIREBASE_STORAGE_BUCKET")
@@ -100,17 +115,74 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-3.8-flash", alias="GEMINI_MODEL")
 
-    # Dedicated AI detector backend: probe (PROBE-DINOv2 @ 1344px cap) or univfd.
+    # Photo AI authenticity: probe (PROBE-DINOv2) only. UnivFD permanently retired.
     ai_detector_backend: str = Field(default="probe", alias="AI_DETECTOR_BACKEND")
     probe_max_long_edge: int = Field(default=1344, alias="PROBE_MAX_LONG_EDGE")
     probe_checkpoint_path: str = Field(default="", alias="PROBE_CHECKPOINT_PATH")
     probe_low_risk_threshold: float = Field(default=0.30, alias="PROBE_LOW_RISK_THRESHOLD")
     probe_high_risk_threshold: float = Field(default=0.45, alias="PROBE_HIGH_RISK_THRESHOLD")
 
+    # WaveRep G4 — practice-video AI authenticity (off until module + checkpoint are installed).
+    waverep_enabled: bool = Field(default=False, alias="WAVEREP_ENABLED")
+    waverep_module_dir: str = Field(default="ml/waverep", alias="WAVEREP_MODULE_DIR")
+    waverep_checkpoint_path: str = Field(
+        default="ml/waverep/demo/weights/weights_dinov2_G4.ckpt",
+        alias="WAVEREP_CHECKPOINT_PATH",
+    )
+    waverep_device: str = Field(default="cpu", alias="WAVEREP_DEVICE")
+    waverep_samples: int = Field(default=20, alias="WAVEREP_SAMPLES")
+    waverep_min_successful_frames: int = Field(default=1, alias="WAVEREP_MIN_SUCCESSFUL_FRAMES")
+    # Off by default: when true, new practice videos with low WaveRep/PROBE risk and partial
+    # Android container metadata (no make/model) may auto-clear without admin review.
+    partial_android_video_auto_clear_enabled: bool = Field(
+        default=False,
+        alias="PARTIAL_ANDROID_VIDEO_AUTO_CLEAR",
+    )
+
     max_media_evaluation_workers: int = Field(default=1, alias="MAX_MEDIA_EVALUATION_WORKERS")
+
+    deferred_reconcile_on_startup: bool = Field(default=True, alias="DEFERRED_RECONCILE_ON_STARTUP")
+    deferred_reconcile_max_jobs: int = Field(default=100, alias="DEFERRED_RECONCILE_MAX_JOBS")
+    health_show_database_name: bool = Field(default=False, alias="HEALTH_SHOW_DATABASE_NAME")
+
+    # Phase 2 hybrid NR-IQA shadow scoring (research logs only; never user-facing).
+    # Keep false in production. When false, MUSIQ/TF are not imported.
+    quality_shadow_enabled: bool = Field(default=False, alias="QUALITY_SHADOW_ENABLED")
+    quality_shadow_max_workers: int = Field(default=1, alias="QUALITY_SHADOW_MAX_WORKERS")
+    quality_shadow_log_dir: str = Field(
+        default="research_logs/quality_shadow",
+        alias="QUALITY_SHADOW_LOG_DIR",
+    )
+    quality_shadow_tfhub_cache_dir: str = Field(
+        default="research_logs/quality_shadow/tfhub_cache",
+        alias="QUALITY_SHADOW_TFHUB_CACHE_DIR",
+    )
+    quality_shadow_anon_salt: str = Field(default="", alias="QUALITY_SHADOW_ANON_SALT")
+    quality_shadow_retention_days: int = Field(default=90, alias="QUALITY_SHADOW_RETENTION_DAYS")
+
+    # Production quality engine: musiq_worker only (MUSIQ + classical OpenCV; OpenCV-only fallback).
+    # EfficientNet-B0 (QUALITY_ENGINE=enet) is permanently retired and rejected at startup.
+    quality_engine: str = Field(default="musiq_worker", alias="QUALITY_ENGINE")
+    musiq_worker_url: str = Field(default="", alias="MUSIQ_WORKER_URL")
+    musiq_worker_token: str = Field(default="", alias="MUSIQ_WORKER_TOKEN")
+    musiq_worker_timeout_sec: float = Field(default=60.0, alias="MUSIQ_WORKER_TIMEOUT_SEC")
+    musiq_worker_tls_verify: bool = Field(default=True, alias="MUSIQ_WORKER_TLS_VERIFY")
+    # When true and MUSIQ_WORKER_URL is set, quality_shadow prefers the remote worker
+    # for MUSIQ OPQ instead of local TensorFlow (local TF remains optional fallback).
+    musiq_worker_prefer_remote: bool = Field(default=True, alias="MUSIQ_WORKER_PREFER_REMOTE")
+
+    # Linked replacement upload (Phase 1+: schema only until enabled in later phases).
+    replacement_upload_enabled: bool = Field(default=False, alias="REPLACEMENT_UPLOAD_ENABLED")
 
     # IANA timezone for practice evaluation daily upload cap (midnight boundary).
     evaluation_daily_timezone: str = Field(default="Asia/Manila", alias="EVALUATION_DAILY_TIMEZONE")
+
+    # Skill tier progression: v1 (legacy count gates) or v2 (balanced count + distinct upload days).
+    # Default v1 until grandfather snapshots are captured and ops sets SKILL_PROGRESSION_ACTIVE_POLICY=v2.
+    skill_progression_active_policy: str = Field(
+        default="v1",
+        alias="SKILL_PROGRESSION_ACTIVE_POLICY",
+    )
 
     # Outbound email (SMTP) — registration approve/reject and related alerts
     email_enabled: bool = Field(default=False, alias="EMAIL_ENABLED")
@@ -126,23 +198,56 @@ class Settings(BaseSettings):
     email_no_reply: str = Field(default="", alias="EMAIL_NO_REPLY")
     email_logo_path: str = Field(default="", alias="EMAIL_LOGO_PATH")
 
-    # Email OTP (registration + password reset)
+    # Email OTP (registration email verification only — not password reset)
     email_otp_expire_minutes: int = Field(
         default=10,
-        validation_alias=AliasChoices("EMAIL_OTP_EXPIRE_MINUTES", "SMS_OTP_EXPIRE_MINUTES"),
+        validation_alias=AliasChoices("EMAIL_OTP_EXPIRE_MINUTES"),
     )
     email_otp_token_minutes: int = Field(
         default=30,
-        validation_alias=AliasChoices("EMAIL_OTP_TOKEN_MINUTES", "SMS_OTP_TOKEN_MINUTES"),
+        validation_alias=AliasChoices("EMAIL_OTP_TOKEN_MINUTES"),
     )
     email_otp_resend_seconds: int = Field(
         default=60,
-        validation_alias=AliasChoices("EMAIL_OTP_RESEND_SECONDS", "SMS_OTP_RESEND_SECONDS"),
+        validation_alias=AliasChoices("EMAIL_OTP_RESEND_SECONDS"),
     )
     email_otp_max_attempts: int = Field(
         default=5,
-        validation_alias=AliasChoices("EMAIL_OTP_MAX_ATTEMPTS", "SMS_OTP_MAX_ATTEMPTS"),
+        validation_alias=AliasChoices("EMAIL_OTP_MAX_ATTEMPTS"),
     )
+
+    # SMS (TextBee gateway) — password reset + phone verification
+    sms_provider: str = Field(default="log", alias="SMS_PROVIDER")
+    textbee_base_url: str = Field(
+        default="https://api.textbee.dev/api/v1",
+        alias="TEXTBEE_BASE_URL",
+    )
+    textbee_api_key: str = Field(default="", alias="TEXTBEE_API_KEY")
+    textbee_device_id: str = Field(default="", alias="TEXTBEE_DEVICE_ID")
+    sms_reset_otp_expire_minutes: int = Field(
+        default=10,
+        validation_alias=AliasChoices("SMS_RESET_OTP_EXPIRE_MINUTES", "SMS_OTP_EXPIRE_MINUTES"),
+    )
+    sms_reset_otp_resend_seconds: int = Field(
+        default=60,
+        validation_alias=AliasChoices("SMS_RESET_OTP_RESEND_SECONDS", "SMS_OTP_RESEND_SECONDS"),
+    )
+    sms_reset_otp_max_attempts: int = Field(
+        default=5,
+        validation_alias=AliasChoices("SMS_RESET_OTP_MAX_ATTEMPTS", "SMS_OTP_MAX_ATTEMPTS"),
+    )
+    sms_daily_budget_per_phone: int = Field(default=5, alias="SMS_DAILY_BUDGET_PER_PHONE")
+    sms_daily_budget_global: int = Field(default=200, alias="SMS_DAILY_BUDGET_GLOBAL")
+    sms_rate_limit_per_ip_hour: int = Field(default=20, alias="SMS_RATE_LIMIT_PER_IP_HOUR")
+    sms_rate_limit_per_phone_hour: int = Field(default=8, alias="SMS_RATE_LIMIT_PER_PHONE_HOUR")
+
+    @model_validator(mode="after")
+    def _require_strong_jwt_secret(self) -> "Settings":
+        from app.core.jwt_secret_policy import validate_jwt_secret
+
+        # Never log the secret; validate_jwt_secret only raises a safe message.
+        self.jwt_secret = validate_jwt_secret(self.jwt_secret)
+        return self
 
     @model_validator(mode="after")
     def _validate_probe_risk_thresholds(self) -> "Settings":
@@ -151,6 +256,97 @@ class Settings(BaseSettings):
         if not (0.0 <= low < high <= 1.0):
             raise ValueError("PROBE_LOW_RISK_THRESHOLD and PROBE_HIGH_RISK_THRESHOLD must satisfy 0 <= LOW < HIGH <= 1")
         return self
+
+    @model_validator(mode="after")
+    def _refuse_disable_lockout_in_production(self) -> "Settings":
+        if self.is_production and not self.auth_lockout_enabled:
+            raise ValueError(
+                "AUTH_LOCKOUT_ENABLED=false is not allowed when APP_ENV is production. "
+                "Remove AUTH_LOCKOUT_ENABLED=false or set APP_ENV to development/testing."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_insecure_production_networking(self) -> "Settings":
+        if not self.is_production:
+            return self
+        if (self.cors_origins or "").strip() == "*":
+            raise ValueError(
+                "CORS_ORIGINS=* is not allowed when APP_ENV is production. "
+                "Set an explicit comma-separated HTTPS origin list."
+            )
+        hosts = [h.strip() for h in (self.allowed_hosts or "").split(",") if h.strip()]
+        if not hosts or "*" in hosts:
+            raise ValueError(
+                "ALLOWED_HOSTS=* (or empty) is not allowed when APP_ENV is production. "
+                "Set explicit hostnames (e.g. api.example.com,127.0.0.1)."
+            )
+        for origin in self.cors_origin_list:
+            if origin.startswith("http://") and "localhost" not in origin and "127.0.0.1" not in origin:
+                raise ValueError(
+                    f"CORS origin {origin!r} uses http:// in production. Use https:// origins only."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_dev_otp_channels_in_production(self) -> "Settings":
+        if not self.is_production:
+            return self
+        provider = (self.sms_provider or "log").strip().lower()
+        if provider == "log":
+            raise ValueError(
+                "SMS_PROVIDER=log is not allowed when APP_ENV is production. "
+                "Configure a real SMS provider (e.g. textbee)."
+            )
+        if not self.email_enabled:
+            raise ValueError(
+                "EMAIL_ENABLED=false is not allowed when APP_ENV is production. "
+                "Configure SMTP so registration OTP is not returned as dev_code."
+            )
+        if not (self.db_password or "").strip():
+            raise ValueError("DB_PASSWORD must be set when APP_ENV is production.")
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_quality_shadow_in_production(self) -> "Settings":
+        if self.is_production and self.quality_shadow_enabled:
+            raise ValueError(
+                "QUALITY_SHADOW_ENABLED=true is not allowed when APP_ENV is production. "
+                "Shadow scoring is research-only; keep the flag false in production."
+            )
+        engine = (self.quality_engine or "musiq_worker").strip().lower()
+        if engine == "enet":
+            raise ValueError(
+                "QUALITY_ENGINE=enet is no longer supported. EfficientNet-B0 has been retired. "
+                "Set QUALITY_ENGINE=musiq_worker (MUSIQ primary, local OpenCV fallback)."
+            )
+        if engine != "musiq_worker":
+            raise ValueError(
+                "QUALITY_ENGINE must be 'musiq_worker'. "
+                "Supported path: MUSIQ worker primary with local OpenCV fallback."
+            )
+        self.quality_engine = engine
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_retired_ai_detector_backends(self) -> "Settings":
+        backend = (self.ai_detector_backend or "probe").strip().lower()
+        if backend == "univfd":
+            raise ValueError(
+                "AI_DETECTOR_BACKEND=univfd is no longer supported. UnivFD has been retired. "
+                "Set AI_DETECTOR_BACKEND=probe (PROBE-DINOv2). Practice videos use WaveRep when enabled."
+            )
+        if backend != "probe":
+            raise ValueError(
+                "AI_DETECTOR_BACKEND must be 'probe'. "
+                "Supported photo authenticity path: PROBE-DINOv2."
+            )
+        self.ai_detector_backend = backend
+        return self
+
+    @property
+    def is_production(self) -> bool:
+        return (self.app_env or "").strip().lower() in ("production", "prod")
 
     @model_validator(mode="after")
     def _load_supabase_service_role_from_file(self) -> "Settings":
@@ -198,7 +394,11 @@ settings = Settings()
 
 
 def reload_dotenv_file() -> None:
-    """Reload access_backend/.env into os.environ (dev: pick up edits without full restart)."""
+    """Reload the active env file into os.environ (dev: pick up edits without full restart)."""
+    selected = active_env_file_path()
+    if selected is not None:
+        load_dotenv(selected, override=True)
+        return
     if ENV_FILE.is_file():
         load_dotenv(ENV_FILE, override=True)
 

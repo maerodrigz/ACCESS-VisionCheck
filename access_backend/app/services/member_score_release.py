@@ -84,6 +84,126 @@ def redact_criteria_json_for_member(criteria: dict[str, Any], review_status: str
     return out
 
 
+_LIST_CRITERIA_KEEP_KEYS = (
+    "media_type",
+    "scoring_model",
+    "scoring_engine",
+    "scoring_formula_version",
+    "overall_score",
+    "improvement_suggestions",
+    "ai_detection",
+    "integrity_tier",
+    "member_scores_released",
+    "show_quality_feedback",
+    "quality_provisional",
+    "review_gate_message",
+    "xp_pending",
+    "xp_eligible",
+    "xp_multiplier",
+    "xp_points_preview",
+    "xp_awarded_at_review",
+    "xp_awarded_points",
+    "member_integrity_message",
+    "evaluation_status",
+    "evaluation_available",
+)
+
+# List integrity pills need verdict/risk flags, not EXIF dumps or detector signal arrays.
+_LIST_AI_DETECTION_KEEP_KEYS = (
+    "verdict",
+    "confidence",
+    "detail",
+    "probability",
+    "analysis_status",
+    "is_final",
+    "risk_level",
+    "requires_review",
+    "camera_provenance_strength",
+    "provenance_policy_outcome",
+    "visual_risk_level",
+    "detector_backend",
+    "waverep_frames_analyzed",
+    "waverep_requested_frames",
+    "waverep_processing_status",
+    "waverep_analysis_unavailable",
+    "is_video_provenance",
+    "primary_review_driver",
+    "admin_review_triggers",
+    "raw_detector_probability",
+    "visual_ai_probability",
+)
+
+
+def _slim_ai_detection_for_list(ai: Any) -> Any:
+    if not isinstance(ai, dict):
+        return ai
+    return {k: ai[k] for k in _LIST_AI_DETECTION_KEEP_KEYS if k in ai}
+
+
+def _slim_criteria_rows_for_list(criteria: Any) -> list[dict[str, Any]] | None:
+    """Name/score/suggestion only — no EXIF or long rubric dumps."""
+    if not isinstance(criteria, list):
+        return None
+    out: list[dict[str, Any]] = []
+    for row in criteria:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("name") or "").strip()
+        if not name:
+            continue
+        available = row.get("available")
+        if available is None:
+            available = row.get("score") is not None
+        suggestion = str(row.get("suggestion") or "").strip()
+        if len(suggestion) > 220:
+            suggestion = suggestion[:217].rstrip() + "..."
+        out.append(
+            {
+                "name": name,
+                "score": row.get("score"),
+                "available": bool(available),
+                "suggestion": suggestion,
+                "explanation": "",
+            }
+        )
+    return out or None
+
+
+def slim_criteria_json_for_member_list(criteria_json: str | None) -> str | None:
+    """Drop heavy rubric blobs from list responses; keep integrity/status fields for cards.
+
+    Full criteria remain on detail fetches (``GET /evaluations?media_id=``).
+    Held-score redaction already removes scores before this runs.
+    """
+    if not criteria_json or not str(criteria_json).strip():
+        return criteria_json
+    try:
+        parsed = json.loads(criteria_json)
+    except (json.JSONDecodeError, TypeError):
+        return criteria_json
+    if not isinstance(parsed, dict):
+        return criteria_json
+    slim = {k: parsed[k] for k in _LIST_CRITERIA_KEEP_KEYS if k in parsed}
+    if "ai_detection" in slim:
+        slim["ai_detection"] = _slim_ai_detection_for_list(slim["ai_detection"])
+    # List cards need media_type even when other keys are missing.
+    if "media_type" not in slim and parsed.get("media_type") is not None:
+        slim["media_type"] = parsed.get("media_type")
+    # Prefer top-level formula version; fall back to analysis stamp (Clarity Option C = v2).
+    if "scoring_formula_version" not in slim:
+        analysis = parsed.get("analysis")
+        if isinstance(analysis, dict) and analysis.get("scoring_formula_version") is not None:
+            slim["scoring_formula_version"] = analysis.get("scoring_formula_version")
+    if "improvement_suggestions" in slim and slim["improvement_suggestions"] is not None:
+        tip = str(slim["improvement_suggestions"]).strip()
+        if len(tip) > 400:
+            slim["improvement_suggestions"] = tip[:397].rstrip() + "..."
+    criteria_rows = _slim_criteria_rows_for_list(parsed.get("criteria"))
+    if criteria_rows is not None:
+        slim["criteria"] = criteria_rows
+    return json.dumps(slim)
+
+
 def release_member_evaluation_scores(
     db: Session,
     media_id: int,
@@ -99,7 +219,9 @@ def release_member_evaluation_scores(
     except json.JSONDecodeError:
         return False
 
-    if data.get("member_scores_released") and data.get("gemini_feedback"):
+    if data.get("member_scores_released") and gemini_service.is_valid_gemini_feedback(
+        data.get("gemini_feedback")
+    ):
         return True
 
     data["member_scores_released"] = True
@@ -107,14 +229,49 @@ def release_member_evaluation_scores(
     data["quality_provisional"] = False
     data.pop("review_gate_message", None)
 
-    if not data.get("gemini_feedback") and not data.get("gemini_generated_at"):
+    # Retry while feedback is missing/invalid. Stamp gemini_generated_at only on success.
+    if not gemini_service.is_valid_gemini_feedback(data.get("gemini_feedback")):
         feedback = gemini_service.generate_media_evaluation_feedback(
             data,
             member_first_name=member_first_name or "Member",
         )
-        if feedback:
+        if gemini_service.is_valid_gemini_feedback(feedback):
             data["gemini_feedback"] = feedback
-        data["gemini_generated_at"] = datetime.now(timezone.utc).isoformat()
+            data["gemini_generated_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Remove outdated review-only messages after administrator approval.
+    # Preserve legitimate technical feedback and any generated Gemini explanation.
+    from app.services.integrity_evaluation_policy import (
+        _PARTIAL_PROVENANCE_MEMBER_MESSAGE,
+        _SOURCE_UNVERIFIED_MEMBER_MESSAGE,
+        _SUSPICIOUS_MEMBER_MESSAGE,
+        _AI_GENERATED_MEMBER_MESSAGE,
+    )
+
+    stale_messages = (
+        _PARTIAL_PROVENANCE_MEMBER_MESSAGE,
+        _SOURCE_UNVERIFIED_MEMBER_MESSAGE,
+        _SUSPICIOUS_MEMBER_MESSAGE,
+        _AI_GENERATED_MEMBER_MESSAGE,
+        MEMBER_UNDER_REVIEW_MESSAGE,
+    )
+
+    data.pop("member_integrity_message", None)
+    data.pop("review_gate_message", None)
+
+    if isinstance(data.get("ai_feedback"), str):
+        cleaned = data["ai_feedback"].strip()
+        for warning in stale_messages:
+            if cleaned.startswith(warning):
+                cleaned = cleaned[len(warning):].strip()
+        data["ai_feedback"] = cleaned
+
+    if isinstance(ev.feedback, str):
+        cleaned = ev.feedback.strip()
+        for warning in stale_messages:
+            if cleaned.startswith(warning):
+                cleaned = cleaned[len(warning):].strip()
+        ev.feedback = cleaned
 
     ev.criteria_json = json.dumps(data)
     if isinstance(data.get("gemini_feedback"), dict):
@@ -128,13 +285,13 @@ def evaluation_row_for_member(
     *,
     criteria_json: str | None,
     review_status: str | None,
-    overall_score: float,
-    feedback: str,
-    sharpness_score: float,
-    brightness_score: float,
-    contrast_score: float,
-    blur_score: float,
-    noise_score: float,
+    overall_score: float | None,
+    feedback: str | None,
+    sharpness_score: float | None,
+    brightness_score: float | None,
+    contrast_score: float | None,
+    blur_score: float | None,
+    noise_score: float | None,
     quality_level: str | None,
     recommendation: str | None,
 ) -> tuple[str | None, float, str, float, float, float, float, float, str | None, str | None]:

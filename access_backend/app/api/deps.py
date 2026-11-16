@@ -5,6 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.security import decode_access_token
+from app.crud import session as session_crud
 from app.crud import user as user_crud
 from app.database import get_db
 from app.models.enums import RoleName, UserStatus
@@ -19,12 +20,19 @@ def get_current_user(
 ) -> User:
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No token")
-    payload = decode_access_token(credentials.credentials)
+    token = credentials.credentials
+    payload = decode_access_token(token)
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    # Enforce tracked sessions so logout / password-reset revocation takes effect immediately.
+    active = session_crud.get_active_session(db, token)
+    if active is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
     user = user_crud.get_by_id(db, int(payload["userId"]))
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if active.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

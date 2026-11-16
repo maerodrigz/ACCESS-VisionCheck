@@ -15,14 +15,32 @@ class QualityBreakdownCard extends StatelessWidget {
     required this.result,
     this.dense = false,
     this.showCardShell = false,
+    this.showOverallScoreHeader = true,
   });
 
   final PhotoEvaluationResult result;
   final bool dense;
   final bool showCardShell;
 
+  /// When false, omit the embedded Overall Quality Score block (report summary
+  /// already shows it once above).
+  final bool showOverallScoreHeader;
+
   @override
   Widget build(BuildContext context) {
+    if (!result.evaluationAvailable) {
+      return Container(
+        padding: EdgeInsets.fromLTRB(18, dense ? 16 : 20, 18, dense ? 16 : 20),
+        decoration: BoxDecoration(
+          color: kDashCardBg,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Text(
+          'Quality evaluation unavailable. This is not a measured score.',
+          style: TextStyle(color: kTextSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
     final percent = result.overallPercent;
     final levelColor = qualityLevelColor(result.qualityLevel);
     final showTrophy = percent >= 90;
@@ -32,83 +50,95 @@ class QualityBreakdownCard extends StatelessWidget {
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: EdgeInsets.fromLTRB(18, dense ? 16 : 20, 18, dense ? 16 : 20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                kEvalPrimaryLight,
-                kEvalSecondaryLight.withValues(alpha: 0.55),
-                kDashCardBg,
-              ],
+        if (showOverallScoreHeader) ...[
+          Container(
+            padding: EdgeInsets.fromLTRB(18, dense ? 16 : 20, 18, dense ? 16 : 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  kEvalPrimaryLight,
+                  kEvalSecondaryLight.withValues(alpha: 0.55),
+                  kDashCardBg,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
             ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Overall Quality Score',
-                      style: TextStyle(
-                        color: kTextSecondary,
-                        fontSize: dense ? 10 : 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          '$percent',
-                          style: dashText(TextStyle(
-                            color: levelColor,
-                            fontSize: dense ? 40 : 48,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.5,
-                            height: 1,
-                          )),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Overall Quality Score',
+                        style: TextStyle(
+                          color: kTextSecondary,
+                          fontSize: dense ? 10 : 11,
+                          fontWeight: FontWeight.w600,
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 2),
-                          child: Text(
-                            '/100',
-                            style: TextStyle(
-                              color: kTextSecondary,
-                              fontSize: dense ? 14 : 16,
-                              fontWeight: FontWeight.w600,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '$percent',
+                            style: dashText(TextStyle(
+                              color: levelColor,
+                              fontSize: dense ? 40 : 48,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.5,
+                              height: 1,
+                            )),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 2),
+                            child: Text(
+                              '/100',
+                              style: TextStyle(
+                                color: kTextSecondary,
+                                fontSize: dense ? 14 : 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        qualityHeadline,
+                        style: dashText(TextStyle(
+                          color: levelColor,
+                          fontSize: dense ? 14 : 16,
+                          fontWeight: FontWeight.w800,
+                        )),
+                      ),
+                      SizedBox(height: dense ? 6 : 8),
+                      Text(
+                        kOverallFromFiveLevelNote,
+                        style: TextStyle(
+                          color: kTextSecondary,
+                          fontSize: dense ? 10 : 11,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      qualityHeadline,
-                      style: dashText(TextStyle(
-                        color: levelColor,
-                        fontSize: dense ? 14 : 16,
-                        fontWeight: FontWeight.w800,
-                      )),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              if (showTrophy) ...[
-                const SizedBox(width: 8),
-                EvalTrophyIllustration(size: dense ? 64 : 72),
+                if (showTrophy) ...[
+                  const SizedBox(width: 8),
+                  EvalTrophyIllustration(size: dense ? 64 : 72),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-        SizedBox(height: dense ? 14 : 18),
+          SizedBox(height: dense ? 14 : 18),
+        ],
         Text(
           'Quality Breakdown',
           style: dashText(TextStyle(
@@ -116,6 +146,16 @@ class QualityBreakdownCard extends StatelessWidget {
             fontSize: dense ? 14 : 15,
             fontWeight: FontWeight.w800,
           )),
+        ),
+        SizedBox(height: dense ? 4 : 6),
+        Text(
+          kFiveLevelCriteriaIntro,
+          style: TextStyle(
+            color: kTextSecondary,
+            fontSize: dense ? 10 : 11,
+            height: 1.35,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         SizedBox(height: dense ? 10 : 14),
         CriterionScoresList(
@@ -150,19 +190,55 @@ class QualityBreakdownCard extends StatelessWidget {
 class _ScoreRangeLegend extends StatelessWidget {
   const _ScoreRangeLegend();
 
-  static const _items = [
+  static const _overallItems = [
     (color: kRed, label: 'Poor', range: '0–59'),
     (color: kOrange, label: 'Fair', range: '60–74'),
     (color: kBlue, label: 'Good', range: '75–89'),
     (color: kGreen, label: 'Excellent', range: '90–100'),
   ];
 
+  static const _levelItems = [
+    (color: kRed, label: 'Poor', range: '1–2'),
+    (color: kOrange, label: 'Fair', range: '3'),
+    (color: kBlue, label: 'Good', range: '4'),
+    (color: kGreen, label: 'Excellent', range: '5'),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Overall bands (/100)',
+          style: TextStyle(
+            color: kTextSecondary,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _legendWrap(_overallItems),
+        const SizedBox(height: 10),
+        Text(
+          'Criterion levels (/5)',
+          style: TextStyle(
+            color: kTextSecondary,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _legendWrap(_levelItems),
+      ],
+    );
+  }
+
+  Widget _legendWrap(List<({Color color, String label, String range})> items) {
     return Wrap(
       spacing: 14,
       runSpacing: 8,
-      children: _items.map((item) {
+      children: items.map((item) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -174,7 +250,7 @@ class _ScoreRangeLegend extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               '${item.label} (${item.range})',
-              style: TextStyle(
+              style: const TextStyle(
                 color: kTextSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,

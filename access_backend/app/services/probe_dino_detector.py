@@ -12,12 +12,12 @@ from typing import Any, Callable
 
 import numpy as np
 
+from app.services.torch_runtime import get_torch, torch_available
+
 try:
-    import torch
     from PIL import Image
-except ImportError:  # pragma: no cover
-    torch = None  # type: ignore
-    Image = None  # type: ignore
+except ImportError:
+    Image = None  # type: ignore[misc, assignment]
 
 logger = logging.getLogger("ACCESS.probe_dino_detector")
 
@@ -85,14 +85,18 @@ def resize_long_edge(image: Image.Image, max_edge: int = DEFAULT_MAX_LONG_EDGE) 
     return _resize_long_edge(image, max_edge)
 
 
-def probe_detector_available() -> bool:
-    if torch is None or Image is None:
-        return False
+def probe_checkpoint_on_disk() -> bool:
     path = checkpoint_path()
     try:
         return path.is_file() and path.stat().st_size > 0
     except OSError:
         return False
+
+
+def probe_detector_available() -> bool:
+    if get_torch() is None or Image is None:
+        return False
+    return probe_checkpoint_on_disk()
 
 
 def _file_sha256(path: Path) -> str:
@@ -131,6 +135,9 @@ def _get_model() -> Any | None:
         try:
             load_probe_dino_checkpoint, _ = _get_probe_inference()
             HF_CACHE.mkdir(parents=True, exist_ok=True)
+            torch = get_torch()
+            if torch is None:
+                return None
             model = load_probe_dino_checkpoint(ckpt, hf_cache=HF_CACHE)
             model.to(torch.device("cpu"))
             _model = model
@@ -152,6 +159,7 @@ def probe_ai_probability(content: bytes) -> float | None:
     if model is None:
         return None
 
+    torch = get_torch()
     if Image is None or torch is None:
         return None
 

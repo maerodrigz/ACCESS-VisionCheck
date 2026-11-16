@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-/// Animated overlay shown while EfficientNet-B0 and Gemini process media.
+/// Animated overlay shown while MUSIQ + OpenCV quality scoring and Gemini process media.
 class AiProcessingOverlay extends StatefulWidget {
   const AiProcessingOverlay({
     super.key,
@@ -13,7 +13,7 @@ class AiProcessingOverlay extends StatefulWidget {
   final String message;
   final String? subtitle;
 
-  /// 1 = EfficientNet-B0 scoring, 2 = Gemini feedback generation.
+  /// 1 = MUSIQ + OpenCV scoring, 2 = Gemini feedback generation.
   final int activeStep;
 
   @override
@@ -117,7 +117,7 @@ class _PipelineSteps extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _StepTile(label: 'EfficientNet-B0', subtitle: 'Technical scores', step: 1, activeStep: activeStep)),
+        Expanded(child: _StepTile(label: 'MUSIQ + OpenCV', subtitle: 'Technical scores', step: 1, activeStep: activeStep)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Icon(Icons.arrow_forward_rounded, size: 16, color: activeStep >= 2 ? kAccent : kBorder),

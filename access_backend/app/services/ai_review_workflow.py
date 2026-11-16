@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.crud import evaluation as eval_crud
-from app.crud import member_ranking as ranking_crud
 from app.models.ai_detection_result import AiDetectionResult
 from app.models.ai_review_history import AiReviewHistory
 from app.models.media_file import MediaFile
@@ -67,6 +66,8 @@ def _is_reviewed_status(status: str) -> bool:
 
 def _award_pending_evaluation_xp(db: Session, media_id: int, member_id: int) -> int:
     """Release XP held while an integrity-flagged evaluation awaited admin review."""
+    from app.services.chain_xp_award import apply_chain_xp_award
+
     ev = eval_crud.get_for_media(db, media_id)
     if not ev or not ev.criteria_json:
         return 0
@@ -88,12 +89,11 @@ def _award_pending_evaluation_xp(db: Session, media_id: int, member_id: int) -> 
         ev.criteria_json = json.dumps(data)
         return 0
 
-    ranking_crud.add_points(db, member_id, points)
-    data["xp_pending"] = False
-    data["xp_awarded_at_review"] = True
-    data["xp_eligible"] = True
-    ev.criteria_json = json.dumps(data)
-    return points
+    awarded = apply_chain_xp_award(db, media_id=media_id, member_id=member_id, points=points)
+    if awarded == 0:
+        data["xp_pending"] = False
+        ev.criteria_json = json.dumps(data)
+    return awarded
 
 
 def apply_ai_review(
@@ -104,6 +104,13 @@ def apply_ai_review(
     admin_remarks: str | None = None,
     reviewed_by: int | None = None,
 ) -> AiDetectionResult:
+    from app.crud.submission_chain import (
+        ReplacementUploadError,
+        on_active_replacement_review_outcome,
+        on_admin_reupload_requested,
+    )
+    from app.services.chain_xp_award import mark_chain_xp_locked_if_paid
+
     previous = row.review_status
     if review_status is not None:
         row.review_status = review_status
@@ -132,10 +139,28 @@ def apply_ai_review(
         )
         db.add(history)
 
+        if review_status == "reupload_requested" and row.media_id:
+            mark_chain_xp_locked_if_paid(db, row.media_id)
+            on_admin_reupload_requested(db, media_id=row.media_id, member_id=member_id)
+        elif row.media_id:
+            on_active_replacement_review_outcome(
+                db,
+                media_id=row.media_id,
+                review_status=review_status,
+                actor_user_id=reviewed_by,
+            )
+
         if review_status in CONFIRMED_AI_STATUSES and row.media_id and reviewed_by:
             from app.crud import archive as archive_crud
 
             archive_crud.create_if_not_exists(db, row.media_id, reviewed_by)
+
+        # Resolve outstanding admin integrity alerts for this media (mark read; keep history).
+        # Runs for any terminal or in-progress admin decision that leaves pending status.
+        if row.media_id and _is_reviewed_status(review_status):
+            from app.crud import notification as notification_crud
+
+            notification_crud.mark_media_integrity_alerts_resolved(db, row.media_id)
 
         if member_id:
             from app.services import notification_events as notify_events
@@ -162,8 +187,6 @@ def apply_ai_review(
                 awarded = _award_pending_evaluation_xp(db, row.media_id, member_id)
                 if awarded > 0:
                     message = f"{message} +{awarded} XP applied to your total."
-            if review_status in CONFIRMED_AI_STATUSES:
-                message = f"{message} −25 XP applied to your total."
             priority = "high" if review_status in ("rejected", "confirmed_ai_generated", "verified_ai_generated") else "normal"
             notify_events.notify_user(
                 db,
@@ -175,9 +198,6 @@ def apply_ai_review(
                 action_type="view_result",
                 action_ref_id=row.media_id,
             )
-
-        if member_id and review_status in CONFIRMED_AI_STATUSES:
-            ranking_crud.add_points(db, member_id, -25)
 
         if member_id:
             from app.crud import user as user_crud
@@ -231,6 +251,12 @@ def _is_probe_ai_detection(ai_detection: dict | None) -> bool:
     return str(ai_detection.get("detector_backend", "")).strip().lower() == "probe"
 
 
+def _is_waverep_ai_detection(ai_detection: dict | None) -> bool:
+    if not ai_detection:
+        return False
+    return str(ai_detection.get("detector_backend", "")).strip().lower() == "waverep_g4"
+
+
 def initial_review_status(
     detection_result: str,
     ai_probability: float,
@@ -239,6 +265,15 @@ def initial_review_status(
 ) -> str:
     """Set fair initial status after automated scan — never auto-reject."""
     from app.services.ai_authenticity_detector import SUSPICIOUS_THRESHOLD
+
+    if _is_waverep_ai_detection(ai_detection):
+        if ai_detection.get("waverep_analysis_unavailable") or ai_detection.get("requires_review") is True:
+            risk = str(ai_detection.get("risk_level", "")).lower()
+            label = (detection_result or "").lower()
+            if risk == "high" or label in ("ai_generated", "ai") or "generated" in label:
+                return "pending_review"
+            return "needs_further_review"
+        return PROBE_LOW_RISK_REVIEW_STATUS
 
     if _is_probe_ai_detection(ai_detection):
         if ai_detection.get("requires_review") is True:

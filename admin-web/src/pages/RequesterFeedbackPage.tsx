@@ -6,7 +6,8 @@ import { AdminCard } from '../components/AdminCard'
 import { AdminSelect } from '../components/AdminSelect'
 import { AdminConfirmDialog } from '../components/AdminConfirmDialog'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { PageToolbarRefreshButton } from '../components/PageToolbar'
 import { useToast } from '../context/ToastContext'
 import { FeaturedTestimonialCard } from '../components/requester-feedback/FeaturedTestimonialCard'
@@ -195,9 +196,10 @@ export function RequesterFeedbackPage() {
 
   return (
     <div className="min-w-0 max-w-full space-y-5 pb-8">
-      <AdminPageHeader
-        title="Requester Feedback"
-        subtitle="Ratings and comments from organizations after completed events. Respond to issues and track satisfaction."
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.requesterFeedback.icon}
+        title={FEATURE_HEADERS.requesterFeedback.title}
+        description={FEATURE_HEADERS.requesterFeedback.description}
         backTo="/"
         actions={
           <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />

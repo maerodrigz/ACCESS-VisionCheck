@@ -11,17 +11,20 @@ try:
 except ImportError:  # pragma: no cover
     cv2 = None  # type: ignore
 
+# Blocking-artifact contract (do not change without parity + product review).
+BLOCKING_BLOCK_SIZE = 8
+BLOCKING_VARIANCE_THRESHOLD = 8.0
+BLOCKING_FALLBACK_SCORE = 0.1
+
 
 def opencv_available() -> bool:
     return cv2 is not None
 
 
 def decode_image(content: bytes) -> np.ndarray | None:
-    if cv2 is None or not content:
-        return None
-    arr = np.frombuffer(content, dtype=np.uint8)
-    bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    return bgr
+    from app.services.image_orientation import decode_oriented_bgr
+
+    return decode_oriented_bgr(content)
 
 
 def analyze_image_bytes(content: bytes) -> dict[str, Any] | None:
@@ -68,11 +71,27 @@ def _normalize(value: float, *, scale: float) -> float:
     return max(0.0, min(1.0, value / scale))
 
 
-def _blocking_artifacts(gray: np.ndarray) -> float:
-    h, w = gray.shape
-    block = 8
+def _blocking_grid_counts(h: int, w: int, block: int = BLOCKING_BLOCK_SIZE) -> tuple[int, int]:
+    """Block grid size matching ``range(0, dim - block, block)`` in the legacy loop."""
+    stop_y = h - block
+    stop_x = w - block
+    if stop_y <= 0 or stop_x <= 0:
+        return 0, 0
+    n_rows = (stop_y - 1) // block + 1
+    n_cols = (stop_x - 1) // block + 1
+    return int(n_rows), int(n_cols)
+
+
+def _blocking_artifacts_loop_reference(gray: np.ndarray) -> float:
+    """Original nested-loop blocking metric (rollback / parity reference).
+
+    Formula: fraction of non-overlapping 8x8 blocks whose population variance
+    (float32, ddof=0) is strictly less than 8.0. Undersized images return 0.1.
+    """
+    h, w = gray.shape[:2]
+    block = BLOCKING_BLOCK_SIZE
     if h < block * 2 or w < block * 2:
-        return 0.1
+        return BLOCKING_FALLBACK_SCORE
 
     flat_blocks = 0
     total_blocks = 0
@@ -82,12 +101,51 @@ def _blocking_artifacts(gray: np.ndarray) -> float:
             if patch.size == 0:
                 continue
             variance = float(np.var(patch))
-            if variance < 8.0:
+            if variance < BLOCKING_VARIANCE_THRESHOLD:
                 flat_blocks += 1
             total_blocks += 1
     if total_blocks == 0:
-        return 0.1
+        return BLOCKING_FALLBACK_SCORE
     return flat_blocks / total_blocks
+
+
+def _blocking_artifacts_vectorized(gray: np.ndarray) -> float:
+    """NumPy vectorized equivalent of ``_blocking_artifacts_loop_reference``."""
+    if gray.ndim != 2:
+        raise ValueError("blocking artifacts expect a 2-D grayscale array")
+    h, w = gray.shape[:2]
+    block = BLOCKING_BLOCK_SIZE
+    if h < block * 2 or w < block * 2:
+        return BLOCKING_FALLBACK_SCORE
+
+    n_rows, n_cols = _blocking_grid_counts(h, w, block)
+    if n_rows <= 0 or n_cols <= 0:
+        return BLOCKING_FALLBACK_SCORE
+
+    usable_h = n_rows * block
+    usable_w = n_cols * block
+    # Same patches as the loop: starts at (0,0), (0,8), ... then (8,0), ...
+    region = np.ascontiguousarray(gray[:usable_h, :usable_w], dtype=np.float32)
+    blocks = region.reshape(n_rows, block, n_cols, block)
+    # Population variance over the 8x8 spatial axes (NumPy default ddof=0).
+    variances = np.var(blocks, axis=(1, 3))
+    total_blocks = int(variances.size)
+    if total_blocks == 0:
+        return BLOCKING_FALLBACK_SCORE
+    flat_blocks = int(np.count_nonzero(variances < BLOCKING_VARIANCE_THRESHOLD))
+    return flat_blocks / total_blocks
+
+
+# Activate only after phase7f parity script passes (see scripts/verify_opencv_blocking_phase7f.py).
+# False = production uses loop reference; True = vectorized (same formula).
+USE_VECTORIZED_BLOCKING = True
+
+
+def _blocking_artifacts(gray: np.ndarray) -> float:
+    """Production blocking metric (vectorized by default; loop retained for rollback)."""
+    if USE_VECTORIZED_BLOCKING:
+        return _blocking_artifacts_vectorized(gray)
+    return _blocking_artifacts_loop_reference(gray)
 
 
 def _ringing_artifacts(gray: np.ndarray) -> float:

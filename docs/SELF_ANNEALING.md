@@ -248,6 +248,39 @@ When you hit a new bug:
 
 ---
 
+## Incident 14: AppCompat `abc_*` missing after `flutter clean`
+
+| | |
+|---|---|
+| **Symptom** | `processDebugResources` / AAPT2 fails: `error: resource layout/abc_alert_dialog_material not found` (and other `abc_*` anim/layout refs). |
+| **Cause** | Not a missing AppCompat dependency. `androidx.appcompat:appcompat:1.1.0` was present via Facebook Login / SharedPreferences. Cursor redirected `GRADLE_USER_HOME` to `Temp\cursor-sandbox-cache\...\gradle`; with `org.gradle.caching=true`, `mergeDebugResources` loaded a corrupt FROM-CACHE merge that kept AppCompat style refs without the matching layout/anim files. |
+| **Fix** | Rebuild with real Gradle home (`GRADLE_USER_HOME=%USERPROFILE%\.gradle`) and `:app:processDebugResources --no-build-cache --rerun-tasks`, then `flutter build apk --debug`. Removed duplicate migrator flags in `android/gradle.properties`. |
+| **Prevention** | Do not add AppCompat pins until `dependencyInsight` proves absence. Prefer invalidating the bad build-cache entry / using the real Gradle home over wiping the global cache or `flutter clean` loops. |
+
+---
+
+## Incident 15: v2 activation seal TOCTOU vs Member approval
+
+| | |
+|---|---|
+| **Symptom** | Staging concurrency check: Member approved after under-lock `plan_seal()` and before seal `UPDATE` was omitted from the sealed cohort while seal still succeeded. |
+| **Cause** | `apply_seal` only `FOR UPDATE`’d the activation row; approval CRUD did not share that lock, so approval could commit in the validation→UPDATE gap. |
+| **Fix** | Shared `pg_advisory_xact_lock` in `skill_progression_activation_coord`; acquired by Member approval paths and by `apply_seal` before revalidate+UPDATE (no internal commit). |
+| **Prevention** | Run `tests/test_skill_progression_v2_seal_concurrency.py` on `access_waverep_test`. Do not approve Members by assigning `user.status` outside CRUD during a seal window. |
+
+---
+
+## Incident 16: Blank verified video + false “XP not awarded”
+
+| | |
+|---|---|
+| **Symptom** | Evaluation Report: gray video preview; Play stops immediately; Verified status with “XP not awarded” even when XP was already granted. |
+| **Cause** | List-safe `supabase-ref` streams via JWT `/media/{id}/stream`. `VideoThumbnail` cannot send Authorization. Players often fail when Authorization is forwarded through 307 to a signed Supabase URL; buffered byte `Response` advertised Accept-Ranges without true Range/206. Flutter XP UI used `xp_points_preview * xp_multiplier` while verified rows kept `xp_multiplier: 0` after award. |
+| **Fix** | Resolve stream redirects to signed URLs for playback/preview (JWT only on API hop / local FileResponse); temp-file FileResponse for buffered blobs; stamp `xp_awarded_points` + restore multiplier on award; Flutter reads award stamps. |
+| **Prevention** | Never treat `xp_multiplier == 0` alone as “not awarded” when `xp_awarded_at_review` is true. Never serve videos as a single non-ranged Response. |
+
+---
+
 ## Database reminders
 
 - Database name: **`access`** (PostgreSQL on `localhost:5432`)

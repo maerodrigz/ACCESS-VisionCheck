@@ -12,29 +12,33 @@ from app.services import dedicated_ai_detector as det
 from app.services import probe_dino_detector as probe_det
 
 
-def test_default_backend_is_univfd() -> None:
-    assert settings.ai_detector_backend == "univfd"
-    assert det.active_ai_detector_backend() == "univfd"
+def test_default_backend_is_probe() -> None:
+    """Isolated stack and app default use PROBE (see app/config.py)."""
+    assert settings.ai_detector_backend == "probe"
+    assert det.active_ai_detector_backend() == "probe"
 
 
 def test_probe_backend_routes_to_probe_service() -> None:
     with patch.object(settings, "ai_detector_backend", "probe"):
         with patch("app.services.probe_dino_detector.probe_ai_probability", return_value=0.42) as mock_probe:
-            with patch.object(det, "_univfd_ai_probability") as mock_univfd:
-                prob = det.dedicated_ai_probability(b"x" * 64)
+            prob = det.dedicated_ai_probability(b"x" * 64)
     assert prob == 0.42
     mock_probe.assert_called_once()
-    mock_univfd.assert_not_called()
 
 
-def test_univfd_backend_uses_univfd_path() -> None:
-    with patch.object(settings, "ai_detector_backend", "univfd"):
-        with patch.object(det, "_univfd_ai_probability", return_value=0.11) as mock_univfd:
-            with patch("app.services.probe_dino_detector.probe_ai_probability") as mock_probe:
-                prob = det.dedicated_ai_probability(b"x" * 64)
-    assert prob == 0.11
-    mock_univfd.assert_called_once()
-    mock_probe.assert_not_called()
+def test_univfd_module_removed() -> None:
+    import importlib.util
+
+    try:
+        spec = importlib.util.find_spec("app.services.univfd")
+    except ModuleNotFoundError:
+        spec = None
+    assert spec is None
+    try:
+        clip_spec = importlib.util.find_spec("app.services.univfd.clip_model")
+    except ModuleNotFoundError:
+        clip_spec = None
+    assert clip_spec is None
 
 
 def test_resize_long_edge_4608x3456() -> None:
@@ -70,11 +74,12 @@ def test_probe_probability_none_when_unavailable() -> None:
         assert probe_det.probe_ai_probability(_jpeg_bytes()) is None
 
 
-def test_efficientnet_import_unchanged() -> None:
-    from app.services import efficientnet_b0_scorer as eff
+def test_efficientnet_scorer_module_removed() -> None:
+    """EfficientNet-B0 scorer permanently deleted; production uses MUSIQ + OpenCV only."""
+    import importlib.util
 
-    assert eff.MODEL_ID == "efficientnet-b0"
-    assert callable(eff.analyze_image_bytes)
+    spec = importlib.util.find_spec("app.services.efficientnet_b0_scorer")
+    assert spec is None
 
 
 def _jpeg_bytes(width: int = 64, height: int = 64) -> bytes:

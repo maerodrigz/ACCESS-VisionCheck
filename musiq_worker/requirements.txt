@@ -1,0 +1,16 @@
+# Linux MUSIQ + OpenCV worker (TensorFlow 2.21 verified on Colab).
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+python-multipart==0.0.20
+pydantic==2.11.3
+pydantic-settings==2.8.1
+numpy==2.2.6
+opencv-python-headless==4.11.0.86
+Pillow==11.2.1
+# tensorflow-cpu is preferred on CPU VMs; tensorflow also works on Colab GPU.
+tensorflow==2.21.0
+tensorflow-hub==0.16.1
+tf-keras==2.21.0
+setuptools==80.9.0
+httpx==0.28.1
+pytest==8.3.5

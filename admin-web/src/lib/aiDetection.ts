@@ -71,7 +71,7 @@ export function reviewStatusLabel(s: ReviewStatus): string {
 export function aiResultLabelText(label: AiResultLabel): string {
   const map: Record<AiResultLabel, string> = {
     human: 'Human',
-    ai_generated: 'AI Generated',
+    ai_generated: 'High AI risk (automated)',
     suspicious: 'Suspicious',
     pending: 'Pending',
   }
@@ -133,6 +133,12 @@ function parseExifMetadata(raw: unknown): ExifMetadata | undefined {
       m.provenance_policy_outcome != null ? String(m.provenance_policy_outcome) : undefined,
     visual_ai_probability:
       m.visual_ai_probability != null ? Number(m.visual_ai_probability) : undefined,
+    detector_backend: m.detector_backend != null ? String(m.detector_backend) : undefined,
+    admin_review_triggers: Array.isArray(m.admin_review_triggers)
+      ? m.admin_review_triggers.map((t) => String(t)).filter(Boolean)
+      : undefined,
+    primary_review_driver:
+      m.primary_review_driver != null ? String(m.primary_review_driver) : undefined,
   }
 }
 
@@ -169,7 +175,7 @@ function confidenceText(label: AiResultLabel, score: number): string {
   const pct = Math.round(score * 100)
   switch (label) {
     case 'ai_generated':
-      return `${pct}% AI-generated confidence`
+      return `${pct}% automated AI-risk score`
     case 'suspicious':
       return `${pct}% Suspicious confidence`
     case 'pending':
@@ -212,6 +218,7 @@ export function summaryFromRows(rows: AiDetectionRow[]): AiDetectionSummary {
 
 export type IntegrityInboxFilter =
   | 'needs_action'
+  | 'reupload_requested'
   | 'all'
   | 'human'
   | 'suspicious'
@@ -246,6 +253,13 @@ export function aiReviewRiskLabel(tier: AiReviewRiskTier): string {
   if (tier === 'high') return 'High Risk'
   if (tier === 'suspicious') return 'Suspicious'
   return 'Low Risk'
+}
+
+/** Count of member practice uploads needing admin integrity review (matches Media Integrity “Needs Action”). */
+export function countIntegrityNeedsActionRows(rows: AiDetectionRow[]): number {
+  return rows.filter(
+    (r) => !isProbeSmokeTestRow(r) && matchesIntegrityInbox(r, 'needs_action'),
+  ).length
 }
 
 export function matchesIntegrityInbox(row: AiDetectionRow, filter: IntegrityInboxFilter): boolean {

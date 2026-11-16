@@ -1,7 +1,13 @@
 import { AlertTriangle } from 'lucide-react'
 import { AdminEmptyState } from '../AdminEmptyState'
 import type { EvaluationReviewItem } from '../../lib/evaluationReview'
-import { formatEvalDate, isEvaluationFlagged, scoreTone } from '../../lib/evaluationReview'
+import {
+  formatEvalDate,
+  formatEvaluationAiScore,
+  isEvaluationFlagged,
+  practicePhotoOrVideoEvaluation,
+  scoreTone,
+} from '../../lib/evaluationReview'
 
 interface Props {
   items: EvaluationReviewItem[]
@@ -76,14 +82,21 @@ export function EvaluationsTable({ items, onReview }: Props) {
                 </td>
                 <td className="px-3 py-3 md:px-4 md:py-3.5">
                   <p className={`text-sm font-extrabold ${scoreTone(item.overallScore)}`}>
-                    {Math.round(item.overallScore)}%
+                    {item.qualityAvailable && item.overallScore != null
+                      ? `${Math.round(item.overallScore)}%`
+                      : 'N/A'}
                   </p>
                   <p className="mt-0.5 truncate text-[10px] font-semibold text-[var(--color-text-secondary)]">
-                    {item.qualityLevel ?? 'No tier'}
+                    {item.qualityAvailable ? (item.qualityLevel ?? 'No tier') : 'Unavailable'}
                   </p>
                 </td>
                 <td className="px-3 py-3 md:px-4 md:py-3.5">
                   <AiBadge result={item.aiResult} />
+                  {practicePhotoOrVideoEvaluation(item) && formatEvaluationAiScore(item.aiProbability) ? (
+                    <p className="mt-1 text-[10px] font-semibold text-[var(--color-text-secondary)]">
+                      AI score: {formatEvaluationAiScore(item.aiProbability)}
+                    </p>
+                  ) : null}
                 </td>
                 <td className="px-3 py-3 md:px-4 md:py-3.5">
                   <div className="flex flex-wrap justify-end gap-1">

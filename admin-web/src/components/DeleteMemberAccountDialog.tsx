@@ -10,7 +10,11 @@ interface Props {
   userId: number
   accountRole?: AccountRole
   loading?: boolean
-  onConfirm: (deleteUploads: boolean, confirmationEmail: string) => void
+  errorMessage?: string | null
+  canRetryStorage?: boolean
+  storageRetryLoading?: boolean
+  onRetryStorage?: () => void
+  onConfirm: (confirmationEmail: string) => void
   onCancel: () => void
 }
 
@@ -21,18 +25,20 @@ export function DeleteMemberAccountDialog({
   userId,
   accountRole = 'Member',
   loading = false,
+  errorMessage = null,
+  canRetryStorage = false,
+  storageRetryLoading = false,
+  onRetryStorage,
   onConfirm,
   onCancel,
 }: Props) {
   const isRequestor = accountRole === 'Organization'
   const accountLabel = isRequestor ? 'requestor' : 'member'
-  const [deleteUploads, setDeleteUploads] = useState(false)
   const [confirmEmail, setConfirmEmail] = useState('')
   const [uploadCount, setUploadCount] = useState<number | null>(null)
 
   useEffect(() => {
     if (!open) {
-      setDeleteUploads(false)
       setConfirmEmail('')
       return
     }
@@ -70,13 +76,17 @@ export function DeleteMemberAccountDialog({
         <div className="flex items-start justify-between border-b border-[var(--color-border)] px-5 py-4">
           <div>
             <h2 className="text-base font-extrabold text-[var(--color-text-primary)]">
-              Delete {accountLabel} account?
+              Delete {accountLabel} account permanently?
             </h2>
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-              This permanently removes <strong className="text-[var(--color-text-primary)]">{memberName}</strong>{' '}
-              from the system
-              {isRequestor ? ', including their documentation requests,' : ''}. They cannot sign in again. This
-              cannot be undone.
+              This removes <strong className="text-[var(--color-text-primary)]">{memberName}</strong> and
+              eligible {accountLabel}-owned data: practice evaluations, AI detection history, rankings,
+              assignments, and uploaded media (database and Supabase when configured). Shared documentation
+              owned by other users is not removed.
+              {isRequestor
+                ? ' Requestors with active documentation requests must resolve those first (use Deactivate instead).'
+                : null}{' '}
+              This cannot be undone. Use Deactivate if you only need to block sign-in while keeping everything.
             </p>
           </div>
           <button
@@ -90,26 +100,10 @@ export function DeleteMemberAccountDialog({
         </div>
         <div className="space-y-3 px-5 py-4">
           {uploadCount != null ? (
-            <p className="text-xs text-[var(--color-text-secondary)]">
-              {uploadCount} uploaded file(s) on record for this {accountLabel}.
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)]">
+              {uploadCount} uploaded file(s) will be targeted for removal with this account.
             </p>
           ) : null}
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={deleteUploads}
-              disabled={loading}
-              onChange={(e) => setDeleteUploads(e.target.checked)}
-            />
-            <span className="text-sm text-[var(--color-text-primary)]">
-              Also delete all photos and videos uploaded by this {accountLabel}
-              <span className="mt-1 block text-xs font-normal text-[var(--color-text-secondary)]">
-                Frees storage (local disk or Supabase).
-                {!isRequestor ? ' Evaluations linked to those files are removed too.' : null}
-              </span>
-            </span>
-          </label>
           <label className="block">
             <span className="text-xs font-bold text-[var(--color-text-secondary)]">
               Type the account email to confirm
@@ -124,6 +118,26 @@ export function DeleteMemberAccountDialog({
               className="admin-input mt-1.5 w-full rounded-lg py-2 text-sm"
             />
           </label>
+          {errorMessage ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/8 px-3 py-2 text-xs leading-relaxed text-[var(--color-text-primary)]"
+            >
+              <p className="font-semibold text-[var(--color-danger)]">Deletion did not complete</p>
+              <p className="mt-1 text-[var(--color-text-secondary)]">{errorMessage}</p>
+              {canRetryStorage && onRetryStorage ? (
+                <button
+                  type="button"
+                  onClick={onRetryStorage}
+                  disabled={loading || storageRetryLoading}
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-bold text-[var(--color-text-primary)] disabled:opacity-50"
+                >
+                  {storageRetryLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Retry storage cleanup
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className="flex gap-2 px-5 py-4">
           <button
@@ -136,12 +150,12 @@ export function DeleteMemberAccountDialog({
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(deleteUploads, confirmEmail.trim())}
+            onClick={() => onConfirm(confirmEmail.trim())}
             disabled={!canSubmit}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-danger)] py-2.5 text-sm font-bold text-white disabled:opacity-50"
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-            Delete permanently
+            {loading && !storageRetryLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {errorMessage ? 'Retry permanent delete' : 'Delete permanently'}
           </button>
         </div>
       </div>

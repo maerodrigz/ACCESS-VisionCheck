@@ -1,0 +1,11 @@
+# Isolated official Google MUSIQ (TF Hub PaQ-2-PiQ) research environment.
+# Do not install into access_backend or the production interpreter.
+# This file is NOT pyiqa.
+tensorflow-cpu
+tensorflow-hub
+# tensorflow-hub still imports pkg_resources (removed from setuptools 82+)
+setuptools==80.9.0
+numpy
+scipy
+pandas
+Pillow

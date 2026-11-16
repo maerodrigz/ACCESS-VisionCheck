@@ -1,4 +1,4 @@
-import 'package:access_mobile/mobile_app/widgets/ai_detection_banner.dart';
+import 'package:access_mobile/mobile_app/widgets/evaluation_integrity_panels.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_result_action_bar.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/models/practice_evaluation_save_outcome.dart';
@@ -36,7 +36,7 @@ void main() {
       expect(result.qualityProvisionalEffective, isFalse);
     });
 
-    test('rejects deferred preview payload', () {
+    test('deferred preview payload parses with deferred authenticity flag', () {
       const criteria = '''
       {
         "criteria": [],
@@ -44,7 +44,10 @@ void main() {
         "ai_detection": {"analysis_status": "deferred", "is_final": false, "detail": "pending"}
       }
       ''';
-      expect(photoEvaluationResultFromApiRow({'criteria_json': criteria}), isNull);
+      final result = photoEvaluationResultFromApiRow({'criteria_json': criteria});
+      expect(result, isNotNull);
+      expect(result!.aiDetection.isDeferredAuthenticity, isTrue);
+      expect(result.aiDetection.isFinal, isFalse);
     });
 
     test('final suspicious copy inputs', () {
@@ -98,12 +101,12 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: AiDetectionBanner(aiDetection: ai, practiceFinalCopy: true),
+            body: EvaluationIntegrityPanels(aiDetection: ai),
           ),
         ),
       );
       expect(find.textContaining('pending save', findRichText: true), findsNothing);
-      expect(find.text('Low Risk'), findsOneWidget);
+      expect(find.text('Low AI Risk'), findsOneWidget);
       expect(find.textContaining('Authenticity check pending save'), findsNothing);
     });
   });

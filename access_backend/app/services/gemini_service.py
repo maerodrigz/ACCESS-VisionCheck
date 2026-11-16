@@ -13,6 +13,39 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Soft allowlist for operator checks only. Unknown ids are still callable if configured.
+_SUPPORTED_MODEL_PATTERNS = (
+    re.compile(r"^gemini-1\.5-", re.I),
+    re.compile(r"^gemini-2\.0-", re.I),
+    re.compile(r"^gemini-2\.5-", re.I),
+    re.compile(r"^gemini-3\.", re.I),
+    re.compile(r"^gemini-flash", re.I),
+    re.compile(r"^gemini-pro", re.I),
+)
+
+
+def gemini_configuration_status() -> dict[str, Any]:
+    """Safe config status for operators — never includes the API key value."""
+    key_set = bool((settings.gemini_api_key or "").strip())
+    model = (settings.gemini_model or "").strip()
+    model_configured = bool(model)
+    model_looks_supported = bool(model) and any(p.search(model) for p in _SUPPORTED_MODEL_PATTERNS)
+    return {
+        "api_key_configured": key_set,
+        "model": model or None,
+        "model_configured": model_configured,
+        "model_looks_supported": model_looks_supported,
+        "ready": key_set and model_configured,
+    }
+
+
+def is_valid_gemini_feedback(feedback: Any) -> bool:
+    """True when feedback is a usable mentor JSON object (explanation required)."""
+    if not isinstance(feedback, dict):
+        return False
+    explanation = feedback.get("explanation")
+    return isinstance(explanation, str) and bool(explanation.strip())
+
 
 def _gemini_generate(prompt: str, *, timeout: int = 45) -> str | None:
     key = (settings.gemini_api_key or "").strip()
@@ -70,6 +103,55 @@ def _parse_json_object(text: str) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
+def _criterion_available(item: dict[str, Any]) -> bool:
+    """Unavailable / N/A criteria must not be treated as scored zeros."""
+    if item.get("available") is False:
+        return False
+    score = item.get("score")
+    if score is None:
+        return False
+    label = str(item.get("label") or "").strip().upper()
+    if label in {"N/A", "NA", "UNAVAILABLE"}:
+        return False
+    try:
+        int(score)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _available_criteria(evaluation: dict[str, Any]) -> list[dict[str, Any]]:
+    criteria = evaluation.get("criteria") or []
+    if not isinstance(criteria, list):
+        return []
+    return [item for item in criteria if isinstance(item, dict) and _criterion_available(item)]
+
+
+def _unavailable_criterion_names(evaluation: dict[str, Any]) -> list[str]:
+    criteria = evaluation.get("criteria") or []
+    names: list[str] = []
+    if not isinstance(criteria, list):
+        return names
+    for item in criteria:
+        if not isinstance(item, dict):
+            continue
+        if _criterion_available(item):
+            continue
+        name = item.get("name")
+        if name:
+            names.append(str(name))
+    return names
+
+
+def _score_int(item: dict[str, Any]) -> int | None:
+    if not _criterion_available(item):
+        return None
+    try:
+        return int(item.get("score"))
+    except (TypeError, ValueError):
+        return None
+
+
 def _criterion_lines(evaluation: dict[str, Any]) -> str:
     criteria = evaluation.get("criteria") or []
     lines: list[str] = []
@@ -78,40 +160,98 @@ def _criterion_lines(evaluation: dict[str, Any]) -> str:
             if not isinstance(item, dict):
                 continue
             name = item.get("name") or "Criterion"
-            score = item.get("score", 3)
+            if not _criterion_available(item):
+                lines.append(f"- {name}: N/A (not measured — do not invent a score or defect)")
+                continue
+            score = _score_int(item)
             label = item.get("label") or ""
             lines.append(f"- {name}: {score}/5 ({label})".rstrip())
     return "\n".join(lines) if lines else "- (no criteria provided)"
 
 
+def _filter_named_against_unavailable(names: list[str], evaluation: dict[str, Any]) -> list[str]:
+    unavailable = {n.lower() for n in _unavailable_criterion_names(evaluation)}
+    out: list[str] = []
+    for name in names:
+        text = str(name).strip()
+        if not text:
+            continue
+        if text.lower() in unavailable:
+            continue
+        out.append(text)
+    return out
+
+
 def _weaknesses(evaluation: dict[str, Any]) -> str:
     raw = evaluation.get("weaknesses")
     if isinstance(raw, list) and raw:
-        return ", ".join(str(x) for x in raw if x)
-    criteria = evaluation.get("criteria") or []
+        filtered = _filter_named_against_unavailable([str(x) for x in raw if x], evaluation)
+        if filtered:
+            return ", ".join(filtered)
     names: list[str] = []
-    if isinstance(criteria, list):
-        for item in criteria:
-            if isinstance(item, dict) and int(item.get("score") or 0) <= 2:
-                name = item.get("name")
-                if name:
-                    names.append(str(name))
+    for item in _available_criteria(evaluation):
+        score = _score_int(item)
+        if score is not None and score <= 2:
+            name = item.get("name")
+            if name:
+                names.append(str(name))
     return ", ".join(names) if names else "none critical"
 
 
 def _strengths(evaluation: dict[str, Any]) -> str:
     raw = evaluation.get("strengths")
     if isinstance(raw, list) and raw:
-        return ", ".join(str(x) for x in raw if x)
-    criteria = evaluation.get("criteria") or []
+        filtered = _filter_named_against_unavailable([str(x) for x in raw if x], evaluation)
+        if filtered:
+            return ", ".join(filtered)
     names: list[str] = []
-    if isinstance(criteria, list):
-        for item in criteria:
-            if isinstance(item, dict) and int(item.get("score") or 0) >= 4:
-                name = item.get("name")
-                if name:
-                    names.append(str(name))
+    for item in _available_criteria(evaluation):
+        score = _score_int(item)
+        if score is not None and score >= 4:
+            name = item.get("name")
+            if name:
+                names.append(str(name))
     return ", ".join(names) if names else "none highlighted"
+
+
+def _score_by_name(evaluation: dict[str, Any], name: str) -> int | None:
+    target = name.strip().lower()
+    for item in _available_criteria(evaluation):
+        if str(item.get("name") or "").strip().lower() == target:
+            return _score_int(item)
+    return None
+
+
+def _clarity_consistency_note(evaluation: dict[str, Any]) -> str:
+    """Guide Gemini so Sharpness and Blur are treated as one clarity theme."""
+    sharp = _score_by_name(evaluation, "Sharpness")
+    blur = _score_by_name(evaluation, "Blur")
+    if sharp is None and blur is None:
+        return (
+            "Sharpness and Blur are both N/A or missing. Do not invent focus or blur problems."
+        )
+    if sharp is None:
+        return (
+            f"Sharpness is N/A. Blur is {blur}/5 (higher = less blur / better clarity). "
+            "Do not invent a sharpness defect; do not contradict the Blur score."
+        )
+    if blur is None:
+        return (
+            f"Blur is N/A. Sharpness is {sharp}/5. "
+            "Do not invent a blur defect; do not contradict the Sharpness score."
+        )
+    if abs(sharp - blur) <= 1:
+        return (
+            f"Sharpness ({sharp}/5) and Blur ({blur}/5) agree on clarity. "
+            "Treat them as one clarity theme. Give at most one improvement tip about focus/clarity. "
+            "Do not double-count the same softness problem."
+        )
+    return (
+        f"Sharpness ({sharp}/5) and Blur ({blur}/5) differ. "
+        "Both scores are higher-is-better (Blur high means little blur). "
+        "Describe clarity carefully without saying the photo is both sharp and blurry. "
+        "Prefer one concise clarity recommendation that reconciles both scores."
+    )
 
 
 def first_name_from_fullname(fullname: str | None) -> str | None:
@@ -124,11 +264,12 @@ def first_name_from_fullname(fullname: str | None) -> str | None:
     return first or None
 
 
-def generate_media_evaluation_feedback(
+def build_media_evaluation_prompt(
     evaluation: dict[str, Any],
     *,
     member_first_name: str | None = None,
-) -> dict[str, Any] | None:
+) -> str:
+    """Build the mentor prompt (pure; used by generation and unit tests)."""
     overall = evaluation.get("overall_score") or evaluation.get("overallScore") or 0
     try:
         overall_f = float(overall)
@@ -143,31 +284,57 @@ def generate_media_evaluation_feedback(
         if member_first_name
         else "Member first name: (not provided)"
     )
+    unavailable = _unavailable_criterion_names(evaluation)
+    unavailable_line = (
+        ", ".join(unavailable) if unavailable else "none"
+    )
 
-    prompt = f"""You are an experienced photography and videography mentor for ACCESS VisionCheck at USTP Oroquieta.
+    return f"""You are an experienced photography and videography mentor for ACCESS VisionCheck at USTP Oroquieta.
 
-You receive ONLY pre-computed technical scores from our AI quality analysis (EfficientNet-B0).
+You receive ONLY pre-computed technical scores from our automated image quality assessment.
+You did NOT independently inspect or view the original photo or video.
 You must NEVER invent, adjust, or contradict these scores or percentages.
-Do not mention EfficientNet, Gemini, AI models, or scoring algorithms to the member.
+You must NEVER invent image defects that are not supported by the measured criteria below.
+You must NEVER make authenticity, AI-generated media, deepfake, or provenance conclusions.
+Do not mention Gemini, model names, scoring engines, or algorithms to the member.
+Criteria marked N/A were not measured — skip them entirely; never treat N/A as a zero or as a defect.
 
 {name_line}
 
 Media type: {evaluation.get("media_type") or evaluation.get("mediaType") or "photo"}
 Overall quality: {evaluation.get("quality_level") or evaluation.get("qualityLevel") or "Fair"} ({overall_f:.1f}/5, {overall_pct}/100)
 Recommendation: {evaluation.get("recommendation") or "Keep practicing"}
-Detected strengths (from scores): {_strengths(evaluation)}
-Areas to develop (from scores): {_weaknesses(evaluation)}
+Detected strengths (from available scores only): {_strengths(evaluation)}
+Areas to develop (from available scores only): {_weaknesses(evaluation)}
+Unavailable / N/A criteria (do not discuss as problems): {unavailable_line}
 
-Criterion scores (DO NOT CHANGE THESE NUMBERS):
+Criterion scores (DO NOT CHANGE THESE NUMBERS; preserve N/A):
 {_criterion_lines(evaluation)}
+
+CLARITY CONSISTENCY (Sharpness and Blur):
+{_clarity_consistency_note(evaluation)}
+
+ACCURACY RULES (follow strictly):
+- Explain only the measured quality criteria that have numeric scores in the input above.
+- Provide concise, actionable, user-friendly suggestions tied to weak available criteria.
+- If Sharpness and Blur both need work, combine into one clarity tip — do not double-count.
+- Avoid contradictory recommendations (never say the image is both sharp and blurry).
+- Do not discuss criteria that are N/A or missing.
+- Do not invent composition, subject, authenticity, or artistic judgments unsupported by the scores.
+
+MEMBER-FACING LANGUAGE (critical):
+- The member already sees scores on metric cards. Your JSON text must NOT include any numbers.
+- Never write scores, fractions (such as 3/5), percentages, raw measurements, or numeric comparisons in explanation, strengths, improvements, tips, or closing_message.
+- Use natural words only (for example: strong, soft, uneven, clear, muted).
+- Do not mention thresholds, models, or scoring scales.
 
 VOICE & TONE RULES (follow strictly):
 - Never criticize harshly.
 - Always begin the explanation with positive observations.
 - Explain strengths first, then areas for improvement.
-- Offer practical photography/videography tips tied to the weak criteria.
+- Offer practical photography/videography tips tied to the weak available criteria.
 - Encourage the member to continue practicing.
-- If the overall score is low, motivate instead of discouraging. Frame gaps as the next step in their learning journey.
+- If the overall quality level is low, motivate instead of discouraging. Frame gaps as the next step in their learning journey.
 - End with a positive, warm closing statement.
 - Sound like a supportive human mentor, not a machine. Use natural, conversational language.
 - Open the explanation with an energetic, upbeat first sentence and end that sentence with an exclamation mark.
@@ -176,18 +343,33 @@ VOICE & TONE RULES (follow strictly):
 
 Respond with ONLY valid JSON (no markdown fences) in this exact shape:
 {{
-  "explanation": "2-4 sentences. First sentence must be positive and energetic, ending with !, then summarize scores in plain encouraging language",
-  "strengths": ["specific strength 1", "specific strength 2"],
-  "improvements": ["gentle improvement area 1", "gentle improvement area 2"],
-  "tips": ["practical photo/video tip 1", "practical tip 2", "practical tip 3"],
-  "closing_message": "One warm, motivating sentence inviting them to keep practicing and submit again"
+  "explanation": "2-4 sentences. First sentence must be positive and energetic, ending with !, then summarize quality in plain encouraging language with NO numbers",
+  "strengths": ["specific strength 1 with no numbers", "specific strength 2 with no numbers"],
+  "improvements": ["gentle improvement area 1 with no numbers", "gentle improvement area 2 with no numbers"],
+  "tips": ["practical photo/video tip 1 with no numbers", "practical tip 2 with no numbers", "practical tip 3 with no numbers"],
+  "closing_message": "One warm, motivating sentence inviting them to keep practicing and submit again (no numbers)"
 }}
 """
 
+
+def generate_media_evaluation_feedback(
+    evaluation: dict[str, Any],
+    *,
+    member_first_name: str | None = None,
+) -> dict[str, Any] | None:
+    prompt = build_media_evaluation_prompt(
+        evaluation,
+        member_first_name=member_first_name,
+    )
     text = _gemini_generate(prompt)
     if not text:
         return None
-    return _parse_json_object(text)
+    parsed = _parse_json_object(text)
+    if not is_valid_gemini_feedback(parsed):
+        return None
+    from app.services.rule_based_quality_feedback import sanitize_member_facing_feedback
+
+    return sanitize_member_facing_feedback(parsed)
 
 
 def generate_rubric_feedback(

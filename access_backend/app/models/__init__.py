@@ -11,6 +11,8 @@ from app.models.documentation_request import DocumentationRequest
 from app.models.request_assignment import RequestAssignment
 from app.models.event_calendar import EventCalendar
 from app.models.media_file import MediaFile
+from app.models.submission_chain import SubmissionChain
+from app.models.submission_chain_event import SubmissionChainEvent
 from app.models.media_evaluation import MediaEvaluation
 from app.models.ai_detection_result import AiDetectionResult
 from app.models.ai_review_history import AiReviewHistory
@@ -18,22 +20,31 @@ from app.models.feedback import Feedback
 from app.models.assignment_member_feedback import AssignmentMemberFeedback
 from app.models.member_milestone import MemberMilestone
 from app.models.member_ranking import MemberRanking
+from app.models.skill_progression_v2_activation import (
+    SkillProgressionV2Activation,
+    SkillProgressionV2CohortMember,
+)
 from app.models.notification import Notification
 from app.models.member_notification_preference import MemberNotificationPreference
 from app.models.analytics_report import AnalyticsReport
 from app.models.archive import Archive
 from app.models.facebook_post import FacebookPost
 from app.models.facebook_setting import FacebookSetting
+from app.models.facebook_page_token_health import FacebookPageTokenHealth
 from app.models.audit_log import AuditLog
 from app.models.login_history import LoginHistory
 from app.models.user_session import UserSession
 from app.models.media_comment import MediaComment
 from app.models.announcement import Announcement
+from app.models.announcement_member_read import AnnouncementMemberRead
 from app.models.system_branding import SystemBranding
 from app.models.system_settings import SystemSettings
 from app.models.push_device_token import PushDeviceToken
 from app.models.registration_email_otp import RegistrationEmailOtp
 from app.models.password_reset_email_otp import PasswordResetEmailOtp
+from app.models.password_reset_sms_otp import PasswordResetSmsOtp
+from app.models.phone_verification_otp import PhoneVerificationOtp
+from app.models.pending_storage_deletion import PendingStorageDeletion
 
 __all__ = [
     "Role",
@@ -43,6 +54,8 @@ __all__ = [
     "RequestAssignment",
     "EventCalendar",
     "MediaFile",
+    "SubmissionChain",
+    "SubmissionChainEvent",
     "MediaEvaluation",
     "AiDetectionResult",
     "AiReviewHistory",
@@ -50,20 +63,27 @@ __all__ = [
     "AssignmentMemberFeedback",
     "MemberMilestone",
     "MemberRanking",
+    "SkillProgressionV2Activation",
+    "SkillProgressionV2CohortMember",
     "Notification",
     "MemberNotificationPreference",
     "AnalyticsReport",
     "Archive",
     "FacebookPost",
     "FacebookSetting",
+    "FacebookPageTokenHealth",
     "AuditLog",
     "LoginHistory",
     "UserSession",
     "MediaComment",
     "Announcement",
+    "AnnouncementMemberRead",
     "SystemBranding",
     "SystemSettings",
     "PushDeviceToken",
     "RegistrationEmailOtp",
     "PasswordResetEmailOtp",
+    "PasswordResetSmsOtp",
+    "PhoneVerificationOtp",
+    "PendingStorageDeletion",
 ]

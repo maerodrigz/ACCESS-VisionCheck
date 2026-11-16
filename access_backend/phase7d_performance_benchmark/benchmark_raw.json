@@ -1,0 +1,1153 @@
+{
+  "phase": "7D",
+  "title": "Quality engine performance benchmark",
+  "started_at": "2026-11-14T10:14:35.850582+00:00",
+  "host": {
+    "pid": 13092,
+    "cwd": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend",
+    "system_ram_before_mb": {
+      "total_mb": null,
+      "used_mb": null,
+      "available_mb": null,
+      "percent": null
+    },
+    "process_rss_before_mb": null
+  },
+  "config": {
+    "warmup_runs_per_engine": 2,
+    "measured_evals_per_engine": 10,
+    "image_dir": "C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\own_new_photos",
+    "images": [
+      {
+        "name": "IMG_20230327_191344_831.jpg",
+        "bytes": 4808902
+      },
+      {
+        "name": "IMG_20230411_181815_568~2.jpg",
+        "bytes": 2831392
+      },
+      {
+        "name": "IMG_20230415_175222_905.jpg",
+        "bytes": 4355427
+      },
+      {
+        "name": "IMG_20230512_103539_795.jpg",
+        "bytes": 3678886
+      },
+      {
+        "name": "IMG_20230612_173018_154.jpg",
+        "bytes": 5415440
+      },
+      {
+        "name": "IMG_20230612_174649_147.jpg",
+        "bytes": 2948093
+      },
+      {
+        "name": "IMG_20230626_172605_942.jpg",
+        "bytes": 6940940
+      },
+      {
+        "name": "IMG_20230806_135816_105.jpg",
+        "bytes": 4904758
+      },
+      {
+        "name": "IMG_20230818_105125_847.jpg",
+        "bytes": 5054630
+      },
+      {
+        "name": "IMG_20230902_143409_560.jpg",
+        "bytes": 3403317
+      }
+    ],
+    "env_file_modified": false,
+    "production_scoring_unchanged": true,
+    "notes": [
+      "MUSIQ OPQ is context-only; criterion scores come from worker classical OpenCV raw via adapter.",
+      "FastAPI process RSS/CPU measured in this Python process (direct scorers, not full HTTP server).",
+      "Docker worker resources sampled via docker stats (separate from FastAPI process)."
+    ]
+  },
+  "engines": {
+    "efficientnet_b0": {
+      "engine": "efficientnet_b0",
+      "ready": true,
+      "warmup": [
+        {
+          "image": "IMG_20230327_191344_831.jpg",
+          "latency_ms": 263.2828000059817,
+          "ok": true,
+          "rss_mb_after": null,
+          "rss_mb_before": null
+        },
+        {
+          "image": "IMG_20230411_181815_568~2.jpg",
+          "latency_ms": 213.3818999864161,
+          "ok": true,
+          "rss_mb_after": null,
+          "rss_mb_before": null
+        }
+      ],
+      "runs": [
+        {
+          "image": "IMG_20230327_191344_831.jpg",
+          "image_bytes": 4808902,
+          "latency_ms": 245.72999999509193,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.38836702704429626
+        },
+        {
+          "image": "IMG_20230411_181815_568~2.jpg",
+          "image_bytes": 2831392,
+          "latency_ms": 252.31500001973473,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.15271735191345215
+        },
+        {
+          "image": "IMG_20230415_175222_905.jpg",
+          "image_bytes": 4355427,
+          "latency_ms": 215.04549999372102,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.3201170861721039
+        },
+        {
+          "image": "IMG_20230512_103539_795.jpg",
+          "image_bytes": 3678886,
+          "latency_ms": 133.82089999504387,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.5526924729347229
+        },
+        {
+          "image": "IMG_20230612_173018_154.jpg",
+          "image_bytes": 5415440,
+          "latency_ms": 203.2658999960404,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.49517667293548584
+        },
+        {
+          "image": "IMG_20230612_174649_147.jpg",
+          "image_bytes": 2948093,
+          "latency_ms": 188.50919997203164,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.394173264503479
+        },
+        {
+          "image": "IMG_20230626_172605_942.jpg",
+          "image_bytes": 6940940,
+          "latency_ms": 224.52950000297278,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.5915684103965759
+        },
+        {
+          "image": "IMG_20230806_135816_105.jpg",
+          "image_bytes": 4904758,
+          "latency_ms": 204.9471999926027,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.35845887660980225
+        },
+        {
+          "image": "IMG_20230818_105125_847.jpg",
+          "image_bytes": 5054630,
+          "latency_ms": 207.39070000126958,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.20311899483203888
+        },
+        {
+          "image": "IMG_20230902_143409_560.jpg",
+          "image_bytes": 3403317,
+          "latency_ms": 222.930499992799,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.46611684560775757
+        }
+      ],
+      "skipped": false,
+      "latency_summary_ms": {
+        "n": 10.0,
+        "mean_ms": 209.84843999613076,
+        "median_ms": 211.2180999974953,
+        "p95_ms": 249.35175000864547,
+        "min_ms": 133.82089999504387,
+        "max_ms": 252.31500001973473,
+        "stdev_ms": 33.02107204873071
+      },
+      "latency_all_runs_ms": {
+        "n": 10.0,
+        "mean_ms": 209.84843999613076,
+        "median_ms": 211.2180999974953,
+        "p95_ms": 249.35175000864547,
+        "min_ms": 133.82089999504387,
+        "max_ms": 252.31500001973473,
+        "stdev_ms": 33.02107204873071
+      },
+      "process_rss_mb": {
+        "mean": null,
+        "max": null,
+        "min": null,
+        "samples": 0
+      },
+      "process_cpu_percent": {
+        "mean": null,
+        "max": null,
+        "samples": 0,
+        "note": "psutil process cpu_percent over ~0.2s sample after each eval"
+      },
+      "ok_count": 10,
+      "fail_count": 0
+    },
+    "opencv_local": {
+      "engine": "opencv_local",
+      "ready": true,
+      "warmup": [
+        {
+          "image": "IMG_20230327_191344_831.jpg",
+          "latency_ms": 5070.802200003527,
+          "ok": true,
+          "rss_mb_after": null,
+          "rss_mb_before": null
+        },
+        {
+          "image": "IMG_20230411_181815_568~2.jpg",
+          "latency_ms": 5076.870000018971,
+          "ok": true,
+          "rss_mb_after": null,
+          "rss_mb_before": null
+        }
+      ],
+      "runs": [
+        {
+          "image": "IMG_20230327_191344_831.jpg",
+          "image_bytes": 4808902,
+          "latency_ms": 5076.753200002713,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.1379303299957507
+        },
+        {
+          "image": "IMG_20230411_181815_568~2.jpg",
+          "image_bytes": 2831392,
+          "latency_ms": 5048.645500006387,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.19218333786637268
+        },
+        {
+          "image": "IMG_20230415_175222_905.jpg",
+          "image_bytes": 4355427,
+          "latency_ms": 5212.171199993463,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.5632511380258911
+        },
+        {
+          "image": "IMG_20230512_103539_795.jpg",
+          "image_bytes": 3678886,
+          "latency_ms": 2625.30610000249,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0
+        },
+        {
+          "image": "IMG_20230612_173018_154.jpg",
+          "image_bytes": 5415440,
+          "latency_ms": 5161.255200015148,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.468235298732859
+        },
+        {
+          "image": "IMG_20230612_174649_147.jpg",
+          "image_bytes": 2948093,
+          "latency_ms": 5105.979500018293,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.047557221052362535
+        },
+        {
+          "image": "IMG_20230626_172605_942.jpg",
+          "image_bytes": 6940940,
+          "latency_ms": 5243.635499995435,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0
+        },
+        {
+          "image": "IMG_20230806_135816_105.jpg",
+          "image_bytes": 4904758,
+          "latency_ms": 5168.408900004579,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.20455224037477862
+        },
+        {
+          "image": "IMG_20230818_105125_847.jpg",
+          "image_bytes": 5054630,
+          "latency_ms": 5167.470800020965,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.1944191512524908
+        },
+        {
+          "image": "IMG_20230902_143409_560.jpg",
+          "image_bytes": 3403317,
+          "latency_ms": 5078.795200010063,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.04132045763361366
+        }
+      ],
+      "skipped": false,
+      "latency_summary_ms": {
+        "n": 10.0,
+        "mean_ms": 4888.842110006954,
+        "median_ms": 5133.617350016721,
+        "p95_ms": 5229.4765649945475,
+        "min_ms": 2625.30610000249,
+        "max_ms": 5243.635499995435,
+        "stdev_ms": 797.7812475802035
+      },
+      "latency_all_runs_ms": {
+        "n": 10.0,
+        "mean_ms": 4888.842110006954,
+        "median_ms": 5133.617350016721,
+        "p95_ms": 5229.4765649945475,
+        "min_ms": 2625.30610000249,
+        "max_ms": 5243.635499995435,
+        "stdev_ms": 797.7812475802035
+      },
+      "process_rss_mb": {
+        "mean": null,
+        "max": null,
+        "min": null,
+        "samples": 0
+      },
+      "process_cpu_percent": {
+        "mean": null,
+        "max": null,
+        "samples": 0,
+        "note": "psutil process cpu_percent over ~0.2s sample after each eval"
+      },
+      "ok_count": 10,
+      "fail_count": 0
+    },
+    "musiq_worker_opencv": {
+      "engine": "musiq_worker_opencv",
+      "ready": true,
+      "warmup": [
+        {
+          "image": "IMG_20230327_191344_831.jpg",
+          "latency_ms": 5328.383299987763,
+          "ok": true,
+          "rss_mb_after": null,
+          "rss_mb_before": null
+        },
+        {
+          "image": "IMG_20230411_181815_568~2.jpg",
+          "latency_ms": 4867.297199991299,
+          "ok": true,
+          "rss_mb_after": null,
+          "rss_mb_before": null
+        }
+      ],
+      "runs": [
+        {
+          "image": "IMG_20230327_191344_831.jpg",
+          "image_bytes": 4808902,
+          "latency_ms": 4287.665300013032,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.22306177671616464,
+          "musiq_opq_raw_context_only": 64.61396026611328,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230411_181815_568~2.jpg",
+          "image_bytes": 2831392,
+          "latency_ms": 4685.568500019144,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0,
+          "musiq_opq_raw_context_only": 70.94519805908203,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230415_175222_905.jpg",
+          "image_bytes": 4355427,
+          "latency_ms": 4826.245399977779,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0,
+          "musiq_opq_raw_context_only": 70.11820220947266,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230512_103539_795.jpg",
+          "image_bytes": 3678886,
+          "latency_ms": 3701.34220001637,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0,
+          "musiq_opq_raw_context_only": 70.92235565185547,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230612_173018_154.jpg",
+          "image_bytes": 5415440,
+          "latency_ms": 6610.276600025827,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0,
+          "musiq_opq_raw_context_only": 75.55675506591797,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230612_174649_147.jpg",
+          "image_bytes": 2948093,
+          "latency_ms": 5180.512599996291,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0,
+          "musiq_opq_raw_context_only": 68.58863830566406,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230626_172605_942.jpg",
+          "image_bytes": 6940940,
+          "latency_ms": 4558.241999999154,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0,
+          "musiq_opq_raw_context_only": 73.18704986572266,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230806_135816_105.jpg",
+          "image_bytes": 4904758,
+          "latency_ms": 4538.902500004042,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0,
+          "musiq_opq_raw_context_only": 63.652957916259766,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230818_105125_847.jpg",
+          "image_bytes": 5054630,
+          "latency_ms": 4755.764400004409,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 1.0,
+          "musiq_opq_raw_context_only": 71.02833557128906,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        },
+        {
+          "image": "IMG_20230902_143409_560.jpg",
+          "image_bytes": 3403317,
+          "latency_ms": 4618.152399983956,
+          "ok": true,
+          "rss_mb_before": null,
+          "rss_mb_after": null,
+          "process_cpu_percent": null,
+          "cpu_percent_pre": null,
+          "result_keys": [
+            "blocking_artifacts",
+            "blur",
+            "brightness",
+            "contrast",
+            "height",
+            "musiq_opq_context_only",
+            "musiq_opq_raw",
+            "noise",
+            "ringing_artifacts",
+            "sharpness",
+            "width"
+          ],
+          "sample_criterion_sharpness": 0.6144708819842432,
+          "musiq_opq_raw_context_only": 71.37564849853516,
+          "note": "musiq_opq_raw is OPQ context, not an OpenCV criterion score"
+        }
+      ],
+      "skipped": false,
+      "latency_summary_ms": {
+        "n": 10.0,
+        "mean_ms": 4776.267190004,
+        "median_ms": 4651.86045000155,
+        "p95_ms": 5966.882800012534,
+        "min_ms": 3701.34220001637,
+        "max_ms": 6610.276600025827,
+        "stdev_ms": 749.9053357401946
+      },
+      "latency_all_runs_ms": {
+        "n": 10.0,
+        "mean_ms": 4776.267190004,
+        "median_ms": 4651.86045000155,
+        "p95_ms": 5966.882800012534,
+        "min_ms": 3701.34220001637,
+        "max_ms": 6610.276600025827,
+        "stdev_ms": 749.9053357401946
+      },
+      "process_rss_mb": {
+        "mean": null,
+        "max": null,
+        "min": null,
+        "samples": 0
+      },
+      "process_cpu_percent": {
+        "mean": null,
+        "max": null,
+        "samples": 0,
+        "note": "psutil process cpu_percent over ~0.2s sample after each eval"
+      },
+      "docker_worker_stats_samples": [
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.26%\t3.589GiB / 7.646GiB\t46.94%",
+          "cpu_perc_str": "0.26%",
+          "mem_usage_str": "3.589GiB / 7.646GiB",
+          "mem_perc_str": "46.94%",
+          "cpu_percent": 0.26
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.22%\t3.589GiB / 7.646GiB\t46.93%",
+          "cpu_perc_str": "0.22%",
+          "mem_usage_str": "3.589GiB / 7.646GiB",
+          "mem_perc_str": "46.93%",
+          "cpu_percent": 0.22
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.20%\t3.589GiB / 7.646GiB\t46.94%",
+          "cpu_perc_str": "0.20%",
+          "mem_usage_str": "3.589GiB / 7.646GiB",
+          "mem_perc_str": "46.94%",
+          "cpu_percent": 0.2
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t38.95%\t3.589GiB / 7.646GiB\t46.94%",
+          "cpu_perc_str": "38.95%",
+          "mem_usage_str": "3.589GiB / 7.646GiB",
+          "mem_perc_str": "46.94%",
+          "cpu_percent": 38.95
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.25%\t3.589GiB / 7.646GiB\t46.94%",
+          "cpu_perc_str": "0.25%",
+          "mem_usage_str": "3.589GiB / 7.646GiB",
+          "mem_perc_str": "46.94%",
+          "cpu_percent": 0.25
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.24%\t3.589GiB / 7.646GiB\t46.94%",
+          "cpu_perc_str": "0.24%",
+          "mem_usage_str": "3.589GiB / 7.646GiB",
+          "mem_perc_str": "46.94%",
+          "cpu_percent": 0.24
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.19%\t3.591GiB / 7.646GiB\t46.96%",
+          "cpu_perc_str": "0.19%",
+          "mem_usage_str": "3.591GiB / 7.646GiB",
+          "mem_perc_str": "46.96%",
+          "cpu_percent": 0.19
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.26%\t3.602GiB / 7.646GiB\t47.11%",
+          "cpu_perc_str": "0.26%",
+          "mem_usage_str": "3.602GiB / 7.646GiB",
+          "mem_perc_str": "47.11%",
+          "cpu_percent": 0.26
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.20%\t3.601GiB / 7.646GiB\t47.10%",
+          "cpu_perc_str": "0.20%",
+          "mem_usage_str": "3.601GiB / 7.646GiB",
+          "mem_perc_str": "47.10%",
+          "cpu_percent": 0.2
+        },
+        {
+          "container": "musiq_worker-musiq-worker-1",
+          "raw": "musiq_worker-musiq-worker-1\t0.17%\t3.602GiB / 7.646GiB\t47.11%",
+          "cpu_perc_str": "0.17%",
+          "mem_usage_str": "3.602GiB / 7.646GiB",
+          "mem_perc_str": "47.11%",
+          "cpu_percent": 0.17
+        }
+      ],
+      "docker_worker_cpu_percent": {
+        "mean": 4.094,
+        "max": 38.95,
+        "n": 10
+      },
+      "docker_worker_mem_usage_last": "3.602GiB / 7.646GiB",
+      "ok_count": 10,
+      "fail_count": 0
+    }
+  },
+  "errors": [],
+  "initialization": {
+    "efficientnet_b0": {
+      "init_ms": 6169.278699991992,
+      "ready": true,
+      "weights_path": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\efficientnet_b0_heads.pt",
+      "weights_exists": true
+    },
+    "opencv_local": {
+      "init_ms": 7382.5670999940485,
+      "ready": true,
+      "note": "OpenCV has no separate weights file; init includes first analyze on image[0]."
+    },
+    "musiq_worker": {
+      "init_ms": 108.4718000201974,
+      "ready": true,
+      "readiness": {
+        "ok": true,
+        "ready": true,
+        "body": {
+          "status": "ready",
+          "musiq_ready": true,
+          "model_id": "tfhub:google/musiq/paq2piq/1",
+          "model_version": "paq2piq/1",
+          "engine_handle": "https://tfhub.dev/google/musiq/paq2piq/1"
+        }
+      },
+      "note": "Worker model load happens inside Docker; this times HTTPS /ready from the FastAPI host process."
+    }
+  },
+  "docker_worker_stats_before": {
+    "container": "musiq_worker-musiq-worker-1",
+    "raw": "musiq_worker-musiq-worker-1\t0.21%\t3.565GiB / 7.646GiB\t46.62%",
+    "cpu_perc_str": "0.21%",
+    "mem_usage_str": "3.565GiB / 7.646GiB",
+    "mem_perc_str": "46.62%",
+    "cpu_percent": 0.21
+  },
+  "system_ram_after_init_mb": {
+    "total_mb": null,
+    "used_mb": null,
+    "available_mb": null,
+    "percent": null
+  },
+  "process_rss_after_init_mb": null,
+  "docker_worker_stats_after": {
+    "container": "musiq_worker-musiq-worker-1",
+    "raw": "musiq_worker-musiq-worker-1\t0.20%\t3.602GiB / 7.646GiB\t47.11%",
+    "cpu_perc_str": "0.20%",
+    "mem_usage_str": "3.602GiB / 7.646GiB",
+    "mem_perc_str": "47.11%",
+    "cpu_percent": 0.2
+  },
+  "system_ram_after_mb": {
+    "total_mb": null,
+    "used_mb": null,
+    "available_mb": null,
+    "percent": null
+  },
+  "process_rss_after_mb": null,
+  "finished_at": "2026-11-14T10:17:08.161942+00:00",
+  "comparison_table": [
+    {
+      "evaluator": "EfficientNet-B0 (local PyTorch)",
+      "engine_key": "efficientnet_b0",
+      "ready": true,
+      "ok_count": 10,
+      "mean_ms": 209.84843999613076,
+      "median_ms": 211.2180999974953,
+      "p95_ms": 249.35175000864547,
+      "process_rss_mean_mb": null,
+      "process_rss_max_mb": null,
+      "process_cpu_mean_pct": null,
+      "docker_cpu_mean_pct": null,
+      "docker_mem_usage": null,
+      "init_ms": 6169.278699991992
+    },
+    {
+      "evaluator": "MUSIQ + OpenCV (Docker worker)",
+      "engine_key": "musiq_worker_opencv",
+      "ready": true,
+      "ok_count": 10,
+      "mean_ms": 4776.267190004,
+      "median_ms": 4651.86045000155,
+      "p95_ms": 5966.882800012534,
+      "process_rss_mean_mb": null,
+      "process_rss_max_mb": null,
+      "process_cpu_mean_pct": null,
+      "docker_cpu_mean_pct": 4.094,
+      "docker_mem_usage": "3.602GiB / 7.646GiB",
+      "init_ms": 108.4718000201974
+    },
+    {
+      "evaluator": "OpenCV-only (local fallback)",
+      "engine_key": "opencv_local",
+      "ready": true,
+      "ok_count": 10,
+      "mean_ms": 4888.842110006954,
+      "median_ms": 5133.617350016721,
+      "p95_ms": 5229.4765649945475,
+      "process_rss_mean_mb": null,
+      "process_rss_max_mb": null,
+      "process_cpu_mean_pct": null,
+      "docker_cpu_mean_pct": null,
+      "docker_mem_usage": null,
+      "init_ms": 7382.5670999940485
+    }
+  ],
+  "recommendation": {
+    "production_architecture": "QUALITY_ENGINE=musiq_worker with fallback EfficientNet-B0 then local OpenCV",
+    "fastest_mean_latency_engine": "efficientnet_b0",
+    "rationale": "Fastest mean latency among successful engines: EfficientNet-B0 (local PyTorch) (209.8 ms). MUSIQ path adds Docker worker RAM/CPU separate from the FastAPI process; worker mem sample=3.602GiB / 7.646GiB, worker CPU mean%=4.094. Keep MUSIQ OPQ as overall perceptual context only; individual 1-5 criteria remain classical OpenCV (adapter) + FastAPI color/temporal. Retain EfficientNet-B0 checkpoint as rollback/fallback; do not delete. MUSIQ P95 (5967 ms) is >5x ENET P95 (249 ms); consider keeping enet default for latency-sensitive paths or raise worker timeout/capacity. OpenCV-only is the lightest local fallback (mean 4888.842110006954 ms); required when both worker and ENET are unavailable.",
+    "system_ram_after_mb": {
+      "total_mb": null,
+      "used_mb": null,
+      "available_mb": null,
+      "percent": null
+    },
+    "fastapi_process_rss_after_mb": null,
+    "docker_worker_stats_after": {
+      "container": "musiq_worker-musiq-worker-1",
+      "raw": "musiq_worker-musiq-worker-1\t0.20%\t3.602GiB / 7.646GiB\t47.11%",
+      "cpu_perc_str": "0.20%",
+      "mem_usage_str": "3.602GiB / 7.646GiB",
+      "mem_perc_str": "47.11%",
+      "cpu_percent": 0.2
+    }
+  }
+}

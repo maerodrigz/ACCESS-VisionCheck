@@ -36,7 +36,7 @@ class SystemSettings(Base):
     )
 
     enable_ai_media_evaluation: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    max_evaluation_uploads_per_day: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    max_evaluation_uploads_per_day: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
 
     event_max_upload_mb: Mapped[int | None] = mapped_column(Integer)
     evaluation_max_upload_mb: Mapped[int | None] = mapped_column(Integer)

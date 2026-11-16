@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
-import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_home_dashboard.dart';
 
 /// Member home — dashboard hub (hero, quick actions, focus, feeds).
@@ -11,6 +10,7 @@ class DashboardScreen extends StatelessWidget {
     this.userName = '',
     this.onLogout,
     this.onViewPortfolio,
+    this.onViewAllRecentUploads,
     this.onViewEventGallery,
     this.onViewCalendar,
     this.onViewRankings,
@@ -22,6 +22,7 @@ class DashboardScreen extends StatelessWidget {
   final String userName;
   final VoidCallback? onLogout;
   final VoidCallback? onViewPortfolio;
+  final VoidCallback? onViewAllRecentUploads;
   final VoidCallback? onViewEventGallery;
   final VoidCallback? onViewCalendar;
   final VoidCallback? onViewRankings;
@@ -32,7 +33,7 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kMemberDashboardBg,
+      color: Colors.transparent,
       child: ListenableBuilder(
         listenable: Listenable.merge([memberDataController, appState]),
         builder: (context, _) {
@@ -44,6 +45,7 @@ class DashboardScreen extends StatelessWidget {
             userName: userName,
             onLogout: onLogout,
             onViewPortfolio: onViewPortfolio,
+            onViewAllRecentUploads: onViewAllRecentUploads,
             onViewEventGallery: onViewEventGallery,
             onViewCalendar: onViewCalendar,
             onViewRankings: onViewRankings,

@@ -19,6 +19,10 @@ export interface AdminNotification {
   createdAt: Date | null
   timeAgo: string
   route: string
+  /** Integrity review alert that an admin decision marked read (history preserved). */
+  resolved: boolean
+  /** Legacy wording that claimed AI-generated without separated risk/provenance (display only). */
+  historicalMisleadingCopy: boolean
 }
 
 export function formatTimeAgo(raw: unknown): string {
@@ -109,15 +113,32 @@ export function categoryLabel(category: NotificationCategory): string {
   }
 }
 
+/** Integrity media-review alert (Open → Media Integrity). */
+export function isIntegrityReviewAlert(n: Pick<AdminNotification, 'category' | 'actionType'>): boolean {
+  return n.category === 'ai_detection' && n.actionType === 'review_media'
+}
+
+/** Stored historical rows that used the old "AI-generated content detected" copy. */
+export function isHistoricalMisleadingAiCopy(title: string, message: string): boolean {
+  const t = title.trim().toLowerCase()
+  const m = message.trim().toLowerCase()
+  if (t === 'ai detection alert') return true
+  return m.includes('ai-generated content detected')
+}
+
 export function parseNotification(raw: Record<string, unknown>): AdminNotification {
   const category = categoryFromString(raw.category as string | undefined)
   const actionType = (raw.action_type as string | null) ?? null
   const actionRefId = raw.action_ref_id != null ? Number(raw.action_ref_id) : null
+  const title = String(raw.title ?? 'Notification')
+  const message = String(raw.message ?? raw.body ?? '')
+  const unread = raw.is_read !== true
+  const integrity = category === 'ai_detection' && actionType === 'review_media'
   return {
     id: Number(raw.id ?? -1),
-    title: String(raw.title ?? 'Notification'),
-    message: String(raw.message ?? raw.body ?? ''),
-    unread: raw.is_read !== true,
+    title,
+    message,
+    unread,
     category,
     priority: (raw.priority as 'high' | 'normal' | 'low') ?? 'normal',
     actionType,
@@ -126,6 +147,8 @@ export function parseNotification(raw: Record<string, unknown>): AdminNotificati
     createdAt: raw.created_at ? new Date(String(raw.created_at)) : null,
     timeAgo: formatTimeAgo(raw.created_at),
     route: routeForNotification(actionType, category, Number.isFinite(actionRefId) ? actionRefId : null),
+    resolved: integrity && !unread,
+    historicalMisleadingCopy: isHistoricalMisleadingAiCopy(title, message),
   }
 }
 

@@ -66,7 +66,7 @@ def preflight() -> dict[str, Any]:
         "probe_low_risk_threshold": float(settings.probe_low_risk_threshold),
         "probe_high_risk_threshold": float(settings.probe_high_risk_threshold),
         "max_media_evaluation_workers": int(settings.max_media_evaluation_workers),
-        "code_default_backend": "univfd",
+        "code_default_backend": "probe",
         "process_env_backend": os.environ.get("AI_DETECTOR_BACKEND"),
         "real_image_exists": REAL_IMAGE.is_file(),
         "ai_image_exists": AI_IMAGE.is_file(),
@@ -328,7 +328,7 @@ def main() -> int:
         "timestamp_utc": stamp,
         "environment": "local",
         "preflight": pf,
-        "baseline_note": "Code default AI_DETECTOR_BACKEND=univfd; server must run with probe env for smoke.",
+        "baseline_note": "Code default AI_DETECTOR_BACKEND=probe; server must run with probe env for smoke.",
         "backend_probe_check": verify_running_backend_probe(),
     }
 

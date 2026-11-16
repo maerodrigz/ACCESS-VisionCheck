@@ -34,8 +34,10 @@ from app.services.media_evaluator import (
     evaluate_bytes,
     is_deferred_authenticity_preview,
     merge_client_gemini,
+    preview_quality_complete,
     scores_from_payload,
 )
+from app.services.quality_score_display import failed_evaluation_payload
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +49,20 @@ def _is_practice_eval_video_file_name(file_name: str) -> bool:
     return ext in _PRACTICE_VIDEO_EXTENSIONS
 
 
+def is_evaluation_category_video(media: MediaFile) -> bool:
+    """Practice evaluation upload (not event documentation) that is a video container."""
+    if getattr(media, "media_category", None) != MEDIA_CATEGORY_EVALUATION:
+        return False
+    return _is_practice_eval_video_file_name(_pipeline_eval_file_name(media))
+
+
+def _ignore_client_preview_authenticity_for_video(media: MediaFile) -> bool:
+    """Evaluation videos must not reuse client-supplied ai_detection on save."""
+    return is_evaluation_category_video(media)
+
+
 def _video_ai_scan_incomplete(ai_info: dict | None) -> bool:
-    """True when a video upload has no completed PROBE/UnivFD authenticity result."""
+    """True when a video upload has no completed PROBE/WaveRep authenticity result."""
     if not isinstance(ai_info, dict) or not ai_info:
         return True
     if is_deferred_authenticity_preview(ai_info):
@@ -120,87 +134,97 @@ def run_pipeline(
         return None
     payload: dict = {}
     preview = _payload_from_preview_metadata(evaluation_metadata)
+    if preview is not None and _ignore_client_preview_authenticity_for_video(media):
+        logger.info(
+            "practice eval video: ignoring full preview metadata; server authenticity required media_id=%s",
+            media.id,
+        )
+        preview = None
     quality_preview = _quality_preview_from_metadata(evaluation_metadata) if preview is None else None
+
+    scores: dict | None = None
+    feedback = "Quality evaluation could not be completed."
+    criteria_json = None
+    quality_level = None
+    recommendation = None
+    ai_info: dict = {}
 
     if preview is not None:
         payload = preview
         scores = scores_from_payload(payload)
-        feedback = payload.get("ai_feedback") or _feedback_text(scores["overall_score"], "human")
-        criteria_json = json.dumps(payload)
-        quality_level = payload.get("quality_level")
-        recommendation = payload.get("recommendation")
-        ai_info = payload.get("ai_detection") if isinstance(payload.get("ai_detection"), dict) else {}
-    elif quality_preview is not None:
-        if not file_bytes:
-            if require_full_analysis:
-                return None
-            scores = {
-                "sharpness_score": 0.5,
-                "brightness_score": 0.5,
-                "contrast_score": 0.5,
-                "blur_score": 0.5,
-                "noise_score": 0.5,
-                "overall_score": 0.5,
-            }
-            feedback = "Unable to analyze media bytes. Officers will review manually."
-            criteria_json = None
-            quality_level = "Fair"
-            recommendation = "For Officer Review"
-            ai_info = {}
-        else:
-            ai_detection = evaluate_authenticity_bytes(file_bytes, file_name=eval_file_name)
-            if ai_detection is None:
-                if require_full_analysis:
-                    return None
-                scores = {
-                    "sharpness_score": 0.5,
-                    "brightness_score": 0.5,
-                    "contrast_score": 0.5,
-                    "blur_score": 0.5,
-                    "noise_score": 0.5,
-                    "overall_score": 0.5,
-                }
-                feedback = "Unable to analyze media bytes. Officers will review manually."
-                criteria_json = None
-                quality_level = "Fair"
-                recommendation = "For Officer Review"
-                ai_info = {}
-            else:
-                merged = dict(quality_preview)
-                merged["ai_detection"] = ai_detection
-                payload = merge_client_gemini(merged, evaluation_metadata)
-                payload = apply_integrity_evaluation_policy(payload)
-                scores = scores_from_payload(payload)
-                feedback = payload.get("ai_feedback") or _feedback_text(scores["overall_score"], "human")
-                criteria_json = json.dumps(payload)
-                quality_level = payload.get("quality_level")
-                recommendation = payload.get("recommendation")
-                ai_info = payload.get("ai_detection") if isinstance(payload.get("ai_detection"), dict) else {}
-    else:
-        analyzed = evaluate_bytes(file_bytes, file_name=eval_file_name)
-        if analyzed:
-            payload = merge_client_gemini(analyzed, evaluation_metadata)
-            scores = scores_from_payload(payload)
+        if scores:
             feedback = payload.get("ai_feedback") or _feedback_text(scores["overall_score"], "human")
             criteria_json = json.dumps(payload)
             quality_level = payload.get("quality_level")
             recommendation = payload.get("recommendation")
             ai_info = payload.get("ai_detection") if isinstance(payload.get("ai_detection"), dict) else {}
+        elif require_full_analysis:
+            return None
         else:
+            payload = failed_evaluation_payload(
+                media_type=str(preview.get("media_type") or "photo"),
+                reason="Preview payload was incomplete and was not stored as a measured result.",
+            )
+            criteria_json = json.dumps(payload)
+            feedback = payload["ai_feedback"]
+            ai_info = preview.get("ai_detection") if isinstance(preview.get("ai_detection"), dict) else {}
+    elif quality_preview is not None:
+        if not file_bytes:
             if require_full_analysis:
                 return None
-            scores = {
-                "sharpness_score": 0.5,
-                "brightness_score": 0.5,
-                "contrast_score": 0.5,
-                "blur_score": 0.5,
-                "noise_score": 0.5,
-                "overall_score": 0.5,
-            }
-            feedback = "Unable to analyze media bytes. Officers will review manually."
-            criteria_json = None
-            quality_level = "Fair"
-            recommendation = "For Officer Review"
+            payload = failed_evaluation_payload(
+                media_type="video" if _is_practice_eval_video_file_name(eval_file_name) else "photo",
+                reason="Stored media bytes were not available for quality evaluation.",
+            )
+            criteria_json = json.dumps(payload)
+            feedback = payload["ai_feedback"]
+            ai_info = {}
+        else:
+            ai_detection = evaluate_authenticity_bytes(file_bytes, file_name=eval_file_name)
+            if ai_detection is None and require_full_analysis:
+                return None
+            merged = dict(quality_preview)
+            if ai_detection is not None:
+                merged["ai_detection"] = ai_detection
+            payload = merge_client_gemini(merged, evaluation_metadata)
+            payload = apply_integrity_evaluation_policy(payload)
+            scores = scores_from_payload(payload)
+            if scores:
+                feedback = payload.get("ai_feedback") or _feedback_text(scores["overall_score"], "human")
+                criteria_json = json.dumps(payload)
+                quality_level = payload.get("quality_level")
+                recommendation = payload.get("recommendation")
+                ai_info = payload.get("ai_detection") if isinstance(payload.get("ai_detection"), dict) else {}
+            elif require_full_analysis:
+                return None
+            else:
+                payload = failed_evaluation_payload(
+                    media_type=str(merged.get("media_type") or "photo"),
+                    reason="Preview quality payload was incomplete and could not be stored as a measured result.",
+                )
+                criteria_json = json.dumps(payload)
+                feedback = payload["ai_feedback"]
+                ai_info = merged.get("ai_detection") if isinstance(merged.get("ai_detection"), dict) else {}
+    else:
+        analyzed = evaluate_bytes(file_bytes, file_name=eval_file_name) if file_bytes else None
+        if analyzed:
+            payload = merge_client_gemini(analyzed, evaluation_metadata)
+            scores = scores_from_payload(payload)
+            if scores:
+                feedback = payload.get("ai_feedback") or _feedback_text(scores["overall_score"], "human")
+                criteria_json = json.dumps(payload)
+                quality_level = payload.get("quality_level")
+                recommendation = payload.get("recommendation")
+                ai_info = payload.get("ai_detection") if isinstance(payload.get("ai_detection"), dict) else {}
+        if not scores:
+            if require_full_analysis:
+                return None
+            payload = failed_evaluation_payload(
+                media_type="video" if _is_practice_eval_video_file_name(eval_file_name) else "photo",
+                reason="Quality evaluation did not complete. No measured score was stored.",
+            )
+            criteria_json = json.dumps(payload)
+            feedback = payload["ai_feedback"]
             ai_info = {}
 
     if _is_practice_eval_video_file_name(eval_file_name) and _video_ai_scan_incomplete(ai_info):
@@ -226,22 +250,29 @@ def run_pipeline(
             "visual_ai_probability",
             "visual_risk_level",
             "provenance_policy_outcome",
+            "admin_review_triggers",
+            "primary_review_driver",
         ):
             if key in ai_info and key not in exif_payload:
                 exif_payload[key] = ai_info[key]
     exif_metadata = json.dumps(exif_payload) if isinstance(exif_payload, dict) else None
 
-    evaluation = eval_crud.create_evaluation(
-        db,
-        {
-            "media_id": media.id,
-            **scores,
-            "feedback": feedback,
-            "criteria_json": criteria_json,
-            "quality_level": quality_level,
-            "recommendation": recommendation,
-        },
-    )
+    eval_row = {
+        "media_id": media.id,
+        "feedback": feedback,
+        "criteria_json": criteria_json,
+        "quality_level": quality_level,
+        "recommendation": recommendation,
+        "sharpness_score": None,
+        "brightness_score": None,
+        "contrast_score": None,
+        "blur_score": None,
+        "noise_score": None,
+        "overall_score": None,
+    }
+    if scores:
+        eval_row.update(scores)
+    evaluation = eval_crud.create_evaluation(db, eval_row)
     from app.services.ai_review_workflow import initial_review_status
 
     review_status = initial_review_status(ai_label, ai_prob, ai_detection=ai_info)
@@ -258,16 +289,45 @@ def run_pipeline(
         },
     )
 
+    # Schedule research shadow immediately after production rows commit so later
+    # XP/notify failures cannot skip logging. Preview-only POST /evaluate never
+    # reaches run_pipeline. Empty file_bytes (trusted preview save) are reloaded
+    # inside the shadow worker from cache/storage.
+    try:
+        from app.services.quality_shadow import maybe_schedule_quality_shadow
+
+        is_photo = not _is_practice_eval_video_file_name(eval_file_name)
+        maybe_schedule_quality_shadow(
+            evaluation_id=getattr(evaluation, "id", None),
+            media_id=media.id,
+            file_bytes=file_bytes if is_photo else None,
+            is_photo=is_photo,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "quality shadow schedule failed media_id=%s (production eval unchanged)",
+            media.id,
+        )
+
     if media.uploaded_by:
         user = user_crud.get_by_id(db, media.uploaded_by)
         uploader_name = user.fullname if user else "Member"
         if user:
             if payload:
                 xp_points = xp_award_points_from_payload(payload)
-            else:
+            elif scores and scores.get("overall_score") is not None:
                 xp_points = int(round(float(scores["overall_score"]) * 100))
+            else:
+                xp_points = 0
             if xp_points > 0:
-                ranking_crud.add_points(db, media.uploaded_by, xp_points)
+                from app.services.chain_xp_award import apply_chain_xp_award
+
+                apply_chain_xp_award(
+                    db,
+                    media_id=media.id,
+                    member_id=media.uploaded_by,
+                    points=xp_points,
+                )
             if payload and payload.get("member_scores_released", True):
                 user_crud.recalculate_skill_level(db, user)
             elif not payload:
@@ -293,6 +353,7 @@ def run_pipeline(
                 uploader_name,
                 member_id=media.uploaded_by,
                 detection_label=ai_label,
+                ai_info=ai_info if isinstance(ai_info, dict) else None,
             )
 
     return evaluation, ai_row
@@ -304,20 +365,11 @@ def _trusted_preview_payload(evaluation_metadata: str | None) -> dict | None:
     if not client:
         return None
 
-    criteria = client.get("criteria")
-    if not isinstance(criteria, list) or len(criteria) == 0:
-        return None
-
     ai = client.get("ai_detection")
     if not isinstance(ai, dict):
         return None
 
-    has_overall = client.get("overall_score") is not None
-    has_legacy = isinstance(client.get("legacy"), dict)
-    if not has_overall and not has_legacy:
-        return None
-
-    if not (client.get("scoring_engine") or client.get("scoring_model")):
+    if not preview_quality_complete(client):
         return None
 
     return dict(client)
@@ -376,7 +428,8 @@ def _should_notify_admin_ai_flag(
     if not settings_crud.is_notification_enabled(db, "notify_system_alerts"):
         return False
 
-    if isinstance(ai_info, dict) and str(ai_info.get("detector_backend", "")).strip().lower() == "probe":
+    backend = str(ai_info.get("detector_backend", "")).strip().lower() if isinstance(ai_info, dict) else ""
+    if backend in ("probe", "waverep_g4"):
         return bool(ai_info.get("requires_review"))
 
     label = (ai_label or "").lower()
@@ -396,18 +449,21 @@ def _ai_from_payload(ai_info: dict) -> tuple[float, str, str]:
     if prob_raw is None and ai_info.get("raw_detector_probability") is not None:
         prob_raw = ai_info.get("raw_detector_probability")
     synthetic_prob = float(prob_raw) if prob_raw is not None else None
-    is_probe = str(ai_info.get("detector_backend", "")).strip().lower() == "probe"
+    backend = str(ai_info.get("detector_backend", "")).strip().lower()
+    is_probe = backend == "probe"
+    is_waverep = backend == "waverep_g4"
+    uses_raw_prob = is_probe or is_waverep
 
     if verdict == "suspicious":
         prob = synthetic_prob if synthetic_prob is not None else confidence
-        if not is_probe:
+        if not uses_raw_prob:
             prob = min(0.74, prob)
         return round(prob, 3), "suspicious", detail or (
             "Suspicious indicators detected. Officers will review this submission carefully."
         )
     if verdict in ("ai_generated", "ai"):
         prob = synthetic_prob if synthetic_prob is not None else confidence
-        if not is_probe:
+        if not uses_raw_prob:
             prob = max(0.75, prob)
         return round(prob, 3), "ai_generated", detail or (
             "Possible AI-generated content flagged for officer review."
@@ -417,11 +473,12 @@ def _ai_from_payload(ai_info: dict) -> tuple[float, str, str]:
     else:
         # Authentic verdict stores human confidence (1 - synthetic probability).
         prob = max(0.0, min(0.98, 1.0 - confidence))
-    low_risk_default = (
-        "Low AI authenticity risk (PROBE). This is not proof of human origin."
-        if is_probe
-        else "Automated scan indicates authentic human-uploaded media."
-    )
+    if is_waverep:
+        low_risk_default = "Low AI authenticity risk (WaveRep G4). This is not proof of human origin."
+    elif is_probe:
+        low_risk_default = "Low AI authenticity risk (PROBE). This is not proof of human origin."
+    else:
+        low_risk_default = "Automated scan indicates authentic human-uploaded media."
     return round(prob, 3), "human", detail or low_risk_default
 
 

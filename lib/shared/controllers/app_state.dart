@@ -76,6 +76,16 @@ class Evaluation {
   final DateTime? evaluatedAt;
   final bool isAnalysisInProgress;
   final bool storageRemoved;
+  final int? chainRootMediaId;
+  final int? awaitingReplacementMediaId;
+  final int? activeReplacementMediaId;
+  final int? replacesMediaId;
+  final String? replacementLifecycle;
+  final String? chainRole;
+  /// From GET /evaluations (`can_reupload`). Server decides upload eligibility.
+  final bool? canReupload;
+  /// Replacement accepted by admin; re-upload slot closed (`replacement_verified`).
+  final bool replacementVerified;
   Evaluation({
     required this.id,
     required this.title,
@@ -100,6 +110,14 @@ class Evaluation {
     this.evaluatedAt,
     this.isAnalysisInProgress = false,
     this.storageRemoved = false,
+    this.chainRootMediaId,
+    this.awaitingReplacementMediaId,
+    this.activeReplacementMediaId,
+    this.replacesMediaId,
+    this.replacementLifecycle,
+    this.chainRole,
+    this.canReupload,
+    this.replacementVerified = false,
   });
 
   int? get practiceMediaId {
@@ -108,6 +126,8 @@ class Evaluation {
     return int.tryParse(id.substring(prefix.length));
   }
 
+  /// Member may free cloud storage for completed practice uploads.
+  /// Score, XP, and evaluation history stay on the account.
   bool get canRemovePracticeStorage =>
       !storageRemoved &&
       !isAnalysisInProgress &&
@@ -125,6 +145,29 @@ class Evaluation {
     return status == 'pending_review' || status == 'needs_further_review';
   }
 
+  int? get chainHistoryRootMediaId => chainRootMediaId ?? practiceMediaId;
+
+  int? get replacementTargetMediaId {
+    if (!MemberReviewStatus.isReuploadRequested(reviewStatus)) return null;
+    return awaitingReplacementMediaId ?? practiceMediaId;
+  }
+
+  bool get hasActiveReplacementInChain =>
+      activeReplacementMediaId != null && activeReplacementMediaId! > 0;
+
+  bool get canSubmitLinkedReplacement {
+    if (canReupload != null) return canReupload!;
+    return MemberReviewStatus.isReuploadRequested(reviewStatus) &&
+        !hasActiveReplacementInChain &&
+        replacementTargetMediaId != null;
+  }
+
+  bool get showReuploadWorkflowSection =>
+      canSubmitLinkedReplacement ||
+      hasActiveReplacementInChain ||
+      replacementVerified ||
+      MemberReviewStatus.isReuploadRequested(reviewStatus);
+
   /// DB stores 0–1; older payloads may store 1–5 in criteria_json only.
   double get displayScore => score <= 1.0 ? score : (score / 5).clamp(0.0, 1.0);
 
@@ -132,21 +175,36 @@ class Evaluation {
 
   bool get hasAiCriteria => criteria.isNotEmpty;
 
+  /// True for practice AI quality evaluations (historical EfficientNet or current MUSIQ/OpenCV).
   bool get isEfficientNetEvaluation =>
-      scoringModel?.contains('efficientnet') == true || hasAiCriteria;
+      scoringModel?.contains('efficientnet') == true ||
+      scoringModel?.contains('musiq') == true ||
+      scoringModel?.contains('opencv') == true ||
+      hasAiCriteria;
+
+  /// Member-facing quality engine badge. Historical EfficientNet rows keep that label.
+  String get qualityEngineBadgeLabel {
+    final model = (scoringModel ?? '').toLowerCase();
+    if (model.contains('efficientnet')) return 'EfficientNet-B0';
+    if (model.contains('opencv') && !model.contains('musiq')) return 'OpenCV';
+    if (model.contains('musiq') || hasAiCriteria) return 'MUSIQ + OpenCV';
+    return 'MUSIQ + OpenCV';
+  }
 
   List<CriterionScore> get previewCriteria {
     if (criteria.isEmpty) return const [];
     const priority = [
       'Sharpness',
       'Blur',
-      'Noise',
       'Brightness',
       'Contrast',
       'Blocking Artifacts',
-      'Ringing Artifacts',
+      'Color Balance',
+      'Color Saturation',
       'Flickering',
       'Motion Stability',
+      'Noise',
+      'Ringing Artifacts',
     ];
     final sorted = [...criteria];
     sorted.sort((a, b) {
@@ -328,6 +386,9 @@ class Announcement {
   final String content;
   final String date;
   final String? postedByName;
+  final bool isRead;
+  final DateTime? firstReadAt;
+  final DateTime? expiresAt;
 
   const Announcement({
     required this.id,
@@ -335,12 +396,32 @@ class Announcement {
     required this.content,
     required this.date,
     this.postedByName,
+    this.isRead = false,
+    this.firstReadAt,
+    this.expiresAt,
   });
 
   String get preview {
     final cleaned = content.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (cleaned.length <= 140) return cleaned;
     return '${cleaned.substring(0, 137)}…';
+  }
+
+  Announcement copyWithRead({
+    required bool isRead,
+    DateTime? firstReadAt,
+    DateTime? expiresAt,
+  }) {
+    return Announcement(
+      id: id,
+      title: title,
+      content: content,
+      date: date,
+      postedByName: postedByName,
+      isRead: isRead,
+      firstReadAt: firstReadAt ?? this.firstReadAt,
+      expiresAt: expiresAt ?? this.expiresAt,
+    );
   }
 }
 
@@ -387,6 +468,22 @@ class Member {
 
   /// Subtitle under member name on rankings (title if earned, else competency level).
   String get rankingsRoleLabel => achievedTitle ?? rank;
+
+  /// Skill tier for Rankings podium / leaderboard (Beginner → Expert).
+  String get skillTierLabel {
+    final raw = rank.trim();
+    if (raw.isEmpty) return 'Beginner';
+    const tiers = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+    for (final tier in tiers) {
+      if (raw.toLowerCase() == tier.toLowerCase()) return tier;
+    }
+    final lower = raw.toLowerCase();
+    if (lower.startsWith('expert')) return 'Expert';
+    if (lower.startsWith('advanc')) return 'Advanced';
+    if (lower.startsWith('inter')) return 'Intermediate';
+    if (lower.startsWith('begin')) return 'Beginner';
+    return 'Beginner';
+  }
 }
 
 class EventFeedback {
@@ -485,6 +582,7 @@ class ServiceRequest {
   final DateTime? originalEventDate;
   final DateTime? lastRescheduledAt;
   final List<RescheduleHistoryEntry> rescheduleHistory;
+  final DateTime? requestorArchivedAt;
 
   ServiceRequest({
     required this.id,
@@ -505,6 +603,7 @@ class ServiceRequest {
     this.originalEventDate,
     this.lastRescheduledAt,
     this.rescheduleHistory = const [],
+    this.requestorArchivedAt,
   });
 
   /// Legacy alias used by older requestor UI code.
@@ -517,6 +616,44 @@ class ServiceRequest {
   String get date => _legacyFormatDate(eventDate);
 
   RequestStatus get requestStatus => RequestStatus.fromLegacyLabel(status);
+
+  bool get isRequestorArchived => requestorArchivedAt != null;
+
+  bool get canRequestorArchive {
+    if (isRequestorArchived) return false;
+    final s = requestStatus;
+    return s == RequestStatus.completed || s == RequestStatus.rejected;
+  }
+
+  ServiceRequest copyWith({
+    String? status,
+    DateTime? requestorArchivedAt,
+    bool clearRequestorArchivedAt = false,
+  }) {
+    return ServiceRequest(
+      id: id,
+      requestId: requestId,
+      eventName: eventName,
+      description: description,
+      eventDate: eventDate,
+      startTime: startTime,
+      endTime: endTime,
+      location: location,
+      requirements: requirements,
+      submissionDate: submissionDate,
+      updatedAt: updatedAt,
+      requesterName: requesterName,
+      requestType: requestType,
+      status: status ?? this.status,
+      rejectionReason: rejectionReason,
+      originalEventDate: originalEventDate,
+      lastRescheduledAt: lastRescheduledAt,
+      rescheduleHistory: rescheduleHistory,
+      requestorArchivedAt: clearRequestorArchivedAt
+          ? null
+          : (requestorArchivedAt ?? this.requestorArchivedAt),
+    );
+  }
 
   static String _legacyFormatDate(DateTime dt) {
     const months = [
@@ -574,9 +711,12 @@ class AppState extends ChangeNotifier {
 
   // Populated from PostgreSQL after login via MemberDataController.refreshAll().
   final List<Evaluation> evaluations = [];
+  /// Campus / All Events scope (public fields from API).
   final List<CalendarEvent> events = [];
+  /// My Assignments or My Requests scope (private fields from API).
+  final List<CalendarEvent> myCalendarEvents = [];
   final List<Challenge> challenges = [];
-  /// Member AI evaluation uploads (EfficientNet-B0). Not event gallery media.
+  /// Member AI evaluation uploads (MUSIQ + OpenCV quality). Not event gallery media.
   final List<GalleryItem> gallery = [];
   /// Approved ACCESS event/documentation media from GET /api/gallery.
   final List<EventGalleryMedia> eventGallery = [];
@@ -673,8 +813,11 @@ class AppState extends ChangeNotifier {
   /// Practice evaluations used today (from GET /member/participation).
   int evaluationsTodayCount = 0;
 
+  /// True after the latest successful GET /member/participation applied [evaluationsTodayCount].
+  bool evaluationsTodayQuotaConfirmed = false;
+
   /// Daily cap for practice evaluations (from system settings via API).
-  int dailyEvaluationLimit = 5;
+  int dailyEvaluationLimit = 3;
 
   /// Max file size for practice evaluation videos (from GET /member/participation).
   int evaluationMaxUploadMb = 350;
@@ -687,6 +830,15 @@ class AppState extends ChangeNotifier {
 
   int get evaluationsRemainingToday =>
       (dailyEvaluationLimit - evaluationsTodayCount).clamp(0, dailyEvaluationLimit);
+
+  bool get evaluationsTodayAtLimitConfirmed =>
+      evaluationsTodayQuotaConfirmed &&
+      evaluationsTodayCount >= dailyEvaluationLimit;
+
+  void invalidateEvaluationsTodayQuota() {
+    evaluationsTodayQuotaConfirmed = false;
+    notifyListeners();
+  }
 
   final List<EventFeedback> feedbacks = [];
 
@@ -709,6 +861,16 @@ class AppState extends ChangeNotifier {
     serviceRequests
       ..clear()
       ..addAll(rows);
+    notifyListeners();
+  }
+
+  void upsertServiceRequest(ServiceRequest row) {
+    final index = serviceRequests.indexWhere((r) => r.id == row.id);
+    if (index >= 0) {
+      serviceRequests[index] = row;
+    } else {
+      serviceRequests.insert(0, row);
+    }
     notifyListeners();
   }
 
@@ -766,18 +928,37 @@ class AppState extends ChangeNotifier {
   String? profileStudentId;
   String? profileImageUrl;
   String profileAccountRole = 'Member';
+  /// Registration workflow status from API (`pending` | `approved` | `rejected`).
   String profileStatus = 'approved';
+  /// Account enablement from DB `users.is_active` (same as Admin Account Status).
+  bool profileIsActive = true;
+  String profileAccountStatus = 'Active';
+  /// Heartbeat presence, separate from account enablement.
+  String profilePresence = 'Offline';
+  bool profileIsOnline = false;
   String profileYear = 'ACCESS Member';
   int profileUploads = 0;
   Color profileColor = const Color(0xFF3B82F6);
   String? profileSkillLevel;
-  /// Composite skill score 0–100 from rankings API (quality + integrity).
+  /// Quality-only skill score 0–100 from rankings API (eligible practice evaluations).
   double? profileSkillScore;
   int profilePoints = 0;
   int? profileRankPosition;
   int profileAssignmentsCompleted = 0;
   double profileAverageScore = 0;
   int profileEvaluationsCount = 0;
+  /// Released practice evaluations that count toward skill tier (from participation or rankings).
+  int profileSkillEligibleEvaluationsCount = 0;
+  int profileSkillDistinctUploadDays = 0;
+  String profileSkillProgressionPolicyVersion = 'v1';
+  /// True after participation API synced skill progression fields (avoids client-invented day gates).
+  bool profileSkillProgressionSynced = false;
+  String? profileSkillComputedTierV2Preview;
+  int? profileSkillNextTierRequiredEvaluations;
+  int? profileSkillNextTierRequiredDays;
+  int profileSkillRemainingEligibleEvaluations = 0;
+  int profileSkillRemainingDistinctUploadDays = 0;
+  int profileSkillRemainingQualityPoints = 0;
   String? profileAdminRemarks;
 
   /// Clears cached member profile (e.g. on logout) so the next user never sees stale data.
@@ -791,6 +972,10 @@ class AppState extends ChangeNotifier {
     profileImageUrl = null;
     profileAccountRole = 'Member';
     profileStatus = 'approved';
+    profileIsActive = true;
+    profileAccountStatus = 'Active';
+    profilePresence = 'Offline';
+    profileIsOnline = false;
     profileYear = 'ACCESS Member';
     profileUploads = 0;
     profileSkillLevel = null;
@@ -800,9 +985,20 @@ class AppState extends ChangeNotifier {
     profileAssignmentsCompleted = 0;
     profileAverageScore = 0;
     profileEvaluationsCount = 0;
+    profileSkillEligibleEvaluationsCount = 0;
+    profileSkillDistinctUploadDays = 0;
+    profileSkillProgressionPolicyVersion = 'v1';
+    profileSkillProgressionSynced = false;
+    profileSkillComputedTierV2Preview = null;
+    profileSkillNextTierRequiredEvaluations = null;
+    profileSkillNextTierRequiredDays = null;
+    profileSkillRemainingEligibleEvaluations = 0;
+    profileSkillRemainingDistinctUploadDays = 0;
+    profileSkillRemainingQualityPoints = 0;
     profileAdminRemarks = null;
     evaluationsTodayCount = 0;
-    dailyEvaluationLimit = 5;
+    evaluationsTodayQuotaConfirmed = false;
+    dailyEvaluationLimit = 3;
     evaluationMaxUploadMb = 350;
     evaluationMaxVideoSeconds = 30;
     evaluationDailyTimezone = 'Asia/Manila';
@@ -823,6 +1019,10 @@ class AppState extends ChangeNotifier {
     Object? profileImage = _profileImageUnset,
     String? role,
     String? status,
+    bool? isActive,
+    String? accountStatus,
+    String? presence,
+    bool? isOnline,
   }) {
     profileName = name;
     profileEmail = email;
@@ -834,6 +1034,24 @@ class AppState extends ChangeNotifier {
     }
     profileAccountRole = role?.trim() ?? '';
     profileStatus = status?.trim() ?? '';
+    if (isActive != null) {
+      profileIsActive = isActive;
+    }
+    final account = (accountStatus ?? '').trim();
+    if (account.isNotEmpty) {
+      profileAccountStatus = account;
+    } else if (isActive != null) {
+      profileAccountStatus = isActive ? 'Active' : 'Disabled';
+    }
+    final presenceLabel = (presence ?? '').trim();
+    if (presenceLabel.isNotEmpty) {
+      profilePresence = presenceLabel;
+    }
+    if (isOnline != null) {
+      profileIsOnline = isOnline;
+    } else if (presenceLabel.isNotEmpty) {
+      profileIsOnline = presenceLabel.toLowerCase() == 'online';
+    }
     final parts = name.trim().split(RegExp(r'\s+'));
     profileInitials = parts.length >= 2
         ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
@@ -852,11 +1070,22 @@ class AppState extends ChangeNotifier {
     int? uploadsCount,
     int? totalPoints,
     int? evaluationsCount,
+    int? skillEligibleEvaluationsCount,
     int? evaluationsToday,
     int? dailyEvaluationLimit,
     int? evaluationMaxUploadMb,
     int? evaluationMaxVideoSeconds,
     String? evaluationDailyTimezone,
+    int? skillDistinctUploadDays,
+    double? skillQualityAverage,
+    String? skillEffectiveTier,
+    String? skillComputedTierV2Preview,
+    int? skillNextTierRequiredEvaluations,
+    int? skillNextTierRequiredDays,
+    String? skillProgressionPolicyVersion,
+    int? skillRemainingEligibleEvaluations,
+    int? skillRemainingDistinctUploadDays,
+    int? skillRemainingQualityPoints,
   }) {
     if (assignmentsCompleted != null) {
       profileAssignmentsCompleted = assignmentsCompleted;
@@ -865,7 +1094,13 @@ class AppState extends ChangeNotifier {
     if (uploadsCount != null) profileUploads = uploadsCount;
     if (totalPoints != null) profilePoints = totalPoints;
     if (evaluationsCount != null) profileEvaluationsCount = evaluationsCount;
-    if (evaluationsToday != null) evaluationsTodayCount = evaluationsToday;
+    if (skillEligibleEvaluationsCount != null) {
+      profileSkillEligibleEvaluationsCount = skillEligibleEvaluationsCount;
+    }
+    if (evaluationsToday != null) {
+      evaluationsTodayCount = evaluationsToday;
+      evaluationsTodayQuotaConfirmed = true;
+    }
     if (dailyEvaluationLimit != null) this.dailyEvaluationLimit = dailyEvaluationLimit;
     if (evaluationMaxUploadMb != null) this.evaluationMaxUploadMb = evaluationMaxUploadMb;
     if (evaluationMaxVideoSeconds != null) {
@@ -873,6 +1108,45 @@ class AppState extends ChangeNotifier {
     }
     if (evaluationDailyTimezone != null && evaluationDailyTimezone.trim().isNotEmpty) {
       this.evaluationDailyTimezone = evaluationDailyTimezone.trim();
+    }
+    if (skillDistinctUploadDays != null) {
+      profileSkillDistinctUploadDays = skillDistinctUploadDays;
+    }
+    if (skillQualityAverage != null && skillQualityAverage > 0) {
+      profileSkillScore = skillQualityAverage;
+    }
+    if (skillEffectiveTier != null && skillEffectiveTier.trim().isNotEmpty) {
+      profileSkillLevel = skillEffectiveTier.trim();
+      profileYear = 'Skill: ${skillEffectiveTier.trim()}';
+    }
+    if (skillComputedTierV2Preview != null) {
+      profileSkillComputedTierV2Preview = skillComputedTierV2Preview.trim().isEmpty
+          ? null
+          : skillComputedTierV2Preview.trim();
+    }
+    profileSkillNextTierRequiredEvaluations = skillNextTierRequiredEvaluations;
+    profileSkillNextTierRequiredDays = skillNextTierRequiredDays;
+    if (skillProgressionPolicyVersion != null &&
+        skillProgressionPolicyVersion.trim().isNotEmpty) {
+      profileSkillProgressionPolicyVersion = skillProgressionPolicyVersion.trim();
+    }
+    if (skillRemainingEligibleEvaluations != null) {
+      profileSkillRemainingEligibleEvaluations = skillRemainingEligibleEvaluations;
+    }
+    if (skillRemainingDistinctUploadDays != null) {
+      profileSkillRemainingDistinctUploadDays = skillRemainingDistinctUploadDays;
+    }
+    if (skillRemainingQualityPoints != null) {
+      profileSkillRemainingQualityPoints = skillRemainingQualityPoints;
+    }
+    if (skillProgressionPolicyVersion != null ||
+        skillEffectiveTier != null ||
+        skillNextTierRequiredEvaluations != null ||
+        skillNextTierRequiredDays != null ||
+        skillRemainingEligibleEvaluations != null ||
+        skillRemainingDistinctUploadDays != null ||
+        skillRemainingQualityPoints != null) {
+      profileSkillProgressionSynced = true;
     }
     notifyListeners();
   }
@@ -908,9 +1182,8 @@ class AppState extends ChangeNotifier {
     return i < 0 ? sorted.length + 1 : i + 1;
   }
 
-  /// Profile stat label: skill-based rank after `/rankings` sync, else DB XP rank.
-  String get profileRankStatLabel =>
-      profileSkillScore != null ? 'Skill rank' : 'XP rank';
+  /// Profile stat label for stored `rank_position` (XP leaderboard order, not skill tier).
+  String get profileRankStatLabel => 'XP leaderboard';
 
   /// Earned photographer title for display (not the backend skill tier).
   String get profileTitleLabel {

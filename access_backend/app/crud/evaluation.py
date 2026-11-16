@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.ai_detection_result import AiDetectionResult
@@ -32,25 +32,29 @@ RESOLVED_INTEGRITY_STATUSES = (
 )
 
 
-def list_all_ai(db: Session) -> list[AiDetectionResult]:
-    return list(
-        db.scalars(
-            select(AiDetectionResult)
-            .options(
-                joinedload(AiDetectionResult.media).joinedload(MediaFile.uploader),
+def _integrity_inbox_query():
+    """Exclude practice eval rows whose member account was removed (uploaded_by cleared)."""
+    return (
+        select(AiDetectionResult)
+        .join(MediaFile, AiDetectionResult.media_id == MediaFile.id)
+        .where(
+            or_(
+                MediaFile.media_category != MEDIA_CATEGORY_EVALUATION,
+                MediaFile.uploaded_by.is_not(None),
             )
-            .order_by(AiDetectionResult.created_at.desc())
         )
+        .options(joinedload(AiDetectionResult.media).joinedload(MediaFile.uploader))
+        .order_by(AiDetectionResult.created_at.desc())
     )
+
+
+def list_all_ai(db: Session) -> list[AiDetectionResult]:
+    return list(db.scalars(_integrity_inbox_query()))
 
 
 def list_ai_for_integrity_inbox(db: Session, *, inbox: str = "all") -> list[AiDetectionResult]:
     """Filter integrity queue: needs_action = awaiting admin decision."""
-    q = (
-        select(AiDetectionResult)
-        .options(joinedload(AiDetectionResult.media).joinedload(MediaFile.uploader))
-        .order_by(AiDetectionResult.created_at.desc())
-    )
+    q = _integrity_inbox_query()
     normalized = (inbox or "all").strip().lower()
     if normalized == "needs_action":
         q = q.where(AiDetectionResult.review_status.in_(PENDING_INTEGRITY_STATUSES))
@@ -110,7 +114,8 @@ def summary_stats(db: Session) -> dict:
             "human_media_count": 0,
             "ai_suspicious_count": 0,
         }
-    avg = sum(r.overall_score for r in rows) / total
+    scored = [r.overall_score for r in rows if r.overall_score is not None]
+    avg = (sum(scored) / len(scored)) if scored else 0.0
     human = 0
     ai_suspicious = 0
     for ev in rows:
@@ -133,6 +138,11 @@ def summary_stats(db: Session) -> dict:
 
 
 def create_evaluation(db: Session, data: dict) -> MediaEvaluation:
+    media_id = data.get("media_id")
+    if media_id is not None:
+        existing = get_for_media(db, int(media_id))
+        if existing is not None:
+            return existing
     row = MediaEvaluation(**data)
     db.add(row)
     db.commit()
@@ -146,6 +156,31 @@ def get_ai_for_media(db: Session, media_id: int) -> AiDetectionResult | None:
         .where(AiDetectionResult.media_id == media_id)
         .order_by(AiDetectionResult.created_at.desc())
     )
+
+
+def ai_by_media_ids(db: Session, media_ids: list[int]) -> dict[int, AiDetectionResult]:
+    """Latest AI row per media_id in one query (avoids N+1 on list endpoints)."""
+    ids = [int(x) for x in media_ids if x]
+    if not ids:
+        return {}
+    rows = db.scalars(
+        select(AiDetectionResult)
+        .where(AiDetectionResult.media_id.in_(ids))
+        .order_by(AiDetectionResult.media_id, AiDetectionResult.created_at.desc())
+    ).all()
+    out: dict[int, AiDetectionResult] = {}
+    for row in rows:
+        if row.media_id not in out:
+            out[row.media_id] = row
+    return out
+
+
+def evaluations_by_media_ids(db: Session, media_ids: list[int]) -> dict[int, MediaEvaluation]:
+    ids = [int(x) for x in media_ids if x]
+    if not ids:
+        return {}
+    rows = db.scalars(select(MediaEvaluation).where(MediaEvaluation.media_id.in_(ids))).all()
+    return {row.media_id: row for row in rows}
 
 
 def get_ai_by_id(db: Session, ai_id: int) -> AiDetectionResult | None:

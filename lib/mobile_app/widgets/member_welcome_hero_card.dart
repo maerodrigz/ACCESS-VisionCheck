@@ -32,10 +32,10 @@ class MemberWelcomeHeroCard extends StatelessWidget {
     return role[0].toUpperCase() + role.substring(1);
   }
 
-  static String _competencyLevel() {
-    final skill = appState.profileSkillLevel?.trim();
-    if (skill != null && skill.isNotEmpty) return skill;
-    return 'Beginner';
+  static String _skillLevelLabel() {
+    final snap = memberDataController.qualitySkillClassification;
+    if (snap != null) return snap.compactChipLabel;
+    return 'Not Yet Classified';
   }
 
   static String _motivation({required bool hasAssignment}) {
@@ -148,7 +148,7 @@ class MemberWelcomeHeroCard extends StatelessWidget {
         final hasAssignment = assignment != null;
         final name = memberDashboardFirstName();
         final coverageRole = _coverageRole(assignment: assignment);
-        final competency = _competencyLevel();
+        final skillLevel = _skillLevelLabel();
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -183,7 +183,7 @@ class MemberWelcomeHeroCard extends StatelessWidget {
                     ),
                     MemberDashboardChip(
                       icon: Icons.workspace_premium_outlined,
-                      label: competency,
+                      label: skillLevel,
                       accent: kMemberDashboardTitle,
                     ),
                   ],

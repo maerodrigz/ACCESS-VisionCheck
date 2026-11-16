@@ -3,15 +3,18 @@ import { useSearchParams } from 'react-router-dom'
 import { ClipboardCheck, Loader2, RefreshCw, Search, UserPlus, Users } from 'lucide-react'
 import {
   createUser,
+  deactivateUserAccount,
   fetchUserProfile,
   fetchUsers,
   permanentlyDeleteMemberAccount,
   resetUserPassword,
+  retryMemberStorageCleanup,
   setUserStatus,
   updateUser,
   updateUserRole,
 } from '../api/admin'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { AccountActionModal, type AccountActionState } from '../components/account-management/AccountActionModal'
 import { DeactivateMemberDialog } from '../components/DeactivateMemberDialog'
 import { DeleteMemberAccountDialog } from '../components/DeleteMemberAccountDialog'
@@ -33,8 +36,10 @@ import {
   isRequestorRole,
   mapStatusToApi,
   parseAdminAccountUser,
+  presenceSummary,
   type AccountFormValues,
   type AdminAccountUser,
+  type PresenceFilter,
   type ProfileActivity,
 } from '../lib/accountManagement'
 import '../../components/account-management.css'
@@ -55,9 +60,10 @@ export function AccountManagementPage() {
   )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [presenceFilter, setPresenceFilter] = useState<PresenceFilter>('all')
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
 
   const [profileUserId, setProfileUserId] = useState<number | null>(null)
@@ -79,13 +85,18 @@ export function AccountManagementPage() {
   const [memberDeactivateLoading, setMemberDeactivateLoading] = useState(false)
   const [memberDelete, setMemberDelete] = useState<AdminAccountUser | null>(null)
   const [memberDeleteLoading, setMemberDeleteLoading] = useState(false)
+  const [memberDeleteError, setMemberDeleteError] = useState<string | null>(null)
+  const [memberDeleteCanRetryStorage, setMemberDeleteCanRetryStorage] = useState(false)
+  const [memberStorageRetryLoading, setMemberStorageRetryLoading] = useState(false)
 
   const { showToast } = useToast()
 
   const filtered = useMemo(
-    () => filterAccounts(allUsers, search, roleFilter, statusFilter),
-    [allUsers, search, roleFilter, statusFilter],
+    () => filterAccounts(allUsers, search, roleFilter, statusFilter, presenceFilter),
+    [allUsers, search, roleFilter, statusFilter, presenceFilter],
   )
+
+  const presenceCounts = useMemo(() => presenceSummary(allUsers), [allUsers])
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -243,9 +254,9 @@ export function AccountManagementPage() {
 
     try {
       if (modal.kind === 'confirm-deactivate') {
-        await setUserStatus(u.user_id, 'rejected', 'Deactivated by administrator')
+        const result = await deactivateUserAccount(u.user_id)
         setActionModal(null)
-        showToast(`Account deactivated for ${u.name}`)
+        showToast(result.message || `Account deactivated for ${u.name}`)
         await loadUsers()
         return
       }
@@ -305,39 +316,71 @@ export function AccountManagementPage() {
   function handleDeleteMember(user: AdminAccountUser) {
     setOpenMenuId(null)
     if (user.role !== 'Member' && user.role !== 'Organization') return
+    setMemberDeleteError(null)
+    setMemberDeleteCanRetryStorage(false)
     setMemberDelete(user)
   }
 
-  async function confirmMemberDelete(deleteUploads: boolean, confirmationEmail: string) {
+  async function confirmMemberDelete(confirmationEmail: string) {
     if (!memberDelete || memberDeleteLoading) return
     setMemberDeleteLoading(true)
+    setMemberDeleteError(null)
+    setMemberDeleteCanRetryStorage(false)
     try {
-      const result = await permanentlyDeleteMemberAccount(
-        memberDelete.user_id,
-        confirmationEmail,
-        deleteUploads,
-      )
-      showToast(result.message || `Deleted ${memberDelete.name}`)
+      const result = await permanentlyDeleteMemberAccount(memberDelete.user_id, confirmationEmail)
+      const detail =
+        result.media_deleted != null
+          ? ` Media: ${result.media_deleted} removed${result.storage_deleted != null ? `, storage: ${result.storage_deleted}` : ''}.`
+          : ''
+      showToast(`${result.message || `Deleted ${memberDelete.name}`}${detail}`)
       setMemberDelete(null)
       if (profileUserId === memberDelete.user_id) setProfileUserId(null)
       await loadUsers()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Delete failed', true)
+      const msg = e instanceof Error ? e.message : 'Delete failed'
+      // Prefer structured 409 detail; never infer retry from "0 … queued for retry" text.
+      let canRetryStorage = false
+      if (e && typeof e === 'object' && 'detail' in e) {
+        const detail = (e as { detail: unknown }).detail
+        if (detail && typeof detail === 'object' && detail !== null) {
+          const d = detail as { can_retry_storage?: unknown; storage_queued?: unknown }
+          if (typeof d.can_retry_storage === 'boolean') {
+            canRetryStorage = d.can_retry_storage
+          } else if (typeof d.storage_queued === 'number') {
+            canRetryStorage = d.storage_queued > 0
+          }
+        }
+      }
+      setMemberDeleteError(msg)
+      setMemberDeleteCanRetryStorage(canRetryStorage)
+      showToast(msg, true)
     } finally {
       setMemberDeleteLoading(false)
     }
   }
 
-  async function confirmMemberDeactivate(deleteUploads: boolean) {
+  async function retryMemberDeleteStorageCleanup() {
+    if (!memberDelete || memberStorageRetryLoading) return
+    setMemberStorageRetryLoading(true)
+    try {
+      const result = await retryMemberStorageCleanup(memberDelete.user_id)
+      setMemberDeleteError(result.message)
+      setMemberDeleteCanRetryStorage(Boolean(result.partial_failure && (result.storage_queued ?? 0) > 0))
+      showToast(result.message || 'Storage cleanup retry finished')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Storage cleanup retry failed'
+      setMemberDeleteError(msg)
+      showToast(msg, true)
+    } finally {
+      setMemberStorageRetryLoading(false)
+    }
+  }
+
+  async function confirmMemberDeactivate() {
     if (!memberDeactivate || memberDeactivateLoading) return
     setMemberDeactivateLoading(true)
     try {
-      const result = await setUserStatus(
-        memberDeactivate.user_id,
-        'rejected',
-        'Deactivated by administrator',
-        { deleteUploads },
-      )
+      const result = await deactivateUserAccount(memberDeactivate.user_id)
       showToast(result.message || `Account deactivated for ${memberDeactivate.name}`)
       setMemberDeactivate(null)
       await loadUsers()
@@ -348,14 +391,17 @@ export function AccountManagementPage() {
     }
   }
 
-  const hasFilters = Boolean(search || roleFilter !== 'all' || statusFilter !== 'all')
+  const hasFilters = Boolean(
+    search || roleFilter !== 'all' || statusFilter !== 'all' || presenceFilter !== 'all',
+  )
 
   return (
     <div className="account-mgmt" data-account-management>
       <div className="account-mgmt__page">
-        <AdminPageHeader
-          title="Account Management"
-          subtitle="Manage users, roles, and account access."
+        <AdminFeatureHeader
+          icon={FEATURE_HEADERS.accounts.icon}
+          title={FEATURE_HEADERS.accounts.title}
+          description={FEATURE_HEADERS.accounts.description}
           backTo="/"
           actions={
             <>
@@ -432,6 +478,21 @@ export function AccountManagementPage() {
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="suspended">Suspended</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </label>
+            <label className="account-mgmt__filter">
+              <span className="account-mgmt__filter-label">Presence</span>
+              <select
+                className="account-mgmt__select"
+                value={presenceFilter}
+                onChange={(e) => setPresenceFilter(e.target.value as PresenceFilter)}
+              >
+                <option value="all">All</option>
+                <option value="online">Online</option>
+                <option value="offline">Offline</option>
+                <option value="inactive">Inactive 30d</option>
+                <option value="disabled">Disabled</option>
               </select>
             </label>
             <button
@@ -446,9 +507,31 @@ export function AccountManagementPage() {
           </div>
         </div>
 
+        <div className="account-mgmt__presence-summary" aria-live="polite">
+          <span>
+            <strong>{presenceCounts.online}</strong> online
+          </span>
+          <span>
+            <strong>{presenceCounts.offline}</strong> offline
+          </span>
+          <span>
+            <strong>{presenceCounts.inactive}</strong> inactive 30d
+          </span>
+          <span>
+            <strong>{presenceCounts.disabled}</strong> disabled
+          </span>
+        </div>
+
         {error ? (
-          <div className="account-mgmt__alert account-mgmt__alert--error" role="alert">
-            {error}
+          <div className="account-mgmt__state account-mgmt__state--error" role="alert">
+            <p>{error}</p>
+            <button
+              type="button"
+              className="account-mgmt__btn account-mgmt__btn--ghost"
+              onClick={loadUsers}
+            >
+              Retry
+            </button>
           </div>
         ) : null}
 
@@ -581,9 +664,8 @@ export function AccountManagementPage() {
           <DeactivateMemberDialog
             open
             memberName={memberDeactivate.name}
-            userId={memberDeactivate.user_id}
             loading={memberDeactivateLoading}
-            onConfirm={(deleteUploads) => void confirmMemberDeactivate(deleteUploads)}
+            onConfirm={() => void confirmMemberDeactivate()}
             onCancel={() => {
               if (memberDeactivateLoading) return
               setMemberDeactivate(null)
@@ -598,11 +680,17 @@ export function AccountManagementPage() {
             memberEmail={memberDelete.email}
             userId={memberDelete.user_id}
             accountRole={memberDelete.role}
-            loading={memberDeleteLoading}
-            onConfirm={(deleteUploads, email) => void confirmMemberDelete(deleteUploads, email)}
+            loading={memberDeleteLoading || memberStorageRetryLoading}
+            errorMessage={memberDeleteError}
+            canRetryStorage={memberDeleteCanRetryStorage}
+            storageRetryLoading={memberStorageRetryLoading}
+            onRetryStorage={() => void retryMemberDeleteStorageCleanup()}
+            onConfirm={(email) => void confirmMemberDelete(email)}
             onCancel={() => {
-              if (memberDeleteLoading) return
+              if (memberDeleteLoading || memberStorageRetryLoading) return
               setMemberDelete(null)
+              setMemberDeleteError(null)
+              setMemberDeleteCanRetryStorage(false)
             }}
           />
         ) : null}

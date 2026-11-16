@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><title>Phase6B INDVAL Analysis</title></head>
+<body><pre id="status">loading…</pre><pre id="out"></pre>
+<script>
+// Loads sibling CSVs via fetch (same directory). Falls back to embedded paths.
+const ROOT = "";
+const FILES = {
+  r2: "phase6b_R2_locked_ratings.csv.csv",
+  r3: "phase6b_R3_locked_ratings.csv.csv",
+  opencv: "machine_output/machine_scores.csv",
+  musiq: "machine_output/musiq_live_docker_20261114T074630Z/musiq_live_scores.csv",
+};
+window.__PHASE6B__ = { ready: false, error: null, results: null };
+
+const CRITERIA = ["sharpness","blur","noise","brightness","contrast","blocking_artifacts","ringing_artifacts","overall_visual_quality"];
+const OPENCV_PAIRS = [
+  ["sharpness","hybrid_badge_sharpness","hybrid_q_sharpness"],
+  ["blur","hybrid_badge_blur","hybrid_q_blur"],
+  ["brightness","hybrid_badge_brightness","hybrid_q_brightness"],
+  ["contrast","hybrid_badge_contrast","hybrid_q_contrast"],
+  ["blocking_artifacts","hybrid_badge_blocking_artifacts","hybrid_q_blocking_artifacts"],
+];
+const EXPECTED = Array.from({length:100},(_,i)=>`INDVAL-${String(i+1).padStart(3,"0")}`);
+
+function parseCSV(text) {
+  const rows = [];
+  let i = 0, field = "", row = [], inQ = false;
+  const pushField = () => { row.push(field); field = ""; };
+  const pushRow = () => { if (row.length) rows.push(row); row = []; };
+  while (i < text.length) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') {
+        if (text[i+1] === '"') { field += '"'; i += 2; continue; }
+        inQ = false; i++; continue;
+      }
+      field += c; i++; continue;
+    }
+    if (c === '"') { inQ = true; i++; continue; }
+    if (c === ',') { pushField(); i++; continue; }
+    if (c === '\r') { i++; continue; }
+    if (c === '\n') { pushField(); pushRow(); i++; continue; }
+    field += c; i++;
+  }
+  if (field.length || row.length) { pushField(); pushRow(); }
+  if (!rows.length) return [];
+  const headers = rows[0];
+  return rows.slice(1).filter(r => r.some(x => x !== "")).map(r => {
+    const o = {};
+    headers.forEach((h, idx) => o[h] = r[idx] ?? "");
+    return o;
+  });
+}
+
+function parseScore(v) {
+  if (v === null || v === undefined) throw new Error("missing");
+  if (typeof v === "number") {
+    if (Number.isInteger(v) && v >= 1 && v <= 5) return v;
+    throw new Error(String(v));
+  }
+  const s = String(v).trim();
+  if (s.toUpperCase() === "N/A") return "N/A";
+  const n = Number(s);
+  if (Number.isInteger(n) && n >= 1 && n <= 5) return n;
+  throw new Error(s);
+}
+
+function validate(rows, expectedEid, sourceName) {
+  if (rows.length !== 100) throw new Error(`${sourceName}: expected 100 rows, got ${rows.length}`);
+  const out = {};
+  rows.forEach((row, idx) => {
+    const eid = (row.evaluator_id || "").trim();
+    const mid = (row.media_id || "").trim();
+    const st = (row.status || "").trim().toLowerCase();
+    if (eid !== expectedEid) throw new Error(`${sourceName}:${idx+2} bad evaluator ${eid}`);
+    if (st !== "locked") throw new Error(`${sourceName}:${idx+2} ${mid} status=${st}`);
+    const rj = JSON.parse(row.ratings_json);
+    const scores = {};
+    let nNum = 0;
+    for (const c of CRITERIA) {
+      if (!(c in rj)) throw new Error(`${sourceName}:${idx+2} ${mid} missing ${c}`);
+      scores[c] = parseScore(rj[c]);
+      if (typeof scores[c] === "number") nNum++;
+    }
+    if (nNum === 0) throw new Error(`${sourceName}:${idx+2} ${mid} no numeric`);
+    if (out[mid]) throw new Error(`${sourceName}: duplicate ${mid}`);
+    const compact = {};
+    for (const c of CRITERIA) compact[c] = scores[c];
+    out[mid] = {
+      evaluator_id: eid, media_id: mid, status: "locked",
+      ratings_json: JSON.stringify(compact),
+      scores, n_numeric_criteria: nNum, source_file: sourceName,
+    };
+  });
+  const ids = Object.keys(out).sort();
+  if (ids.join(",") !== EXPECTED.join(",")) throw new Error(`${sourceName}: ID set mismatch`);
+  return out;
+}
+
+function rankdata(xs) {
+  const n = xs.length;
+  const order = Array.from({length:n},(_,i)=>i).sort((a,b)=>xs[a]-xs[b]);
+  const ranks = Array(n).fill(0);
+  let i = 0;
+  while (i < n) {
+    let j = i;
+    while (j+1 < n && xs[order[j+1]] === xs[order[i]]) j++;
+    const avg = 0.5*(i+j)+1;
+    for (let k=i;k<=j;k++) ranks[order[k]] = avg;
+    i = j+1;
+  }
+  return ranks;
+}
+
+function lgamma(z) {
+  // Lanczos approx
+  const p = [676.5203681218851,-1259.1392167224028,771.32342877765313,
+    -176.61502916214059,12.507343278686905,-0.13857109526572012,
+    9.9843696540787613e-6,1.5056327351493116e-7];
+  if (z < 0.5) return Math.log(Math.PI) - Math.log(Math.sin(Math.PI*z)) - lgamma(1-z);
+  z -= 1;
+  let x = 0.99999999999980993;
+  for (let i=0;i<p.length;i++) x += p[i]/(z+i+1);
+  const t = z + p.length - 0.5;
+  return 0.5*Math.log(2*Math.PI) + (z+0.5)*Math.log(t) - t + Math.log(x);
+}
+
+function betacf(a,b,x) {
+  const fpmin=1e-30, maxIt=200;
+  const qab=a+b, qap=a+1, qam=a-1;
+  let c=1, d=1-qab*x/qap; if (Math.abs(d)<fpmin) d=fpmin; d=1/d; let h=d;
+  for (let m=1;m<=maxIt;m++) {
+    const m2=2*m;
+    let aa=m*(b-m)*x/((qam+m2)*(a+m2));
+    d=1+aa*d; if (Math.abs(d)<fpmin) d=fpmin; c=1+aa/c; if (Math.abs(c)<fpmin) c=fpmin; d=1/d; h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d=1+aa*d; if (Math.abs(d)<fpmin) d=fpmin; c=1+aa/c; if (Math.abs(c)<fpmin) c=fpmin; d=1/d;
+    const delta=d*c; h*=delta; if (Math.abs(delta-1)<3e-7) break;
+  }
+  return h;
+}
+
+function studentTSfTwoSided(t, df) {
+  const x = df/(df+t*t); const a=df/2, b=0.5;
+  const bt = Math.exp(lgamma(a+b)-lgamma(a)-lgamma(b)+a*Math.log(x)+b*Math.log(1-x));
+  let p;
+  if (x < (a+1)/(a+b+2)) p = bt*betacf(a,b,x)/a;
+  else p = 1 - bt*betacf(b,a,1-x)/b;
+  return Math.min(1, Math.max(0, p));
+}
+
+function pearson(xs, ys) {
+  const n = xs.length;
+  if (n < 3) return [null, null];
+  const mx = xs.reduce((a,b)=>a+b,0)/n;
+  const my = ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, dx=0, dy=0;
+  for (let i=0;i<n;i++) { const vx=xs[i]-mx, vy=ys[i]-my; num+=vx*vy; dx+=vx*vx; dy+=vy*vy; }
+  dx=Math.sqrt(dx); dy=Math.sqrt(dy);
+  if (dx===0 || dy===0) return [null, null];
+  const r = num/(dx*dy);
+  if (Math.abs(r) >= 1) return [r, 0];
+  const t = r * Math.sqrt((n-2)/(1-r*r));
+  return [r, studentTSfTwoSided(Math.abs(t), n-2)];
+}
+
+function spearman(xs, ys) {
+  if (xs.length !== ys.length || xs.length < 3) return [null, null, xs.length];
+  const [r,p] = pearson(rankdata(xs), rankdata(ys));
+  return [r, p, xs.length];
+}
+
+function qwk(a, b, lo=1, hi=5) {
+  if (!a.length || a.length !== b.length) return null;
+  const k = hi-lo+1;
+  const conf = Array.from({length:k},()=>Array(k).fill(0));
+  for (let i=0;i<a.length;i++) conf[a[i]-lo][b[i]-lo]++;
+  const n = a.length;
+  for (let i=0;i<k;i++) for (let j=0;j<k;j++) conf[i][j]/=n;
+  const histA = conf.map(r => r.reduce((x,y)=>x+y,0));
+  const histB = Array(k).fill(0); for (let j=0;j<k;j++) for (let i=0;i<k;i++) histB[j]+=conf[i][j];
+  let obs=0, exp=0;
+  for (let i=0;i<k;i++) for (let j=0;j<k;j++) {
+    const w = ((i-j)**2)/((k-1)**2);
+    obs += w*conf[i][j];
+    exp += w*histA[i]*histB[j];
+  }
+  if (exp===0) return obs===0 ? 1 : 0;
+  return 1 - obs/exp;
+}
+
+function pairs(a,b) {
+  const xs=[], ys=[];
+  for (let i=0;i<a.length;i++) {
+    if (a[i]===null || a[i]===undefined || b[i]===null || b[i]===undefined) continue;
+    if (a[i]==="N/A" || b[i]==="N/A") continue;
+    const x=Number(a[i]), y=Number(b[i]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    xs.push(x); ys.push(y);
+  }
+  return [xs,ys];
+}
+
+function median(arr) {
+  if (!arr.length) return null;
+  const s=[...arr].sort((a,b)=>a-b);
+  const m=Math.floor(s.length/2);
+  return s.length%2 ? s[m] : 0.5*(s[m-1]+s[m]);
+}
+
+function mean(arr) { return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function stdev(arr) {
+  if (arr.length<2) return null;
+  const m=mean(arr);
+  return Math.sqrt(arr.reduce((a,b)=>a+(b-m)*(b-m),0)/(arr.length-1));
+}
+
+function csvEscape(v) {
+  if (v===null || v===undefined) return "";
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  return s;
+}
+
+function toCSV(rows) {
+  if (!rows.length) return "";
+  const cols = [];
+  for (const r of rows) for (const k of Object.keys(r)) if (!cols.includes(k)) cols.push(k);
+  const lines = [cols.join(",")];
+  for (const r of rows) lines.push(cols.map(c => csvEscape(r[c])).join(","));
+  return lines.join("\n") + "\n";
+}
+
+function svgScatter(xs, ys, title, xlab, ylab) {
+  const w=480,h=420,pad=50;
+  const sx=v=>pad+(v-1)/4*(w-2*pad);
+  const sy=v=>h-pad-(v-1)/4*(h-2*pad);
+  const [rho,p,n]=spearman(xs,ys);
+  let label=`n=${n}`;
+  if (rho!==null) label += `  rho=${rho.toFixed(3)}  p=${Number(p).toPrecision(4)}`;
+  const dots = xs.map((x,i)=>`<circle cx="${sx(x).toFixed(1)}" cy="${sy(ys[i]).toFixed(1)}" r="3.2" fill="#0052D4" fill-opacity="0.55"/>`).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="100%" height="100%" fill="#F8FAFC"/>
+  <text x="${w/2}" y="24" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14" fill="#1E293B">${title}</text>
+  <line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${pad}" stroke="#94A3B8" stroke-dasharray="4 4"/>
+  <line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="#64748B"/>
+  <line x1="${pad}" y1="${h-pad}" x2="${pad}" y2="${pad}" stroke="#64748B"/>
+  ${dots}
+  <text x="${w/2}" y="${h-12}" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" fill="#64748B">${xlab}</text>
+  <text x="16" y="${h/2}" text-anchor="middle" transform="rotate(-90 16 ${h/2})" font-family="Segoe UI,sans-serif" font-size="12" fill="#64748B">${ylab}</text>
+  <text x="${pad}" y="42" font-family="Segoe UI,sans-serif" font-size="11" fill="#1E293B">${label}</text>
+</svg>
+`;
+}
+
+function num(v) {
+  if (v===null || v===undefined || v==="" || v==="N/A") return null;
+  const x = Number(v);
+  return Number.isFinite(x) ? x : null;
+}
+
+async function loadText(path) {
+  const url = new URL(path, window.location.href).href;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`fetch ${path} -> ${res.status}`);
+  return await res.text();
+}
+
+async function run() {
+  const status = document.getElementById("status");
+  try {
+    status.textContent = "Fetching CSVs…";
+    const [r2t, r3t, ocvt, musqt] = await Promise.all([
+      loadText(FILES.r2), loadText(FILES.r3), loadText(FILES.opencv), loadText(FILES.musiq)
+    ]);
+    status.textContent = "Validating…";
+    const r2 = validate(parseCSV(r2t), "R2", FILES.r2);
+    const r3 = validate(parseCSV(r3t), "R3", FILES.r3);
+    const opencvRows = parseCSV(ocvt);
+    const musiqRows = parseCSV(musqt);
+    const opencv = Object.fromEntries(opencvRows.map(r => [r.indval_id, r]));
+    const musiq = Object.fromEntries(musiqRows.map(r => [r.indval_id, r]));
+    if (Object.keys(opencv).sort().join(",") !== EXPECTED.join(",")) throw new Error("OpenCV ID set mismatch");
+    if (Object.keys(musiq).sort().join(",") !== EXPECTED.join(",")) throw new Error("MUSIQ ID set mismatch");
+    for (const mid of EXPECTED) {
+      const a = (opencv[mid].file_sha256||"").toLowerCase();
+      const b = (musiq[mid].file_sha256||"").toLowerCase();
+      if (a !== b) throw new Error(`SHA mismatch ${mid}`);
+      if ((musiq[mid].musiq_status||"").toLowerCase() !== "ok") throw new Error(`MUSIQ not ok ${mid}`);
+      if (String(musiq[mid].musiq_finite_ok).toLowerCase() !== "true") throw new Error(`MUSIQ not finite ${mid}`);
+    }
+
+    const combined = [];
+    for (const mid of EXPECTED) {
+      for (const src of [r2[mid], r3[mid]]) {
+        const row = {
+          evaluator_id: src.evaluator_id, media_id: mid, status: "locked",
+          ratings_json: src.ratings_json, n_numeric_criteria: src.n_numeric_criteria,
+          source_file: src.source_file,
+        };
+        for (const c of CRITERIA) row[c] = src.scores[c];
+        combined.push(row);
+      }
+    }
+
+    const joined = [];
+    for (const mid of EXPECTED) {
+      const row = {
+        media_id: mid,
+        file_sha256: opencv[mid].file_sha256,
+        source_media_key: opencv[mid].source_media_key,
+        musiq_opq_raw: num(musiq[mid].musiq_opq_raw),
+        musiq_status: musiq[mid].musiq_status,
+        musiq_finite_ok: musiq[mid].musiq_finite_ok,
+      };
+      for (const c of CRITERIA) {
+        row[`R2_${c}`] = r2[mid].scores[c];
+        row[`R3_${c}`] = r3[mid].scores[c];
+        const vals = [r2[mid].scores[c], r3[mid].scores[c]].filter(v => typeof v === "number");
+        row[`human_median_${c}`] = median(vals);
+        row[`human_n_${c}`] = vals.length;
+      }
+      for (const [,badge,q] of OPENCV_PAIRS) {
+        row[badge] = num(opencv[mid][badge]);
+        row[q] = num(opencv[mid][q]);
+      }
+      joined.push(row);
+    }
+
+    const desc = [];
+    for (const [label, store] of [["R2", r2], ["R3", r3]]) {
+      for (const c of CRITERIA) {
+        const nums = EXPECTED.map(mid => store[mid].scores[c]).filter(v => typeof v === "number");
+        const nNa = EXPECTED.filter(mid => store[mid].scores[c] === "N/A").length;
+        desc.push({
+          rater: label, criterion: c, n_numeric: nums.length, n_na: nNa,
+          mean: nums.length ? +mean(nums).toFixed(4) : "",
+          median: nums.length ? median(nums) : "",
+          std: nums.length > 1 ? +stdev(nums).toFixed(4) : "",
+          min: nums.length ? Math.min(...nums) : "",
+          max: nums.length ? Math.max(...nums) : "",
+        });
+      }
+    }
+
+    const irr = [];
+    for (const c of CRITERIA) {
+      const a = EXPECTED.map(mid => typeof r2[mid].scores[c]==="number" ? r2[mid].scores[c] : null);
+      const b = EXPECTED.map(mid => typeof r3[mid].scores[c]==="number" ? r3[mid].scores[c] : null);
+      const [xs,ys] = pairs(a,b);
+      const [rho,p,n] = spearman(xs,ys);
+      const [pr,pp] = n>=3 ? pearson(xs,ys) : [null,null];
+      const exact = xs.filter((x,i)=>Math.round(x)===Math.round(ys[i])).length;
+      const kappa = qwk(xs.map(x=>Math.round(x)), ys.map(y=>Math.round(y)));
+      const mae = xs.length ? mean(xs.map((x,i)=>Math.abs(x-ys[i]))) : null;
+      irr.push({
+        criterion:c, n_paired_numeric:n, n_excluded_na_or_missing:100-n,
+        spearman_r:rho, spearman_p:p, pearson_r:pr, pearson_p:pp,
+        quadratic_weighted_kappa:kappa, exact_agreement:exact,
+        exact_agreement_rate: n? exact/n : null, mae,
+      });
+    }
+
+    const hvm = [];
+    function add(label, hs, ms, kind, crit, maeOk, note) {
+      const [xs,ys] = pairs(hs, ms);
+      const [rho,p,n] = spearman(xs,ys);
+      const [pr,pp] = n>=3 ? pearson(xs,ys) : [null,null];
+      const mae = (maeOk && xs.length) ? mean(xs.map((x,i)=>Math.abs(x-ys[i]))) : "";
+      hvm.push({
+        comparison:label, criterion:crit, machine_kind:kind, n,
+        spearman_r:rho, spearman_p:p, pearson_r:pr, pearson_p:pp,
+        mae, mae_applicable: maeOk, note,
+      });
+    }
+    for (const [c,badge,q] of OPENCV_PAIRS) {
+      const med = joined.map(r => r[`human_median_${c}`]);
+      add(`human_median_vs_opencv_badge_${c}`, med, joined.map(r=>r[badge]), "opencv_equal_bin_badge", c, true, "OpenCV experimental equal-bin badge");
+      add(`human_median_vs_opencv_q_${c}`, med, joined.map(r=>r[q]), "opencv_continuous_q", c, false, "OpenCV continuous q; MAE omitted");
+      for (const rater of ["R2","R3"]) {
+        const hs = joined.map(r => typeof r[`${rater}_${c}`]==="number" ? r[`${rater}_${c}`] : null);
+        add(`${rater}_vs_opencv_badge_${c}`, hs, joined.map(r=>r[badge]), "opencv_equal_bin_badge", c, true, `${rater} vs badge`);
+      }
+    }
+    const overall = joined.map(r => r.human_median_overall_visual_quality);
+    const mopq = joined.map(r => r.musiq_opq_raw);
+    add("human_median_overall_vs_musiq_opq", overall, mopq, "musiq_paq2piq_opq", "overall_visual_quality", false, "MUSIQ overall only; MAE omitted (scale mismatch)");
+    for (const rater of ["R2","R3"]) {
+      const hs = joined.map(r => typeof r[`${rater}_overall_visual_quality`]=== "number" ? r[`${rater}_overall_visual_quality`] : null);
+      add(`${rater}_overall_vs_musiq_opq`, hs, mopq, "musiq_paq2piq_opq", "overall_visual_quality", false, `${rater} overall vs MUSIQ`);
+    }
+    for (const c of ["noise","ringing_artifacts"]) {
+      hvm.push({
+        comparison:`no_machine_match_${c}`, criterion:c, machine_kind:"none", n:"",
+        spearman_r:"", spearman_p:"", pearson_r:"", pearson_p:"", mae:"",
+        mae_applicable:false, note:"No frozen OpenCV/MUSIQ criterion counterpart; IRR only",
+      });
+    }
+
+    const naRows = [];
+    for (const [label, store] of [["R2", r2], ["R3", r3]]) {
+      for (const c of CRITERIA) {
+        const ids = EXPECTED.filter(mid => store[mid].scores[c] === "N/A");
+        naRows.push({rater:label, criterion:c, n_na:ids.length, media_ids:ids.join(";")});
+      }
+    }
+
+    const graphs = {};
+    for (const c of CRITERIA) {
+      const [xs,ys] = pairs(
+        EXPECTED.map(mid => typeof r2[mid].scores[c]==="number"?r2[mid].scores[c]:null),
+        EXPECTED.map(mid => typeof r3[mid].scores[c]==="number"?r3[mid].scores[c]:null)
+      );
+      graphs[`fig_irr_${c}.svg`] = svgScatter(xs, ys, `R2 vs R3: ${c}`, "R2", "R3");
+    }
+    {
+      const [hum, mu] = pairs(overall, mopq);
+      const w=520,h=420,pad=55;
+      const xmin=Math.min(...mu), xmax=Math.max(...mu), ymin=1, ymax=5;
+      const sx=v=>pad+(v-xmin)/(xmax-xmin+1e-9)*(w-2*pad);
+      const sy=v=>h-pad-(v-ymin)/(ymax-ymin)*(h-2*pad);
+      const [rho,p,n]=spearman(hum,mu);
+      const dots = hum.map((hh,i)=>`<circle cx="${sx(mu[i]).toFixed(1)}" cy="${sy(hh).toFixed(1)}" r="3.2" fill="#00C4E8" fill-opacity="0.6"/>`).join("\n");
+      graphs["fig_overall_vs_musiq.svg"] = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="100%" height="100%" fill="#F8FAFC"/>
+  <text x="${w/2}" y="24" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="14">Overall human median vs MUSIQ OPQ</text>
+  <line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="#64748B"/>
+  <line x1="${pad}" y1="${h-pad}" x2="${pad}" y2="${pad}" stroke="#64748B"/>
+  ${dots}
+  <text x="${w/2}" y="${h-12}" text-anchor="middle" font-size="12" fill="#64748B">MUSIQ OPQ (~0-100)</text>
+  <text x="16" y="${h/2}" transform="rotate(-90 16 ${h/2})" text-anchor="middle" font-size="12" fill="#64748B">Human overall (1-5)</text>
+  <text x="${pad}" y="42" font-size="11">n=${n}  rho=${rho.toFixed(3)}  p=${Number(p).toPrecision(4)}</text>
+</svg>
+`;
+    }
+    {
+      const bars = OPENCV_PAIRS.map(([c]) => {
+        const row = hvm.find(r => r.comparison === `human_median_vs_opencv_badge_${c}`);
+        return [c, row.spearman_r||0, row.n];
+      });
+      const bw=70; const parts=[];
+      bars.forEach(([c,rho,n],i) => {
+        const x=60+i*90, y0=200, bh=rho*150, y=y0-bh;
+        parts.push(`<rect x="${x}" y="${y}" width="${bw}" height="${Math.abs(bh)}" fill="#0052D4"/>`);
+        parts.push(`<text x="${x+bw/2}" y="${y0+18}" text-anchor="middle" font-size="10">${c.replace("_artifacts","")}</text>`);
+        parts.push(`<text x="${x+bw/2}" y="${y-6}" text-anchor="middle" font-size="10">n=${n}</text>`);
+      });
+      graphs["fig_human_vs_opencv_badge_spearman.svg"] = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="260">
+  <rect width="100%" height="100%" fill="#F8FAFC"/>
+  <text x="260" y="24" text-anchor="middle" font-size="14">Human median vs OpenCV badge Spearman</text>
+  <line x1="40" y1="200" x2="500" y2="200" stroke="#64748B"/>
+  ${parts.join("")}
+</svg>
+`;
+    }
+
+    const now = new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+Z$/,"Z");
+    const lines = [
+      "# Phase 6B INDVAL statistical analysis",
+      "",
+      `Generated UTC: ${now}`,
+      "Sources: `phase6b_R2_locked_ratings.csv.csv`, `phase6b_R3_locked_ratings.csv.csv` (double .csv.csv on disk)",
+      "Combined: `phase6b_locked_ratings.csv`",
+      "Output: `phase6b_statistical_analysis/`",
+      "",
+      "## Validation",
+      "- R2/R3: 100 unique INDVAL IDs, evaluator_id correct, status=locked, ratings_json with 1-5 or N/A",
+      "- OpenCV+MUSIQ joined on INDVAL IDs; SHA matched; MUSIQ 100/100 ok+finite",
+      "- Originals not modified",
+      "",
+      "## Inter-rater R2 vs R3 (Spearman / QWK)",
+      "",
+    ];
+    for (const row of irr) {
+      if (row.spearman_r !== null && row.quadratic_weighted_kappa !== null) {
+        lines.push(`- **${row.criterion}:** n=${row.n_paired_numeric}, ρ=${Number(row.spearman_r).toFixed(3)}, p=${Number(row.spearman_p).toPrecision(4)}, QWK=${Number(row.quadratic_weighted_kappa).toFixed(3)}, exact=${Number(row.exact_agreement_rate).toFixed(3)}`);
+      } else {
+        lines.push(`- **${row.criterion}:** n=${row.n_paired_numeric}, correlation undefined or sparse`);
+      }
+    }
+    lines.push("", "## Human vs OpenCV badge (median)", "");
+    for (const [c] of OPENCV_PAIRS) {
+      const row = hvm.find(r => r.comparison === `human_median_vs_opencv_badge_${c}`);
+      if (row.spearman_r !== null) {
+        lines.push(`- **${c}:** n=${row.n}, ρ=${Number(row.spearman_r).toFixed(3)}, p=${Number(row.spearman_p).toPrecision(4)}, MAE=${Number(row.mae).toFixed(3)}`);
+      } else {
+        lines.push(`- **${c}:** n=${row.n}, ρ undefined`);
+      }
+    }
+    const mrow = hvm.find(r => r.comparison === "human_median_overall_vs_musiq_opq");
+    lines.push(
+      "",
+      "## MUSIQ (overall only)",
+      `- overall vs MUSIQ OPQ: n=${mrow.n}, ρ=${Number(mrow.spearman_r).toFixed(3)}, p=${Number(mrow.spearman_p).toPrecision(4)} (MAE omitted; scale mismatch)`,
+      "- MUSIQ is not treated as criterion-specific for sharpness/blur/noise/etc.",
+      "",
+      "## Interpretation",
+      "- Two locked raters (R2, R3) on INDVAL holdout; N/A excluded pairwise, never imputed.",
+      "- OpenCV badges are experimental equal-bin maps, not production scores.",
+      "- Descriptive correlations only; no claim of production cutover.",
+      "",
+      "## Limitations",
+      "- R1 not in locked exports; two-rater IRR only.",
+      "- Nominal p-values; no multiplicity correction.",
+      "- Human median uses n=1 when the other rater marked N/A.",
+      "- Source export filenames use double extension `.csv.csv`.",
+      "",
+    );
+
+    const files = {
+      "phase6b_locked_ratings.csv": toCSV(combined),
+      "phase6b_statistical_analysis/joined_human_opencv_musiq.csv": toCSV(joined),
+      "phase6b_statistical_analysis/descriptive_human_by_criterion.csv": toCSV(desc),
+      "phase6b_statistical_analysis/inter_rater_R2_vs_R3.csv": toCSV(irr),
+      "phase6b_statistical_analysis/human_vs_machine_spearman.csv": toCSV(hvm),
+      "phase6b_statistical_analysis/na_inventory.csv": toCSV(naRows),
+      "phase6b_statistical_analysis/INTERPRETATION.md": lines.join("\n"),
+      "phase6b_statistical_analysis/run_meta.json": JSON.stringify({
+        generated_at_utc: now,
+        r2_source: FILES.r2,
+        r3_source: FILES.r3,
+        combined: "phase6b_locked_ratings.csv",
+        n_images: 100,
+        raters: ["R2","R3"],
+        originals_modified: false,
+        musiq_overall_only: true,
+        note: "Source filenames use double extension .csv.csv",
+        runner: "browser_js_stdlib_port",
+      }, null, 2) + "\n",
+    };
+    for (const [k,v] of Object.entries(graphs)) {
+      files[`phase6b_statistical_analysis/${k}`] = v;
+    }
+
+    window.__PHASE6B__ = {
+      ready: true,
+      error: null,
+      summary: {
+        irr: irr.map(r => ({criterion:r.criterion, n:r.n_paired_numeric, rho:r.spearman_r, p:r.spearman_p, qwk:r.quadratic_weighted_kappa})),
+        musiq: {n:mrow.n, rho:mrow.spearman_r, p:mrow.spearman_p},
+        opencv_badge: OPENCV_PAIRS.map(([c]) => {
+          const row = hvm.find(r => r.comparison === `human_median_vs_opencv_badge_${c}`);
+          return {criterion:c, n:row.n, rho:row.spearman_r, p:row.spearman_p, mae:row.mae};
+        }),
+        validation: "OK",
+      },
+      files,
+    };
+    document.getElementById("out").textContent = JSON.stringify(window.__PHASE6B__.summary, null, 2);
+    status.textContent = "DONE";
+  } catch (e) {
+    window.__PHASE6B__ = { ready: false, error: String(e && e.stack || e), results: null };
+    status.textContent = "ERROR: " + String(e);
+    document.getElementById("out").textContent = String(e && e.stack || e);
+  }
+}
+run();
+</script>
+</body></html>

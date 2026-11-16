@@ -22,6 +22,7 @@ from app.schemas.member_api import (
     ParticipationOut,
     ProfileOut,
     ProfileUpdate,
+    QualitySkillClassificationOut,
 )
 from app.core.security import verify_password
 from app.services.media_upload_config import evaluation_rules
@@ -31,20 +32,55 @@ from app.services.supabase_storage import display_profile_image
 router = APIRouter(prefix="/member", tags=["Member"])
 
 
+def _v2_seal_fields(db: Session) -> tuple[bool, object]:
+    from app.services.skill_progression_v2_activation import get_sealed_activation
+
+    seal = get_sealed_activation(db)
+    if seal is None:
+        return False, None
+    return True, seal.sealed_at
+
+
+def _is_cohort_member(db: Session, user_id: int) -> bool:
+    from app.services.skill_progression_v2_activation import is_user_in_sealed_cohort
+
+    return is_user_in_sealed_cohort(db, user_id)
+
+
 def _profile_out(db: Session, user: User) -> ProfileOut:
+    from app.services.member_presence import presence_fields
+    from app.services.skill_progression import build_skill_progression_snapshot
+
     ranking = ranking_crud.get_or_create(db, user.id)
-    skill = user.skill_level.level_name if user.skill_level else None
+    stored = user.skill_level.level_name if user.skill_level else None
+    progression = build_skill_progression_snapshot(db, user.id)
+    effective = progression.effective_tier
+    presence = presence_fields(
+        is_active=bool(user.is_active),
+        last_seen_at=getattr(user, "last_seen_at", None),
+        last_login_at=getattr(user, "last_login_at", None),
+    )
     return ProfileOut(
         id=user.id,
         name=user.fullname,
         email=user.email,
         role=user.role.role_name,
         status=user.status,
+        is_active=bool(user.is_active),
+        account_status=str(presence["account_status"]),
+        presence=str(presence["presence"]),
+        is_online=bool(presence["is_online"]),
+        last_seen_at=presence["last_seen_at"],
+        last_login_at=presence["last_login_at"],
         student_id=user.student_id,
         contact_number=user.contact_number,
+        phone_verified=bool(user.phone_verified_at),
+        phone_verified_at=user.phone_verified_at,
         adviser_name=user.adviser_name,
         profile_image=display_profile_image(user.profile_image),
-        skill_level=skill,
+        skill_level=effective,
+        skill_effective_tier=effective,
+        skill_tier_stored_legacy=stored,
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,
         uploads_count=profile_crud.uploads_count(db, user.id),
@@ -180,11 +216,39 @@ def acknowledge_member_milestone(
     )
 
 
+@router.get("/quality-skill-classification", response_model=QualitySkillClassificationOut)
+def quality_skill_classification(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_approved),
+):
+    """Photo/Video quality Skill Classification — separate from XP and skill progression tiers."""
+    from app.services.quality_skill_classification import (
+        classification_guide,
+        classify_member_quality_skills,
+    )
+
+    snap = classify_member_quality_skills(db, current_user.id)
+    payload = snap.to_dict()
+    payload["guide"] = classification_guide()
+    return QualitySkillClassificationOut(**payload)
+
+
 @router.get("/participation", response_model=ParticipationOut)
 def participation(db: Session = Depends(get_db), current_user: User = Depends(require_approved)):
     ranking = ranking_crud.get_or_create(db, current_user.id)
     eval_count, avg = profile_crud.evaluations_stats(db, current_user.id)
+    from app.services.skill_evaluation_eligibility import eligible_skill_evaluation_stats
+
+    eligible = eligible_skill_evaluation_stats(db, current_user.id)
+    from app.services.skill_progression import build_skill_progression_snapshot
+
+    progression = build_skill_progression_snapshot(db, current_user.id)
+    stored_legacy = (
+        current_user.skill_level.level_name if current_user.skill_level else None
+    )
     eval_rules = evaluation_rules(db)
+    quality_avg = round(progression.skill_score_pct, 2)
+    sealed, sealed_at = _v2_seal_fields(db)
     return ParticipationOut(
         assignments_total=profile_crud.assignments_total(db, current_user.id),
         assignments_completed=profile_crud.assignments_completed(db, current_user.id),
@@ -196,6 +260,32 @@ def participation(db: Session = Depends(get_db), current_user: User = Depends(re
         evaluation_max_video_seconds=int(eval_rules["max_video_seconds"]),
         evaluation_daily_timezone=settings.evaluation_daily_timezone,
         average_score=round(avg, 3),
+        skill_eligible_evaluations_count=eligible.count,
+        skill_eligible_average_score=round(eligible.average_score, 3),
+        skill_eligible_distinct_upload_days=progression.distinct_eligible_upload_days,
+        skill_quality_average=quality_avg,
+        skill_computed_tier=progression.computed_tier_active,
+        skill_effective_tier=progression.effective_tier,
+        skill_computed_tier_v2_preview=progression.computed_tier_v2,
+        skill_computed_tier_v1=progression.computed_tier_v1,
+        skill_computed_tier_v2_strict=progression.computed_tier_v2_raw,
+        skill_computed_tier_v2_grandfather_adjusted=progression.computed_tier_v2,
+        skill_tier_grandfather_floor=progression.grandfather_floor,
+        skill_tier_stored_legacy=stored_legacy,
+        skill_admin_competency_override=progression.admin_override,
+        skill_next_tier_required_evaluations=progression.next_tier_required_evaluations,
+        skill_next_tier_required_days=progression.next_tier_required_days,
+        skill_remaining_eligible_evaluations=progression.remaining_eligible_evaluations,
+        skill_remaining_distinct_upload_days=progression.remaining_distinct_upload_days,
+        skill_remaining_quality_points=progression.remaining_score_points,
+        skill_progression_policy_version=progression.policy_version,
+        skill_progression_policy_configured=progression.configured_policy_version,
+        skill_progression_v2_blocked_reason=progression.v2_activation_blocked_reason,
+        skill_progression_v2_activation_sealed=sealed,
+        skill_progression_v2_activation_sealed_at=sealed_at,
+        skill_progression_grandfather_cohort_member=_is_cohort_member(
+            db, current_user.id
+        ),
         total_points=ranking.total_points,
         rank_position=ranking.rank_position,
     )

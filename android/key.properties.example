@@ -1,0 +1,6 @@
+# Copy to android/key.properties (gitignored) and fill in real values.
+# Never commit key.properties, *.jks, or *.keystore.
+storePassword=REPLACE_ME
+keyPassword=REPLACE_ME
+keyAlias=upload
+storeFile=../path/to/upload-keystore.jks

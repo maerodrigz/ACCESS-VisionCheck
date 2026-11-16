@@ -9,6 +9,7 @@ import {
   fetchRankings,
   fetchTasks,
   fetchUsers,
+  deactivateUserAccount,
   setUserStatus,
 } from '../api/admin'
 import { PageLoader } from '../components/PageLoader'
@@ -16,7 +17,8 @@ import { TeamMembersTable } from '../components/documentation-team/TeamMembersTa
 import { TeamMemberProfileDrawer } from '../components/documentation-team/TeamMemberProfileDrawer'
 import { PageToolbarRefreshButton } from '../components/PageToolbar'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { AdminSelect } from '../components/AdminSelect'
 import {
   buildTeamProfiles,
@@ -134,14 +136,8 @@ export function DocumentationTeamPage() {
     [all, pendingMembers],
   )
 
-  async function handleDeactivate(member: TeamMemberProfile, deleteUploads: boolean) {
-    const result = await setUserStatus(member.id, 'rejected', 'Deactivated by administrator', {
-      deleteUploads,
-    })
-    if (result.message) {
-      // Toast not wired on this page; parent reload reflects changes.
-      void result.message
-    }
+  async function handleDeactivate(member: TeamMemberProfile) {
+    await deactivateUserAccount(member.id)
     await load()
   }
 
@@ -152,9 +148,10 @@ export function DocumentationTeamPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-3">
-      <AdminPageHeader
-        title="Member Management"
-        subtitle="Day-to-day operations: who is available, who is on assignment, and member account status."
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.competency.icon}
+        title={FEATURE_HEADERS.competency.title}
+        description={FEATURE_HEADERS.competency.description}
         backTo="/"
         actions={
           <PageToolbarRefreshButton onClick={load} disabled={loading} loading={loading} />

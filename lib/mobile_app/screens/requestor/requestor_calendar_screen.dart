@@ -22,6 +22,7 @@ class RequestorCalendarScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return CalendarScreen(
       forRequestor: true,
+      onNotificationsTap: onNotificationsTap,
       onProfileTap: onProfileTap,
       onPlanRequest: onPlanRequest,
     );

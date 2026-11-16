@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Loader2, X } from 'lucide-react'
+import { Camera, Loader2, Smartphone, X } from 'lucide-react'
 
-import { profileImageUrl, updateProfile, uploadProfileAvatar } from '../api/profile'
+import {
+  fetchProfile,
+  profileImageUrl,
+  updateProfile,
+  uploadProfileAvatar,
+} from '../api/profile'
 import { AdminAlert } from './AdminAlert'
 import { useAuth } from '../context/AuthContext'
 import { roleDisplayLabel } from '../lib/roles'
@@ -14,9 +19,10 @@ interface Props {
   open: boolean
   user: AuthUser
   onClose: () => void
+  onVerifyPhone?: () => void
 }
 
-export function MyProfileDialog({ open, user, onClose }: Props) {
+export function MyProfileDialog({ open, user, onClose, onVerifyPhone }: Props) {
   const { updateUser } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -25,6 +31,8 @@ export function MyProfileDialog({ open, user, onClose }: Props) {
   const [email, setEmail] = useState(user.email)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [contactNumber, setContactNumber] = useState<string | null>(null)
+  const [phoneVerified, setPhoneVerified] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -32,6 +40,23 @@ export function MyProfileDialog({ open, user, onClose }: Props) {
     setEmail(user.email)
     setError(null)
     setSuccess(null)
+    let cancelled = false
+    void (async () => {
+      try {
+        const profile = await fetchProfile()
+        if (cancelled) return
+        setContactNumber(profile.contact_number ?? null)
+        setPhoneVerified(Boolean(profile.phone_verified))
+      } catch {
+        if (!cancelled) {
+          setContactNumber(null)
+          setPhoneVerified(false)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [open, user.name, user.email])
 
   if (!open) return null
@@ -223,8 +248,37 @@ export function MyProfileDialog({ open, user, onClose }: Props) {
             <span className="pd-modal__detail-label">Role</span>
             <span className="pd-modal__detail-value">{role}</span>
           </div>
+          <div className="pd-modal__detail-row">
+            <span className="pd-modal__detail-label">SMS recovery</span>
+            <span className="pd-modal__detail-value">
+              {phoneVerified && contactNumber
+                ? `Verified · ${contactNumber}`
+                : contactNumber
+                  ? `Saved · not verified · ${contactNumber}`
+                  : 'Not set'}
+            </span>
+          </div>
         </div>
 
+        {onVerifyPhone ? (
+          <div className="mt-4 border-t border-[var(--pd-border)] pt-4">
+            <p className="mb-2 text-xs text-[var(--pd-text-secondary)]">
+              Verify a Philippine mobile number so Forgot Password can send an SMS OTP.
+            </p>
+            <button
+              type="button"
+              onClick={onVerifyPhone}
+              className="flex w-full items-center gap-2.5 rounded-xl bg-[#00C4E8] px-3 py-2.5 text-left text-sm font-semibold text-[#0B3A5C] shadow-sm transition hover:brightness-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0052D4]"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#0052D4]/15 text-[#0052D4]">
+                <Smartphone size={15} strokeWidth={2.25} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1 truncate">
+                {phoneVerified ? 'Update verified phone (SMS reset)' : 'Verify phone (SMS reset)'}
+              </span>
+            </button>
+          </div>
+        ) : null}
         {error ? (
           <AdminAlert tone="error" className="mt-4">
             {error}

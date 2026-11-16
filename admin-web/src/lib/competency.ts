@@ -58,6 +58,12 @@ export interface CompetencyMember {
   integrityWarnings: number
   adminNotes: string | null
   levelOverridden: boolean
+  /** XP / good evaluation points from rankings (0 when not on leaderboard). */
+  rankingPoints: number
+  /** Eligible released practice evaluations for skill tier (mirrors rankings `evaluation_count`). */
+  skillEligibleEvaluationCount: number
+  /** All practice evaluation rows including pending/withheld (`total_evaluation_rows`). */
+  totalPracticeEvaluationRows: number
 }
 
 export interface CompetencyOverviewStats {
@@ -90,6 +96,9 @@ export interface RankingRow {
   competencyRecommendedLevel: string | null
   integrityViolations: number
   integrityWarnings: number
+  points: number
+  skillEligibleEvaluationCount: number
+  totalEvaluationRows: number
 }
 
 const LEVEL_LABELS: Record<CompetencyLevel, string> = {
@@ -113,7 +122,7 @@ export const FILTER_CHIPS: { id: CompetencyFilterChip; label: string }[] = [
 export const SORT_OPTIONS: { id: CompetencySortOption; label: string }[] = [
   { id: 'name', label: 'Name' },
   { id: 'performance', label: 'Highest ranked' },
-  { id: 'competency', label: 'Competency level' },
+  { id: 'competency', label: 'Administrative Competency' },
   { id: 'tasksCompleted', label: 'Tasks completed' },
   { id: 'acceptanceRate', label: 'Acceptance rate' },
 ]
@@ -141,8 +150,20 @@ export function competencyFromScore(score: number): CompetencyLevel {
 export function competencyFromLabel(raw: string | null | undefined): CompetencyLevel {
   const n = (raw ?? '').toLowerCase()
   if (n.includes('advanced') || n.includes('expert')) return 'advanced'
-  if (n.includes('intermediate')) return 'intermediate'
+  if (n.includes('intermediate') || n.includes('developing')) return 'intermediate'
+  if (n.includes('amateur')) return 'beginner'
   return 'beginner'
+}
+
+/** Effective tier from rankings API (override → computed → stored skill_level). */
+export function effectiveSkillLevelFromRecord(m: Record<string, unknown>): CompetencyLevel {
+  const raw =
+    m.competency_level_override ??
+    m.computed_skill_level ??
+    m.skill_level ??
+    m.competency_level ??
+    ''
+  return competencyFromLabel(String(raw))
 }
 
 export function competencyLevelToApiLabel(level: CompetencyLevel): 'Beginner' | 'Intermediate' | 'Advanced' {
@@ -188,7 +209,7 @@ export function parseRankingRow(m: Record<string, unknown>): RankingRow {
 
   return {
     id: Number(m.user_id ?? m.id ?? 0),
-    skillLevel: String(m.skill_level ?? ''),
+    skillLevel: String(m.computed_skill_level ?? m.skill_level ?? ''),
     completedTasks: completed,
     approvedUploads: approved,
     totalUploads: totalUp,
@@ -207,6 +228,11 @@ export function parseRankingRow(m: Record<string, unknown>): RankingRow {
         : competencyLevelToApiLabel(competencyFromScore(skillScore)),
     integrityViolations: Number(m.integrity_violations ?? 0),
     integrityWarnings: Number(m.integrity_warnings ?? 0),
+    points: Number(m.points ?? m.good_evaluations ?? 0),
+    skillEligibleEvaluationCount: Number(
+      m.evaluation_count ?? m.skill_eligible_evaluation_count ?? 0,
+    ),
+    totalEvaluationRows: Number(m.total_evaluation_rows ?? 0),
   }
 }
 
@@ -241,7 +267,32 @@ function buildAssessment(
     return `${pct}%: ${completed} of ${assigned} assigned tasks completed`
   })()
 
+  const eligibleEvals = ranking?.skillEligibleEvaluationCount ?? 0
+  const totalEvalRows = ranking?.totalEvaluationRows ?? 0
+  const evalDetail =
+    totalEvalRows > eligibleEvals
+      ? `${eligibleEvals} skill-eligible of ${totalEvalRows} practice uploads (pending/withheld excluded)`
+      : `${eligibleEvals} skill-eligible released evaluation${eligibleEvals === 1 ? '' : 's'}`
+
   const criteria: CompetencyCriterion[] = [
+    {
+      label: 'Intermediate tier: 3+ skill-eligible evaluations',
+      met: eligibleEvals >= 3,
+      detail: evalDetail,
+      status: eligibleEvals >= 3 ? 'met' : eligibleEvals > 0 ? 'not_met' : 'insufficient_data',
+    },
+    {
+      label: 'Advanced tier: 6+ skill-eligible evaluations',
+      met: eligibleEvals >= 6,
+      detail: `${eligibleEvals} of 6 required (quality avg must also reach 75+)`,
+      status: eligibleEvals >= 6 ? 'met' : eligibleEvals > 0 ? 'not_met' : 'insufficient_data',
+    },
+    {
+      label: 'Expert tier: 10+ skill-eligible evaluations',
+      met: eligibleEvals >= 10,
+      detail: `${eligibleEvals} of 10 required (quality avg must also reach 90+)`,
+      status: eligibleEvals >= 10 ? 'met' : eligibleEvals > 0 ? 'not_met' : 'insufficient_data',
+    },
     {
       label: 'Completed 25+ documentation requests',
       met: completed >= 25,
@@ -456,21 +507,27 @@ export function buildCompetencyDashboard(input: {
   const members: CompetencyMember[] = []
   for (const profile of profiles) {
     if (profile.accountStatus !== 'approved' || !profile.isActiveAccount) continue
-    if (profile.coverageRole === 'unassigned') continue
-
     const ranking = rankingByUser.get(profile.id)
+    const hasRankingRow = Boolean(ranking)
+    const hasPracticeActivity =
+      (ranking?.totalUploads ?? 0) > 0 ||
+      profile.recentUploads.length > 0 ||
+      (ranking?.points ?? 0) > 0
+    if (profile.coverageRole === 'unassigned' && !hasRankingRow && !hasPracticeActivity) continue
+
     const violations = ranking?.integrityViolations ?? 0
     const warnings = ranking?.integrityWarnings ?? 0
     const assessment = buildAssessment(profile, ranking, violations, warnings)
     const levelOverride = ranking?.competencyLevelOverride ?? null
     const levelOverridden = Boolean(levelOverride?.trim())
-    const currentLevel = competencyFromLabel(
-      ranking?.skillLevel ||
-        profile.skillLevel ||
-        (levelOverridden
-          ? levelOverride
-          : ranking?.competencyRecommendedLevel ?? LEVEL_LABELS[assessment.recommendedLevel]),
-    )
+    const currentLevel =
+      levelOverridden && levelOverride
+        ? competencyFromLabel(levelOverride)
+        : ranking
+          ? competencyFromLabel(ranking.skillLevel)
+          : competencyFromLabel(
+              profile.skillLevel || LEVEL_LABELS[assessment.recommendedLevel],
+            )
 
     members.push({
       profile,
@@ -490,6 +547,9 @@ export function buildCompetencyDashboard(input: {
       integrityWarnings: warnings,
       adminNotes: ranking?.adminRemarks ?? null,
       levelOverridden,
+      rankingPoints: ranking?.points ?? 0,
+      skillEligibleEvaluationCount: ranking?.skillEligibleEvaluationCount ?? 0,
+      totalPracticeEvaluationRows: ranking?.totalEvaluationRows ?? 0,
     })
   }
 
@@ -547,7 +607,10 @@ export function filterAndSortCompetency(
       case 'name':
         return a.profile.name.localeCompare(b.profile.name)
       case 'performance':
-        return b.profile.performanceScore - a.profile.performanceScore
+        return (
+          b.rankingPoints - a.rankingPoints ||
+          b.profile.performanceScore - a.profile.performanceScore
+        )
       case 'competency':
         return levelRank[b.currentLevel] - levelRank[a.currentLevel]
       case 'tasksCompleted':

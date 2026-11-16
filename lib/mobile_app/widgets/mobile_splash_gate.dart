@@ -1,19 +1,17 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/constants/app_constants.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/branding_controller.dart';
+import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/shared/widgets/access_branding.dart';
+import 'package:access_mobile/shared/widgets/login/login_brand_panel.dart';
+import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_backgrounds.dart';
 import 'package:access_mobile/shared/widgets/mobile_auth/mobile_auth_constants.dart';
 
-TextStyle _splashText(TextStyle base) => GoogleFonts.inter(textStyle: base);
-
-/// Branded splash — org seal and wordmark on ACCESS cyan, then hands off to [AuthGate].
+/// Light widget splash, then hands off to [AuthGate].
 class MobileSplashGate extends StatefulWidget {
   const MobileSplashGate({super.key, required this.child});
 
@@ -24,6 +22,8 @@ class MobileSplashGate extends StatefulWidget {
 }
 
 class _MobileSplashGateState extends State<MobileSplashGate> {
+  static const _minSplashDisplay = Duration(seconds: 3);
+
   bool _showSplash = true;
   bool _startedInit = false;
 
@@ -38,8 +38,18 @@ class _MobileSplashGateState extends State<MobileSplashGate> {
   }
 
   Future<void> _initSplash() async {
-    await authController.waitForInitialization();
-    await brandingController.refresh();
+    final visibleAt = DateTime.now();
+    await Future.wait([
+      authController.waitForInitialization(),
+      brandingController.refresh(),
+    ]);
+    if (mounted) {
+      await precacheMobileAuthBackgrounds(context);
+    }
+    final remaining = _minSplashDisplay - DateTime.now().difference(visibleAt);
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
     if (mounted) setState(() => _showSplash = false);
   }
 
@@ -47,137 +57,251 @@ class _MobileSplashGateState extends State<MobileSplashGate> {
   Widget build(BuildContext context) {
     if (_showSplash) {
       return const Material(
-        child: DecoratedBox(
-          decoration: BoxDecoration(gradient: MobileAuthConstants.headerGradient),
-          child: _SplashBrandContent(),
-        ),
+        color: kBg,
+        child: _SplashLightView(),
       );
     }
     return widget.child;
   }
 }
 
-class _SplashBrandContent extends StatelessWidget {
-  const _SplashBrandContent();
+class _SplashLightView extends StatelessWidget {
+  const _SplashLightView();
+
+  static const _navy = MobileAuthConstants.midnightScaffoldColor;
+  static const _cyan = MobileAuthConstants.visionCheckBrightCyan;
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.sizeOf(context);
-    final compact = media.width < 360;
-    final fromWidth = media.width * 0.34;
-    final fromHeight = media.height > 0 ? media.height * 0.16 : fromWidth;
-    final logoSize = math.min(fromWidth, fromHeight).clamp(104.0, 136.0);
-    final titleSize = compact ? 20.0 : 22.0;
-    final subtitleSize = compact ? 18.0 : 20.0;
-    final logoTitleGap = compact ? 8.0 : 10.0;
-    final titleLineGap = compact ? 3.0 : 4.0;
-    final taglineSize = compact ? 12.0 : 13.0;
-    const accessMotto = 'Beyond Documentation, Towards Excellence.';
+    final media = MediaQuery.of(context);
+    final compact = media.size.width < 360;
+    final short = media.size.height < 640;
+    final logoSize = compact ? (short ? 88.0 : 96.0) : 104.0;
 
-    return ListenableBuilder(
-      listenable: brandingController,
-      builder: (_, __) {
-        final brandingTagline = brandingController.loginHeroTagline.trim();
-        final primaryTagline = brandingTagline.isNotEmpty
-            ? brandingTagline
-            : AppConstants.tagline;
-        final showPrimaryTagline =
-            !_isSameAccessMotto(primaryTagline, accessMotto);
-
-        final taglineStyle = _splashText(TextStyle(
-          color: Colors.white.withValues(alpha: 0.92),
-          fontSize: taglineSize,
-          fontWeight: FontWeight.w600,
-          height: 1.35,
-          shadows: const [
-            Shadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 1)),
-          ],
-        ));
-
-        return SizedBox(
-          width: media.width,
-          height: media.height,
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: compact ? 32 : 40),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  AccessOrgSealLogo(
-                    size: logoSize,
-                    showShadow: true,
-                    showWhitePlate: true,
-                    paddingFraction: 0.02,
-                    preferLauncherForeground: false,
-                  ),
-                  SizedBox(height: logoTitleGap),
-                  Text(
-                    'ACCESS',
-                    textAlign: TextAlign.center,
-                    style: _splashText(const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.2,
-                      height: 1.1,
-                      shadows: [
-                        Shadow(color: Color(0x33000000), blurRadius: 4, offset: Offset(0, 1)),
-                      ],
-                    )).copyWith(fontSize: titleSize),
-                  ),
-                  SizedBox(height: titleLineGap),
-                  Text(
-                    'VisionCheck',
-                    textAlign: TextAlign.center,
-                    style: _splashText(const TextStyle(
-                      color: kAccent,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.1,
-                      height: 1.1,
-                      shadows: [
-                        Shadow(color: Color(0x22000000), blurRadius: 4, offset: Offset(0, 1)),
-                      ],
-                    )).copyWith(fontSize: subtitleSize),
-                  ),
-                  SizedBox(height: compact ? 10 : 12),
-                  Container(
-                    width: compact ? 32 : 36,
-                    height: 2,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                  SizedBox(height: compact ? 8 : 10),
-                  if (showPrimaryTagline) ...[
-                    Text(
-                      primaryTagline,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: taglineStyle,
-                    ),
-                    SizedBox(height: compact ? 6 : 8),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFFFFF),
+                kBg,
+                kCyanDim,
+              ],
+              stops: [0.0, 0.55, 1.0],
+            ),
+          ),
+        ),
+        Positioned(
+          top: -media.size.height * 0.08,
+          right: -media.size.width * 0.2,
+          child: IgnorePointer(
+            child: Container(
+              width: media.size.width * 0.72,
+              height: media.size.width * 0.72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    kCyan.withValues(alpha: 0.14),
+                    kCyan.withValues(alpha: 0.0),
                   ],
-                  Text(
-                    accessMotto,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: taglineStyle,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        );
-      },
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: media.size.height * 0.28,
+          child: const CustomPaint(painter: _SplashBottomWavePainter()),
+        ),
+        SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: ListenableBuilder(
+                    listenable: brandingController,
+                    builder: (_, __) {
+                      final wordmark = loginWordmarkLines(brandingController.appName);
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: compact ? 28 : 36),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AccessOrgSealLogo(
+                              size: logoSize,
+                              showShadow: true,
+                              showWhitePlate: true,
+                              paddingFraction: 0.02,
+                            ),
+                            SizedBox(height: compact ? 8 : 10),
+                            Text(
+                              wordmark.title,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _navy,
+                                fontSize: compact ? 22 : 24,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                                height: 1.1,
+                              ),
+                            ),
+                            SizedBox(height: compact ? 2 : 4),
+                            Text(
+                              wordmark.subtitle,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _cyan,
+                                fontSize: compact ? 22 : 24,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.15,
+                                height: 1.1,
+                              ),
+                            ),
+                            SizedBox(height: compact ? 10 : 12),
+                            Container(
+                              width: compact ? 36 : 42,
+                              height: 2,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(1),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    _navy.withValues(alpha: 0.12),
+                                    _cyan.withValues(alpha: 0.75),
+                                    _navy.withValues(alpha: 0.12),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: compact ? 10 : 12),
+                            Text(
+                              AppConstants.tagline,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _navy.withValues(alpha: 0.72),
+                                fontSize: compact ? 12 : 13,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.15,
+                                height: 1.35,
+                              ),
+                            ),
+                            SizedBox(height: compact ? 22 : 26),
+                            const _SplashLoadingIndicator(),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 20 : 28,
+                  0,
+                  compact ? 20 : 28,
+                  compact ? 10 : 14,
+                ),
+                child: _SplashUstpFooter(compact: compact),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
-bool _isSameAccessMotto(String a, String b) {
-  String norm(String s) =>
-      s.toLowerCase().replaceAll(',', '').replaceAll(RegExp(r'\s+'), ' ').trim();
-  return norm(a) == norm(b);
+class _SplashBottomWavePainter extends CustomPainter {
+  const _SplashBottomWavePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final softCyan = Paint()..color = kCyan.withValues(alpha: 0.22);
+    final path = Path()
+      ..moveTo(0, h * 0.35)
+      ..quadraticBezierTo(w * 0.28, h * 0.05, w * 0.58, h * 0.28)
+      ..quadraticBezierTo(w * 0.86, h * 0.48, w, h * 0.22)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+    canvas.drawPath(path, softCyan);
+
+    final front = Path()
+      ..moveTo(0, h * 0.55)
+      ..quadraticBezierTo(w * 0.34, h * 0.22, w * 0.64, h * 0.42)
+      ..quadraticBezierTo(w * 0.9, h * 0.58, w, h * 0.38)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+    canvas.drawPath(front, Paint()..color = kCyan.withValues(alpha: 0.12));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SplashLoadingIndicator extends StatelessWidget {
+  const _SplashLoadingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Loading',
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.25,
+          color: MobileAuthConstants.visionCheckBrightCyan,
+          backgroundColor: kCyan.withValues(alpha: 0.2),
+        ),
+      ),
+    );
+  }
+}
+
+class _SplashUstpFooter extends StatelessWidget {
+  const _SplashUstpFooter({required this.compact});
+
+  final bool compact;
+
+  static const _asset = 'assets/images/ustp-logo.png';
+
+  @override
+  Widget build(BuildContext context) {
+    final height = compact ? 72.0 : 84.0;
+    return Center(
+      child: Semantics(
+        label: AppConstants.organization,
+        image: true,
+        child: Image.asset(
+          _asset,
+          height: height,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, __, ___) => Text(
+            AppConstants.organization,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: MobileAuthConstants.midnightScaffoldColor.withValues(alpha: 0.82),
+              fontSize: compact ? 11 : 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

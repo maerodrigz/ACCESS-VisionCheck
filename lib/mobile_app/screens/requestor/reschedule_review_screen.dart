@@ -88,7 +88,7 @@ class _RescheduleReviewScreenState extends State<RescheduleReviewScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: kMemberDashboardBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: kSurface,
         elevation: 0,

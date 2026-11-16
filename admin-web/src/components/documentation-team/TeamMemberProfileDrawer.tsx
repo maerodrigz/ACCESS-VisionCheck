@@ -19,7 +19,7 @@ import { MemberRequesterRatingsHistory } from '../documentation-requests/MemberR
 interface Props {
   member: TeamMemberProfile | null
   onClose: () => void
-  onDeactivate: (member: TeamMemberProfile, deleteUploads: boolean) => Promise<void>
+  onDeactivate: (member: TeamMemberProfile) => Promise<void>
   onStatusChange: (member: TeamMemberProfile, status: string, reason?: string) => Promise<void>
 }
 
@@ -44,10 +44,10 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
     }
   }
 
-  async function handleDeactivate(deleteUploads: boolean) {
+  async function handleDeactivate() {
     setBusy(true)
     try {
-      await onDeactivate(member!, deleteUploads)
+      await onDeactivate(member!)
       onClose()
     } finally {
       setBusy(false)
@@ -92,7 +92,9 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
                 type="button"
                 onClick={() => {
                   onClose()
-                  navigate(`/competency?q=${encodeURIComponent(member.name)}`)
+                  navigate(
+                    `/competency?tab=skills&q=${encodeURIComponent(member.name)}&member=${member.id}`,
+                  )
                 }}
                 className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-2 text-sm font-semibold"
               >
@@ -160,14 +162,32 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
           <Section title="Skill and performance">
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3.5">
               <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                Competency level, performance metrics, requester ratings, training notes, and level overrides are
-                managed in Competency Management.
+                Photo Skill / Video Skill (Quality Skill Classification) and Administrative Competency,
+                performance metrics, requester ratings, and overrides are managed in Competency Management.
               </p>
+              <div className="mt-2 space-y-1 text-xs text-[var(--color-text-primary)]">
+                <p>
+                  <span className="font-semibold text-[var(--color-text-secondary)]">Photo Skill:</span>{' '}
+                  {member.qualitySkillPhotoTitle ?? 'Not Yet Classified'}
+                </p>
+                <p>
+                  <span className="font-semibold text-[var(--color-text-secondary)]">Video Skill:</span>{' '}
+                  {member.qualitySkillVideoTitle ?? 'Not Yet Classified'}
+                </p>
+                <p>
+                  <span className="font-semibold text-[var(--color-text-secondary)]">
+                    Administrative Competency:
+                  </span>{' '}
+                  {member.skillLevel ?? 'N/A'}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => {
                   onClose()
-                  navigate(`/competency?q=${encodeURIComponent(member.name)}`)
+                  navigate(
+                    `/competency?tab=skills&q=${encodeURIComponent(member.name)}&member=${member.id}`,
+                  )
                 }}
                 className="mt-3 rounded-lg bg-[var(--color-accent-blue)] px-3 py-2 text-xs font-semibold text-white hover:opacity-95"
               >
@@ -223,10 +243,8 @@ export function TeamMemberProfileDrawer({ member, onClose, onDeactivate, onStatu
       <DeactivateMemberDialog
         open={showDeactivateConfirm}
         memberName={member.name}
-        userId={member.id}
-        uploadCount={member.uploadCount}
         loading={busy}
-        onConfirm={(deleteUploads) => void handleDeactivate(deleteUploads)}
+        onConfirm={() => void handleDeactivate()}
         onCancel={() => setShowDeactivateConfirm(false)}
       />
     </>

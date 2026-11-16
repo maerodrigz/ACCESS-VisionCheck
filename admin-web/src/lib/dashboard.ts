@@ -11,6 +11,7 @@ import {
 import type { AiDetectionRow } from '../api/media'
 import {
   aiReviewRiskTier,
+  countIntegrityNeedsActionRows,
   isProbeSmokeTestRow,
   matchesIntegrityInbox,
   parseAiDetectionRow,
@@ -20,6 +21,7 @@ import {
 import { fetchNotifications } from '../api/notifications'
 import type { DashboardStats } from '../types/auth'
 import { formatTimeAgo, parseNotification, type AdminNotification } from './notifications'
+import { effectiveSkillLevelFromRecord } from './competency'
 import { isGoodQualityScore, scoreToPercent } from './mediaEvaluationScores'
 
 export interface HomeOverviewStats {
@@ -134,6 +136,8 @@ export interface AiReviewQueueSnapshot {
   totalForReview: number
   recentItems: AiReviewQueueRecentItem[]
   available: boolean
+  /** True while the secondary dashboard fetch (AI detection list) is still in flight. */
+  loading?: boolean
 }
 
 export interface HomeDashboardSnapshot {
@@ -220,6 +224,16 @@ function buildAiReviewQueue(rows: AiDetectionRow[]): AiReviewQueueSnapshot {
   }
 }
 
+const LOADING_AI_REVIEW_QUEUE: AiReviewQueueSnapshot = {
+  highRisk: 0,
+  suspicious: 0,
+  lowRisk: 0,
+  totalForReview: 0,
+  recentItems: [],
+  available: false,
+  loading: true,
+}
+
 const EMPTY_AI_REVIEW_QUEUE: AiReviewQueueSnapshot = {
   highRisk: 0,
   suspicious: 0,
@@ -227,6 +241,7 @@ const EMPTY_AI_REVIEW_QUEUE: AiReviewQueueSnapshot = {
   totalForReview: 0,
   recentItems: [],
   available: false,
+  loading: false,
 }
 
 function mapPendingRequest(r: Record<string, unknown>): PendingRequestItem {
@@ -588,16 +603,16 @@ function buildEvalTrend(evaluations: Record<string, unknown>[], today: Date): Ev
 
 function buildActiveDocumenters(
   rankings: Record<string, unknown>[],
-  stats: DashboardStats,
+  _stats: DashboardStats,
 ): ActiveDocumenterSnapshot {
   let advanced = 0
   let developing = 0
   let amateur = 0
 
   for (const r of rankings) {
-    const level = String(r.skill_level ?? r.competency_level ?? '').toLowerCase()
-    if (level.includes('advanced') || level.includes('expert')) advanced++
-    else if (level.includes('developing') || level.includes('intermediate')) developing++
+    const tier = effectiveSkillLevelFromRecord(r)
+    if (tier === 'advanced') advanced++
+    else if (tier === 'intermediate') developing++
     else amateur++
   }
 
@@ -605,26 +620,15 @@ function buildActiveDocumenters(
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
 
   if (total === 0) {
-    const active = stats.active_members ?? 0
-    return {
-      totalActive: active,
-      breakdown:
-        active === 0
-          ? []
-          : [
-              { label: 'Advanced', count: 0, percent: 0 },
-              { label: 'Developing', count: 0, percent: 0 },
-              { label: 'Amateur', count: active, percent: 100 },
-            ],
-    }
+    return { totalActive: 0, breakdown: [] }
   }
 
   return {
     totalActive: total,
     breakdown: [
       { label: 'Advanced', count: advanced, percent: pct(advanced) },
-      { label: 'Developing', count: developing, percent: pct(developing) },
-      { label: 'Amateur', count: amateur, percent: pct(amateur) },
+      { label: 'Intermediate', count: developing, percent: pct(developing) },
+      { label: 'Beginner', count: amateur, percent: pct(amateur) },
     ],
   }
 }
@@ -736,6 +740,7 @@ function buildHomeDashboardSnapshot(input: {
   media: Record<string, unknown>[]
   rankings: Record<string, unknown>[]
   aiDetectionRaw: Record<string, unknown>[] | null
+  aiDetectionLoadFailed?: boolean
   today: Date
 }): HomeDashboardSnapshot {
   const {
@@ -748,8 +753,16 @@ function buildHomeDashboardSnapshot(input: {
     media,
     rankings,
     aiDetectionRaw,
+    aiDetectionLoadFailed = false,
     today,
   } = input
+
+  const parsedAiRows =
+    aiDetectionRaw == null
+      ? []
+      : aiDetectionRaw.map((m) => parseAiDetectionRow(m))
+  const integrityNeedsAction =
+    aiDetectionRaw == null ? null : countIntegrityNeedsActionRows(parsedAiRows)
 
   const requestorByRequestId = buildRequestorByRequestId(requests)
 
@@ -807,15 +820,18 @@ function buildHomeDashboardSnapshot(input: {
 
   const unread = notifications.filter((n) => n.unread).length
 
-  const aiReviewQueue =
+  const aiReviewQueue: AiReviewQueueSnapshot =
     aiDetectionRaw == null
-      ? EMPTY_AI_REVIEW_QUEUE
-      : buildAiReviewQueue(aiDetectionRaw.map((m) => parseAiDetectionRow(m)))
+      ? aiDetectionLoadFailed
+        ? EMPTY_AI_REVIEW_QUEUE
+        : LOADING_AI_REVIEW_QUEUE
+      : buildAiReviewQueue(parsedAiRows)
 
   const overview: HomeOverviewStats = {
     pendingRequests: stats.pending_requests ?? pendingRequests.length,
     todayEvents: todayEvents.length,
-    mediaPendingEvaluation: pendingMedia,
+    // Home tile links to Media Integrity; align with Needs Action inbox, not unevaluated uploads.
+    mediaPendingEvaluation: integrityNeedsAction ?? pendingMedia,
     activeMembers: stats.active_members ?? 0,
     unreadNotifications: unread,
   }
@@ -847,6 +863,8 @@ function buildHomeDashboardSnapshot(input: {
 export type FetchHomeDashboardOptions = {
   /** Called after lightweight API wave so the home page can paint sooner. */
   onPartial?: (snap: HomeDashboardSnapshot) => void
+  /** When true, evaluations/media load in the background; return value may omit them. */
+  streamHeavy?: boolean
 }
 
 export async function fetchHomeDashboard(
@@ -855,45 +873,93 @@ export async function fetchHomeDashboard(
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-  const [stats, requests, events, notificationsRaw, tasks] = await Promise.all([
-    fetchDashboardStats(),
+  const emptyWave = {
+    requests: [] as Record<string, unknown>[],
+    events: [] as Record<string, unknown>[],
+    tasks: [] as Record<string, unknown>[],
+    notificationsRaw: [] as Record<string, unknown>[],
+    evaluations: [] as Record<string, unknown>[],
+    media: [] as Record<string, unknown>[],
+    rankings: [] as Record<string, unknown>[],
+  }
+
+  const stats = await fetchDashboardStats()
+  options?.onPartial?.(
+    buildHomeDashboardSnapshot({
+      stats,
+      ...emptyWave,
+      aiDetectionRaw: null,
+      aiDetectionLoadFailed: false,
+      today,
+    }),
+  )
+
+  let aiDetectionLoadFailed = false
+  const aiDetectionPromise = fetchAiDetectionList('needs_action').catch(() => {
+    aiDetectionLoadFailed = true
+    return null
+  })
+
+  const [requests, events, notificationsRaw, tasks, rankings] = await Promise.all([
     fetchServiceRequests(),
     fetchEvents(),
     fetchNotifications(),
     fetchTasks(),
+    fetchRankings(),
   ])
 
-  const partial = buildHomeDashboardSnapshot({
-    stats,
-    requests,
-    events,
-    tasks,
-    notificationsRaw,
-    evaluations: [],
-    media: [],
-    rankings: [],
-    aiDetectionRaw: null,
-    today,
-  })
-  options?.onPartial?.(partial)
+  options?.onPartial?.(
+    buildHomeDashboardSnapshot({
+      stats,
+      requests,
+      events,
+      tasks,
+      notificationsRaw,
+      evaluations: [],
+      media: [],
+      rankings,
+      aiDetectionRaw: null,
+      aiDetectionLoadFailed: false,
+      today,
+    }),
+  )
 
-  const [evaluations, media, rankings, aiDetectionRaw] = await Promise.all([
+  const heavyPromise = Promise.all([
     fetchEvaluations(),
     fetchMedia(),
-    fetchRankings(),
-    fetchAiDetectionList().catch(() => null),
-  ])
+    aiDetectionPromise,
+  ]).then(([evaluations, media, aiDetectionRaw]) =>
+    buildHomeDashboardSnapshot({
+      stats,
+      requests,
+      events,
+      tasks,
+      notificationsRaw,
+      evaluations,
+      media,
+      rankings,
+      aiDetectionRaw,
+      aiDetectionLoadFailed,
+      today,
+    }),
+  )
 
-  return buildHomeDashboardSnapshot({
-    stats,
-    requests,
-    events,
-    tasks,
-    notificationsRaw,
-    evaluations,
-    media,
-    rankings,
-    aiDetectionRaw,
-    today,
-  })
+  if (options?.streamHeavy) {
+    void heavyPromise.then((full) => options?.onPartial?.(full))
+    return buildHomeDashboardSnapshot({
+      stats,
+      requests,
+      events,
+      tasks,
+      notificationsRaw,
+      evaluations: [],
+      media: [],
+      rankings,
+      aiDetectionRaw: null,
+      aiDetectionLoadFailed: false,
+      today,
+    })
+  }
+
+  return heavyPromise
 }

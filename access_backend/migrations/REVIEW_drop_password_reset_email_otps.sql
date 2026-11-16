@@ -1,0 +1,12 @@
+-- REVIEW ONLY — do not run without explicit approval.
+-- ACCESS VisionCheck: SMS-only forgot-password replaced email reset OTP.
+-- Registration email OTP (registration_email_otps) must remain.
+--
+-- After confirming no clients call email forgot-password and backups exist:
+--
+-- BEGIN;
+-- DROP TABLE IF EXISTS password_reset_email_otps;
+-- COMMIT;
+--
+-- Also remove app/models/password_reset_email_otp.py and its import from
+-- app/models/__init__.py in the same change set.

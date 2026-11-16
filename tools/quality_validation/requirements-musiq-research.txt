@@ -1,0 +1,11 @@
+# Isolated MUSIQ PaQ-2-PiQ research environment.
+# Do not install this file into access_backend or the production interpreter.
+# pyiqa is PolyForm Noncommercial 1.0.0; weights typically noncommercial.
+torch>=2.2
+torchvision>=0.17
+numpy
+scipy
+pandas
+Pillow
+tqdm
+pyiqa

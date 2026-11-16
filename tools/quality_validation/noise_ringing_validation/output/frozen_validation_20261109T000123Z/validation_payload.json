@@ -1,0 +1,514 @@
+{
+  "created_utc": "2026-11-09T00:02:45.918484+00:00",
+  "output_dir": "C:\\Users\\Dell\\Desktop\\access_mobile\\tools\\quality_validation\\noise_ringing_validation\\output\\frozen_validation_20261109T000123Z",
+  "n_images": 15,
+  "fitted_on_this_set": false,
+  "machine_elapsed_sec": 70.72,
+  "frozen_checksums": [
+    {
+      "file": "R1_noise_ringing_ratings.csv",
+      "frozen_path": "output\\frozen_validation_20261109T000123Z\\frozen_human_ratings\\R1_noise_ringing_ratings.csv",
+      "sha256": "5bac25215fa07803b544993ccf5fbbc8501f2124289967808abd99bfd29967ba",
+      "bytes": 960
+    },
+    {
+      "file": "R2_noise_ringing_ratings.csv",
+      "frozen_path": "output\\frozen_validation_20261109T000123Z\\frozen_human_ratings\\R2_noise_ringing_ratings.csv",
+      "sha256": "dca953e7c6b5d7176d1e498ace647891f228684ab1148a8fa16c81661204ea90",
+      "bytes": 960
+    },
+    {
+      "file": "R3_noise_ringing_ratings.csv",
+      "frozen_path": "output\\frozen_validation_20261109T000123Z\\frozen_human_ratings\\R3_noise_ringing_ratings.csv",
+      "sha256": "db7c1ee809cd8fe9032df48ed72ba3657910165b1da29894575fe670ae6000d6",
+      "bytes": 960
+    }
+  ],
+  "human_irr": {
+    "noise": {
+      "pairwise": {
+        "R1-R2": {
+          "n": 15,
+          "within_one": 0.9333333333333333,
+          "qwk": 0.6867749419953596,
+          "exact": 0.6
+        },
+        "R1-R3": {
+          "n": 15,
+          "within_one": 1.0,
+          "qwk": 0.662379421221865,
+          "exact": 0.5333333333333333
+        },
+        "R2-R3": {
+          "n": 15,
+          "within_one": 1.0,
+          "qwk": 0.8295454545454546,
+          "exact": 0.7333333333333333
+        }
+      },
+      "mean_within_one": 0.9777777777777779,
+      "mean_exact": 0.6222222222222222,
+      "mean_qwk": 0.7262332725875598,
+      "fleiss_kappa": 0.3947784810126584,
+      "disagreement_rate_maxmin_ge3": 0.0,
+      "usable_coverage": 1.0,
+      "missing_cells": 0,
+      "n_items": 15
+    },
+    "ringing_artifacts": {
+      "pairwise": {
+        "R1-R2": {
+          "n": 15,
+          "within_one": 0.9333333333333333,
+          "qwk": 0.37869822485207094,
+          "exact": 0.26666666666666666
+        },
+        "R1-R3": {
+          "n": 15,
+          "within_one": 0.9333333333333333,
+          "qwk": 0.37299035369774913,
+          "exact": 0.3333333333333333
+        },
+        "R2-R3": {
+          "n": 15,
+          "within_one": 1.0,
+          "qwk": 0.9040511727078892,
+          "exact": 0.8
+        }
+      },
+      "mean_within_one": 0.9555555555555556,
+      "mean_exact": 0.4666666666666666,
+      "mean_qwk": 0.5519132504192364,
+      "fleiss_kappa": 0.1601866251944012,
+      "disagreement_rate_maxmin_ge3": 0.0,
+      "usable_coverage": 1.0,
+      "missing_cells": 0,
+      "n_items": 15
+    }
+  },
+  "human_gates": {
+    "noise": {
+      "H1_within1": {
+        "value": 0.9777777777777779,
+        "threshold": 0.85,
+        "pass": true
+      },
+      "H2_qwk": {
+        "value": 0.7262332725875598,
+        "threshold": 0.4,
+        "pass": true
+      },
+      "H3_fleiss": {
+        "value": 0.3947784810126584,
+        "threshold": 0.2,
+        "pass": true,
+        "soft_fail_limited_consensus": false
+      },
+      "H4_disagreement": {
+        "value": 0.0,
+        "threshold": 0.15,
+        "pass": true
+      },
+      "H5_coverage": {
+        "value": 1.0,
+        "threshold": 0.9,
+        "pass": true
+      },
+      "overall_pass_for_machine_compare": true,
+      "limited_consensus_flag": false,
+      "hard_stop": false
+    },
+    "ringing_artifacts": {
+      "H1_within1": {
+        "value": 0.9555555555555556,
+        "threshold": 0.85,
+        "pass": true
+      },
+      "H2_qwk": {
+        "value": 0.5519132504192364,
+        "threshold": 0.4,
+        "pass": true
+      },
+      "H3_fleiss": {
+        "value": 0.1601866251944012,
+        "threshold": 0.2,
+        "pass": false,
+        "soft_fail_limited_consensus": true
+      },
+      "H4_disagreement": {
+        "value": 0.0,
+        "threshold": 0.15,
+        "pass": true
+      },
+      "H5_coverage": {
+        "value": 1.0,
+        "threshold": 0.9,
+        "pass": true
+      },
+      "overall_pass_for_machine_compare": true,
+      "limited_consensus_flag": true,
+      "hard_stop": false
+    }
+  },
+  "candidate_availability": {
+    "C-prod": {
+      "noise": true,
+      "ringing_artifacts": true,
+      "unavailable_reason": null
+    },
+    "C-v2": {
+      "noise": true,
+      "ringing_artifacts": true,
+      "unavailable_reason": null
+    },
+    "C-combined": {
+      "noise": true,
+      "ringing_artifacts": true,
+      "unavailable_reason": null
+    }
+  },
+  "machine_gates": {
+    "C-prod": {
+      "noise": {
+        "n": 15,
+        "gates": {
+          "M1_spearman": {
+            "rho": -0.10230212486277612,
+            "p": 0.7167578554150906,
+            "ci95": {
+              "lo": -0.5241424183609591,
+              "hi": 0.35805743701971643
+            },
+            "pass": false,
+            "note": "rho>=0.30 and (CI excludes 0 or p<0.05)"
+          },
+          "M2_mae": {
+            "value": 0.6666666666666666,
+            "threshold": 1.0,
+            "pass": true
+          },
+          "M3_within1": {
+            "value": 0.8666666666666667,
+            "threshold": 0.75,
+            "pass": true
+          },
+          "M4_dispersion": {
+            "n_distinct_badges": 2,
+            "collapsed_floor_ceiling": false,
+            "pass": true
+          },
+          "M5_false_harsh": {
+            "rate": 0.0,
+            "n_human_ge4": 14,
+            "n_machine_le2": 0,
+            "threshold": 0.1,
+            "pass": true
+          },
+          "M6_no_fitting": {
+            "fitted_on_this_set": false,
+            "pass": true
+          }
+        },
+        "eligible_for_further_review": false,
+        "machine_badge_hist": {
+          "3": 2,
+          "4": 13
+        },
+        "human_median_hist": {
+          "2": 1,
+          "4": 8,
+          "5": 6
+        },
+        "available": true
+      },
+      "ringing_artifacts": {
+        "n": 15,
+        "gates": {
+          "M1_spearman": {
+            "rho": -0.07331479879864507,
+            "p": 0.7951244721918567,
+            "ci95": {
+              "lo": -0.674199862463242,
+              "hi": 0.5690582501913791
+            },
+            "pass": false,
+            "note": "rho>=0.30 and (CI excludes 0 or p<0.05)"
+          },
+          "M2_mae": {
+            "value": 1.2666666666666666,
+            "threshold": 1.0,
+            "pass": false
+          },
+          "M3_within1": {
+            "value": 0.6666666666666666,
+            "threshold": 0.75,
+            "pass": false
+          },
+          "M4_dispersion": {
+            "n_distinct_badges": 2,
+            "collapsed_floor_ceiling": false,
+            "pass": true
+          },
+          "M5_false_harsh": {
+            "rate": 0.0,
+            "n_human_ge4": 12,
+            "n_machine_le2": 0,
+            "threshold": 0.1,
+            "pass": true
+          },
+          "M6_no_fitting": {
+            "fitted_on_this_set": false,
+            "pass": true
+          }
+        },
+        "eligible_for_further_review": false,
+        "machine_badge_hist": {
+          "3": 13,
+          "4": 2
+        },
+        "human_median_hist": {
+          "2": 2,
+          "3": 1,
+          "4": 7,
+          "5": 5
+        },
+        "available": true
+      }
+    },
+    "C-v2": {
+      "noise": {
+        "n": 15,
+        "gates": {
+          "M1_spearman": {
+            "rho": -0.07823129251700679,
+            "p": 0.7816824351289711,
+            "ci95": {
+              "lo": -0.5241424183609591,
+              "hi": 0.3668996928526714
+            },
+            "pass": false,
+            "note": "rho>=0.30 and (CI excludes 0 or p<0.05)"
+          },
+          "M2_mae": {
+            "value": 0.8,
+            "threshold": 1.0,
+            "pass": true
+          },
+          "M3_within1": {
+            "value": 0.9333333333333333,
+            "threshold": 0.75,
+            "pass": true
+          },
+          "M4_dispersion": {
+            "n_distinct_badges": 3,
+            "collapsed_floor_ceiling": false,
+            "pass": true
+          },
+          "M5_false_harsh": {
+            "rate": 0.0,
+            "n_human_ge4": 14,
+            "n_machine_le2": 0,
+            "threshold": 0.1,
+            "pass": true
+          },
+          "M6_no_fitting": {
+            "fitted_on_this_set": false,
+            "pass": true
+          }
+        },
+        "eligible_for_further_review": false,
+        "machine_badge_hist": {
+          "3": 1,
+          "4": 1,
+          "5": 13
+        },
+        "human_median_hist": {
+          "2": 1,
+          "4": 8,
+          "5": 6
+        },
+        "available": true
+      },
+      "ringing_artifacts": {
+        "n": 15,
+        "gates": {
+          "M1_spearman": {
+            "rho": -0.020657257770836424,
+            "p": 0.941749310235512,
+            "ci95": {
+              "lo": -0.6586539342552178,
+              "hi": 0.6367001391768682
+            },
+            "pass": false,
+            "note": "rho>=0.30 and (CI excludes 0 or p<0.05)"
+          },
+          "M2_mae": {
+            "value": 0.8,
+            "threshold": 1.0,
+            "pass": true
+          },
+          "M3_within1": {
+            "value": 0.8,
+            "threshold": 0.75,
+            "pass": true
+          },
+          "M4_dispersion": {
+            "n_distinct_badges": 4,
+            "collapsed_floor_ceiling": false,
+            "pass": true
+          },
+          "M5_false_harsh": {
+            "rate": 0.08333333333333333,
+            "n_human_ge4": 12,
+            "n_machine_le2": 1,
+            "threshold": 0.1,
+            "pass": true
+          },
+          "M6_no_fitting": {
+            "fitted_on_this_set": false,
+            "pass": true
+          }
+        },
+        "eligible_for_further_review": false,
+        "machine_badge_hist": {
+          "2": 1,
+          "3": 2,
+          "4": 10,
+          "5": 2
+        },
+        "human_median_hist": {
+          "2": 2,
+          "3": 1,
+          "4": 7,
+          "5": 5
+        },
+        "available": true
+      }
+    },
+    "C-combined": {
+      "noise": {
+        "n": 15,
+        "gates": {
+          "M1_spearman": {
+            "rho": -0.07823129251700679,
+            "p": 0.7816824351289711,
+            "ci95": {
+              "lo": -0.5241424183609591,
+              "hi": 0.3668996928526714
+            },
+            "pass": false,
+            "note": "rho>=0.30 and (CI excludes 0 or p<0.05)"
+          },
+          "M2_mae": {
+            "value": 0.8,
+            "threshold": 1.0,
+            "pass": true
+          },
+          "M3_within1": {
+            "value": 0.9333333333333333,
+            "threshold": 0.75,
+            "pass": true
+          },
+          "M4_dispersion": {
+            "n_distinct_badges": 3,
+            "collapsed_floor_ceiling": false,
+            "pass": true
+          },
+          "M5_false_harsh": {
+            "rate": 0.0,
+            "n_human_ge4": 14,
+            "n_machine_le2": 0,
+            "threshold": 0.1,
+            "pass": true
+          },
+          "M6_no_fitting": {
+            "fitted_on_this_set": false,
+            "pass": true
+          }
+        },
+        "eligible_for_further_review": false,
+        "machine_badge_hist": {
+          "3": 1,
+          "4": 1,
+          "5": 13
+        },
+        "human_median_hist": {
+          "2": 1,
+          "4": 8,
+          "5": 6
+        },
+        "available": true
+      },
+      "ringing_artifacts": {
+        "n": 15,
+        "gates": {
+          "M1_spearman": {
+            "rho": -0.06660748630287955,
+            "p": 0.8135486488303115,
+            "ci95": {
+              "lo": -0.35177017089683094,
+              "hi": 0.1491528396478269
+            },
+            "pass": false,
+            "note": "rho>=0.30 and (CI excludes 0 or p<0.05)"
+          },
+          "M2_mae": {
+            "value": 2.8666666666666667,
+            "threshold": 1.0,
+            "pass": false
+          },
+          "M3_within1": {
+            "value": 0.2,
+            "threshold": 0.75,
+            "pass": false
+          },
+          "M4_dispersion": {
+            "n_distinct_badges": 2,
+            "collapsed_floor_ceiling": false,
+            "pass": true
+          },
+          "M5_false_harsh": {
+            "rate": 0.9166666666666666,
+            "n_human_ge4": 12,
+            "n_machine_le2": 11,
+            "threshold": 0.1,
+            "pass": false
+          },
+          "M6_no_fitting": {
+            "fitted_on_this_set": false,
+            "pass": true
+          }
+        },
+        "eligible_for_further_review": false,
+        "machine_badge_hist": {
+          "1": 14,
+          "3": 1
+        },
+        "human_median_hist": {
+          "2": 2,
+          "3": 1,
+          "4": 7,
+          "5": 5
+        },
+        "available": true
+      }
+    }
+  },
+  "noise_eligible_candidates": [],
+  "ringing_eligible_candidates": [],
+  "limited_consensus": {
+    "noise": false,
+    "ringing_artifacts": true
+  },
+  "study_outcome": "Keep unvalidated",
+  "study_outcome_detail": "No candidate passed M1\u2013M6 for either criterion.",
+  "abandon_notes": [
+    {
+      "candidate": "C-combined",
+      "criterion": "ringing_artifacts",
+      "reason": "severe M1/M5 failure"
+    }
+  ],
+  "production_authorization": false,
+  "note": "Eligible for further review only. Does NOT authorize production deployment, Flutter changes, or threshold retuning."
+}

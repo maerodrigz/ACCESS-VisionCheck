@@ -93,12 +93,11 @@ def build() -> Path:
         [
             ["access_backend/app/api/routes/media.py", "POST /media/evaluate, POST /media/upload"],
             ["access_backend/app/services/media_pipeline.py", "Orchestrates evaluation, DB, XP, alerts"],
-            ["access_backend/app/services/media_evaluator.py", "EfficientNet + FFmpeg + AI detection"],
-            ["access_backend/app/services/efficientnet_b0_scorer.py", "Quality: EfficientNet-B0 + 7-output head"],
-            ["access_backend/app/services/ai_authenticity_model.py", "AI: EfficientNet-B0 + 1-output sigmoid"],
-            ["access_backend/app/services/ai_authenticity_detector.py", "Multi-signal AI verdict fusion"],
+            ["access_backend/app/services/media_evaluator.py", "MUSIQ worker + OpenCV quality; FFmpeg; AI detection"],
+            ["access_backend/app/services/musiq_worker_client.py", "Remote MUSIQ PaQ-2-PiQ worker client"],
+            ["access_backend/app/services/opencv_quality.py", "Local OpenCV quality metrics (fallback)"],
+            ["access_backend/app/services/ai_authenticity_detector.py", "Multi-signal AI verdict fusion (PROBE/WaveRep)"],
             ["access_backend/app/services/ffmpeg_frames.py", "Video frames: FFmpeg or OpenCV fallback"],
-            ["access_backend/app/services/opencv_quality.py", "OpenCV fallback quality metrics"],
             ["access_backend/app/services/gemini_service.py", "Gemini narrative only"],
         ],
     )
@@ -108,10 +107,10 @@ def build() -> Path:
         doc,
         ["File", "Role"],
         [
-            ["access_backend/ml/efficientnet_b0_heads.pt", "Quality head weights"],
-            ["access_backend/ml/ai_authenticity_head.pt", "AI authenticity head weights"],
-            ["access_backend/scripts/train_efficientnet_heads.py", "Train quality on synthetic degradations"],
-            ["access_backend/scripts/train_ai_authenticity_head.py", "Train AI on synthetic natural vs AI-like"],
+            ["musiq_worker (Docker)", "Primary quality: TF Hub MUSIQ PaQ-2-PiQ"],
+            ["access_backend/ml/waverep/", "WaveRep video authenticity checkpoint"],
+            ["PROBE DINOv2 checkpoint", "Photo authenticity (AI_DETECTOR_BACKEND=probe)"],
+            ["tools/.../archive_efficientnet_retired/", "Historical EfficientNet research scripts only"],
         ],
     )
 

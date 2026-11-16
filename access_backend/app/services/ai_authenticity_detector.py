@@ -179,14 +179,10 @@ def _detect_ai_generated_probe(
     }
     if apply_provenance_policy:
         prov = provenance if provenance is not None else classify_photo_camera_provenance(content, file_name)
+        from app.services.probe_provenance_policy import merge_provenance_policy_exif_fields
+
         payload = apply_probe_provenance_policy(payload, prov, file_name=file_name)
-        if isinstance(payload.get("exif_metadata"), dict):
-            meta = dict(payload["exif_metadata"])
-            meta["camera_provenance_strength"] = payload.get("camera_provenance_strength")
-            meta["camera_provenance_reasons"] = payload.get("camera_provenance_reasons")
-            meta["visual_risk_level"] = payload.get("visual_risk_level")
-            meta["provenance_policy_outcome"] = payload.get("provenance_policy_outcome")
-            payload["exif_metadata"] = meta
+        payload = merge_provenance_policy_exif_fields(payload)
     return payload
 
 
@@ -218,91 +214,13 @@ def detect_ai_generated(
             }
         return _authentic_fallback("Empty file — no authenticity signals.")
 
-    if active_ai_detector_backend() == "probe":
-        return _detect_ai_generated_probe(
-            content,
-            file_name=file_name,
-            apply_provenance_policy=apply_provenance_policy,
-        )
-
-    signals: dict[str, float] = {}
-    reasons: list[str] = []
-
-    if fn_score > 0:
-        signals["filename"] = fn_score
-        if fn_reason:
-            reasons.append(fn_reason)
-
-    meta_score, meta_reason = _metadata_score(content, file_name)
-    if meta_score > fn_score:
-        if meta_score > 0:
-            signals["metadata"] = meta_score
-            if meta_reason:
-                reasons.append(meta_reason)
-    elif fn_score <= 0 and meta_score > 0:
-        signals["metadata"] = meta_score
-        if meta_reason:
-            reasons.append(meta_reason)
-
-    bgr = decode_image(content)
-    if bgr is not None and cv2 is not None:
-        signals["frequency"] = _frequency_anomaly_score(bgr)
-        signals["noise_uniformity"] = _noise_uniformity_score(bgr)
-        signals["texture_entropy"] = _texture_entropy_score(bgr)
-        signals["quality_paradox"] = _quality_paradox_score(bgr)
-        signals["skin_smoothness"] = _skin_smoothness_score(bgr)
-
-        if signals["frequency"] >= 0.55:
-            reasons.append("Unusual frequency patterns common in synthetic images.")
-        if signals["noise_uniformity"] >= 0.55:
-            reasons.append("Noise is unusually uniform across the frame.")
-        if signals["quality_paradox"] >= 0.55:
-            reasons.append("Overly clean detail with unnaturally low sensor noise.")
-        if signals.get("skin_smoothness", 0) >= 0.55:
-            reasons.append("Portrait regions look unnaturally smooth compared to edge detail.")
-
-    combined_meta = max(meta_score, fn_score)
-
-    model_p = dedicated_ai_probability(content)
-    if model_p is not None:
-        if model_p >= 0.55:
-            signals["neural"] = max(0.0, min(1.0, (model_p - 0.5) * 2))
-            if model_p >= 0.55:
-                reasons.append("Neural authenticity model flagged synthetic characteristics.")
-        elif model_p <= 0.38:
-            # Strong authentic read from the neural head — dampens false positives.
-            signals["neural_authentic"] = max(0.0, min(1.0, (0.5 - model_p) * 2))
-
-    probability = _fuse_probability(signals, combined_meta)
-    if signals.get("quality_paradox", 0) >= 0.48 and combined_meta >= 0.32:
-        probability = min(0.98, probability + 0.16)
-        if "Overly clean detail" not in " ".join(reasons):
-            reasons.append("Clean synthetic-looking detail on a file without camera metadata.")
-    if signals.get("skin_smoothness", 0) >= 0.55 and signals.get("quality_paradox", 0) >= 0.45:
-        probability = min(0.98, probability + 0.12)
-    if (
-        signals.get("noise_uniformity", 0) >= 0.55
-        and signals.get("quality_paradox", 0) >= 0.55
-        and combined_meta >= 0.32
-    ):
-        probability = min(0.98, probability + 0.10)
-    verdict, confidence = _verdict_from_probability(probability)
-
-    detail = _finalize_detection_detail(
-        _build_detail(verdict, reasons, probability),
-        verdict,
-        probability,
+    # UnivFD retired: photos always use PROBE-DINOv2 (no ensemble / no UnivFD fallback).
+    _ = fn_score, fn_reason
+    return _detect_ai_generated_probe(
+        content,
+        file_name=file_name,
+        apply_provenance_policy=apply_provenance_policy,
     )
-    exif_metadata = extract_exif_metadata(content, file_name)
-
-    return {
-        "verdict": verdict,
-        "confidence": round(confidence, 3),
-        "probability": round(probability, 3),
-        "detail": detail,
-        "signals": {k: round(v, 3) for k, v in signals.items()},
-        "exif_metadata": exif_metadata,
-    }
 
 
 def _video_provenance_exif_panel(provenance: "CameraProvenanceResult", file_name: str) -> dict[str, Any]:
@@ -337,6 +255,22 @@ def detect_ai_generated_from_frames(
     video_ext: str = ".mp4",
 ) -> dict[str, Any]:
     """Scan multiple video frames and keep the strongest synthetic-media signal."""
+    from app.services.waverep_g4_detector import (
+        detect_ai_generated_video,
+        is_waverep_video_detection_enabled,
+    )
+
+    if is_waverep_video_detection_enabled():
+        if video_content:
+            return detect_ai_generated_video(
+                video_content,
+                video_ext=video_ext,
+                file_name=file_name,
+            )
+        from app.services.waverep_g4_detector import waverep_analysis_unavailable_payload
+
+        return waverep_analysis_unavailable_payload("missing video bytes for WaveRep")
+
     from app.services.camera_provenance import classify_video_container_provenance
     from app.services.probe_provenance_policy import apply_probe_provenance_policy
 
@@ -375,56 +309,17 @@ def detect_ai_generated_from_frames(
         for frame in sampled
     ]
 
-    if active_ai_detector_backend() == "probe":
-        best = max(
-            results,
-            key=lambda r: float(r.get("raw_detector_probability", r.get("probability", 0)) or 0),
-        )
-        out = dict(best)
-        out["frames_scanned"] = len(sampled)
-        if video_provenance is not None:
-            out = apply_probe_provenance_policy(out, video_provenance, file_name=file_name)
-            out["exif_metadata"] = _video_provenance_exif_panel(video_provenance, file_name)
-        return out
-
-    best = max(results, key=lambda r: float(r.get("probability", 0)))
-
-    suspicious_count = sum(
-        1 for r in results if float(r.get("probability", 0)) >= SUSPICIOUS_THRESHOLD
+    # UnivFD retired: multi-frame video stills use PROBE max-risk aggregation only.
+    best = max(
+        results,
+        key=lambda r: float(r.get("raw_detector_probability", r.get("probability", 0)) or 0),
     )
-    prob = float(best.get("probability", 0))
-    if suspicious_count >= 2 and prob < SUSPICIOUS_THRESHOLD:
-        prob = min(0.98, prob + 0.10 * (suspicious_count - 1))
-    elif suspicious_count >= 2 and best.get("verdict") == "suspicious":
-        prob = min(0.98, prob + 0.06)
-
-    verdict, confidence = _verdict_from_probability(prob)
-    # Use the strongest frame's supplemental copy (avoid duplicating boilerplate across frames).
-    supplement = _strip_detail_boilerplate(str(best.get("detail", "")))
-    detail = _finalize_detection_detail(
-        _build_detail(verdict, [supplement] if supplement else [], prob),
-        verdict,
-        prob,
-    )
-
-    merged_signals: dict[str, float] = {}
-    for r in results:
-        for key, val in (r.get("signals") or {}).items():
-            merged_signals[key] = max(float(merged_signals.get(key, 0)), float(val))
-
-    exif = best.get("exif_metadata")
-    if not isinstance(exif, dict):
-        exif = extract_exif_metadata(b"", file_name)
-
-    return {
-        "verdict": verdict,
-        "confidence": round(confidence, 3),
-        "probability": round(prob, 3),
-        "detail": detail,
-        "signals": {k: round(v, 3) for k, v in merged_signals.items()},
-        "exif_metadata": exif,
-        "frames_scanned": len(sampled),
-    }
+    out = dict(best)
+    out["frames_scanned"] = len(sampled)
+    if video_provenance is not None:
+        out = apply_probe_provenance_policy(out, video_provenance, file_name=file_name)
+        out["exif_metadata"] = _video_provenance_exif_panel(video_provenance, file_name)
+    return out
 
 
 def _frame_sample_indices(total: int, *, max_samples: int = 5) -> list[int]:

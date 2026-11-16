@@ -10,6 +10,7 @@ abstract final class MediaUploadService {
     int? requestId,
     String? displayName,
     String? evaluationMetadata,
+    int? replacesMediaId,
     int? userId,
   }) async {
     final data = await client.postMultipart(
@@ -20,6 +21,7 @@ abstract final class MediaUploadService {
         if (requestId != null) 'request_id': '$requestId',
         if (displayName != null) 'file_name': displayName,
         if (evaluationMetadata != null) 'evaluation_metadata': evaluationMetadata,
+        if (replacesMediaId != null) 'replaces_media_id': '$replacesMediaId',
       },
       timeout: ApiClient.mediaUploadTimeout(byteLength: bytes.length, fileName: fileName),
     );

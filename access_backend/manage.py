@@ -5,6 +5,7 @@ ACCESS VisionCheck — project management CLI (Django-style).
 Usage:
   python manage.py runserver
   python manage.py runserver --port 3001
+  python manage.py runserver --env-file .env.waverep_test --host 127.0.0.1 --port 3002
   python manage.py create_tables
   python manage.py check
 """
@@ -16,9 +17,21 @@ import sys
 
 from pathlib import Path
 
-from dotenv import load_dotenv
+BACKEND_DIR = Path(__file__).resolve().parent
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+
+def _resolve_bind_port(cli_port: int | None) -> int:
+    """CLI --port wins; then Render/Heroku PORT; then API_PORT from settings."""
+    import os
+
+    if cli_port is not None:
+        return int(cli_port)
+    env_port = (os.environ.get("PORT") or "").strip()
+    if env_port.isdigit():
+        return int(env_port)
+    from app.config import settings
+
+    return int(settings.api_port)
 
 
 def cmd_runserver(args: argparse.Namespace) -> None:
@@ -26,36 +39,61 @@ def cmd_runserver(args: argparse.Namespace) -> None:
 
     from app.config import settings
 
-    host = args.host or settings.api_host
-    port = args.port or settings.api_port
-    reload = not args.no_reload
+    host = args.host or settings.api_host or "0.0.0.0"
+    port = _resolve_bind_port(args.port)
+    # Never auto-reload in production (file watchers + dual workers are unsafe).
+    reload = False if settings.is_production else (not args.no_reload)
 
     from app.config import facebook_credentials
 
     public = settings.public_api_url
     _, fb_token = facebook_credentials()
     fb_ready = bool(fb_token)
-    from app.services.dedicated_ai_detector import active_ai_detector_backend
-    from app.services.probe_dino_detector import checkpoint_path, probe_detector_available
+    from app.services.detector_startup_status import integrity_detector_status
 
-    backend = active_ai_detector_backend()
+    integrity = integrity_detector_status()
+    backend = integrity.get("detector_backend", "probe")
     print(f"Starting ACCESS VisionCheck API (bind {host}:{port})")
     print(f"  Public: {public}")
     print(f"  Facebook Graph API: {'ready' if fb_ready else 'token missing in .env'}")
     print(f"  AI detector backend: {backend}")
     print(f"  Media evaluation workers: {max(1, int(settings.max_media_evaluation_workers))}")
+    pytorch_ok = integrity.get("pytorch_available", False)
+    print(f"  PyTorch runtime: {'ready' if pytorch_ok else 'BLOCKED or missing'}")
+    if not pytorch_ok and integrity.get("pytorch_error"):
+        print(f"  PyTorch note: {integrity['pytorch_error'][:200]}")
     if backend == "probe":
         print(f"  PROBE max long edge: {int(settings.probe_max_long_edge)}")
         print(
             f"  PROBE risk thresholds: {float(settings.probe_low_risk_threshold)} / "
             f"{float(settings.probe_high_risk_threshold)}"
         )
-        ckpt = checkpoint_path()
-        ckpt_state = "ready" if probe_detector_available() else "MISSING"
-        print(f"  PROBE checkpoint: {ckpt_state} ({ckpt.name})")
+        ckpt_name = integrity.get("probe_checkpoint", "DINOv2_best_model_step_34999.pth")
+        on_disk = integrity.get("probe_checkpoint_on_disk", False)
+        inference = integrity.get("probe_checkpoint_ready", False)
+        ckpt_state = "inference ready" if inference else ("on disk only" if on_disk else "MISSING")
+        print(f"  PROBE checkpoint: {ckpt_state} ({ckpt_name})")
+    if integrity.get("waverep"):
+        wr = integrity["waverep"]
+        print(
+            f"  WaveRep G4: enabled={wr.get('enabled')} "
+            f"detector_loaded={wr.get('detector_initialized')}"
+        )
+    from app.dev_lan import detect_default_route_ipv4
+
+    lan_ip = detect_default_route_ipv4()
     print(f"  Docs:   {public}/docs")
     print(f"  Health: {public}/api/health")
     print(f"  Local:  http://127.0.0.1:{port}/api/health")
+    if lan_ip:
+        print(f"  Phone:  http://{lan_ip}:{port}/api/health  (physical device on same hotspot/LAN)")
+    print(f"  DB:     PostgreSQL on {settings.db_host}:{settings.db_port} (local only)")
+    print(
+        f"  Auth lockout: {'ON' if settings.auth_lockout_enabled else 'OFF'} "
+        f"(APP_ENV={settings.app_env})"
+    )
+    if not settings.auth_lockout_enabled and not settings.is_production:
+        print("  Auth lockout note: disabled for local UI testing only — re-enable AUTH_LOCKOUT_ENABLED=true when done.")
     if reload:
         print("  Reload: on (code changes restart the worker; stop stray uvicorn on the same port if LAN sees stale API).")
     print("Press CTRL+C to stop.\n")
@@ -128,6 +166,12 @@ def main() -> None:
         description="ACCESS VisionCheck backend management",
         prog="manage.py",
     )
+    parser.add_argument(
+        "--env-file",
+        type=Path,
+        default=None,
+        help="Optional env file (e.g. .env.waverep_test). Loaded before app settings and DB engine.",
+    )
     sub = parser.add_subparsers(dest="command", help="Available commands")
 
     # python manage.py runserver
@@ -195,7 +239,15 @@ def main() -> None:
 
     if not args.command:
         # Default to runserver when no command given (like many Django workflows)
-        args = parser.parse_args(["runserver"])
+        args = parser.parse_args(["runserver"] + sys.argv[1:])
+
+    from app.env_bootstrap import bootstrap_environment
+
+    try:
+        bootstrap_environment(args.env_file)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
 
     args.func(args)
 

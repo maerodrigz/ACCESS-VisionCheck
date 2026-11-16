@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCheck, Loader2, Megaphone, Search, Trash2 } from 'lucide-react'
 import {
   clearReadNotifications,
@@ -8,7 +8,8 @@ import {
   markNotificationRead,
 } from '../api/notifications'
 import { AdminErrorBanner } from '../components/AdminAlert'
-import { AdminPageHeader } from '../components/AdminPageHeader'
+import { AdminFeatureHeader } from '../components/AdminFeatureHeader'
+import { FEATURE_HEADERS } from '../lib/featureHeaders'
 import { MemberAnnouncementDialog } from '../components/notifications/BroadcastAnnouncementDialog'
 import { NotificationsTable } from '../components/notifications/NotificationsTable'
 import { useToast } from '../context/ToastContext'
@@ -50,11 +51,12 @@ function timelineGroup(d: Date | null): 'today' | 'yesterday' | 'earlier' {
 
 export function NotificationCenterPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { showToast } = useToast()
   const [items, setItems] = useState<AdminNotification[]>([])
   const [showAnnouncement, setShowAnnouncement] = useState(false)
   const [chip, setChip] = useState<NotificationFilterChip>('unread')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -75,6 +77,23 @@ export function NotificationCenterPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    const q = searchParams.get('q') ?? ''
+    setSearch(q)
+    if (q.trim()) setChip('all')
+  }, [searchParams])
+
+  function updateNotificationSearch(next: string) {
+    setSearch(next)
+    const trimmed = next.trim()
+    if (trimmed) {
+      setChip('all')
+      setSearchParams({ q: trimmed }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -138,9 +157,10 @@ export function NotificationCenterPage() {
 
   return (
     <div className="space-y-5 pb-8">
-      <AdminPageHeader
-        title="Notification Center"
-        subtitle="Alerts for requests, assignments, media reviews, and system events"
+      <AdminFeatureHeader
+        icon={FEATURE_HEADERS.notifications.icon}
+        title={FEATURE_HEADERS.notifications.title}
+        description={FEATURE_HEADERS.notifications.description}
         backTo="/"
         actions={
           <>
@@ -186,9 +206,10 @@ export function NotificationCenterPage() {
             <input
               type="search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => updateNotificationSearch(e.target.value)}
               placeholder="Search notifications…"
               className="admin-input w-full rounded-xl py-2 pl-9 pr-3 text-sm"
+              aria-label="Search notifications"
             />
           </div>
           <div className="flex flex-wrap gap-2">

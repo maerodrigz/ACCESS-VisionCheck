@@ -12,7 +12,7 @@ from app.database import engine
 
 NEW_COLUMNS = {
     "enable_ai_media_evaluation": "BOOLEAN NOT NULL DEFAULT TRUE",
-    "max_evaluation_uploads_per_day": "INTEGER NOT NULL DEFAULT 5",
+    "max_evaluation_uploads_per_day": "INTEGER NOT NULL DEFAULT 3",
 }
 
 

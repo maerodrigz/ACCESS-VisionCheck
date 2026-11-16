@@ -109,7 +109,7 @@ class _RequestorNotificationSettingsScreenState extends State<RequestorNotificat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kMemberDashboardBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: kSurface,
         elevation: 0,

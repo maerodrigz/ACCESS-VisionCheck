@@ -1,0 +1,17 @@
+{
+  "source_dataset": "SPAQ",
+  "label_provenance": "human_subjective",
+  "mos_scale": "0-100",
+  "attribute_scale": "0-100",
+  "filename_transform": "strip_extension",
+  "media_id_template": "spaq_{source_media_key_safe}",
+  "columns": {
+    "source_media_key": "image_name",
+    "mos_quality_raw": "MOS",
+    "attr_sharpness_raw": "sharpness",
+    "attr_brightness_raw": "brightness",
+    "attr_noisiness_raw": "noisiness",
+    "attr_contrast_raw": "contrast",
+    "attr_colorfulness_raw": "colorfulness"
+  }
+}

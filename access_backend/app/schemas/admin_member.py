@@ -19,10 +19,25 @@ class AdminMemberResponse(BaseModel):
     rejection_reason: str | None = None
     approved_at: datetime | None = None
     skill_level: str | None = None
+    skill_effective_tier: str | None = None
+    skill_tier_stored_legacy: str | None = None
+    # Quality Skill Classification (separate from XP / skill progression tiers).
+    quality_skill_photo_title: str | None = None
+    quality_skill_video_title: str | None = None
+    quality_skill_photo_average: float | None = None
+    quality_skill_video_average: float | None = None
+    quality_skill_photo_evaluations: int | None = None
+    quality_skill_video_evaluations: int | None = None
     assigned_tasks: int = 0
     completed_tasks: int = 0
     media_eval_score: float = 0.0
     last_active: datetime | None = None
+    account_status: str = "Active"
+    presence: str = "Offline"
+    is_online: bool = False
+    is_inactive: bool = False
+    last_seen_at: datetime | None = None
+    last_login_at: datetime | None = None
     primary_task_role: str | None = None
     profile_image: str | None = None
     good_evaluations: int = 0
@@ -41,7 +56,10 @@ class UserStatusUpdate(BaseModel):
     rejection_reason: str | None = Field(None, max_length=500)
     delete_uploads: bool = Field(
         default=False,
-        description="When deactivating a Member or Organization, delete their uploaded media files.",
+        description=(
+            "When rejecting a pending registration, optionally delete uploads. "
+            "Not used for account deactivation."
+        ),
     )
 
 
@@ -55,14 +73,36 @@ class MemberRemoveBody(BaseModel):
     removal_reason: str | None = Field(None, max_length=500)
 
 
+class UserDeactivateBody(BaseModel):
+    removal_reason: str | None = Field(
+        None,
+        max_length=500,
+        description="Optional note shown to admins; not the same as registration rejection.",
+    )
+
+
 class MemberDeleteBody(BaseModel):
     """Permanent delete — requires typing the account email (Member or Organization)."""
 
     confirmation_email: str = Field(..., min_length=3, max_length=255)
     delete_uploads: bool = Field(
-        default=False,
-        description="Also delete photos/videos uploaded by this user.",
+        default=True,
+        description=(
+            "When true, delete all media uploaded by this user (practice and event gallery). "
+            "When false, only practice evaluation uploads are removed before account delete."
+        ),
     )
+
+
+class MemberPermanentDeleteResponse(BaseModel):
+    message: str
+    media_deleted: int = 0
+    media_failed: int = 0
+    storage_deleted: int = 0
+    storage_queued: int = 0
+    chains_removed: int = 0
+    assignments_removed: int = 0
+    partial_failure: bool = False
 
 
 class ProfileActivityItem(BaseModel):

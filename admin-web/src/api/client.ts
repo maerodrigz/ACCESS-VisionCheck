@@ -6,11 +6,14 @@ export const API_BASE =
 
 export class ApiError extends Error {
   status: number
+  /** Raw FastAPI `detail` (string, array, or structured object). */
+  detail: unknown
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, detail: unknown = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -83,11 +86,26 @@ export function formatApiError(data: unknown, status: number): string {
   return `Request failed (${status})`
 }
 
+const GET_CACHE_MS = 45_000
+const getResponseCache = new Map<string, { at: number; data: unknown }>()
+
+export function clearAdminGetCache() {
+  getResponseCache.clear()
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
   token?: string | null,
 ): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase()
+  if (method === 'GET') {
+    const cached = getResponseCache.get(path)
+    if (cached && Date.now() - cached.at < GET_CACHE_MS) {
+      return cached.data as T
+    }
+  }
+
   const auth = token ?? getStoredToken()
   const headers = new Headers(options.headers)
   if (!headers.has('Content-Type') && options.body) {
@@ -104,7 +122,17 @@ export async function apiRequest<T>(
       setStoredToken(null)
       unauthorizedHandler?.()
     }
-    throw new ApiError(msg, res.status)
+    const detail =
+      typeof data === 'object' && data !== null && 'detail' in data
+        ? (data as { detail: unknown }).detail
+        : data
+    throw new ApiError(msg, res.status, detail)
+  }
+
+  if (method === 'GET') {
+    getResponseCache.set(path, { at: Date.now(), data })
+  } else {
+    getResponseCache.clear()
   }
 
   return data as T
@@ -140,12 +168,20 @@ export async function apiUpload<T>(
   return data as T
 }
 
+function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
+    return fetch(url, { method: 'GET', signal: AbortSignal.timeout(timeoutMs) })
+  }
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { method: 'GET', signal: controller.signal }).finally(() => {
+    window.clearTimeout(timer)
+  })
+}
+
 export async function checkBackendHealth(timeoutMs = 5000): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/health`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(timeoutMs),
-    })
+    const res = await fetchWithTimeout(`${API_BASE}/health`, timeoutMs)
     return res.ok
   } catch {
     return false

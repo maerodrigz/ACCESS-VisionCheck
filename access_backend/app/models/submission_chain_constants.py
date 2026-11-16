@@ -1,0 +1,12 @@
+"""Submission chain enums stored as VARCHAR (no PG enum migration)."""
+
+XP_RECONCILIATION_PENDING = "pending"
+XP_RECONCILIATION_NEEDS_MANUAL_REVIEW = "needs_manual_review"
+XP_RECONCILIATION_RECONCILED = "reconciled"
+
+REPLACEMENT_LIFECYCLE_ACTIVE = "active"
+REPLACEMENT_LIFECYCLE_SUPERSEDED = "superseded"
+REPLACEMENT_LIFECYCLE_TERMINAL = "terminal"
+
+CHAIN_ROLE_ROOT = "root"
+CHAIN_ROLE_REPLACEMENT = "replacement"

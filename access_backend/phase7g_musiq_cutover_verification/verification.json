@@ -1,0 +1,170 @@
+{
+  "phase": "7G",
+  "started_at": "2026-11-14T10:50:37.216330+00:00",
+  "env_file_modified": false,
+  "production_cutover_activated": false,
+  "note": "Process-local QUALITY_ENGINE=musiq_worker only; .env left unchanged (still enet).",
+  "cases": {
+    "photo_musiq_online": {
+      "http_status": 200,
+      "parse_ok": true,
+      "media_type_envelope": "photo",
+      "scoring_engine_envelope": "musiq-worker+opencv+color-heuristics",
+      "scoring_engine": "musiq-worker+opencv+color-heuristics",
+      "scoring_model": "musiq-paq2piq+opencv-classical",
+      "overall_score": 4.86,
+      "criterion_names": [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation"
+      ],
+      "authenticity_deferred": true,
+      "xp_eligible": false,
+      "analysis_quality_engine": "musiq_worker",
+      "analysis_opencv_fallback": false,
+      "analysis_efficientnet_used": false,
+      "musiq_opq_context_only": true,
+      "musiq_opq_raw": 70.92235565185547,
+      "musiq_not_used_for_criteria": true,
+      "ai_detection_keys": [
+        "analysis_status",
+        "detail",
+        "is_final",
+        "requires_review"
+      ],
+      "ai_analysis_status": "deferred",
+      "ai_detector_backend": null
+    },
+    "photo_worker_offline_fallback": {
+      "http_status": 200,
+      "parse_ok": true,
+      "media_type_envelope": "photo",
+      "scoring_engine_envelope": "opencv+color-heuristics",
+      "scoring_engine": "opencv+color-heuristics",
+      "scoring_model": "opencv",
+      "overall_score": 4.86,
+      "criterion_names": [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation"
+      ],
+      "authenticity_deferred": true,
+      "xp_eligible": false,
+      "analysis_quality_engine": "opencv",
+      "analysis_opencv_fallback": true,
+      "analysis_efficientnet_used": false,
+      "musiq_opq_context_only": null,
+      "musiq_opq_raw": null,
+      "musiq_not_used_for_criteria": null,
+      "ai_detection_keys": [
+        "analysis_status",
+        "detail",
+        "is_final",
+        "requires_review"
+      ],
+      "ai_analysis_status": "deferred",
+      "ai_detector_backend": null
+    },
+    "rollback_enet_control": {
+      "http_status": 200,
+      "parse_ok": true,
+      "media_type_envelope": "photo",
+      "scoring_engine_envelope": "efficientnet-b0+ffmpeg+color-heuristics",
+      "scoring_engine": "efficientnet-b0+ffmpeg+color-heuristics",
+      "scoring_model": "efficientnet-b0",
+      "overall_score": 4.0,
+      "criterion_names": [
+        "Sharpness",
+        "Blur",
+        "Brightness",
+        "Contrast",
+        "Blocking Artifacts",
+        "Color Balance",
+        "Color Saturation"
+      ],
+      "authenticity_deferred": true,
+      "xp_eligible": false,
+      "analysis_quality_engine": "efficientnet-b0",
+      "analysis_opencv_fallback": false,
+      "analysis_efficientnet_used": true,
+      "musiq_opq_context_only": null,
+      "musiq_opq_raw": null,
+      "musiq_not_used_for_criteria": null,
+      "ai_detection_keys": [
+        "analysis_status",
+        "detail",
+        "is_final",
+        "requires_review"
+      ],
+      "ai_analysis_status": "deferred",
+      "ai_detector_backend": null,
+      "diagnostics": {
+        "torch_available": true,
+        "torch_import_error": null,
+        "pil_available": true,
+        "pil_error": null,
+        "efficientnet_available": true,
+        "weights_path": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\efficientnet_b0_heads.pt",
+        "weights_exists": true,
+        "model_loaded": true,
+        "last_load_error": null,
+        "ensure_weights": true,
+        "preferred_quality_engine": "efficientnet-b0",
+        "settings_quality_engine": "enet"
+      }
+    },
+    "video_musiq": {
+      "skipped": true,
+      "reason": "optional video missing: C:\\Users\\Dell\\Desktop\\fresh_validation\\real\\own_new_photos\\_missing_optional.mp4"
+    }
+  },
+  "blockers": [],
+  "gates": {
+    "vectorized_blocking_enabled": true,
+    "enet_weights_retained": true,
+    "photo_musiq_online_ok": true,
+    "photo_offline_opencv_fallback_ok": true,
+    "rollback_enet_ok": true,
+    "flutter_compat_labels_present": true
+  },
+  "process_local": {
+    "quality_engine": "musiq_worker",
+    "production_uses_enet": false,
+    "worker_url": "http://127.0.0.1:8080"
+  },
+  "worker_ready": {
+    "ok": true,
+    "ready": true,
+    "body": {
+      "status": "ready",
+      "musiq_ready": true,
+      "model_id": "tfhub:google/musiq/paq2piq/1",
+      "model_version": "paq2piq/1",
+      "engine_handle": "https://tfhub.dev/google/musiq/paq2piq/1"
+    }
+  },
+  "enet_rollback_diagnostics": {
+    "torch_available": true,
+    "torch_import_error": null,
+    "pil_available": true,
+    "pil_error": null,
+    "efficientnet_available": true,
+    "weights_path": "C:\\Users\\Dell\\Desktop\\access_mobile\\access_backend\\ml\\efficientnet_b0_heads.pt",
+    "weights_exists": true,
+    "model_loaded": true,
+    "last_load_error": null,
+    "ensure_weights": true,
+    "preferred_quality_engine": "efficientnet-b0",
+    "settings_quality_engine": "enet"
+  },
+  "cutover_ready": true,
+  "finished_at": "2026-11-14T10:50:55.433577+00:00"
+}

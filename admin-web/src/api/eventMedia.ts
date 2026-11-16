@@ -113,23 +113,50 @@ export function fetchFacebookPublishHistory(limit = 50) {
   return apiRequest<FacebookHistoryEntry[]>(`/admin/event-media/facebook/history?limit=${limit}`)
 }
 
+export interface FacebookConnectionHealthInfo {
+  connection_status: 'connected' | 'needs_attention' | 'disconnected' | 'unknown' | string
+  page_id?: string | null
+  page_name?: string | null
+  last_verified_at?: string | null
+  last_ok?: boolean | null
+  last_error?: string | null
+  token_expires_at?: string | null
+  expiry_visibility?: 'unknown' | 'never' | 'dated' | string
+  expiry_label?: string
+  album_id?: string | null
+  album_name?: string | null
+}
+
 export interface FacebookConfigStatus {
   configured: boolean
   browser_share_available: boolean
   publishing_enabled?: boolean
   page_id_set: boolean
   access_token_set: boolean
-  page_token_valid?: boolean
+  page_token_valid?: boolean | null
   token_check?: {
     ok: boolean
     reason?: string
     token_subject_id?: string
     token_subject_name?: string
-  }
+  } | null
   missing: string[]
   reminder: string
+  album_id?: string | null
+  album_name?: string | null
+  health?: FacebookConnectionHealthInfo
+  verified_now?: boolean
+  live_check?: boolean
 }
 
+/** Cached health only — does not call Meta Graph. */
 export function fetchFacebookConfigStatus() {
   return apiRequest<FacebookConfigStatus>('/admin/event-media/facebook/status')
+}
+
+/** Manual live validation — one Graph /me check; never returns token values. */
+export function checkFacebookConnection() {
+  return apiRequest<FacebookConfigStatus>('/admin/event-media/facebook/status/check', {
+    method: 'POST',
+  })
 }

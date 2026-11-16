@@ -1,0 +1,168 @@
+{
+  "description": "CLIP noise feasibility development set (synthetic; not NR/pilot).",
+  "sigmas": [
+    0,
+    5,
+    10,
+    20,
+    40
+  ],
+  "sources": [
+    "DEV-FLAT",
+    "DEV-MILD",
+    "DEV-TEX"
+  ],
+  "seed": 20261109,
+  "images": [
+    {
+      "image_id": "DEV-FLAT_s0",
+      "source_id": "DEV-FLAT",
+      "sigma": 0,
+      "path": "noisy/DEV-FLAT_sigma00.png",
+      "source_path": "sources/DEV-FLAT.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-FLAT_s5",
+      "source_id": "DEV-FLAT",
+      "sigma": 5,
+      "path": "noisy/DEV-FLAT_sigma05.png",
+      "source_path": "sources/DEV-FLAT.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-FLAT_s10",
+      "source_id": "DEV-FLAT",
+      "sigma": 10,
+      "path": "noisy/DEV-FLAT_sigma10.png",
+      "source_path": "sources/DEV-FLAT.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-FLAT_s20",
+      "source_id": "DEV-FLAT",
+      "sigma": 20,
+      "path": "noisy/DEV-FLAT_sigma20.png",
+      "source_path": "sources/DEV-FLAT.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-FLAT_s40",
+      "source_id": "DEV-FLAT",
+      "sigma": 40,
+      "path": "noisy/DEV-FLAT_sigma40.png",
+      "source_path": "sources/DEV-FLAT.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-MILD_s0",
+      "source_id": "DEV-MILD",
+      "sigma": 0,
+      "path": "noisy/DEV-MILD_sigma00.png",
+      "source_path": "sources/DEV-MILD.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-MILD_s5",
+      "source_id": "DEV-MILD",
+      "sigma": 5,
+      "path": "noisy/DEV-MILD_sigma05.png",
+      "source_path": "sources/DEV-MILD.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-MILD_s10",
+      "source_id": "DEV-MILD",
+      "sigma": 10,
+      "path": "noisy/DEV-MILD_sigma10.png",
+      "source_path": "sources/DEV-MILD.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-MILD_s20",
+      "source_id": "DEV-MILD",
+      "sigma": 20,
+      "path": "noisy/DEV-MILD_sigma20.png",
+      "source_path": "sources/DEV-MILD.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-MILD_s40",
+      "source_id": "DEV-MILD",
+      "sigma": 40,
+      "path": "noisy/DEV-MILD_sigma40.png",
+      "source_path": "sources/DEV-MILD.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-TEX_s0",
+      "source_id": "DEV-TEX",
+      "sigma": 0,
+      "path": "noisy/DEV-TEX_sigma00.png",
+      "source_path": "sources/DEV-TEX.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-TEX_s5",
+      "source_id": "DEV-TEX",
+      "sigma": 5,
+      "path": "noisy/DEV-TEX_sigma05.png",
+      "source_path": "sources/DEV-TEX.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-TEX_s10",
+      "source_id": "DEV-TEX",
+      "sigma": 10,
+      "path": "noisy/DEV-TEX_sigma10.png",
+      "source_path": "sources/DEV-TEX.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-TEX_s20",
+      "source_id": "DEV-TEX",
+      "sigma": 20,
+      "path": "noisy/DEV-TEX_sigma20.png",
+      "source_path": "sources/DEV-TEX.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    },
+    {
+      "image_id": "DEV-TEX_s40",
+      "source_id": "DEV-TEX",
+      "sigma": 40,
+      "path": "noisy/DEV-TEX_sigma40.png",
+      "source_path": "sources/DEV-TEX.png",
+      "disjoint_from_nr001_015": true,
+      "disjoint_from_frozen_pilot": true,
+      "generation": "synthetic_procedural_rgb"
+    }
+  ]
+}

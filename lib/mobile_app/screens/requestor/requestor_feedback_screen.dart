@@ -5,6 +5,8 @@ import 'package:access_mobile/mobile_app/requestor/requestor_feedback_status.dar
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/member_team_rating_section.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feature_purpose.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_feedback_header.dart';
+import 'package:access_mobile/mobile_app/widgets/requestor/requestor_tab_hero.dart';
 import 'package:access_mobile/mobile_app/widgets/requestor/request_list_skeleton.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/api/api_client.dart';
@@ -27,6 +29,13 @@ const _kRequestorFeedbackTypes = [
     icon: Icons.checklist_rounded,
     accentColor: kGreen,
   ),
+  _FeedbackTypeOption(
+    label: 'Overall satisfaction',
+    subtitle: 'General satisfaction with documentation coverage',
+    icon: Icons.sentiment_satisfied_alt_rounded,
+    accentColor: kCyan,
+  ),
+  // Kept for historical feedback compatibility (stored comment prefixes).
   _FeedbackTypeOption(
     label: 'Team responsiveness',
     subtitle: 'Communication, timeliness, and coordination',
@@ -65,6 +74,8 @@ class _FeedbackTypeOption {
           'How was the photo and video quality for your event?',
         'Coverage completeness' =>
           'Did the team capture the important moments and deliverables?',
+        'Overall satisfaction' =>
+          'How satisfied are you with the documentation coverage overall?',
         'Team responsiveness' =>
           'How was communication and coordination with the ACCESS team?',
         'Suggestion' => 'What would you like us to improve next time?',
@@ -105,9 +116,6 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
   bool _sent = false;
   bool _submitting = false;
   List<Map<String, dynamic>> _memberRatingsMine = [];
-
-  _FeedbackTypeOption get _selectedTypeOption =>
-      _kRequestorFeedbackTypes.firstWhere((t) => t.label == _type, orElse: () => _kRequestorFeedbackTypes.first);
 
   @override
   void initState() {
@@ -284,19 +292,13 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: kBg,
+      color: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          RequestorFeatureTitleBar(
-            title: 'Feedback',
-            trailing: [
-              MemberPageNotificationButton(onTap: widget.onNotificationsTap),
-              MemberPageProfileAvatar(onTap: widget.onProfileTap),
-            ],
-          ),
-          const RequestorFeaturePurposeLine(
-            text: 'Rate your documentation team and share how coverage went.',
+          RequestorBrandAppBar(
+            onNotifications: widget.onNotificationsTap,
+            onProfileTap: widget.onProfileTap,
           ),
           Expanded(
             child: ListenableBuilder(
@@ -334,12 +336,25 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                 parent: BouncingScrollPhysics(),
               ),
               padding: EdgeInsets.fromLTRB(
-                kMemberDashboardPagePadding,
-                14,
-                kMemberDashboardPagePadding,
+                0,
+                0,
+                0,
                 56 + bottomInset,
               ),
               children: [
+                const RequestorFeedbackIllustratedHeader(
+                  includeTopActions: false,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    kMemberDashboardPagePadding,
+                    6,
+                    kMemberDashboardPagePadding,
+                    0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                 if (syncing)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 10),
@@ -369,7 +384,6 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                     msgCtrl: _msgCtrl,
                     type: _type,
                     types: _kRequestorFeedbackTypes,
-                    messageHint: _selectedTypeOption.messageHint,
                     selectedKey: _selectedKey,
                     rating: _rating,
                     submittedOverall: submittedOverall,
@@ -395,30 +409,124 @@ class _RequestorFeedbackScreenState extends State<RequestorFeedbackScreen> {
                     onSubmittingChanged: (v) => setState(() => _submitting = v),
                   ),
                 ],
-                if (past.isNotEmpty || teamRatingGroups.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your submissions',
-                    style: memberDashboardSectionTitleStyle.copyWith(fontSize: 16),
-                  ),
-                  const SizedBox(height: 12),
+                const SizedBox(height: 16),
+                _YourSubmissionsHeader(
+                  count: past.length + teamRatingGroups.length,
+                ),
+                const SizedBox(height: 10),
+                if (past.isEmpty && teamRatingGroups.isEmpty)
+                  const _SubmissionsEmptyState()
+                else ...[
                   ...teamRatingGroups.map(
                     (g) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: _PastTeamRatingsCard(group: g),
                     ),
                   ),
                   ...past.map(
                     (fb) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: _PastFeedbackCard(feedback: fb),
                     ),
                   ),
                 ],
+                    ],
+                  ),
+                ),
               ],
             ),
           );
         },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+const _kHistoryCyan = Color(0xFF079FC6);
+const _kHistorySky = Color(0xFFEAF7FC);
+const _kHistoryBorder = Color(0xFFD0EBF5);
+const _kHistoryStar = Color(0xFFF5B400);
+const _kHistoryStarMuted = Color(0xFFB0BEC8);
+const _kHistoryNavy = Color(0xFF173650);
+const _kHistoryMeta = Color(0xFF617F91);
+
+class _YourSubmissionsHeader extends StatelessWidget {
+  const _YourSubmissionsHeader({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Your Submissions',
+            style: memberDashboardSectionTitleStyle.copyWith(
+              fontSize: 16,
+              color: _kHistoryNavy,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: _kHistorySky,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: _kHistoryBorder),
+          ),
+          child: Text(
+            '$count',
+            style: memberDashboardMetaStyle.copyWith(
+              color: _kHistoryCyan,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SubmissionsEmptyState extends StatelessWidget {
+  const _SubmissionsEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kHistoryBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.rate_review_outlined,
+            size: 28,
+            color: _kHistoryCyan.withValues(alpha: 0.85),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No feedback submitted yet.',
+            textAlign: TextAlign.center,
+            style: memberDashboardBodyStyle.copyWith(
+              color: _kHistoryMeta,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -597,7 +705,6 @@ class _FeedbackFormCard extends StatefulWidget {
     required this.msgCtrl,
     required this.type,
     required this.types,
-    required this.messageHint,
     required this.selectedKey,
     required this.rating,
     required this.submittedOverall,
@@ -616,7 +723,6 @@ class _FeedbackFormCard extends StatefulWidget {
   final TextEditingController msgCtrl;
   final String type;
   final List<_FeedbackTypeOption> types;
-  final String messageHint;
   final String? selectedKey;
   final int rating;
   final EventFeedback? submittedOverall;
@@ -731,14 +837,21 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       return;
     }
 
-    final needsTeam = !teamDone && _teamTargets.isNotEmpty;
-    if (needsTeam) {
-      for (final t in _teamTargets) {
+    final needsEvent = !eventDone;
+    final hasOverall = widget.rating > 0;
+
+    final pendingTargets =
+        _teamTargets.where((t) => !t.rated).toList(growable: false);
+    final needsDocumenters = !teamDone && pendingTargets.isNotEmpty;
+    if (needsDocumenters) {
+      for (final t in pendingTargets) {
         final stars = _memberRatings[t.assignmentId] ?? 0;
-        if (stars == 0) {
+        if (stars <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Please rate ${t.memberName} (${t.roleLabel})'),
+              content: Text(
+                'Please rate ${t.memberName} (${t.roleLabel}) before submitting',
+              ),
               backgroundColor: kRed,
             ),
           );
@@ -747,18 +860,16 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
       }
     }
 
-    final needsEvent = !eventDone;
-    final hasOverall = widget.rating > 0;
-    if (needsEvent && !hasOverall && !needsTeam) {
+    if (needsEvent && !hasOverall) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Add an overall star rating for this event'),
+          content: Text('Add an overall star rating for Event Coverage Feedback'),
           backgroundColor: kRed,
         ),
       );
       return;
     }
-    if (!needsEvent && !needsTeam) {
+    if (!needsEvent && !needsDocumenters) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Nothing left to submit for this event'),
@@ -771,14 +882,16 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
     widget.onSubmittingChanged(true);
     try {
       var didSubmit = false;
-      if (needsTeam) {
+      // Submit documenter ratings first so a partial failure does not leave
+      // event feedback saved without the required per-documenter set.
+      if (needsDocumenters) {
         await memberApiService.submitMemberRatings(
           requestId: requestId,
           ratings: _teamTargets.map((t) {
             final assignmentId = t.assignmentId;
             return {
               'assignment_id': assignmentId,
-              'rating': _memberRatings[assignmentId],
+              'rating': _memberRatings[assignmentId] ?? t.existingRating ?? 0,
               'comment': _memberCommentCtrls[assignmentId]?.text.trim(),
             };
           }).toList(),
@@ -800,7 +913,7 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Add team ratings or overall service feedback to submit'),
+              content: Text('Add Event Coverage Feedback to submit'),
               backgroundColor: kRed,
             ),
           );
@@ -827,7 +940,6 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
     final eventDone = requestId != null &&
         (widget.completion.eventDone(requestId) || widget.submittedOverall != null);
     final teamDone = requestId != null && widget.completion.teamDone(requestId);
-    final overallRequired = requestId != null && !eventDone && teamDone;
     final lockedParts = widget.submittedOverall == null
         ? null
         : _submittedOverallParts(widget.submittedOverall!);
@@ -852,20 +964,6 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
             requestKey: widget.requestKey,
             onEventChanged: widget.onEventChanged,
           ),
-          if (widget.selectedRequest != null) ...[
-            const SizedBox(height: 10),
-            _SelectedEventPreview(request: widget.selectedRequest!),
-            const SizedBox(height: 20),
-            MemberTeamRatingSection(
-              targets: _teamTargets,
-              ratings: _memberRatings,
-              commentControllers: _memberCommentCtrls,
-              onRatingChanged: (assignmentId, rating) {
-                setState(() => _memberRatings[assignmentId] = rating);
-              },
-              loading: _loadingTeam,
-            ),
-          ],
           if (widget.selectedRequest == null) ...[
             const SizedBox(height: 16),
             Text(
@@ -873,28 +971,39 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
               style: memberDashboardMetaStyle,
             ),
           ] else ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            _SelectedEventPreview(request: widget.selectedRequest!),
+            const SizedBox(height: 18),
             Text(
-              eventDone
-                  ? 'Overall event feedback'
-                  : overallRequired
-                      ? 'Overall event feedback'
-                      : 'Overall event feedback (optional)',
-              style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
+              'Event Coverage Feedback',
+              style: memberDashboardMetaStyle.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: const Color(0xFF173650),
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               eventDone
                   ? 'Locked. This rating was already submitted.'
-                  : overallRequired
-                      ? 'Rate the documentation service for this event (required if team ratings are done).'
-                      : 'Optional comments about documentation service for this event.',
+                  : 'How satisfied are you with the documentation coverage of your event?',
               style: memberDashboardMetaStyle.copyWith(
                 fontSize: 11,
-                color: eventDone ? kTextSecondary : null,
-                fontWeight: eventDone ? FontWeight.w600 : null,
+                color: eventDone ? kTextSecondary : const Color(0xFF617F91),
+                fontWeight: eventDone ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
+            if (!eventDone) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Required',
+                style: memberDashboardMetaStyle.copyWith(
+                  fontSize: 11,
+                  color: const Color(0xFF079FC6),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             if (eventDone)
               _LockedOverallFeedback(
@@ -910,86 +1019,94 @@ class _FeedbackFormCardState extends State<_FeedbackFormCard> {
                 selected: shownType,
                 onChanged: widget.onTypeChanged,
               ),
-              const SizedBox(height: 16),
-              Text('Overall rating', style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  ...List.generate(
-                    5,
-                    (i) => GestureDetector(
-                      onTap: () => widget.onRatingChanged(i + 1),
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Icon(
-                          i < shownRating ? Icons.star_rounded : Icons.star_outline_rounded,
-                          color: i < shownRating ? kYellow : kTextSecondary,
-                          size: 34,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (shownRating > 0) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      _ratingLabel(shownRating),
-                      style: memberDashboardMetaStyle.copyWith(
-                        color: _ratingColor(shownRating),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ],
+              const SizedBox(height: 12),
+              Text(
+                'Overall event rating',
+                style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 18),
-              Text('Your message', style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
+              _OverallStarRatingRow(
+                rating: shownRating,
+                onChanged: widget.onRatingChanged,
+                ratingLabel: shownRating > 0 ? _ratingLabel(shownRating) : null,
+                ratingColor:
+                    shownRating > 0 ? _ratingColor(shownRating) : kTextSecondary,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Your message (optional)',
+                style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
               TextField(
                 controller: widget.msgCtrl,
-                maxLines: 4,
-                style: memberDashboardBodyStyle.copyWith(color: kTextPrimary),
+                minLines: 3,
+                maxLines: 6,
+                style: memberDashboardBodyStyle.copyWith(
+                  color: kTextPrimary,
+                  fontSize: 13.5,
+                ),
                 decoration: InputDecoration(
-                  hintText: widget.messageHint,
-                  hintStyle: memberDashboardMetaStyle,
+                  hintText: 'Tell us about your experience...',
+                  hintStyle: memberDashboardMetaStyle.copyWith(
+                    color: const Color(0xFF8AA0B0),
+                  ),
                   filled: true,
-                  fillColor: kSurfaceAlt,
+                  fillColor: const Color(0xFFF7FBFD),
+                  contentPadding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  isDense: true,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-                    borderSide: const BorderSide(color: kBorder),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFD0EBF5)),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-                    borderSide: const BorderSide(color: kBorder),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFD0EBF5)),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
-                    borderSide: const BorderSide(color: kAccent),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF079FC6),
+                      width: 1.4,
+                    ),
                   ),
                 ),
               ),
             ],
+            const SizedBox(height: 18),
+            MemberTeamRatingSection(
+              targets: _teamTargets,
+              ratings: _memberRatings,
+              commentControllers: _memberCommentCtrls,
+              onRatingChanged: (assignmentId, rating) {
+                setState(() => _memberRatings[assignmentId] = rating);
+              },
+              loading: _loadingTeam,
+            ),
           ],
           if (requestId != null && !(eventDone && teamDone)) ...[
-          const SizedBox(height: 18),
-          widget.submitting
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: kRequestorPrimaryAction,
+            const SizedBox(height: 14),
+            widget.submitting
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Color(0xFF079FC6),
+                        ),
                       ),
                     ),
+                  )
+                : MemberDashboardPrimaryButton(
+                    label: 'Submit Feedback',
+                    icon: Icons.send_rounded,
+                    color: const Color(0xFF079FC6),
+                    minHeight: 48,
+                    onPressed: _submit,
                   ),
-                )
-              : MemberDashboardPrimaryButton(
-                  label: 'Submit feedback',
-                  icon: Icons.send_rounded,
-                  onPressed: _submit,
-                ),
           ],
         ],
       ),
@@ -1108,6 +1225,93 @@ class _LockedOverallFeedback extends StatelessWidget {
   }
 }
 
+const _kFeedbackFormCyan = Color(0xFF079FC6);
+const _kFeedbackFormSky = Color(0xFFEAF7FC);
+const _kFeedbackFormBorder = Color(0xFFD0EBF5);
+const _kFeedbackFormStar = Color(0xFFF5B400);
+const _kFeedbackFormStarMuted = Color(0xFFB0BEC8);
+
+class _OverallStarRatingRow extends StatelessWidget {
+  const _OverallStarRatingRow({
+    required this.rating,
+    required this.onChanged,
+    this.ratingLabel,
+    this.ratingColor = kTextSecondary,
+  });
+
+  final int rating;
+  final ValueChanged<int> onChanged;
+  final String? ratingLabel;
+  final Color ratingColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxW = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final narrow = maxW < 360;
+        final tapSize = narrow ? 36.0 : 44.0;
+        final iconSize = narrow ? 26.0 : 32.0;
+        final gap = narrow ? 1.0 : 4.0;
+
+        return Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(5, (i) {
+                    final selected = i < rating;
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: gap),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => onChanged(i + 1),
+                          customBorder: const CircleBorder(),
+                          child: SizedBox(
+                            width: tapSize,
+                            height: tapSize,
+                            child: Icon(
+                              selected
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              color: selected
+                                  ? _kFeedbackFormStar
+                                  : _kFeedbackFormStarMuted,
+                              size: iconSize,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+            if (ratingLabel != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                ratingLabel!,
+                style: memberDashboardMetaStyle.copyWith(
+                  color: ratingColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _FeedbackTypePicker extends StatelessWidget {
   const _FeedbackTypePicker({
     required this.types,
@@ -1121,17 +1325,32 @@ class _FeedbackTypePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (var i = 0; i < types.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
-          _FeedbackTypeTile(
-            option: types[i],
-            selected: selected == types[i].label,
-            onTap: () => onChanged(types[i].label),
-          ),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Keep two columns on typical phones (card width is often ~300–340 after
+        // page + card padding). Fall back to one column only on very narrow widths.
+        final columns = constraints.maxWidth < 260 ? 1 : 2;
+        final gap = 8.0;
+        final tileWidth = columns == 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - gap) / 2;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final option in types)
+              SizedBox(
+                width: tileWidth,
+                child: _FeedbackTypeTile(
+                  option: option,
+                  selected: selected == option.label,
+                  onTap: () => onChanged(option.label),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1147,82 +1366,85 @@ class _FeedbackTypeTile extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  IconData get _outlineIcon {
+    return switch (option.label) {
+      'Documentation quality' => Icons.photo_camera_outlined,
+      'Coverage completeness' => Icons.checklist_outlined,
+      'Overall satisfaction' => Icons.sentiment_satisfied_alt_outlined,
+      'Team responsiveness' => Icons.groups_outlined,
+      'Suggestion' => Icons.lightbulb_outline_rounded,
+      _ => Icons.chat_bubble_outline_rounded,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+        borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
           decoration: BoxDecoration(
-            color: selected
-                ? option.accentColor.withValues(alpha: 0.08)
-                : kSurfaceAlt,
-            borderRadius: BorderRadius.circular(kMemberDashboardInnerRadius),
+            color: selected ? _kFeedbackFormSky : Colors.white,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected
-                  ? option.accentColor
-                  : option.accentColor.withValues(alpha: 0.22),
+              color: selected ? _kFeedbackFormCyan : _kFeedbackFormBorder,
               width: selected ? 1.5 : 1,
             ),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? option.accentColor.withValues(alpha: 0.14)
-                      : option.accentColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(11),
-                  border: Border.all(
-                    color: selected
-                        ? option.accentColor.withValues(alpha: 0.35)
-                        : option.accentColor.withValues(alpha: 0.18),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    _outlineIcon,
+                    size: 18,
+                    color: _kFeedbackFormCyan,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    option.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: dashText(TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                      height: 1.2,
+                      color: selected
+                          ? const Color(0xFF173650)
+                          : kTextPrimary,
+                    )),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    option.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: dashText(const TextStyle(
+                      fontSize: 10.5,
+                      height: 1.25,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF617F91),
+                    )),
+                  ),
+                ],
+              ),
+              if (selected)
+                const Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Icon(
+                    Icons.check_circle_rounded,
+                    size: 16,
+                    color: _kFeedbackFormCyan,
                   ),
                 ),
-                child: Icon(
-                  option.icon,
-                  size: 20,
-                  color: selected ? option.accentColor : option.accentColor.withValues(alpha: 0.85),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      option.label,
-                      style: memberDashboardBodyStyle.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: selected ? option.accentColor : kTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      option.subtitle,
-                      style: memberDashboardMetaStyle.copyWith(
-                        fontSize: 11,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                size: 22,
-                color: selected ? option.accentColor : option.accentColor.withValues(alpha: 0.35),
-              ),
             ],
           ),
         ),
@@ -1306,27 +1528,32 @@ class _EventPickerList extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Container(
-                      margin: const EdgeInsets.only(left: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: fullyDone
-                            ? kGreenDim
-                            : statusLabel.contains('due')
-                                ? kYellow.withValues(alpha: 0.15)
-                                : style.background,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        statusLabel,
-                        style: TextStyle(
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
                           color: fullyDone
-                              ? kGreen
+                              ? kGreenDim
                               : statusLabel.contains('due')
-                                  ? kYellow
-                                  : style.color,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                                  ? kYellow.withValues(alpha: 0.15)
+                                  : style.background,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                          style: TextStyle(
+                            color: fullyDone
+                                ? kGreen
+                                : statusLabel.contains('due')
+                                    ? kYellow
+                                    : style.color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
@@ -1409,15 +1636,29 @@ class _TeamRatingGroup {
   final String? dateLabel;
 }
 
-class _PastTeamRatingsCard extends StatelessWidget {
+class _PastTeamRatingsCard extends StatefulWidget {
   const _PastTeamRatingsCard({required this.group});
 
   final _TeamRatingGroup group;
 
   @override
+  State<_PastTeamRatingsCard> createState() => _PastTeamRatingsCardState();
+}
+
+class _PastTeamRatingsCardState extends State<_PastTeamRatingsCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    return MemberDashboardCard(
-      padding: const EdgeInsets.all(16),
+    final group = widget.group;
+    final previewName = group.rows.isEmpty
+        ? 'Documenter ratings'
+        : (group.rows.first['member_name'] as String? ?? 'Documenter');
+    final previewRating =
+        group.rows.isEmpty ? 0 : (group.rows.first['rating'] as num?)?.toInt() ?? 0;
+
+    return _HistoryCardShell(
+      onTap: () => setState(() => _expanded = !_expanded),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1427,41 +1668,93 @@ class _PastTeamRatingsCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   group.eventTitle,
-                  style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardCardTitleStyle.copyWith(
+                    fontSize: 13.5,
+                    color: _kHistoryNavy,
+                  ),
                 ),
               ),
-              if (group.dateLabel != null)
-                Text(group.dateLabel!, style: memberDashboardMetaStyle.copyWith(fontSize: 11)),
+              const SizedBox(width: 8),
+              Icon(
+                _expanded
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+                size: 22,
+                color: _kHistoryCyan,
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: kAccent.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: kAccent.withValues(alpha: 0.15)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.groups_rounded, size: 16, color: kAccent),
-                const SizedBox(width: 8),
-                Text(
-                  'Team member ratings',
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.photo_camera_outlined, size: 14, color: _kHistoryCyan),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Documenter Ratings · ${group.rows.length}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: memberDashboardMetaStyle.copyWith(
-                    color: kAccent,
+                    color: _kHistoryCyan,
                     fontWeight: FontWeight.w700,
                     fontSize: 11,
                   ),
                 ),
+              ),
+              if (group.dateLabel != null && group.dateLabel!.trim().isNotEmpty)
+                Text(
+                  group.dateLabel!,
+                  style: memberDashboardMetaStyle.copyWith(
+                    color: _kHistoryMeta,
+                    fontSize: 11,
+                  ),
+                ),
+            ],
+          ),
+          if (!_expanded) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    previewName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: memberDashboardBodyStyle.copyWith(
+                      fontSize: 12.5,
+                      color: kTextPrimary,
+                    ),
+                  ),
+                ),
+                _CompactStarRow(rating: previewRating, size: 13),
               ],
             ),
-          ),
-          const SizedBox(height: 10),
-          for (final row in group.rows) ...[
-            _PastMemberRatingRow(row: row),
-            if (row != group.rows.last) const SizedBox(height: 8),
+            const SizedBox(height: 6),
+            Text(
+              'View details',
+              style: memberDashboardMetaStyle.copyWith(
+                color: _kHistoryCyan,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 10),
+            for (final row in group.rows) ...[
+              _PastMemberRatingRow(row: row),
+              if (row != group.rows.last) const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 6),
+            Text(
+              'Hide details',
+              style: memberDashboardMetaStyle.copyWith(
+                color: _kHistoryCyan,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+              ),
+            ),
           ],
         ],
       ),
@@ -1476,7 +1769,7 @@ class _PastMemberRatingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = row['member_name'] as String? ?? 'Team member';
+    final name = row['member_name'] as String? ?? 'Documenter';
     final rating = (row['rating'] as num?)?.toInt() ?? 0;
     final comment = (row['comment'] as String?)?.trim() ?? '';
     final role = row['task_role'] as String? ?? '';
@@ -1484,54 +1777,90 @@ class _PastMemberRatingRow extends StatelessWidget {
         ? 'Videographer'
         : role.toLowerCase().contains('photo')
             ? 'Photographer'
-            : 'Documentation member';
+            : 'Documenter';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                name,
-                style: memberDashboardBodyStyle.copyWith(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFD),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kHistoryBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  style: memberDashboardBodyStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.5,
+                    color: _kHistoryNavy,
+                  ),
                 ),
               ),
-            ),
-            Text(roleLabel, style: memberDashboardMetaStyle.copyWith(fontSize: 10)),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: List.generate(
-            5,
-            (i) => Icon(
-              i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
-              color: i < rating ? kYellow : kBorder,
-              size: 14,
+              Text(
+                roleLabel,
+                style: memberDashboardMetaStyle.copyWith(
+                  fontSize: 10,
+                  color: _kHistoryMeta,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Individual rating',
+            style: memberDashboardMetaStyle.copyWith(
+              fontSize: 10,
+              color: _kHistoryMeta,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
-        if (comment.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(comment, style: memberDashboardBodyStyle.copyWith(fontSize: 12)),
+          const SizedBox(height: 2),
+          _CompactStarRow(rating: rating, size: 14),
+          if (comment.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              comment,
+              style: memberDashboardBodyStyle.copyWith(
+                fontSize: 12,
+                color: kTextPrimary,
+                height: 1.35,
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
 
-class _PastFeedbackCard extends StatelessWidget {
+class _PastFeedbackCard extends StatefulWidget {
   const _PastFeedbackCard({required this.feedback});
 
   final EventFeedback feedback;
 
   @override
+  State<_PastFeedbackCard> createState() => _PastFeedbackCardState();
+}
+
+class _PastFeedbackCardState extends State<_PastFeedbackCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    return MemberDashboardCard(
-      padding: const EdgeInsets.all(16),
+    final feedback = widget.feedback;
+    final message = feedback.message.trim();
+    final hasAdmin = feedback.adminResponse != null &&
+        feedback.adminResponse!.trim().isNotEmpty;
+    final canExpand = message.isNotEmpty || hasAdmin;
+
+    return _HistoryCardShell(
+      onTap: canExpand ? () => setState(() => _expanded = !_expanded) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1541,62 +1870,118 @@ class _PastFeedbackCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   feedback.eventTitle,
-                  style: memberDashboardCardTitleStyle.copyWith(fontSize: 14),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardCardTitleStyle.copyWith(
+                    fontSize: 13.5,
+                    color: _kHistoryNavy,
+                  ),
                 ),
               ),
-              Row(
-                children: List.generate(
-                  5,
-                  (i) => Icon(
-                    i < feedback.rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                    color: i < feedback.rating ? kYellow : kBorder,
-                    size: 14,
+              if (canExpand) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  _expanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: 22,
+                  color: _kHistoryCyan,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(
+                Icons.event_available_outlined,
+                size: 14,
+                color: _kHistoryCyan,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Event Coverage Rating',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardMetaStyle.copyWith(
+                    color: _kHistoryCyan,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              if (feedback.date.trim().isNotEmpty)
+                Text(
+                  feedback.date,
+                  style: memberDashboardMetaStyle.copyWith(
+                    color: _kHistoryMeta,
+                    fontSize: 11,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(
+                _FeedbackTypeOption.iconForLabel(feedback.type),
+                size: 13,
+                color: _kHistoryMeta,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Category: ${feedback.type}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: memberDashboardMetaStyle.copyWith(
+                    color: _kHistoryMeta,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: kAccent.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: kAccent.withValues(alpha: 0.15)),
+          _CompactStarRow(rating: feedback.rating, size: 16),
+          if (message.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              message,
+              maxLines: _expanded ? null : 2,
+              overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              style: memberDashboardBodyStyle.copyWith(
+                fontSize: 12.5,
+                height: 1.35,
+                color: kTextPrimary,
+              ),
             ),
-            child: Row(
-              children: [
-                Icon(_FeedbackTypeOption.iconForLabel(feedback.type), size: 16, color: kAccent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    feedback.type,
-                    style: memberDashboardMetaStyle.copyWith(
-                      color: kAccent,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                Text(feedback.date, style: memberDashboardMetaStyle.copyWith(fontSize: 11)),
-              ],
+          ] else if (!_expanded) ...[
+            const SizedBox(height: 6),
+            Text(
+              'No written comment.',
+              style: memberDashboardMetaStyle.copyWith(
+                color: _kHistoryMeta,
+                fontSize: 11.5,
+              ),
             ),
-          ),
-          if (feedback.message.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(feedback.message, style: memberDashboardBodyStyle.copyWith(fontSize: 13)),
           ],
-          if (feedback.adminResponse != null && feedback.adminResponse!.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
+          if (_expanded && hasAdmin) ...[
+            const SizedBox(height: 10),
             Text(
               'ACCESS team response',
-              style: memberDashboardMetaStyle.copyWith(fontWeight: FontWeight.w700, fontSize: 11),
+              style: memberDashboardMetaStyle.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+                color: _kHistoryNavy,
+              ),
             ),
             const SizedBox(height: 6),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: kGreenDim,
                 borderRadius: BorderRadius.circular(10),
@@ -1604,11 +1989,91 @@ class _PastFeedbackCard extends StatelessWidget {
               ),
               child: Text(
                 feedback.adminResponse!.trim(),
-                style: memberDashboardBodyStyle.copyWith(fontSize: 13, height: 1.4),
+                style: memberDashboardBodyStyle.copyWith(
+                  fontSize: 12.5,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+          if (canExpand) ...[
+            const SizedBox(height: 6),
+            Text(
+              _expanded ? 'Hide details' : 'View details',
+              style: memberDashboardMetaStyle.copyWith(
+                color: _kHistoryCyan,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _HistoryCardShell extends StatelessWidget {
+  const _HistoryCardShell({
+    required this.child,
+    this.onTap,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _kHistoryBorder),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.035),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactStarRow extends StatelessWidget {
+  const _CompactStarRow({
+    required this.rating,
+    this.size = 14,
+  });
+
+  final int rating;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        5,
+        (i) => Padding(
+          padding: EdgeInsets.only(right: i == 4 ? 0 : 1),
+          child: Icon(
+            i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+            color: i < rating ? _kHistoryStar : _kHistoryStarMuted,
+            size: size,
+          ),
+        ),
       ),
     );
   }

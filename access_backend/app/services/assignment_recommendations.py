@@ -87,9 +87,11 @@ def _member_performance_score(db: Session, user: User) -> tuple[float, str]:
     admin_score = profile_crud.admin_evaluation_score(db, user.id)
     human, ai_gen, suspicious = rankings_crud._ai_counts(db, user.id)
     total_checked = human + ai_gen + suspicious
-    _, avg_score = profile_crud.evaluations_stats(db, user.id)
+    from app.services.skill_evaluation_eligibility import eligible_skill_evaluation_stats
+
+    eligible = eligible_skill_evaluation_stats(db, user.id)
     payload = build_skill_payload(
-        average_quality_score=avg_score,
+        average_quality_score=eligible.average_score,
         approved_uploads=approved,
         total_uploads=uploads,
         completed_tasks=completed,
@@ -98,8 +100,10 @@ def _member_performance_score(db: Session, user: User) -> tuple[float, str]:
         human_verified_uploads=human,
         total_checked_uploads=total_checked,
     )
-    skill_level = payload.get("skill_level") or (user.skill_level.level_name if user.skill_level else "Beginner")
-    return float(payload.get("skill_score") or 0), str(skill_level)
+    from app.crud.rankings_admin import resolve_member_skill_level
+
+    effective, _, _ = resolve_member_skill_level(db, user.id, skill_payload=payload)
+    return float(payload.get("skill_score") or 0), str(effective)
 
 
 def recommend_members_for_request(

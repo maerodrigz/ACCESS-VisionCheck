@@ -3,15 +3,14 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 
 from app.config import settings
 from app.services.evaluation_daily import evaluation_calendar_date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.config import settings
-
+from app.models.ai_review_history import AiReviewHistory
 from app.models.documentation_request import DocumentationRequest
 from app.models.media_constants import (
     APPROVAL_APPROVED,
@@ -26,6 +25,53 @@ from app.models.media_constants import (
 )
 from app.models.archive import Archive
 from app.models.media_file import MediaFile
+from app.services.media_file_hash import MEMBER_EVAL_FILE_HASH_INDEX
+
+
+class EvaluationDuplicateUploadError(Exception):
+    """Same member re-uploaded identical evaluation bytes (SHA-256 match)."""
+
+
+def member_evaluation_hash_exists(db: Session, *, user_id: int, file_hash: str) -> bool:
+    """True if this member already submitted these exact bytes for evaluation (includes archived)."""
+    if not file_hash:
+        return False
+    count = db.scalar(
+        select(func.count())
+        .select_from(MediaFile)
+        .where(
+            MediaFile.uploaded_by == user_id,
+            MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
+            MediaFile.file_hash == file_hash,
+        )
+    )
+    return int(count or 0) > 0
+
+
+def assert_member_evaluation_not_duplicate(
+    db: Session, *, user_id: int, file_hash: str
+) -> None:
+    if member_evaluation_hash_exists(db, user_id=user_id, file_hash=file_hash):
+        raise EvaluationDuplicateUploadError()
+
+
+def _is_member_eval_file_hash_conflict(exc: IntegrityError) -> bool:
+    orig = getattr(exc, "orig", None)
+    if orig is not None:
+        pgcode = getattr(orig, "pgcode", None)
+        if pgcode == "23505":
+            diag = getattr(orig, "diag", None)
+            name = getattr(diag, "constraint_name", None) if diag else None
+            if name == MEMBER_EVAL_FILE_HASH_INDEX:
+                return True
+    text = str(exc).lower()
+    return MEMBER_EVAL_FILE_HASH_INDEX.lower() in text
+
+
+def discard_stored_upload_blob(stored_url: str | None) -> None:
+    """Remove bytes after a failed DB insert (e.g. concurrent duplicate race)."""
+    if stored_url and stored_url.strip():
+        _delete_media_file_from_disk(stored_url)
 
 
 def count_member_evaluations_today(db: Session, user_id: int) -> int:
@@ -210,15 +256,7 @@ def count_for_uploader(db: Session, user_id: int) -> int:
     )
 
 
-def delete_all_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
-    """Delete every media_files row for [user_id]. Returns (deleted, failed)."""
-    media_ids = list(
-        db.scalars(
-            select(MediaFile.id)
-            .where(MediaFile.uploaded_by == user_id)
-            .order_by(MediaFile.id)
-        )
-    )
+def _delete_media_ids(db: Session, media_ids: list[int]) -> tuple[int, int]:
     deleted = 0
     failed = 0
     for media_id in media_ids:
@@ -233,25 +271,54 @@ def delete_all_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
     return deleted, failed
 
 
-def _delete_media_file_from_disk(file_url: str | None) -> None:
-    if not file_url or not file_url.strip():
-        return
-    from app.services.firebase_storage import delete_firebase_url
-    from app.services.supabase_storage import delete_supabase_url
+def delete_all_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
+    """Delete every media_files row for [user_id]. Returns (deleted, failed)."""
+    media_ids = list(
+        db.scalars(
+            select(MediaFile.id)
+            .where(MediaFile.uploaded_by == user_id)
+            .order_by(MediaFile.id)
+        )
+    )
+    return _delete_media_ids(db, media_ids)
 
-    if delete_supabase_url(file_url):
-        return
-    if delete_firebase_url(file_url):
-        return
-    url = file_url.strip()
-    if url.startswith("http://") or url.startswith("https://"):
-        return
-    rel = url.lstrip("/")
-    if rel.startswith("uploads/"):
-        rel = rel[len("uploads/") :]
-    local = Path(settings.upload_dir) / rel
-    if local.is_file():
-        local.unlink(missing_ok=True)
+
+def delete_practice_evaluations_for_uploader(db: Session, user_id: int) -> tuple[int, int]:
+    """Remove practice evaluation uploads for a member (clears Media Integrity queue)."""
+    media_ids = list(
+        db.scalars(
+            select(MediaFile.id)
+            .where(
+                MediaFile.uploaded_by == user_id,
+                MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
+            )
+            .order_by(MediaFile.id)
+        )
+    )
+    return _delete_media_ids(db, media_ids)
+
+
+def delete_orphan_practice_evaluations(db: Session) -> tuple[int, int]:
+    """Delete practice eval media with no uploader (left after account permanent delete)."""
+    media_ids = list(
+        db.scalars(
+            select(MediaFile.id)
+            .where(
+                MediaFile.media_category == MEDIA_CATEGORY_EVALUATION,
+                MediaFile.uploaded_by.is_(None),
+            )
+            .order_by(MediaFile.id)
+        )
+    )
+    return _delete_media_ids(db, media_ids)
+
+
+def _delete_media_file_from_disk(file_url: str | None) -> None:
+    from app.services.storage_deletion import StorageDeleteOutcome, delete_storage_for_file_url
+
+    result = delete_storage_for_file_url(file_url)
+    if result.outcome == StorageDeleteOutcome.FAILED:
+        raise RuntimeError(result.error or "Storage delete failed")
 
 
 # Placeholder when the member frees cloud storage but keeps the evaluation row.
@@ -259,7 +326,11 @@ REMOVED_STORAGE_FILE_URL = "/uploads/__storage_removed__"
 
 
 def remove_practice_storage_only(db: Session, media: MediaFile) -> MediaFile:
-    """Delete Supabase/disk bytes only. Keeps media + evaluation rows (scores, XP, averages)."""
+    """Delete Supabase/disk bytes only. Keeps media + evaluation rows (scores, XP, averages).
+
+    Allowed for completed practice evaluations, including admin-verified human.
+    Members free cloud space; integrity review history and scores remain.
+    """
     if media.media_category != MEDIA_CATEGORY_EVALUATION:
         raise ValueError("Only practice evaluation uploads can use remove storage.")
     if media.storage_removed_at is not None:
@@ -278,24 +349,70 @@ def remove_practice_storage_only(db: Session, media: MediaFile) -> MediaFile:
     return media
 
 
+def _integrity_block_reason(exc: IntegrityError) -> str:
+    """Short, non-sensitive reason for admin/logs (constraint name or SQLSTATE class)."""
+    orig = getattr(exc, "orig", None)
+    diag = getattr(orig, "diag", None) if orig is not None else None
+    constraint = getattr(diag, "constraint_name", None) if diag is not None else None
+    if constraint:
+        return f"database constraint {constraint}"
+    msg = str(orig or exc)
+    if "ai_review_history" in msg and "ai_detection_id" in msg:
+        return "ai_review_history.ai_detection_id not-null during cascade"
+    if "submission_chains" in msg and "root_media_id" in msg:
+        return "submission_chains.root_media_id restrict"
+    return "linked database records"
+
+
+def delete_media_row_only(db: Session, media: MediaFile, *, commit: bool = True) -> None:
+    """Delete DB row only (evaluations/AI cascade). Caller must have removed storage already.
+
+    When [commit] is False, uses a savepoint so a failed delete does not roll back
+    earlier work in the caller's transaction (e.g. submission-chain cleanup).
+
+    Explicitly removes ai_review_history for this media first so ORM delete-orphan of
+    ai_detection_results cannot null a NOT NULL ai_detection_id.
+    """
+
+    def _delete_row() -> None:
+        db.execute(delete(AiReviewHistory).where(AiReviewHistory.media_id == media.id))
+        db.flush()
+        db.delete(media)
+        db.flush()
+
+    try:
+        if commit:
+            _delete_row()
+            db.commit()
+        else:
+            with db.begin_nested():
+                _delete_row()
+    except IntegrityError as exc:
+        if commit:
+            db.rollback()
+        reason = _integrity_block_reason(exc)
+        raise RuntimeError(
+            "This file is linked to other records and could not be deleted "
+            f"({reason}). Try archiving it instead, or remove related evaluations first."
+        ) from exc
+
+
 def delete_media(db: Session, media: MediaFile) -> None:
     if media.file_url and media.file_url != REMOVED_STORAGE_FILE_URL:
         _delete_media_file_from_disk(media.file_url)
-    try:
-        db.delete(media)
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        raise RuntimeError(
-            "This file is linked to other records and could not be deleted. "
-            "Try archiving it instead, or remove related evaluations first."
-        ) from exc
+    delete_media_row_only(db, media, commit=True)
 
 
 def create(db: Session, data: dict) -> MediaFile:
     row = MediaFile(**data)
     db.add(row)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        if _is_member_eval_file_hash_conflict(exc):
+            raise EvaluationDuplicateUploadError() from exc
+        raise
     db.refresh(row)
     return get(db, row.id)  # type: ignore[arg-type]
 

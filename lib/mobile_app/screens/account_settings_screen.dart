@@ -46,6 +46,15 @@ class AccountSettingsScreen extends StatelessWidget {
           final email = appState.profileEmail.trim().isNotEmpty
               ? appState.profileEmail.trim()
               : authController.user?.email ?? 'N/A';
+          final rawAccount = appState.profileAccountStatus.trim();
+          final accountStatusLabel = !appState.profileIsActive
+              ? 'Disabled'
+              : (rawAccount.toLowerCase() == 'active' || rawAccount.isEmpty
+                  ? 'Active Account'
+                  : rawAccount);
+          final presenceLabel = appState.profilePresence.trim().isNotEmpty
+              ? appState.profilePresence.trim()
+              : (appState.profileIsOnline ? 'Online' : 'Offline');
 
           return ListView(
             padding: mobileScrollPadding(context, top: 12),
@@ -72,10 +81,10 @@ class AccountSettingsScreen extends StatelessWidget {
                       const SizedBox(height: 10),
                       _InfoRow(label: 'Role', value: appState.profileAccountRole),
                     ],
-                    if (appState.profileStatus.trim().isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      _InfoRow(label: 'Status', value: appState.profileStatus),
-                    ],
+                    const SizedBox(height: 10),
+                    _InfoRow(label: 'Account status', value: accountStatusLabel),
+                    const SizedBox(height: 10),
+                    _InfoRow(label: 'Presence', value: presenceLabel),
                   ],
                 ),
               ),

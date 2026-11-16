@@ -7,6 +7,38 @@ export type CameraMetadataStatus = 'Present' | 'Partial' | 'Missing' | 'Unknown'
 
 const MANUAL_REVIEW_STATUSES: ReviewStatus[] = ['pending_review', 'needs_further_review']
 
+const REVIEW_TRIGGER_LABELS: Record<string, string> = {
+  visual_high: 'Visual detector: high AI-generation risk.',
+  visual_suspicious: 'Visual detector: elevated (suspicious) AI-generation risk.',
+  detector_unavailable: 'Video AI detector did not finish; manual review is required.',
+  security_ai_metadata: 'AI-related metadata indicator in the file.',
+  filename_reexport: 'Filename suggests a gallery save, download, or re-export.',
+  provenance_absent: 'No reliable original camera or container provenance.',
+  provenance_partial_android:
+    'Partial Android recording metadata without camera make/model. This alone is not treated as AI-generated.',
+  provenance_partial_other: 'Capture provenance is only partially verified.',
+  provenance_download_resave: 'Photo appears to be a download or re-save without in-camera proof.',
+  combined: 'Multiple integrity signals require an officer decision.',
+}
+
+export function integrityReviewTriggerLines(row: AiDetectionRow): string[] {
+  const raw = row.exif_metadata?.admin_review_triggers
+  if (!Array.isArray(raw) || raw.length === 0) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const code of raw) {
+    const key = String(code).trim().toLowerCase()
+    if (!key || key === 'combined' || seen.has(key)) continue
+    seen.add(key)
+    out.push(REVIEW_TRIGGER_LABELS[key] ?? key.replace(/_/g, ' '))
+  }
+  const driver = (row.exif_metadata?.primary_review_driver ?? '').trim().toLowerCase()
+  if (driver && driver !== 'none' && REVIEW_TRIGGER_LABELS[driver] && !seen.has(driver)) {
+    out.unshift(REVIEW_TRIGGER_LABELS[driver])
+  }
+  return out
+}
+
 /** PROBE visual risk band — detector only (not filename / provenance queue rules). */
 export function detectorAiRiskBand(row: AiDetectionRow): VisualRiskBand {
   const level = String(row.exif_metadata?.visual_risk_level ?? '').toLowerCase()
@@ -33,20 +65,37 @@ export function visualAiRiskColor(band: VisualRiskBand): string {
   return 'var(--color-success)'
 }
 
-/** PROBE raw P(fake) from persisted metadata (not legacy classifier probability). */
+/** Synthetic-media AI score (0–100%) from PROBE/WaveRep metadata or stored ai_probability. */
 export function probeRawPFakePercent(row: AiDetectionRow): string | null {
   const probe = row.exif_metadata?.visual_ai_probability
   if (probe != null && !Number.isNaN(probe)) {
     return `${Math.round(Math.min(1, Math.max(0, probe)) * 100)}%`
   }
+  const stored = row.ai_probability
+  if (stored != null && !Number.isNaN(stored)) {
+    return `${Math.round(Math.min(1, Math.max(0, stored)) * 100)}%`
+  }
   return null
 }
 
+/** Plain label for Scan Results (photo/video practice integrity). */
+export function detectorAiScoreLabel(row: AiDetectionRow): string | null {
+  const pct = probeRawPFakePercent(row)
+  return pct != null ? `AI score: ${pct}` : null
+}
+
+function aiRiskBandWord(band: VisualRiskBand): string {
+  if (band === 'HIGH') return 'High'
+  if (band === 'SUSPICIOUS') return 'Moderate'
+  return 'Low'
+}
+
+/** Main UI label, e.g. "Low AI Risk (1%)". */
 export function detectorAiRiskSummaryLabel(row: AiDetectionRow): string {
   const band = detectorAiRiskBand(row)
-  const word = band.charAt(0) + band.slice(1).toLowerCase()
+  const word = aiRiskBandWord(band)
   const pct = probeRawPFakePercent(row)
-  return pct ? `${word} (${pct} P(fake))` : word
+  return pct ? `${word} AI Risk (${pct})` : `${word} AI Risk`
 }
 
 /** @deprecated Prefer detectorAiRiskSummaryLabel. */
@@ -379,18 +428,29 @@ export function integrityManualReviewParagraph(row: AiDetectionRow): string | nu
 
   if (band === 'HIGH' || band === 'SUSPICIOUS') {
     sentences.push(
-      `PROBE-DINOv2 reports ${band === 'HIGH' ? 'high' : 'elevated'} AI-generation risk${pct ? ` (${pct} P(fake))` : ''}.`,
+      `${detectorDisplayName(row)} reports ${band === 'HIGH' ? 'high' : 'elevated'} AI-generation risk${pct ? ` (${pct} P(fake))` : ''}.`,
     )
   } else if (pct) {
     sentences.push(`AI-generation risk from the detector is low (${pct} P(fake)).`)
   }
 
-  if (trigger) {
+  const driver = (row.exif_metadata?.primary_review_driver ?? '').trim().toLowerCase()
+  if (driver === 'provenance_partial_android' && band === 'LOW') {
+    sentences.push(
+      'Visual AI-generation risk is low. Review is required because Android container metadata lacks camera make/model, not because the file was classified as AI-generated.',
+    )
+  } else if (trigger) {
     sentences.push(trigger.text)
   } else if (outcome === 'source_unverified') {
     sentences.push('File source could not be verified from metadata alone.')
   } else if (outcome === 'source_partially_verified') {
-    sentences.push('File source is only partially verified and needs an officer decision.')
+    if (band === 'LOW') {
+      sentences.push(
+        'File source is only partially verified. Manual review is driven by provenance policy, not by elevated AI-generation score.',
+      )
+    } else {
+      sentences.push('File source is only partially verified and needs an officer decision.')
+    }
   } else if (outcome === 'elevated_ai_risk' || outcome === 'high_ai_risk') {
     sentences.push('Integrity policy requires admin review for this risk and provenance mix.')
   } else if (sentences.length === 0) {
@@ -448,19 +508,61 @@ export function integrityReviewReason(row: AiDetectionRow): string | null {
   return integrityProvenanceNotes(row)
 }
 
-/** Short assessment summary for administrators. */
+/** Plain-language AI content check (main Review Scan view). */
+export function aiContentCheckExplanation(row: AiDetectionRow): string {
+  const band = detectorAiRiskBand(row)
+  const pct = probeRawPFakePercent(row)
+  const pctPhrase = pct ? ` (${pct} estimated)` : ''
+  if (band === 'HIGH') {
+    return `Automated screening suggests a higher chance this file may be AI-generated or heavily manipulated${pctPhrase}. This is a risk estimate, not proof.`
+  }
+  if (band === 'SUSPICIOUS') {
+    return `Automated screening flagged elevated AI-generation signals${pctPhrase}. Review the media and source information before deciding.`
+  }
+  return `Automated screening found low AI-generation signals${pctPhrase}. Low risk does not guarantee the file is authentic.`
+}
+
+/** Plain-language media source check (main Review Scan view). */
+export function mediaSourceCheckExplanation(row: AiDetectionRow): string {
+  return sourceVerificationDisplay(row).detail
+}
+
+/** Whether the current review status reflects policy automation vs admin action. */
+export function reviewDecisionExplanation(row: AiDetectionRow): string {
+  const pending = adminDecisionDisplay(row.review_status).pending
+  if (row.review_status === 'automated_low_ai_risk') {
+    return 'Set automatically under integrity policy. No administrator decision is recorded unless you override below.'
+  }
+  if (pending) {
+    return 'No final administrator decision yet. Choose an action under Review Actions when you are ready.'
+  }
+  return 'Recorded from a prior administrator review or action. Automated screening informed the queue but does not replace your judgment.'
+}
+
+/** Short "Why this result?" from existing assessment data only. */
+export function whyThisResultExplanation(row: AiDetectionRow): string {
+  const manual = integrityManualReviewParagraph(row)
+  if (manual) return manual
+  const bullets = integrityProvenanceBullets(row)
+  if (bullets.length > 0) return bullets.join(' ')
+  if (row.review_status === 'automated_low_ai_risk') {
+    return 'This upload met auto-clear rules under current policy: low AI-generation risk and acceptable source checks.'
+  }
+  return 'Use scan results, source verification, and the media preview together. Open Advanced Details for metadata and diagnostics.'
+}
+
+/** @deprecated Main view uses section explanations; kept for compatibility. */
 export function integrityAssessmentSummary(row: AiDetectionRow): string {
   const risk = detectorAiRiskSummaryLabel(row)
   const source = sourceVerificationDisplay(row).status
   const decision = adminDecisionDisplay(row.review_status).label
-
   if (integrityNeedsAdminAction(row)) {
-    return `Detector: ${risk}. Source: ${source}. Awaiting admin decision (currently ${decision}).`
+    return `AI content: ${risk}. Source: ${source}. Review decision pending (${decision}).`
   }
   if (row.review_status === 'automated_low_ai_risk') {
-    return `Detector: ${risk}. Source: ${source}. Auto-cleared; override only if you disagree.`
+    return `AI content: ${risk}. Source: ${source}. Auto-cleared by policy; override only if you disagree.`
   }
-  return `Detector: ${risk}. Source: ${source}. Admin decision: ${decision}.`
+  return `AI content: ${risk}. Source: ${source}. Review decision: ${decision}.`
 }
 
 /** Remaining EXIF fields not already shown in cameraFileDisplayRows (display only). */
@@ -485,5 +587,23 @@ export function supplementalExifFieldRows(meta?: ExifMetadata): CameraFileDispla
 }
 
 export const PROBE_DETECTOR_DISPLAY_NAME = 'PROBE-DINOv2'
+
+export const WAVEREP_DETECTOR_DISPLAY_NAME = 'WaveRep G4'
+
+/** Display name from stored exif_metadata.detector_backend (never guess WaveRep for legacy rows). */
+export function detectorDisplayName(row: AiDetectionRow): string {
+  const raw = (row.exif_metadata?.detector_backend ?? '').trim().toLowerCase()
+  if (raw === 'waverep_g4' || raw.startsWith('waverep')) return WAVEREP_DETECTOR_DISPLAY_NAME
+  if (raw === 'probe' || raw.includes('probe')) return PROBE_DETECTOR_DISPLAY_NAME
+  // Historical UnivFD rows remain readable; detector is retired from production.
+  if (raw === 'univfd' || raw.includes('univfd')) return 'UnivFD (historical)'
+  if (raw) return raw.replace(/_/g, ' ')
+  return PROBE_DETECTOR_DISPLAY_NAME
+}
+
+export function detectorRiskHint(row: AiDetectionRow): string {
+  const name = detectorDisplayName(row)
+  return `${name} automated screening (not filename rules).`
+}
 
 export const INTEGRITY_AI_DISCLAIMER = 'AI detection provides a risk estimate, not definitive proof.'

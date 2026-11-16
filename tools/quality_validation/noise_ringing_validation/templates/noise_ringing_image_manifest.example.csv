@@ -1,0 +1,12 @@
+media_id,relative_path,split,noise_stratum,ringing_stratum,content_tag,source_note,exclude_reason
+NRV-001,images/NRV-001.jpg,validation,clean,clean,indoor-wall,disjoint from frozen pilot,
+NRV-002,images/NRV-002.jpg,validation,mild,clean,night-shadow,disjoint from frozen pilot,
+NRV-003,images/NRV-003.jpg,validation,moderate,mild,indoor-event,disjoint from frozen pilot,
+NRV-004,images/NRV-004.jpg,validation,severe,clean,low-light,disjoint from frozen pilot,
+NRV-005,images/NRV-005.jpg,validation,clean,moderate,text-signage,halo confuser check,
+NRV-006,images/NRV-006.jpg,validation,mild,severe,building-sky,ringing severe example,
+NRV-007,images/NRV-007.jpg,validation,moderate,mild,foliage-texture,texture confuser (not noise),
+NRV-008,images/NRV-008.jpg,validation,clean,clean,sky-flat,blocking confuser risk; still rate ringing/noise,
+NRC-001,calibration/NRC-001.jpg,calibration,clean,clean,calibration-only,NOT in validation metrics,
+NRC-002,calibration/NRC-002.jpg,calibration,severe,mild,calibration-only,NOT in validation metrics,
+NRR-001,reserve/NRR-001.jpg,reserve,mild,mild,replacement-pool,use only if a validation file is corrupt,

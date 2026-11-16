@@ -14,7 +14,9 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_SIGNED_URL_TTL_SEC = 60 * 60 * 24 * 365  # 1 year for client-facing signed URLs (private buckets)
+# Short-lived signed URLs for private-bucket streaming (re-resolved on each API fetch).
+# Historical gallery links that needed year-long TTLs should use refresh via API instead.
+_SIGNED_URL_TTL_SEC = 60 * 60  # 1 hour
 # One probe per bucket per process. True = public URL works. False = sign instead.
 _bucket_is_public: dict[str, bool] = {}
 # Compact DB value — signed Supabase URLs exceed media_files.file_url VARCHAR(500).

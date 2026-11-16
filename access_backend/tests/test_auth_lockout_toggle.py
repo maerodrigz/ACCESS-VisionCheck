@@ -74,6 +74,11 @@ def test_settings_production_keeps_lockout_on():
         APP_ENV="production",
         AUTH_LOCKOUT_ENABLED=True,
         JWT_SECRET=_STRONG_JWT,
+        SMS_PROVIDER="textbee",
+        EMAIL_ENABLED=True,
+        DB_PASSWORD="unit-test-db-password",
+        CORS_ORIGINS="https://admin.example.com",
+        ALLOWED_HOSTS="api.example.com,127.0.0.1",
     )
     assert s.auth_lockout_enabled is True
     assert s.is_production is True

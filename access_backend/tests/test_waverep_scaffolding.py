@@ -17,11 +17,17 @@ from app.services.waverep_g4_detector import (
 
 class WaverepScaffoldingTests(unittest.TestCase):
     def test_default_flag_off(self) -> None:
-        self.assertFalse(waverep_enabled())
-        self.assertFalse(is_waverep_video_detection_enabled())
+        # Assert Field default; runtime helpers must respect an off setting.
+        from app.config import Settings
+
+        self.assertIs(Settings.model_fields["waverep_enabled"].default, False)
+        with patch("app.config.settings.waverep_enabled", False):
+            self.assertFalse(waverep_enabled())
+            self.assertFalse(is_waverep_video_detection_enabled())
 
     def test_runtime_status_flag_off(self) -> None:
-        status = waverep_runtime_status()
+        with patch("app.config.settings.waverep_enabled", False):
+            status = waverep_runtime_status()
         self.assertFalse(status["enabled"])
         self.assertTrue(status["module_file_exists"])
         self.assertTrue(status["checkpoint_exists"])

@@ -267,6 +267,47 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _refuse_insecure_production_networking(self) -> "Settings":
+        if not self.is_production:
+            return self
+        if (self.cors_origins or "").strip() == "*":
+            raise ValueError(
+                "CORS_ORIGINS=* is not allowed when APP_ENV is production. "
+                "Set an explicit comma-separated HTTPS origin list."
+            )
+        hosts = [h.strip() for h in (self.allowed_hosts or "").split(",") if h.strip()]
+        if not hosts or "*" in hosts:
+            raise ValueError(
+                "ALLOWED_HOSTS=* (or empty) is not allowed when APP_ENV is production. "
+                "Set explicit hostnames (e.g. api.example.com,127.0.0.1)."
+            )
+        for origin in self.cors_origin_list:
+            if origin.startswith("http://") and "localhost" not in origin and "127.0.0.1" not in origin:
+                raise ValueError(
+                    f"CORS origin {origin!r} uses http:// in production. Use https:// origins only."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_dev_otp_channels_in_production(self) -> "Settings":
+        if not self.is_production:
+            return self
+        provider = (self.sms_provider or "log").strip().lower()
+        if provider == "log":
+            raise ValueError(
+                "SMS_PROVIDER=log is not allowed when APP_ENV is production. "
+                "Configure a real SMS provider (e.g. textbee)."
+            )
+        if not self.email_enabled:
+            raise ValueError(
+                "EMAIL_ENABLED=false is not allowed when APP_ENV is production. "
+                "Configure SMTP so registration OTP is not returned as dev_code."
+            )
+        if not (self.db_password or "").strip():
+            raise ValueError("DB_PASSWORD must be set when APP_ENV is production.")
+        return self
+
+    @model_validator(mode="after")
     def _refuse_quality_shadow_in_production(self) -> "Settings":
         if self.is_production and self.quality_shadow_enabled:
             raise ValueError(

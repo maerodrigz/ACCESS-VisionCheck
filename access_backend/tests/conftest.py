@@ -101,6 +101,12 @@ def pytest_configure(config) -> None:
         from app.config import settings
 
         settings.allowed_hosts = "*"
-        # Default-flag tests expect production default; waverep env enables replacement in QA only.
-        if os.environ.get("REPLACEMENT_UPLOAD_ENABLED", "").strip().lower() == "true":
-            settings.replacement_upload_enabled = False
+
+    # Isolate feature flags that default OFF in Settings Field(...) from a developer
+    # .env that enables them for local QA. Opt out with ACCESS_PYTEST_KEEP_FEATURE_FLAGS=1.
+    # Does not change production defaults or deployed .env files.
+    if os.environ.get("ACCESS_PYTEST_KEEP_FEATURE_FLAGS", "").strip() != "1":
+        from app.config import settings as _settings
+
+        _settings.replacement_upload_enabled = False
+        _settings.waverep_enabled = False

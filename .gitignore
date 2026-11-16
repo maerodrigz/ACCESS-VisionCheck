@@ -50,13 +50,15 @@ admin-web/node_modules
 admin-web/dist
 admin-web/.env
 
-# Secrets (use .env.example templates only)
+# Secrets (use .env.example / .env.production.example templates only)
 .env
 **/.env
 !**/.env.example
+!**/.env.production.example
 **/.env.cloud_secrets
 **/.env.*
 !**/.env.example
+!**/.env.production.example
 access_backend/.env.waverep_test
 access_backend/.env.smoke.local
 access_backend/.env.uat.local

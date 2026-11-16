@@ -244,7 +244,7 @@ def forgot_password_send(
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
 
     provider = (settings.sms_provider or "log").strip().lower()
-    if provider == "log":
+    if provider == "log" and not settings.is_production:
         return ForgotPasswordSendResponse(
             message=(
                 "Development mode (SMS_PROVIDER=log): reset code is shown below. "
@@ -356,7 +356,7 @@ def phone_verify_send(
         message="A 6-digit verification code was sent by SMS.",
         phone=phone,
         phone_verified=False,
-        dev_code=code if provider == "log" else None,
+        dev_code=code if provider == "log" and not settings.is_production else None,
         resend_after_seconds=settings.sms_reset_otp_resend_seconds,
     )
 
@@ -434,7 +434,7 @@ def send_registration_otp(body: RegistrationOtpSendRequest, db: Session = Depend
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
-    if is_email_configured():
+    if is_email_configured() or settings.is_production:
         return RegistrationOtpSendResponse(message=_GENERIC_REGISTRATION_OTP, dev_code=None)
     return RegistrationOtpSendResponse(
         message=(

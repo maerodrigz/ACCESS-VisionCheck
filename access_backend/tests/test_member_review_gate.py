@@ -101,10 +101,23 @@ def test_admin_verify_human_releases_and_gemini_once() -> None:
 
 
 def test_xp_awarded_once_after_verify() -> None:
-    state = {"criteria_json": json.dumps({"xp_pending": True, "xp_points_preview": 25})}
-    ev = MagicMock(**state)
+    ev = MagicMock()
+    ev.criteria_json = json.dumps({"xp_pending": True, "xp_points_preview": 25})
+    award_calls: list[int] = []
+
+    def _fake_award(_db, *, media_id, member_id, points):
+        del media_id, member_id
+        data = json.loads(ev.criteria_json)
+        if data.get("xp_awarded_at_review"):
+            return 0
+        data["xp_awarded_at_review"] = True
+        data["xp_pending"] = False
+        ev.criteria_json = json.dumps(data)
+        award_calls.append(points)
+        return points
+
     with patch("app.services.ai_review_workflow.eval_crud.get_for_media", return_value=ev):
-        with patch("app.services.ai_review_workflow.ranking_crud.add_points") as add:
+        with patch("app.services.chain_xp_award.apply_chain_xp_award", side_effect=_fake_award):
             assert _award_pending_evaluation_xp(MagicMock(), 9, 3) == 25
             assert _award_pending_evaluation_xp(MagicMock(), 9, 3) == 0
-            assert add.call_count == 1
+            assert award_calls == [25]

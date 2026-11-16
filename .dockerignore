@@ -1,0 +1,81 @@
+# Docker build context = repository root
+# Keep secrets, local data, and heavy caches out of the image.
+
+.git
+.github
+.cursor
+.idea
+.vscode
+.kiro
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.dart_tool
+**/node_modules
+
+# Env / credentials (never bake into the image)
+.env
+**/.env
+!**/.env.example
+!**/.env.production.example
+**/.env.*
+!**/.env.example
+!**/.env.production.example
+**/.env.cloud_secrets
+access_backend/secrets/**
+!access_backend/secrets/*.txt
+!access_backend/secrets/PLACE_*
+
+# Android / Flutter signing
+android/key.properties
+**/*.jks
+**/*.keystore
+android/app/google-services.json
+config/firebase.json
+
+# Local uploads and runtime data
+access_backend/uploads/**
+**/uploads/**
+access_backend/*.log
+**/*.log
+
+# AI weight caches (mount at runtime via PROBE_CHECKPOINT_PATH / disk)
+access_backend/experiments/probe/modelscope_cache/
+access_backend/experiments/probe/hf_cache/
+access_backend/experiments/probe/vendor_lib/
+access_backend/ml/waverep/demo/weights/
+**/*.pth
+**/*.pt
+**/*.ckpt
+
+# Frontend / mobile / research (not needed for API image)
+admin-web/
+android/
+ios/
+linux/
+macos/
+windows/
+web/
+lib/
+test/
+tooling/
+tools/
+docs/
+demo/
+packages/
+musiq_worker/
+uat_preparation/
+access_mobile_staging_backups/
+_backup_*/
+_album_ui_shots/
+build/
+.dart_tool/
+
+# Editor / OS junk
+**/.DS_Store
+**/Thumbs.db
+**/*~

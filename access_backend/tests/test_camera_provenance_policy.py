@@ -221,24 +221,35 @@ def test_probe_probability_unchanged_by_policy_overlay() -> None:
 def test_admin_human_xp_once_still_guarded() -> None:
     from app.services import ai_review_workflow
 
-    state = {
-        "criteria_json": json.dumps(
-            {"xp_pending": True, "xp_points_preview": 30, "xp_eligible": False}
-        ),
-    }
-    ev = type("Ev", (), state)()
-    calls = []
+    ev = type(
+        "Ev",
+        (),
+        {
+            "criteria_json": json.dumps(
+                {"xp_pending": True, "xp_points_preview": 30, "xp_eligible": False}
+            )
+        },
+    )()
+    calls: list[int] = []
 
     def fake_get(_db, _mid):
         return ev
 
-    def fake_add(_db, _uid, pts):
-        calls.append(pts)
+    def fake_award(_db, *, media_id, member_id, points):
+        del media_id, member_id
+        data = json.loads(ev.criteria_json)
+        if data.get("xp_awarded_at_review"):
+            return 0
+        data["xp_awarded_at_review"] = True
+        data["xp_pending"] = False
+        ev.criteria_json = json.dumps(data)
+        calls.append(points)
+        return points
 
     with patch.object(ai_review_workflow.eval_crud, "get_for_media", fake_get):
-        with patch.object(ai_review_workflow.ranking_crud, "add_points", fake_add):
+        with patch("app.services.chain_xp_award.apply_chain_xp_award", side_effect=fake_award):
             first = ai_review_workflow._award_pending_evaluation_xp(None, 1, 1)
             second = ai_review_workflow._award_pending_evaluation_xp(None, 1, 1)
     assert first == 30
     assert second == 0
-    assert len(calls) == 1
+    assert calls == [30]

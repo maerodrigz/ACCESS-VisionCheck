@@ -36,7 +36,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final now = DateTime.now();
-    final quietDay = now.day == 15 ? 16 : 15;
+    // Plan CTA only appears for today or future days; seeded events use days 1–3.
+    final quietDay = now.day >= 4 ? now.day : 4;
 
     appState.events.clear();
     appState.myCalendarEvents
@@ -115,11 +116,11 @@ void main() {
     expect(find.text('No events'), findsOneWidget);
     expect(find.text('Nothing scheduled for this day.'), findsWidgets);
 
-    await tester.scrollUntilVisible(
-      find.text('Plan request for this date'),
-      240,
-    );
-    await tester.tap(find.text('Plan request for this date'));
+    final planCta = find.text('Plan request for this date');
+    expect(planCta, findsOneWidget);
+    await tester.ensureVisible(planCta);
+    await tester.pumpAndSettle();
+    await tester.tap(planCta);
     await tester.pump();
     expect(planned, DateTime(now.year, now.month, quietDay));
 

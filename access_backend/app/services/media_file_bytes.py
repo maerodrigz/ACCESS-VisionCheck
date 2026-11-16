@@ -16,7 +16,10 @@ def is_video_file_name(file_name: str) -> bool:
 
 
 def local_media_path(file_url: str) -> Path | None:
-    """Resolve a stored file_url to a path under UPLOAD_DIR when the file is on disk."""
+    """Resolve a stored file_url to a path under UPLOAD_DIR when the file is on disk.
+
+    Rejects path traversal (``..``) and any resolved path outside UPLOAD_DIR.
+    """
     url = (file_url or "").strip()
     if not url:
         return None
@@ -36,7 +39,14 @@ def local_media_path(file_url: str) -> Path | None:
     rel = url.lstrip("/")
     if rel.startswith("uploads/"):
         rel = rel[len("uploads/") :]
-    local = Path(settings.upload_dir) / rel
+    if not rel or ".." in Path(rel).parts:
+        return None
+    upload_root = Path(settings.upload_dir).resolve()
+    local = (upload_root / rel).resolve()
+    try:
+        local.relative_to(upload_root)
+    except ValueError:
+        return None
     return local if local.is_file() else None
 
 

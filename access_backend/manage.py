@@ -20,14 +20,29 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent
 
 
+def _resolve_bind_port(cli_port: int | None) -> int:
+    """CLI --port wins; then Render/Heroku PORT; then API_PORT from settings."""
+    import os
+
+    if cli_port is not None:
+        return int(cli_port)
+    env_port = (os.environ.get("PORT") or "").strip()
+    if env_port.isdigit():
+        return int(env_port)
+    from app.config import settings
+
+    return int(settings.api_port)
+
+
 def cmd_runserver(args: argparse.Namespace) -> None:
     import uvicorn
 
     from app.config import settings
 
-    host = args.host or settings.api_host
-    port = args.port or settings.api_port
-    reload = not args.no_reload
+    host = args.host or settings.api_host or "0.0.0.0"
+    port = _resolve_bind_port(args.port)
+    # Never auto-reload in production (file watchers + dual workers are unsafe).
+    reload = False if settings.is_production else (not args.no_reload)
 
     from app.config import facebook_credentials
 

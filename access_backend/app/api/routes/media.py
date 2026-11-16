@@ -453,7 +453,21 @@ async def upload_media(
                 "Supabase upload failed; falling back to local disk storage."
             )
     elif cloud.startswith("https://"):
-        stored_url = normalize_supabase_storage_url(cloud)
+        # Only accept client-supplied HTTPS URLs from our configured Supabase host.
+        from urllib.parse import urlparse
+
+        from app.services.supabase_storage import is_supabase_storage_configured
+
+        allowed_host = ""
+        if is_supabase_storage_configured() and (settings.supabase_url or "").strip():
+            allowed_host = (urlparse(settings.supabase_url.strip()).hostname or "").lower()
+        cloud_host = (urlparse(cloud).hostname or "").lower()
+        if allowed_host and cloud_host == allowed_host:
+            stored_url = normalize_supabase_storage_url(cloud)
+        else:
+            logging.getLogger(__name__).warning(
+                "Ignoring client cloud_file_url with unexpected host %s", cloud_host or "(none)"
+            )
     else:
         if is_firebase_storage_configured():
             fb_url = upload_media_bytes(

@@ -2,7 +2,12 @@ import 'dart:convert';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart'
-    show ChangeNotifier, defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show
+        ChangeNotifier,
+        defaultTargetPlatform,
+        kIsWeb,
+        kReleaseMode,
+        TargetPlatform;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -459,6 +464,34 @@ class ApiConfig {
   /// Physical phone: saved/runtime URL first, then LAN fallbacks.
   /// Emulator (no override): [10.0.2.2] first so login is not delayed by stale LAN IPs.
   static List<String> candidateBaseUrls() {
+    // Release builds must use an explicit HTTPS API (no LAN probing / cleartext).
+    if (kReleaseMode) {
+      String? httpsOnly(String? raw) {
+        if (raw == null) return null;
+        final trimmed = raw.trim().replaceAll(RegExp(r'/+$'), '');
+        if (trimmed.isEmpty) return null;
+        if (trimmed.startsWith('https://')) return trimmed;
+        if (trimmed.startsWith('http://')) {
+          // Reject cleartext in release; host-only forms become https://…
+          return null;
+        }
+        return 'https://$trimmed';
+      }
+
+      if (apiBaseUrlOverride.isNotEmpty) {
+        final forced = httpsOnly(apiBaseUrlOverride);
+        if (forced != null) return [forced];
+        return const <String>[];
+      }
+      if (apiPublicHostOverride.isNotEmpty) {
+        final host = httpsOnly(apiPublicHostOverride);
+        if (host != null) return [host];
+        return const <String>[];
+      }
+      final runtime = httpsOnly(runtimeBaseUrl.value);
+      if (runtime != null) return [runtime];
+      return const <String>[];
+    }
     if (apiBaseUrlOverride.isNotEmpty) {
       return [apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
     }

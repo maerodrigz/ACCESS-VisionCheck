@@ -55,13 +55,15 @@ def test_confirm_ai_archives_media_for_gallery():
     with patch("app.crud.archive.create_if_not_exists") as archive:
         with patch("app.services.notification_events.notify_user"):
             with patch("app.crud.user.get_by_id", return_value=None):
-                with patch("app.services.ai_review_workflow.ranking_crud.add_points"):
-                    apply_ai_review(
-                        db,
-                        row,
-                        review_status="confirmed_ai_generated",
-                        admin_remarks="Confirmed AI.",
-                        reviewed_by=1,
-                    )
+                # XP now goes through chain_xp_award (not ranking_crud on this module).
+                with patch("app.services.chain_xp_award.apply_chain_xp_award", return_value=0):
+                    with patch("app.services.chain_xp_award.mark_chain_xp_locked_if_paid"):
+                        apply_ai_review(
+                            db,
+                            row,
+                            review_status="confirmed_ai_generated",
+                            admin_remarks="Confirmed AI.",
+                            reviewed_by=1,
+                        )
 
     archive.assert_called_once_with(db, 55, 1)

@@ -1,0 +1,37 @@
+# Example compose for API + Postgres (edit before use).
+# Copy secrets into a gitignored .env next to this file.
+# Media: prefer Supabase Storage; mount uploads only as fallback.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: access_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: access_visioncheck
+    volumes:
+      - access_pg:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: access_backend/Dockerfile
+    env_file:
+      - ../access_backend/.env
+    environment:
+      APP_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - access_uploads:/app/uploads
+      # Mount PROBE checkpoint (read-only)
+      # - /opt/access/models:/opt/access/models:ro
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  access_pg:
+  access_uploads:

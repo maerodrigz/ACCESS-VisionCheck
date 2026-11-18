@@ -90,24 +90,39 @@ def build_skill_progression_snapshot(
     eligible_count: int | None = None,
     distinct_days: int | None = None,
     level_override: str | None | object = _OVERRIDE_UNSET,
+    ranking_row: MemberRanking | None | object = _OVERRIDE_UNSET,
+    resolved_policy: tuple[str, str | None] | None = None,
 ) -> SkillProgressionSnapshot:
     from sqlalchemy import select
 
-    eligible = eligible_skill_evaluation_stats(db, user_id)
-    count = eligible_count if eligible_count is not None else eligible.count
-    days = distinct_days if distinct_days is not None else eligible.distinct_upload_days
-    score = (
-        skill_score_pct
-        if skill_score_pct is not None
-        else media_quality_percent(eligible.average_score)
-    )
+    # Rankings passes a complete precomputed trio. Other callers still load stats.
+    if (
+        skill_score_pct is not None
+        and eligible_count is not None
+        and distinct_days is not None
+    ):
+        count = eligible_count
+        days = distinct_days
+        score = skill_score_pct
+    else:
+        eligible = eligible_skill_evaluation_stats(db, user_id)
+        count = eligible_count if eligible_count is not None else eligible.count
+        days = distinct_days if distinct_days is not None else eligible.distinct_upload_days
+        score = (
+            skill_score_pct
+            if skill_score_pct is not None
+            else media_quality_percent(eligible.average_score)
+        )
 
     from app.services.skill_progression_policy import (
         configured_skill_progression_policy as configured_now,
     )
 
     configured = configured_now()
-    policy, blocked_reason = resolve_effective_skill_progression_policy(db)
+    if resolved_policy is None:
+        policy, blocked_reason = resolve_effective_skill_progression_policy(db)
+    else:
+        policy, blocked_reason = resolved_policy
     computed_v1 = effective_skill_level(score, count)
     computed_v2_raw = computed_tier_for_policy(
         POLICY_V2,
@@ -116,7 +131,10 @@ def build_skill_progression_snapshot(
         distinct_upload_days=days,
     )
 
-    ranking = db.scalar(select(MemberRanking).where(MemberRanking.user_id == user_id))
+    if ranking_row is _OVERRIDE_UNSET:
+        ranking = db.scalar(select(MemberRanking).where(MemberRanking.user_id == user_id))
+    else:
+        ranking = ranking_row
     grandfather = ranking.skill_tier_grandfather_floor if ranking else None
     computed_v2 = apply_grandfather_floor_v2(
         computed_v2=computed_v2_raw,

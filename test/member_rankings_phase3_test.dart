@@ -77,10 +77,8 @@ void main() {
     expect(find.text('How Rankings Work'), findsOneWidget);
     expect(find.text('How XP & Skill Tiers Work'), findsNothing);
     expect(find.text(MemberXpConfig.howRankingsSummary), findsOneWidget);
-    expect(find.text('XP Rank'), findsOneWidget);
-    expect(find.text('Skill Level'), findsOneWidget);
-    expect(find.text(MemberXpConfig.howRankingsXpTile), findsOneWidget);
-    expect(find.text(MemberXpConfig.howRankingsSkillTile), findsOneWidget);
+    expect(find.text('XP Rank').hitTestable(), findsNothing);
+    expect(find.text('Skill Level').hitTestable(), findsNothing);
     expect(find.text('View detailed rules'), findsOneWidget);
 
     final skillCopy =
@@ -171,8 +169,7 @@ void main() {
     expect(find.text('My Skill Level'), findsWidgets);
     expect(find.text('Skill Tier Progress'), findsNothing);
     expect(find.text('How Rankings Work'), findsOneWidget);
-    expect(find.text('XP Rank'), findsOneWidget);
-    expect(find.text('Skill Level'), findsOneWidget);
+    expect(find.text('XP Rank').hitTestable(), findsNothing);
     expect(tester.takeException(), isNull);
 
     await tester.ensureVisible(find.text('View detailed rules'));

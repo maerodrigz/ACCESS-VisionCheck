@@ -18,6 +18,7 @@ import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart
 import 'package:access_mobile/mobile_app/widgets/evaluation_how_it_works_guide.dart';
 import 'package:access_mobile/mobile_app/utils/practice_evaluation_display.dart';
 import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
+import 'package:access_mobile/mobile_app/widgets/practice_storage_cleanup_retry.dart';
 import 'package:access_mobile/mobile_app/widgets/verified_eval_swipe_tile.dart';
 
 class EvaluationScreen extends StatefulWidget {
@@ -1995,6 +1996,10 @@ class _RecentEvalCard extends StatelessWidget {
                   if (MemberReviewStatus.isReuploadRequested(ev.reviewStatus)) ...[
                     const SizedBox(height: 6),
                     AdminReviewStatusBadge(reviewStatus: ev.reviewStatus!, compact: true),
+                  ],
+                  if (ev.canRetryFileRemoval) ...[
+                    const SizedBox(height: 4),
+                    PracticeStorageCleanupRetry(evaluation: ev),
                   ],
                   if (showRemoveAction && ev.canRemovePracticeStorage) ...[
                     const SizedBox(height: 4),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/controllers/app_state.dart';
+import 'package:access_mobile/shared/models/quality_skill_classification.dart';
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
@@ -117,8 +118,15 @@ class _RankingsScreenState extends State<RankingsScreen> {
           final displayName = appState.profileName.trim().isNotEmpty
               ? appState.profileName.trim()
               : authController.user?.name ?? 'Member';
-          final rest = sorted.length > 3 ? sorted.sublist(3) : const <Member>[];
           final pagePad = mobilePagePaddingOf(context);
+          final skillSnap = memberDataController.qualitySkillClassification;
+          final skillLoading =
+              memberDataController.qualitySkillClassificationLoading &&
+                  skillSnap == null;
+          final skillLabel = skillSnap?.compactChipLabel ??
+              (skillLoading
+                  ? 'Loading skill classification'
+                  : 'Skill classification unavailable');
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,10 +153,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                           child: _MyRankingCard(
                             rank: myRank,
                             name: displayName,
-                            skillLevel: memberDataController
-                                    .qualitySkillClassification
-                                    ?.compactChipLabel ??
-                                'Not Yet Classified',
+                            skillLevel: skillLabel,
                             profileImageUrl: appState.profileImageUrl,
                             periodXp: myXp,
                             monthlyPeriod: monthly,
@@ -192,18 +197,17 @@ class _RankingsScreenState extends State<RankingsScreen> {
                             ),
                           ),
                         ),
-                        if (rest.isNotEmpty)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: EdgeInsets.fromLTRB(pagePad, 0, pagePad, 6),
-                              child: _FullLeaderboardCard(
-                                members: rest,
-                                startRank: 4,
-                                monthly: monthly,
-                                isCurrentMember: _isCurrentMember,
-                              ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(pagePad, 0, pagePad, 6),
+                            child: _FullLeaderboardCard(
+                              members: sorted,
+                              startRank: 1,
+                              monthly: monthly,
+                              isCurrentMember: _isCurrentMember,
                             ),
                           ),
+                        ),
                       ],
                       SliverToBoxAdapter(
                         child: Padding(
@@ -1414,11 +1418,11 @@ class _LeaderboardRow extends StatelessWidget {
 
     return ColoredBox(
       color: isCurrentMember ? kAccent.withValues(alpha: 0.04) : Colors.transparent,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 12 : 14,
-          vertical: compact ? 9 : 10,
-        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 10 : 12,
+            vertical: compact ? 6 : 7,
+          ),
         child: Row(
           children: [
             SizedBox(
@@ -1534,8 +1538,8 @@ class _QualitySkillClassificationCard extends StatelessWidget {
       listenable: memberDataController,
       builder: (context, _) {
         final snap = memberDataController.qualitySkillClassification;
-        final loading =
-            memberDataController.qualitySkillClassificationLoading && snap == null;
+        final error = memberDataController.qualitySkillClassificationError;
+        final loading = memberDataController.qualitySkillClassificationLoading;
 
         return Container(
           decoration: BoxDecoration(
@@ -1605,46 +1609,10 @@ class _QualitySkillClassificationCard extends StatelessWidget {
                   ),
                 ],
               ),
-              SizedBox(height: compact ? 12 : 14),
-              if (loading)
-                const Center(
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.2),
-                  ),
-                )
-              else ...[
-                Text(
-                  snap?.photoLine ?? 'Photo Skill: Not Yet Classified',
-                  style: TextStyle(
-                    color: _kRankingsNavy,
-                    fontSize: compact ? 13 : 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  snap?.videoLine ?? 'Video Skill: Not Yet Classified',
-                  style: TextStyle(
-                    color: _kRankingsNavy,
-                    fontSize: compact ? 13 : 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+              SizedBox(height: compact ? 10 : 12),
+              if (snap != null) ...[
+                _SkillMediaCards(photo: snap.photo, video: snap.video),
                 const SizedBox(height: 8),
-                Text(
-                  snap?.photo.progressSummary.trim().isNotEmpty == true
-                      ? snap!.photo.progressSummary
-                      : 'Complete at least 3 qualifying evaluations using the current scoring system to unlock your first skill classification.',
-                  style: TextStyle(
-                    color: _kRankingsNavy.withValues(alpha: 0.72),
-                    fontSize: compact ? 11.5 : 12,
-                    fontWeight: FontWeight.w500,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
                 Text(
                   'XP rank on this screen is separate from quality skill classification.',
                   style: TextStyle(
@@ -1654,11 +1622,223 @@ class _QualitySkillClassificationCard extends StatelessWidget {
                     height: 1.3,
                   ),
                 ),
-              ],
+              ] else if (loading)
+                const Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  ),
+                )
+              else if (error != null)
+                _SkillClassificationUnavailable(
+                  title: 'Could not load skill classification',
+                  message: error.trim().isEmpty
+                      ? 'Unable to load skill classification'
+                      : error.trim(),
+                  compact: compact,
+                )
+              else
+                _SkillClassificationUnavailable(
+                  title: 'Skill classification',
+                  message: 'Skill classification is not loaded.',
+                  compact: compact,
+                ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _SkillClassificationUnavailable extends StatelessWidget {
+  const _SkillClassificationUnavailable({
+    required this.title,
+    required this.message,
+    required this.compact,
+  });
+
+  final String title;
+  final String message;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: _kRankingsNavy,
+            fontSize: compact ? 13 : 14,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          message,
+          style: TextStyle(
+            color: _kRankingsNavy.withValues(alpha: 0.72),
+            fontSize: compact ? 11.5 : 12,
+            fontWeight: FontWeight.w500,
+            height: 1.3,
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () =>
+                memberDataController.refreshQualitySkillClassification(force: true),
+            style: TextButton.styleFrom(
+              foregroundColor: kAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+              minimumSize: const Size(0, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Try again',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SkillMediaCards extends StatelessWidget {
+  const _SkillMediaCards({required this.photo, required this.video});
+
+  final MediaQualityClassification photo;
+  final MediaQualityClassification video;
+
+  @override
+  Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 340;
+    final photoCard = _SkillMediaCard(label: 'Photo Skill', data: photo, icon: Icons.photo_camera_rounded);
+    final videoCard = _SkillMediaCard(label: 'Video Skill', data: video, icon: Icons.videocam_rounded);
+    if (narrow) {
+      return Column(
+        children: [
+          photoCard,
+          const SizedBox(height: 8),
+          videoCard,
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: photoCard),
+        const SizedBox(width: 8),
+        Expanded(child: videoCard),
+      ],
+    );
+  }
+}
+
+class _SkillMediaCard extends StatelessWidget {
+  const _SkillMediaCard({
+    required this.label,
+    required this.data,
+    required this.icon,
+  });
+
+  final String label;
+  final MediaQualityClassification data;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final count = data.qualifyingEvaluations;
+    final countLabel =
+        '$count qualifying ${count == 1 ? 'evaluation' : 'evaluations'}';
+    final hasAverage = data.averageScoreDisplay != null || data.averageScore != null;
+    final progress = data.progressSummary.trim();
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(10, compact ? 8 : 10, 10, compact ? 8 : 10),
+      decoration: BoxDecoration(
+        color: kBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: kAccent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _kRankingsNavy.withValues(alpha: 0.7),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            data.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _kRankingsNavy,
+              fontSize: compact ? 13 : 14,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            countLabel,
+            style: TextStyle(
+              color: _kRankingsNavy.withValues(alpha: 0.78),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              height: 1.2,
+            ),
+          ),
+          if (hasAverage) ...[
+            const SizedBox(height: 2),
+            Text(
+              data.averageLabel,
+              style: TextStyle(
+                color: kAccent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
+            ),
+          ],
+          if (progress.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              progress,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _kRankingsNavy.withValues(alpha: 0.68),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1683,7 +1863,6 @@ class _HowRankingsWorkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
-    final tileGap = compact ? 8.0 : 10.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -1752,28 +1931,7 @@ class _HowRankingsWorkCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: compact ? 10 : 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _HowRankingsInfoTile(
-                  title: 'XP Rank',
-                  body: MemberXpConfig.howRankingsXpTile,
-                  compact: compact,
-                ),
-              ),
-              SizedBox(width: tileGap),
-              Expanded(
-                child: _HowRankingsInfoTile(
-                  title: 'Skill Level',
-                  body: MemberXpConfig.howRankingsSkillTile,
-                  compact: compact,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: compact ? 4 : 6),
+          SizedBox(height: compact ? 2 : 4),
           Material(
             color: Colors.transparent,
             child: InkWell(
@@ -1893,11 +2051,33 @@ class _HowRankingsDetailsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rules = MemberXpConfig.howRankingsDetailedRules(policyVersion);
+    final tileGap = compact ? 8.0 : 10.0;
     return Padding(
       padding: const EdgeInsets.only(top: 2, bottom: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _HowRankingsInfoTile(
+                  title: 'XP Rank',
+                  body: MemberXpConfig.howRankingsXpTile,
+                  compact: compact,
+                ),
+              ),
+              SizedBox(width: tileGap),
+              Expanded(
+                child: _HowRankingsInfoTile(
+                  title: 'Skill Level',
+                  body: MemberXpConfig.howRankingsSkillTile,
+                  compact: compact,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           for (final rule in rules)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),

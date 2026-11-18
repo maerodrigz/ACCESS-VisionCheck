@@ -20,9 +20,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   as the page — nginx proxies `/api` on port 80 (no `:3001` in the browser).
 /// - **Android emulator:** `http://10.0.2.2:3001` (special alias for the host
 ///   machine's localhost — works for the default Android Studio emulator).
-/// - **Physical phone:** override with the PC's LAN IPv4 address using
+/// - **Physical phone (debug):** override with the PC's LAN IPv4 address using
 ///   `--dart-define=API_PUBLIC_HOST=192.168.x.x` or
 ///   `--dart-define=API_BASE_URL=http://192.168.x.x:3001`.
+/// - **Android release:** HTTPS production origin [productionApiOrigin] (no LAN
+///   HTTP fallback). Override with `--dart-define=API_BASE_URL=https://…`.
+///
+/// [ApiClient] always appends [apiPrefix] (`/api`). Pass an **origin only**
+/// (scheme + host, optional port). Do not include `/api` in [API_BASE_URL].
 ///
 /// Examples:
 /// ```
@@ -35,6 +40,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// # Or via config file
 /// flutter run --dart-define-from-file=config/api.json
+///
+/// # Release / Play build (production HTTPS is the default; override optional)
+/// flutter build appbundle -t lib/mobile_app/main_mobile.dart
+/// flutter build appbundle -t lib/mobile_app/main_mobile.dart \
+///   --dart-define=API_BASE_URL=https://accessvisioncheck.duckdns.org
 /// ```
 ///
 /// NEVER use `localhost` or `127.0.0.1` on a physical phone — those resolve
@@ -54,8 +64,14 @@ class ApiConfig {
   /// Isolated QA stack (access_waverep_test) — must not override original app.
   static const int isolatedQaApiPort = 3003;
 
+  /// Production API **origin** for release builds (no `/api` suffix).
+  /// [ApiClient] appends [apiPrefix] so requests hit `/api/...`.
+  static const String productionApiOrigin =
+      'https://accessvisioncheck.duckdns.org';
+
   /// Full base URL override (highest priority). Example:
   /// `--dart-define=API_BASE_URL=http://192.168.1.42:3001`
+  /// Release builds require HTTPS (or a host that becomes `https://…`).
   static const String apiBaseUrlOverride =
       String.fromEnvironment('API_BASE_URL');
 
@@ -158,15 +174,82 @@ class ApiConfig {
     '10.0.22.98',
   ];
 
+  /// Normalize an API **origin** for [ApiClient] (scheme + host, optional port).
+  ///
+  /// Strips trailing slashes and a trailing `/api` so [apiPrefix] is not doubled.
+  /// When [httpsOnly] is true, cleartext `http://` values are rejected (null).
+  static String? normalizeApiOrigin(String? raw, {bool httpsOnly = false}) {
+    if (raw == null) return null;
+    var trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    // Host-only define (e.g. API_PUBLIC_HOST / API_BASE_URL without scheme).
+    if (!trimmed.contains('://')) {
+      trimmed = httpsOnly || kReleaseMode ? 'https://$trimmed' : 'http://$trimmed';
+    }
+
+    Uri uri;
+    try {
+      uri = Uri.parse(trimmed);
+    } catch (_) {
+      return null;
+    }
+    if (uri.host.isEmpty) return null;
+    if (uri.userInfo.isNotEmpty || uri.hasQuery || uri.hasFragment) return null;
+
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return null;
+    if (httpsOnly && scheme != 'https') return null;
+
+    var path = uri.path;
+    while (path.endsWith('/') && path.length > 1) {
+      path = path.substring(0, path.length - 1);
+    }
+    if (path == '/api' || path.endsWith('/api')) {
+      path = path.substring(0, path.length - 4);
+      if (path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+    }
+    if (path == '/') path = '';
+    // Origin only. A leftover path would make ApiClient append `/api` in the wrong place.
+    if (path.isNotEmpty) return null;
+    final hasDefaultPort = (scheme == 'https' && uri.hasPort && uri.port == 443) ||
+        (scheme == 'http' && uri.hasPort && uri.port == 80);
+    final authority = uri.hasPort && !hasDefaultPort ? '${uri.host}:${uri.port}' : uri.host;
+    final origin = '$scheme://$authority$path';
+    return origin.replaceAll(RegExp(r'/+$'), '');
+  }
+
+  /// Release-safe HTTPS origin: compile-time override, then saved HTTPS runtime,
+  /// then [productionApiOrigin]. Never returns LAN `http://` in release.
+  static String get releaseApiOrigin {
+    final forced = normalizeApiOrigin(apiBaseUrlOverride, httpsOnly: true);
+    if (forced != null) return forced;
+    final publicHost = normalizeApiOrigin(
+      apiPublicHostOverride.isEmpty ? null : apiPublicHostOverride,
+      httpsOnly: true,
+    );
+    if (publicHost != null) return publicHost;
+    final runtime = normalizeApiOrigin(runtimeBaseUrl.value, httpsOnly: true);
+    if (runtime != null) return runtime;
+    return productionApiOrigin;
+  }
+
   static String get baseUrl {
+    if (kReleaseMode) {
+      return releaseApiOrigin;
+    }
     if (apiBaseUrlOverride.isNotEmpty) {
-      return apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
+      return normalizeApiOrigin(apiBaseUrlOverride) ??
+          apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
     }
     final sameOrigin = _webSameOriginBaseUrl;
     if (sameOrigin != null) return sameOrigin;
     final runtime = runtimeBaseUrl.value?.trim();
     if (runtime != null && runtime.isNotEmpty) {
-      return runtime.replaceAll(RegExp(r'/+$'), '');
+      return normalizeApiOrigin(runtime) ??
+          runtime.replaceAll(RegExp(r'/+$'), '');
     }
     if (_lastWorkingBaseUrl != null && _lastWorkingBaseUrl!.isNotEmpty) {
       return _lastWorkingBaseUrl!;
@@ -177,12 +260,17 @@ class ApiConfig {
   /// Host that last answered an API call (failover) or user/runtime override.
   /// Use for [mediaUrl] so uploaded logos match web admin on physical phones.
   static String get effectiveBaseUrl {
+    if (kReleaseMode) {
+      return releaseApiOrigin;
+    }
     if (apiBaseUrlOverride.isNotEmpty) {
-      return apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
+      return normalizeApiOrigin(apiBaseUrlOverride) ??
+          apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '');
     }
     final runtime = runtimeBaseUrl.value;
     if (runtime != null && runtime.trim().isNotEmpty) {
-      return runtime.trim().replaceAll(RegExp(r'/+$'), '');
+      return normalizeApiOrigin(runtime) ??
+          runtime.trim().replaceAll(RegExp(r'/+$'), '');
     }
     final sameOrigin = _webSameOriginBaseUrl;
     if (sameOrigin != null) return sameOrigin;
@@ -464,36 +552,13 @@ class ApiConfig {
   /// Physical phone: saved/runtime URL first, then LAN fallbacks.
   /// Emulator (no override): [10.0.2.2] first so login is not delayed by stale LAN IPs.
   static List<String> candidateBaseUrls() {
-    // Release builds must use an explicit HTTPS API (no LAN probing / cleartext).
+    // Release: HTTPS only — production default, no LAN / cleartext probing.
     if (kReleaseMode) {
-      String? httpsOnly(String? raw) {
-        if (raw == null) return null;
-        final trimmed = raw.trim().replaceAll(RegExp(r'/+$'), '');
-        if (trimmed.isEmpty) return null;
-        if (trimmed.startsWith('https://')) return trimmed;
-        if (trimmed.startsWith('http://')) {
-          // Reject cleartext in release; host-only forms become https://…
-          return null;
-        }
-        return 'https://$trimmed';
-      }
-
-      if (apiBaseUrlOverride.isNotEmpty) {
-        final forced = httpsOnly(apiBaseUrlOverride);
-        if (forced != null) return [forced];
-        return const <String>[];
-      }
-      if (apiPublicHostOverride.isNotEmpty) {
-        final host = httpsOnly(apiPublicHostOverride);
-        if (host != null) return [host];
-        return const <String>[];
-      }
-      final runtime = httpsOnly(runtimeBaseUrl.value);
-      if (runtime != null) return [runtime];
-      return const <String>[];
+      return [releaseApiOrigin];
     }
     if (apiBaseUrlOverride.isNotEmpty) {
-      return [apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
+      final normalized = normalizeApiOrigin(apiBaseUrlOverride);
+      return [normalized ?? apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
     }
     if (apiPublicHostOverride.isNotEmpty) {
       return [baseUrl];
@@ -553,9 +618,14 @@ class ApiConfig {
   }
 
   /// Sign-in: prefer saved/device URL, then configured host, then same-subnet LAN fallbacks.
+  /// Release builds use the same HTTPS-only origin as [candidateBaseUrls].
   static List<String> loginBaseUrls() {
+    if (kReleaseMode) {
+      return [releaseApiOrigin];
+    }
     if (apiBaseUrlOverride.isNotEmpty) {
-      return [apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
+      final normalized = normalizeApiOrigin(apiBaseUrlOverride);
+      return [normalized ?? apiBaseUrlOverride.replaceAll(RegExp(r'/+$'), '')];
     }
     if (apiPublicHostOverride.isNotEmpty) {
       return [baseUrl];

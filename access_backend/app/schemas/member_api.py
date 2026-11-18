@@ -231,6 +231,7 @@ class EvaluationOut(BaseModel):
     recommendation: str | None = None
     criteria_json: str | None = None
     storage_removed: bool = False
+    storage_cleanup_pending: bool = False
     submission_chain_id: int | None = None
     chain_root_media_id: int | None = None
     replaces_media_id: int | None = None

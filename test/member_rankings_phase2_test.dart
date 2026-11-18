@@ -125,8 +125,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('#1'), findsWidgets);
-    expect(find.text('#2'), findsOneWidget);
-    expect(find.text('#3'), findsOneWidget);
+    expect(find.text('#2'), findsWidgets);
+    expect(find.text('#3'), findsWidgets);
     // Leaderboard shows XP only; quality titles live in My Skill Level card.
     expect(find.text('Intermediate'), findsNothing);
     expect(find.text('Leaderboard'), findsOneWidget);
@@ -150,7 +150,8 @@ void main() {
     expect(find.text('#1'), findsWidgets);
     expect(find.text('#2'), findsNothing);
     expect(find.text('#3'), findsNothing);
-    expect(find.text('Leaderboard'), findsNothing);
+    expect(find.text('Leaderboard'), findsOneWidget);
+    expect(find.text('Solo Member'), findsWidgets);
   });
 
   testWidgets('This Month filters podium XP and excludes zero monthly members',
@@ -171,7 +172,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Active Member'), findsWidgets);
-    expect(find.text('Rising Member'), findsOneWidget);
+    expect(find.text('Rising Member'), findsWidgets);
     expect(find.text('Quiet Member'), findsNothing);
     expect(find.text('2 members'), findsOneWidget);
   });

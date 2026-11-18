@@ -92,4 +92,27 @@ void main() {
     expect(find.text('Log Out'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('quick stats stay on one row on a narrow screen', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ProfileScreen(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+
+    expect(find.text('Rank'), findsOneWidget);
+    expect(find.text('XP'), findsOneWidget);
+    expect(find.text('Evals'), findsOneWidget);
+    expect(find.text('#4'), findsWidgets);
+    expect(find.text('820'), findsOneWidget);
+    expect(find.text('12'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

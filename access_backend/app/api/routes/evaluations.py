@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_approved
 from app.crud import evaluation as eval_crud
+from app.crud.media import is_storage_cleanup_pending
 from app.crud import submission_chain as chain_crud
 from app.database import get_db
 from app.models.submission_chain import SubmissionChain
@@ -57,7 +58,9 @@ def _evaluation_out_for_row(
     if for_list:
         criteria_json = slim_criteria_json_for_member_list(criteria_json)
     storage_removed = ev.media.storage_removed_at is not None
+    cleanup_pending = is_storage_cleanup_pending(ev.media)
     # List/card responses keep compact refs (no per-row Supabase sign). Stream auth stays on /media/{id}/stream.
+    # A removed file never returns the private storage URL, including while cleanup is pending.
     file_url = member_list_file_url(ev.media.file_url, storage_removed=storage_removed)
     chain_meta = chain_metadata_for_media(db, ev.media, chain=chain)
     chain_row = chain
@@ -98,6 +101,7 @@ def _evaluation_out_for_row(
         recommendation=recommendation,
         criteria_json=criteria_json,
         storage_removed=storage_removed,
+        storage_cleanup_pending=cleanup_pending,
         can_reupload=can_reupload,
         replacement_verified=replacement_verified,
         **chain_meta,

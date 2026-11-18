@@ -575,6 +575,8 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                 const SizedBox(height: 12),
                 _StartEvaluationButton(
                   atLimit: atLimit,
+                  hasMedia: true,
+                  isVideo: _media!.isVideo,
                   enabled: _contentStandardsAccepted && _hasValidTitle,
                   onPressed: _runEvaluation,
                 ),
@@ -591,7 +593,7 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                     )),
                   ),
                 ],
-              ] else
+              ] else ...[
                 _UploadPageBody(
                   isVideo: _isVideo,
                   supportedFormats: _supportedFormats,
@@ -602,6 +604,15 @@ class _AiMediaEvaluationScreenState extends State<AiMediaEvaluationScreen> {
                   onGallery: _pickFromGallery,
                   onCamera: _pickFromCamera,
                 ),
+                const SizedBox(height: 12),
+                _StartEvaluationButton(
+                  atLimit: atLimit,
+                  hasMedia: false,
+                  isVideo: _isVideo,
+                  enabled: false,
+                  onPressed: _runEvaluation,
+                ),
+              ],
               if (_error != null) ...[
                 const SizedBox(height: 14),
                 _ErrorBanner(message: _error!),
@@ -1113,14 +1124,29 @@ class _CompactMetaLine extends StatelessWidget {
   }
 }
 
+/// Action label for the single Media Evaluation button.
+String mediaEvaluationActionLabel({
+  required bool atLimit,
+  required bool hasMedia,
+  required bool isVideo,
+}) {
+  if (atLimit) return 'Daily limit reached';
+  if (!hasMedia) return 'Evaluate Media';
+  return isVideo ? 'Evaluate Video' : 'Evaluate Photo';
+}
+
 class _StartEvaluationButton extends StatelessWidget {
   const _StartEvaluationButton({
     required this.atLimit,
+    required this.hasMedia,
+    required this.isVideo,
     required this.enabled,
     required this.onPressed,
   });
 
   final bool atLimit;
+  final bool hasMedia;
+  final bool isVideo;
   final bool enabled;
   final VoidCallback onPressed;
 
@@ -1164,7 +1190,11 @@ class _StartEvaluationButton extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  atLimit ? 'Daily limit reached' : 'Start AI Evaluation',
+                  mediaEvaluationActionLabel(
+                    atLimit: atLimit,
+                    hasMedia: hasMedia,
+                    isVideo: isVideo,
+                  ),
                   style: dashText(TextStyle(
                     color: _canTap ? Colors.white : kTextSecondary,
                     fontSize: 16,

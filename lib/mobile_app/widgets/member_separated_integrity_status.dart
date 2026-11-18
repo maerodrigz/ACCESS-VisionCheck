@@ -14,11 +14,15 @@ class MemberSeparatedIntegrityStatusStrip extends StatelessWidget {
     this.adminReviewStatus,
     this.dense = false,
     this.embedded = false,
+    this.showAiScore = false,
   });
 
   final AiDetectionResult automated;
   final String? adminReviewStatus;
   final bool dense;
+
+  /// When true, show the backend AI score beside the AI Risk label.
+  final bool showAiScore;
 
   /// When true, omit outer card chrome (for nesting inside Media Check).
   final bool embedded;
@@ -47,6 +51,7 @@ class MemberSeparatedIntegrityStatusStrip extends StatelessWidget {
           value: status.aiRiskLabel,
           color: _aiColor(status.aiRiskLabel),
           dense: dense,
+          companion: showAiScore ? memberFacingAiScoreLine(automated) : null,
         ),
         SizedBox(height: dense ? 6 : 8),
         _StatusRow(
@@ -113,12 +118,14 @@ class _StatusRow extends StatelessWidget {
     required this.value,
     required this.color,
     required this.dense,
+    this.companion,
   });
 
   final String label;
   final String value;
   final Color color;
   final bool dense;
+  final String? companion;
 
   @override
   Widget build(BuildContext context) {
@@ -141,24 +148,51 @@ class _StatusRow extends StatelessWidget {
         Expanded(
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: color.withValues(alpha: 0.28)),
-              ),
-              child: Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: dashText(TextStyle(
-                  color: color,
-                  fontSize: dense ? 11 : 11.5,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                )),
-              ),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: color.withValues(alpha: 0.28)),
+                  ),
+                  child: Text(
+                    value,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: dashText(TextStyle(
+                      color: color,
+                      fontSize: dense ? 11 : 11.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    )),
+                  ),
+                ),
+                if (companion != null && companion!.trim().isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: kAccent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: kAccent.withValues(alpha: 0.28)),
+                    ),
+                    child: Text(
+                      companion!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: dashText(const TextStyle(
+                        color: kAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      )),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),

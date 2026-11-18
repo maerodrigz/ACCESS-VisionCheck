@@ -181,6 +181,18 @@ def remove_practice_media_storage(
         m = media_crud.remove_practice_storage_only(db, m)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        logging.getLogger(__name__).warning(
+            "Practice storage blob delete failed after gallery hide media_id=%s",
+            media_id,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The photo or video is hidden from your gallery, "
+                "but cloud storage could not be deleted. Try again."
+            ),
+        ) from exc
     return _media_out(m)
 
 
@@ -202,6 +214,7 @@ def list_media(
         search=search,
         request_id=request_id,
         media_category=media_category,
+        include_storage_removed=False,
     )
     if current_user.role.role_name != RoleName.ADMIN:
         items = [

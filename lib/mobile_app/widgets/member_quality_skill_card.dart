@@ -93,6 +93,8 @@ class _MemberQualitySkillCardState extends State<MemberQualitySkillCard> {
                       Expanded(
                         child: Text(
                           'My Skill Level',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: dashText(TextStyle(
                             color: colors.textPrimary,
                             fontSize: 14,
@@ -100,31 +102,40 @@ class _MemberQualitySkillCardState extends State<MemberQualitySkillCard> {
                           )),
                         ),
                       ),
-                      InkWell(
-                        onTap: _openAbout,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 4,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'About Skill Levels',
-                                style: dashText(const TextStyle(
-                                  color: kAccent,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                )),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: InkWell(
+                            onTap: _openAbout,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 4,
                               ),
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                size: 16,
-                                color: kAccent,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      'About Skill Levels',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: dashText(const TextStyle(
+                                        color: kAccent,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                      )),
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 16,
+                                    color: kAccent,
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),

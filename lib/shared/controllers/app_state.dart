@@ -76,6 +76,8 @@ class Evaluation {
   final DateTime? evaluatedAt;
   final bool isAnalysisInProgress;
   final bool storageRemoved;
+  /// Gallery is already hidden, but the original storage object is still on record.
+  final bool storageCleanupPending;
   final int? chainRootMediaId;
   final int? awaitingReplacementMediaId;
   final int? activeReplacementMediaId;
@@ -110,6 +112,7 @@ class Evaluation {
     this.evaluatedAt,
     this.isAnalysisInProgress = false,
     this.storageRemoved = false,
+    this.storageCleanupPending = false,
     this.chainRootMediaId,
     this.awaitingReplacementMediaId,
     this.activeReplacementMediaId,
@@ -126,6 +129,44 @@ class Evaluation {
     return int.tryParse(id.substring(prefix.length));
   }
 
+  /// Same scores and review history, with the original file marked removed.
+  Evaluation markStorageRemoved({bool cleanupPending = false}) {
+    return Evaluation(
+      id: id,
+      title: title,
+      score: score,
+      composition: composition,
+      lighting: lighting,
+      sharpness: sharpness,
+      feedback: feedback,
+      date: date,
+      images: images,
+      imageUrl: null,
+      pipeline: pipeline,
+      criteria: criteria,
+      qualityLevel: qualityLevel,
+      mediaType: mediaType,
+      geminiFeedback: geminiFeedback,
+      recommendation: recommendation,
+      scoringModel: scoringModel,
+      parsedEvaluation: parsedEvaluation,
+      reviewStatus: reviewStatus,
+      adminRemarks: adminRemarks,
+      evaluatedAt: evaluatedAt,
+      isAnalysisInProgress: isAnalysisInProgress,
+      storageRemoved: true,
+      storageCleanupPending: cleanupPending,
+      chainRootMediaId: chainRootMediaId,
+      awaitingReplacementMediaId: awaitingReplacementMediaId,
+      activeReplacementMediaId: activeReplacementMediaId,
+      replacesMediaId: replacesMediaId,
+      replacementLifecycle: replacementLifecycle,
+      chainRole: chainRole,
+      canReupload: canReupload,
+      replacementVerified: replacementVerified,
+    );
+  }
+
   /// Member may free cloud storage for completed practice uploads.
   /// Score, XP, and evaluation history stay on the account.
   bool get canRemovePracticeStorage =>
@@ -133,6 +174,10 @@ class Evaluation {
       !isAnalysisInProgress &&
       practiceMediaId != null &&
       !isPending;
+
+  /// Same owner delete endpoint, used while cloud cleanup is still pending.
+  bool get canRetryFileRemoval =>
+      storageCleanupPending && practiceMediaId != null;
 
   bool get isPending => score == 0 && !isAnalysisInProgress;
 

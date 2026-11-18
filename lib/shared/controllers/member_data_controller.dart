@@ -1702,17 +1702,52 @@ class MemberDataController extends ChangeNotifier {
     }
   }
 
+  final Set<int> _storageRemovalInFlight = {};
+
+  bool isStorageRemovalInFlight(int mediaId) =>
+      _storageRemovalInFlight.contains(mediaId);
+
   /// Removes practice upload bytes only. Returns an error message on failure.
+  ///
+  /// A 503 means the gallery flag was saved but the cloud object delete failed.
+  /// The item stays out of the active gallery and retry stays available.
   Future<String?> removePracticeEvaluationStorage(int mediaId) async {
+    if (_storageRemovalInFlight.contains(mediaId)) {
+      return 'File removal is already in progress.';
+    }
+    _storageRemovalInFlight.add(mediaId);
+    notifyListeners();
     try {
       await memberApiService.removePracticeMediaStorage(mediaId);
+      _hideRemovedPracticeMedia(mediaId, cleanupPending: false);
       await refreshEvaluationsTab();
       return null;
     } on ApiException catch (e) {
+      if (e.statusCode == 503) {
+        _hideRemovedPracticeMedia(mediaId, cleanupPending: true);
+        unawaited(refreshEvaluationsTab());
+      }
       return e.message;
     } catch (e) {
       return e.toString().replaceFirst('ApiException: ', '').trim();
+    } finally {
+      _storageRemovalInFlight.remove(mediaId);
+      notifyListeners();
     }
+  }
+
+  void _hideRemovedPracticeMedia(int mediaId, {required bool cleanupPending}) {
+    appState.gallery.removeWhere((item) => item.mediaId == mediaId);
+    final index = appState.evaluations.indexWhere(
+      (evaluation) => evaluation.practiceMediaId == mediaId,
+    );
+    if (index >= 0) {
+      appState.evaluations[index] = appState.evaluations[index].markStorageRemoved(
+        cleanupPending: cleanupPending,
+      );
+    }
+    appState.notifyListeners();
+    notifyListeners();
   }
 
   Evaluation _evaluationFromApi(Map<String, dynamic> e) {
@@ -1756,6 +1791,7 @@ class MemberDataController extends ChangeNotifier {
       evaluatedAt: evaluatedAt,
       imageUrl: storageRemoved ? null : fileUrlRaw,
       storageRemoved: storageRemoved,
+      storageCleanupPending: e['storage_cleanup_pending'] == true,
       criteria: parsedForRow?.criteria ?? const [],
       qualityLevel: parsedForRow?.qualityLevel ?? e['quality_level'] as String?,
       mediaType: mediaType,

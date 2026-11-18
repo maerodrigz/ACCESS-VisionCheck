@@ -124,6 +124,7 @@ tools/quality_validation/output/**
 
 # Local DB backups, QA run artifacts, and device captures (never commit)
 access_backend/backups/
+/database_backups/
 **/*.dump
 access_backend/evaluation_results/
 access_backend/validation_data/

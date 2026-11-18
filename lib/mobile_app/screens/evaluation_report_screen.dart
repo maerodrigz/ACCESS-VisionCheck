@@ -10,6 +10,7 @@ import 'package:access_mobile/mobile_app/screens/evaluation_detailed_analysis_sc
 import 'package:access_mobile/mobile_app/utils/evaluation_report_utils.dart';
 import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
+import 'package:access_mobile/mobile_app/widgets/practice_storage_cleanup_retry.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
@@ -1058,7 +1059,13 @@ class _ReportMediaGlassOverlay extends StatelessWidget {
                 ),
               ],
             ),
-            if (evaluation.storageRemoved) ...[
+            if (evaluation.storageCleanupPending) ...[
+              const SizedBox(height: 6),
+              PracticeStorageCleanupRetry(
+                evaluation: evaluation,
+                onDark: true,
+              ),
+            ] else if (evaluation.storageRemoved) ...[
               const SizedBox(height: 6),
               Text(
                 'Original file removed. Scores below are unchanged.',

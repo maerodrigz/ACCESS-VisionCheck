@@ -11,26 +11,30 @@ class EvaluationHowItWorksGuide extends StatelessWidget {
   static const _steps = [
     (
       icon: Icons.cloud_upload_rounded,
-      title: 'Choose Photo or Video',
-      description: 'Pick a file and confirm it meets ACCESS content standards.',
+      title: 'Select Your Media',
+      description:
+          'Choose a photo or video from your device, then confirm it meets ACCESS content standards.',
       accent: Color(0xFF0891B2),
     ),
     (
       icon: Icons.play_circle_outline_rounded,
-      title: 'Start AI Evaluation',
-      description: 'Tap Start to upload. This counts as one of your daily practice submissions.',
+      title: 'Evaluate Your Media',
+      description:
+          'Tap Evaluate Photo or Evaluate Video to begin the analysis. This uses one of today\'s practice submissions.',
       accent: Color(0xFF7C3AED),
     ),
     (
       icon: Icons.auto_awesome_rounded,
-      title: 'Server Analysis',
-      description: 'ACCESS scores quality and integrity on the server (MUSIQ + OpenCV and PROBE).',
+      title: 'AI-Powered Analysis',
+      description:
+          'ACCESS analyzes media quality and AI risk. This is a risk assessment, not proof that media is authentic or AI-generated.',
       accent: kAccent,
     ),
     (
       icon: Icons.insights_rounded,
-      title: 'View Results',
-      description: 'See your score, mentor tips from Gemini, and any admin review status.',
+      title: 'View Your Results',
+      description:
+          'Review the AI risk assessment, AI Score, media quality results, mentor tips, and any admin review status.',
       accent: Color(0xFF16A34A),
     ),
   ];

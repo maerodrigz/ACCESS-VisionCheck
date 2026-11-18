@@ -30,9 +30,7 @@ class EvaluationResultMediaCheckCard extends StatelessWidget {
       evaluationResult: result,
     );
     final accent = memberIntegrityColorKindToColor(model.colorKind);
-    final aiScoreLine = memberPracticePhotoOrVideoMediaType(result.mediaType)
-        ? memberFacingAiScoreLine(result.aiDetection)
-        : null;
+    final showAiScore = memberPracticePhotoOrVideoMediaType(result.mediaType);
 
     return Container(
       width: double.infinity,
@@ -70,20 +68,6 @@ class EvaluationResultMediaCheckCard extends StatelessWidget {
                       model.statusLabel,
                       style: evalCardTitleStyle.copyWith(fontSize: 15, color: accent),
                     ),
-                    if (aiScoreLine != null) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          aiScoreLine,
-                          style: TextStyle(
-                            color: kTextSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            height: 1.25,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -112,6 +96,7 @@ class EvaluationResultMediaCheckCard extends StatelessWidget {
             adminReviewStatus: adminReviewStatus,
             dense: true,
             embedded: true,
+            showAiScore: showAiScore,
           ),
           const SizedBox(height: 8),
           Text(

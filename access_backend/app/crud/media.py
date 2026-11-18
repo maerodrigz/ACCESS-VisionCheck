@@ -104,6 +104,7 @@ def list_media(
     approval_status: str | None = None,
     facebook_publish_status: str | None = None,
     exclude_archived: bool = True,
+    include_storage_removed: bool = True,
 ) -> list[MediaFile]:
     q = select(MediaFile).options(
         joinedload(MediaFile.evaluations),
@@ -129,6 +130,8 @@ def list_media(
     if exclude_archived:
         archived_ids = select(Archive.media_id)
         q = q.where(~MediaFile.id.in_(archived_ids))
+    if not include_storage_removed:
+        q = q.where(MediaFile.storage_removed_at.is_(None))
     q = q.order_by(MediaFile.uploaded_at.desc())
     return list(db.scalars(q).unique())
 
@@ -188,6 +191,7 @@ def list_approved_event_gallery(
         .where(MediaFile.approval_status != APPROVAL_REJECTED)
         .where(MediaFile.request_id.isnot(None))
         .where(func.lower(DocumentationRequest.status).in_(("approved", "completed")))
+        .where(MediaFile.storage_removed_at.is_(None))
     )
     if file_type:
         q = q.where(MediaFile.file_type == file_type)
@@ -325,27 +329,47 @@ def _delete_media_file_from_disk(file_url: str | None) -> None:
 REMOVED_STORAGE_FILE_URL = "/uploads/__storage_removed__"
 
 
-def remove_practice_storage_only(db: Session, media: MediaFile) -> MediaFile:
-    """Delete Supabase/disk bytes only. Keeps media + evaluation rows (scores, XP, averages).
+def is_storage_cleanup_pending(media: object) -> bool:
+    """True while the gallery flag is set and the original object URL is still stored."""
+    if getattr(media, "storage_removed_at", None) is None:
+        return False
+    url = (getattr(media, "file_url", None) or "").strip()
+    return url != REMOVED_STORAGE_FILE_URL
 
-    Allowed for completed practice evaluations, including admin-verified human.
-    Members free cloud space; integrity review history and scores remain.
+
+def remove_practice_storage_only(db: Session, media: MediaFile) -> MediaFile:
+    """Hide a practice upload from the active gallery and delete its blob.
+
+    The media row, evaluations, scores, AI results, and XP stay. The gallery
+    flag is committed before the blob delete so a failed cloud call cannot
+    bring the file back. A later call retries the blob delete when the
+    original URL is still stored.
     """
     if media.media_category != MEDIA_CATEGORY_EVALUATION:
         raise ValueError("Only practice evaluation uploads can use remove storage.")
-    if media.storage_removed_at is not None:
-        raise ValueError("File storage was already removed for this submission.")
     if not media.evaluations:
         raise ValueError("Wait until evaluation finishes before removing the file.")
 
+    fully_removed = (
+        media.storage_removed_at is not None
+        and (media.file_url or "") == REMOVED_STORAGE_FILE_URL
+    )
+    if fully_removed:
+        raise ValueError("File storage was already removed for this submission.")
+
     old_url = media.file_url
+    if media.storage_removed_at is None:
+        media.storage_removed_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(media)
+
     if old_url and old_url != REMOVED_STORAGE_FILE_URL:
         _delete_media_file_from_disk(old_url)
 
-    media.file_url = REMOVED_STORAGE_FILE_URL
-    media.storage_removed_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(media)
+    if (media.file_url or "") != REMOVED_STORAGE_FILE_URL:
+        media.file_url = REMOVED_STORAGE_FILE_URL
+        db.commit()
+        db.refresh(media)
     return media
 
 

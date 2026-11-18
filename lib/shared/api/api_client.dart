@@ -224,6 +224,9 @@ class ApiClient {
 
   /// Practice uploads: do not re-send the file across every LAN fallback IP.
   List<String> _multipartBaseUrls() {
+    if (kReleaseMode) {
+      return [ApiConfig.effectiveBaseUrl];
+    }
     final out = <String>[];
     void add(String? raw) {
       if (raw == null) return;

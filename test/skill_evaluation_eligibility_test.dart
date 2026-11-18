@@ -47,6 +47,18 @@ void main() {
     expect(evaluationEligibleForSkillProgress(pending), isFalse);
     expect(evaluationEligibleForSkillProgress(rejected), isFalse);
     expect(evaluationEligibleForSkillProgress(released), isTrue);
+    final removedFile = Evaluation(
+      id: 'MED-9',
+      title: 'Kept score',
+      score: 4,
+      composition: 'Good',
+      lighting: 'Good',
+      feedback: 'ok',
+      date: 'Nov 11, 2026',
+      reviewStatus: 'verified_human',
+      storageRemoved: true,
+    );
+    expect(evaluationEligibleForSkillProgress(removedFile), isTrue);
 
     final eligible = skillEligibleEvaluations([pending, rejected, released]);
     expect(eligible.length, 1);

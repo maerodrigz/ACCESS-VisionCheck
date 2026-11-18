@@ -3,7 +3,7 @@ import 'package:access_mobile/shared/models/member_review_status.dart';
 
 /// Mirrors backend `practice_evaluation_eligible_for_skill`.
 bool evaluationEligibleForSkillProgress(Evaluation ev) {
-  if (ev.isAnalysisInProgress || ev.storageRemoved) return false;
+  if (ev.isAnalysisInProgress) return false;
   if (MemberReviewStatus.isReviewPending(ev.reviewStatus)) return false;
   if (MemberReviewStatus.isAdminConfirmedAi(ev.reviewStatus)) return false;
   if (MemberReviewStatus.isAdminRejected(ev.reviewStatus)) return false;

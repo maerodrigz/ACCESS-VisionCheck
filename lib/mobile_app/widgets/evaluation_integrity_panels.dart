@@ -136,32 +136,45 @@ class _IntegrityPanelCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      model.tierLabel,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: minimalDetail ? 14 : (compact ? 15 : 17),
-                        fontWeight: FontWeight.w800,
-                        height: 1.15,
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          model.tierLabel,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: minimalDetail ? 14 : (compact ? 15 : 17),
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                          ),
+                        ),
+                        if (model.statsLine != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: kSurface,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: kBorder),
+                            ),
+                            child: Text(
+                              model.statsLine!,
+                              style: TextStyle(
+                                color: kAccent,
+                                fontSize: compact ? 11 : 12,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          if (model.statsLine != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              model.statsLine!,
-              style: TextStyle(
-                color: kDashTextSecondary,
-                fontSize: compact ? 11 : 12,
-                fontWeight: FontWeight.w600,
-                height: 1.35,
-              ),
-            ),
-          ],
           if (!minimalDetail) ...[
             const SizedBox(height: 8),
             Text(

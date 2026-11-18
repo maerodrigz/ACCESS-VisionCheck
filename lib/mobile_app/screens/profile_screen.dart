@@ -18,7 +18,18 @@ import 'package:access_mobile/mobile_app/widgets/member_profile_logout_section.d
 import 'package:access_mobile/mobile_app/widgets/member_profile_skeleton.dart';
 
 const _kSectionGap = 12.0;
-const _kSkyBg = Color(0xFFF3F9FF);
+
+/// Pale cyan at the top, fading into the page background. Tokens only.
+final _kProfileBackground = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [
+    kCyan.withValues(alpha: 0.16),
+    kCyanDim.withValues(alpha: 0.55),
+    kBg,
+  ],
+  stops: const [0.0, 0.22, 0.58],
+);
 
 /// Member Profile tab: compact identity, stats, skill, activity, and settings.
 class ProfileScreen extends StatefulWidget {
@@ -129,10 +140,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             (memberDataController.isLoading || !memberDataController.profileLoadAttempted);
 
         return Scaffold(
-          backgroundColor: _kSkyBg,
-          body: SafeArea(
-            bottom: false,
-            child: Column(
+          backgroundColor: kBg,
+          body: DecoratedBox(
+            decoration: BoxDecoration(gradient: _kProfileBackground),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _ProfileTopBar(
@@ -209,6 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
+        ),
         );
       },
     );
@@ -541,6 +555,8 @@ class _QuickStatsStrip extends StatelessWidget {
         final evals = MemberEvaluationSummaryData.fromAppState().completedCount;
         final rankLabel = rank > 0 ? '#$rank' : 'N/A';
 
+        final narrow = MediaQuery.sizeOf(context).width < 360;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -551,9 +567,12 @@ class _QuickStatsStrip extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             MemberDashboardCard(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: narrow ? 2 : 4,
+                vertical: narrow ? 6 : 7,
+              ),
               child: IntrinsicHeight(
                 child: Row(
                   children: [
@@ -562,30 +581,25 @@ class _QuickStatsStrip extends StatelessWidget {
                         icon: Icons.leaderboard_rounded,
                         value: rankLabel,
                         label: 'Rank',
+                        compact: narrow,
                       ),
                     ),
-                    VerticalDivider(
-                      width: 1,
-                      thickness: 1,
-                      color: kBorder.withValues(alpha: 0.7),
-                    ),
+                    _QuickStatDivider(compact: narrow),
                     Expanded(
                       child: _QuickStatTile(
                         icon: Icons.bolt_rounded,
                         value: MemberProfileSkillProgressSection.formatParticipationXp(xp),
                         label: 'XP',
+                        compact: narrow,
                       ),
                     ),
-                    VerticalDivider(
-                      width: 1,
-                      thickness: 1,
-                      color: kBorder.withValues(alpha: 0.7),
-                    ),
+                    _QuickStatDivider(compact: narrow),
                     Expanded(
                       child: _QuickStatTile(
                         icon: Icons.fact_check_outlined,
                         value: '$evals',
                         label: 'Evals',
+                        compact: narrow,
                       ),
                     ),
                   ],
@@ -599,44 +613,70 @@ class _QuickStatsStrip extends StatelessWidget {
   }
 }
 
+class _QuickStatDivider extends StatelessWidget {
+  const _QuickStatDivider({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return VerticalDivider(
+      width: 1,
+      thickness: 1,
+      indent: compact ? 2 : 3,
+      endIndent: compact ? 2 : 3,
+      color: kBorder.withValues(alpha: 0.9),
+    );
+  }
+}
+
 class _QuickStatTile extends StatelessWidget {
   const _QuickStatTile({
     required this.icon,
     required this.value,
     required this.label,
+    required this.compact,
   });
 
   final IconData icon;
   final String value;
   final String label;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = compact ? 12.0 : 13.0;
+    final valueSize = compact ? 14.0 : 15.0;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 18, color: kCyan),
-          const SizedBox(height: 6),
+          Icon(icon, size: iconSize, color: kCyan),
+          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               value,
-              style: dashText(const TextStyle(
+              maxLines: 1,
+              style: dashText(TextStyle(
                 color: kTextPrimary,
-                fontSize: 18,
+                fontSize: valueSize,
                 fontWeight: FontWeight.w800,
-                height: 1.05,
+                height: 1.0,
               )),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: memberDashboardMetaStyle.copyWith(fontSize: 11),
+            style: memberDashboardMetaStyle.copyWith(
+              fontSize: compact ? 10 : 11,
+              height: 1.1,
+            ),
           ),
         ],
       ),

@@ -524,6 +524,31 @@ void main() {
       expect(find.text('AI Score: 8.0%'), findsOneWidget);
     });
 
+    testWidgets('high AI risk shows one score badge beside the risk label', (tester) async {
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      const ai = AiDetectionResult(
+        verdict: 'ai_generated',
+        confidence: 0.9,
+        probability: 0.721,
+        riskLevel: 'high',
+        isFinal: true,
+        detail: 'elevated synthetic-media probability',
+      );
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: EvaluationIntegrityPanels(aiDetection: ai),
+          ),
+        ),
+      );
+      expect(find.text('High AI Risk'), findsOneWidget);
+      expect(find.text('AI Score: 72.1%'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('photo low risk without waverep frames', (tester) async {
       const ai = AiDetectionResult(
         verdict: 'authentic',

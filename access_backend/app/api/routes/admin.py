@@ -122,6 +122,10 @@ def _media_json(m) -> dict:
         "overall_score": ev.overall_score if ev else None,
         "ai_detected": ai.detection_result == "ai_generated" if ai else False,
         "ai_probability": ai.ai_probability if ai else None,
+        "storage_removed_at": m.storage_removed_at.isoformat()
+        if getattr(m, "storage_removed_at", None)
+        else None,
+        "storage_cleanup_pending": media_crud.is_storage_cleanup_pending(m),
     }
 
 

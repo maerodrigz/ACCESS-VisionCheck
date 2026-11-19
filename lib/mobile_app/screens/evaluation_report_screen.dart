@@ -12,6 +12,7 @@ import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
 import 'package:access_mobile/mobile_app/widgets/practice_storage_cleanup_retry.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
+import 'package:access_mobile/shared/utils/member_quality_release.dart';
 import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
@@ -226,7 +227,11 @@ class _EvaluationReportScreenState extends State<EvaluationReportScreen> {
               const SizedBox(height: 14),
             ],
             if (parsed != null) ...[
-              if (parsed.showQualityFeedbackEffective) ...[
+              if (memberFinalQualityVisible(
+                reviewStatus: evaluation.reviewStatus,
+                automated: parsed.aiDetection,
+                analysisInProgress: evaluation.isAnalysisInProgress,
+              )) ...[
                 MediaEvaluationResultsPanel(
                   result: parsed,
                   gemini: evaluation.geminiFeedback,
@@ -455,8 +460,11 @@ class _ReportScoreAndAdminSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scoresVisible = parsed?.showQualityFeedbackEffective == true &&
-        !evaluation.isPending &&
+    final scoresVisible = memberFinalQualityVisible(
+          reviewStatus: evaluation.reviewStatus,
+          automated: parsed?.aiDetection,
+          analysisInProgress: evaluation.isAnalysisInProgress,
+        ) &&
         !evaluation.isAnalysisInProgress;
     final percent = scoresVisible ? evaluation.displayPercent : null;
     final qualityLabel = scoresVisible

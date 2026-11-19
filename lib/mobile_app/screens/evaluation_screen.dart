@@ -5,6 +5,7 @@ import 'package:access_mobile/shared/controllers/app_state.dart';
 import 'package:access_mobile/shared/controllers/member_data_controller.dart';
 import 'package:access_mobile/shared/models/member_review_status.dart';
 import 'package:access_mobile/shared/utils/member_integrity_display.dart';
+import 'package:access_mobile/shared/utils/member_quality_release.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
@@ -1071,9 +1072,14 @@ class _RecentEvaluationsSectionState extends State<_RecentEvaluationsSection> {
     return list.where((e) {
       final title = e.title.toLowerCase();
       final date = e.date.toLowerCase();
-      final quality = (e.isPending || e.isAnalysisInProgress)
-          ? qualityDisplayBucket(e.qualityLevel).toLowerCase()
-          : overallQualityLabelFromPercent(e.displayPercent).toLowerCase();
+      final showQuality = memberFinalQualityVisible(
+        reviewStatus: e.reviewStatus,
+        automated: e.parsedEvaluation?.aiDetection,
+        analysisInProgress: e.isAnalysisInProgress,
+      );
+      final quality = showQuality
+          ? overallQualityLabelFromPercent(e.displayPercent).toLowerCase()
+          : '';
       final integrity = _integrityTierFor(e).toLowerCase();
       return title.contains(q) ||
           date.contains(q) ||
@@ -1716,11 +1722,13 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = ev.displayPercent;
-    final scored = !ev.isPending && !ev.isAnalysisInProgress;
-    final bucket = scored
-        ? overallQualityLabelFromPercent(pct)
-        : qualityDisplayBucket(ev.qualityLevel);
-    final accent = scored ? qualityPercentBandColor(pct) : qualityBucketColor(bucket);
+    final showQuality = memberFinalQualityVisible(
+      reviewStatus: ev.reviewStatus,
+      automated: ev.parsedEvaluation?.aiDetection,
+      analysisInProgress: ev.isAnalysisInProgress,
+    );
+    final bucket = showQuality ? overallQualityLabelFromPercent(pct) : '';
+    final accent = showQuality ? qualityPercentBandColor(pct) : kTextSecondary;
 
     return MemberDashboardTapScale(
       onTap: onTap,
@@ -1795,6 +1803,7 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
                 percent: pct,
                 pending: ev.isPending,
                 processing: ev.isAnalysisInProgress,
+                showQuality: showQuality,
                 qualityLabel: bucket,
                 qualityColor: accent,
                 integrityLabel: _integrityTierFor(ev),
@@ -1814,6 +1823,7 @@ class _RecentEvalBottomStrip extends StatelessWidget {
     required this.percent,
     required this.pending,
     required this.processing,
+    required this.showQuality,
     required this.qualityLabel,
     required this.qualityColor,
     required this.integrityLabel,
@@ -1823,6 +1833,7 @@ class _RecentEvalBottomStrip extends StatelessWidget {
   final int percent;
   final bool pending;
   final bool processing;
+  final bool showQuality;
   final String qualityLabel;
   final Color qualityColor;
   final String integrityLabel;
@@ -1873,6 +1884,7 @@ class _RecentEvalBottomStrip extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   _EvaluationResultPills(
+                    showQuality: showQuality,
                     qualityLabel: qualityLabel,
                     qualityColor: qualityColor,
                     integrityLabel: integrityLabel,
@@ -1887,6 +1899,7 @@ class _RecentEvalBottomStrip extends StatelessWidget {
               percent: percent,
               pending: pending,
               processing: processing,
+              hideScore: !showQuality,
               compact: true,
             ),
           ],
@@ -1956,12 +1969,14 @@ class _RecentEvalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = ev.displayPercent;
-    final scored = !ev.isPending && !ev.isAnalysisInProgress;
-    final bucket = scored
-        ? overallQualityLabelFromPercent(pct)
-        : qualityDisplayBucket(ev.qualityLevel);
-    final accent = scored ? qualityPercentBandColor(pct) : qualityBucketColor(bucket);
-    final tint = _tintFor(bucket);
+    final showQuality = memberFinalQualityVisible(
+      reviewStatus: ev.reviewStatus,
+      automated: ev.parsedEvaluation?.aiDetection,
+      analysisInProgress: ev.isAnalysisInProgress,
+    );
+    final bucket = showQuality ? overallQualityLabelFromPercent(pct) : '';
+    final accent = showQuality ? qualityPercentBandColor(pct) : kBorder;
+    final tint = showQuality ? _tintFor(bucket) : kSurface;
 
     return MemberDashboardTapScale(
       onTap: onTap,
@@ -2000,6 +2015,7 @@ class _RecentEvalCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   _EvaluationResultPills(
+                    showQuality: showQuality,
                     qualityLabel: bucket,
                     qualityColor: accent,
                     integrityLabel: _integrityTierFor(ev),
@@ -2086,6 +2102,7 @@ class _EvaluationResultPills extends StatelessWidget {
     required this.qualityLabel,
     required this.qualityColor,
     required this.integrityLabel,
+    this.showQuality = true,
     this.compact = false,
     this.onDark = false,
   });
@@ -2093,6 +2110,7 @@ class _EvaluationResultPills extends StatelessWidget {
   final String qualityLabel;
   final Color qualityColor;
   final String integrityLabel;
+  final bool showQuality;
   final bool compact;
   final bool onDark;
 
@@ -2104,12 +2122,13 @@ class _EvaluationResultPills extends StatelessWidget {
       runSpacing: compact ? 3 : 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _QualityPill(
-          label: qualityLabel,
-          color: qualityColor,
-          compact: compact,
-          onDark: onDark,
-        ),
+        if (showQuality)
+          _QualityPill(
+            label: qualityLabel,
+            color: qualityColor,
+            compact: compact,
+            onDark: onDark,
+          ),
         _IntegrityTierPill(
           label: integrityLabel,
           color: integrityColor,
@@ -2255,12 +2274,14 @@ class _ScoreBadge extends StatelessWidget {
     required this.percent,
     required this.pending,
     this.processing = false,
+    this.hideScore = false,
     this.compact = false,
   });
 
   final int percent;
   final bool pending;
   final bool processing;
+  final bool hideScore;
   final bool compact;
 
   @override
@@ -2311,6 +2332,8 @@ class _ScoreBadge extends StatelessWidget {
         ),
       );
     }
+
+    if (hideScore) return const SizedBox.shrink();
 
     final color = criterionPercentColor(percent);
     return Container(

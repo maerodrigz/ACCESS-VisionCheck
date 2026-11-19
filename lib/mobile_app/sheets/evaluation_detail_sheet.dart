@@ -7,6 +7,7 @@ import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
+import 'package:access_mobile/shared/utils/member_quality_release.dart';
 import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
@@ -34,7 +35,13 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
       expand: false,
       initialChildSize: 0.82,
       maxChildSize: 0.95,
-      builder: (_, ctrl) => SingleChildScrollView(
+      builder: (_, ctrl) {
+      final showQuality = memberFinalQualityVisible(
+        reviewStatus: ev.reviewStatus,
+        automated: ev.parsedEvaluation?.aiDetection,
+        analysisInProgress: ev.isAnalysisInProgress,
+      );
+      return SingleChildScrollView(
         controller: ctrl,
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -68,13 +75,13 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
               runSpacing: 6,
               children: [
                 if (ev.mediaType != null) MediaTypeBadge(mediaType: ev.mediaType),
-                if (!ev.isPending && !ev.isAnalysisInProgress)
+                if (showQuality)
                   QualityLevelBadge(
                     level: overallQualityHeadline(
                       overallQualityLabelFromPercent(ev.displayPercent),
                     ),
                   ),
-                if (ev.isEfficientNetEvaluation)
+                if (ev.isEfficientNetEvaluation && showQuality)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -126,7 +133,7 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
                           borderRadius: BorderRadius.circular(10),
                           child: Image.memory(ev.images[i], width: 160, height: 160, fit: BoxFit.cover),
                         ),
-                        if (i == 0 && ev.displayScore > 0)
+                        if (showQuality && i == 0 && ev.displayScore > 0)
                           Positioned(
                             bottom: 8,
                             left: 8,
@@ -173,11 +180,11 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
             const SizedBox(height: 20),
             Center(
               child: ScoreRing(
-                score: ev.displayScore,
-                label: ev.isPending ? 'N/A' : '${ev.displayPercent}/100',
+                score: showQuality ? ev.displayScore : 0,
+                label: showQuality ? '${ev.displayPercent}/100' : 'N/A',
               ),
             ),
-            if (!ev.isPending) ...[
+            if (showQuality) ...[
               const SizedBox(height: 8),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
@@ -193,7 +200,7 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
                 ),
               ),
             ],
-            if (ev.recommendation != null && ev.recommendation!.isNotEmpty) ...[
+            if (showQuality && ev.recommendation != null && ev.recommendation!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Center(
                 child: Text(
@@ -211,7 +218,7 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
             const SizedBox(height: 24),
             const Divider(color: kBorder),
 
-            if (ev.criteria.isNotEmpty) ...[
+            if (showQuality && ev.criteria.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
                 'TECHNICAL QUALITY',
@@ -227,7 +234,7 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
                 criteria: orderCriteriaForDisplay(ev.criteria, isVideo: ev.mediaType == 'video'),
                 isVideo: ev.mediaType == 'video',
               ),
-            ] else ...[
+            ] else if (showQuality) ...[
               const SizedBox(height: 16),
               const Text('METRICS', style: TextStyle(color: kTextSecondary, fontSize: 11, letterSpacing: 0.8)),
               const SizedBox(height: 12),
@@ -241,13 +248,13 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
             ],
 
             const SizedBox(height: 16),
-            if (ev.geminiFeedback != null)
+            if (showQuality && ev.geminiFeedback != null)
               AiFeedbackCard(
                 feedback: ev.geminiFeedback!.withAlignedOverallLabel(
                   overallQualityLabelFromPercent(ev.displayPercent),
                 ),
               )
-            else ...[
+            else if (showQuality) ...[
               const Text('FEEDBACK', style: TextStyle(color: kTextSecondary, fontSize: 11, letterSpacing: 0.8)),
               const SizedBox(height: 8),
               Container(
@@ -280,7 +287,8 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
             ),
           ],
         ),
-      ),
+      );
+    },
     ),
   );
 }

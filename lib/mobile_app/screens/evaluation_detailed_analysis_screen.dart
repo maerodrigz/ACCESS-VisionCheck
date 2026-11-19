@@ -8,6 +8,7 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
+import 'package:access_mobile/shared/utils/member_quality_release.dart';
 import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
@@ -56,6 +57,11 @@ class _EvaluationDetailedAnalysisScreenState extends State<EvaluationDetailedAna
     super.dispose();
   }
 
+  bool get _showFinalQuality => memberFinalQualityVisible(
+        reviewStatus: widget.adminReviewStatus,
+        automated: widget.result.aiDetection,
+      );
+
   MediaEvaluationFeedback get _feedback {
     final raw = widget.geminiFeedback ??
         widget.result.geminiFeedback ??
@@ -95,11 +101,17 @@ class _EvaluationDetailedAnalysisScreenState extends State<EvaluationDetailedAna
       body: TabBarView(
         controller: _tabs,
         children: [
-          _SummaryTab(result: widget.result, feedback: _feedback, title: widget.title),
-          _TechnicalTab(result: widget.result),
+          _SummaryTab(
+            result: widget.result,
+            feedback: _feedback,
+            title: widget.title,
+            showFinalQuality: _showFinalQuality,
+          ),
+          _TechnicalTab(result: widget.result, showFinalQuality: _showFinalQuality),
           _ComparisonTab(
             result: widget.result,
             others: widget.comparisonEvaluations,
+            showFinalQuality: _showFinalQuality,
           ),
           _IntegrityTab(
             result: widget.result,
@@ -149,11 +161,13 @@ class _SummaryTab extends StatelessWidget {
   const _SummaryTab({
     required this.result,
     required this.feedback,
+    required this.showFinalQuality,
     this.title,
   });
 
   final PhotoEvaluationResult result;
   final MediaEvaluationFeedback feedback;
+  final bool showFinalQuality;
   final String? title;
 
   @override
@@ -170,7 +184,8 @@ class _SummaryTab extends StatelessWidget {
             Text(title!, style: evalCardTitleStyle.copyWith(fontSize: 17)),
             const SizedBox(height: 14),
           ],
-          Container(
+          if (showFinalQuality)
+            Container(
             padding: const EdgeInsets.all(18),
             decoration: evalCardDecoration(borderColor: levelColor.withValues(alpha: 0.22)),
             child: Column(
@@ -214,13 +229,18 @@ class _SummaryTab extends StatelessWidget {
                 ),
               ],
             ),
-          ),
+          )
+          else
+            Text(
+              'The final quality rating stays hidden until an administrator approves this submission.',
+              style: evalBodyStyle.copyWith(fontSize: 13, height: 1.4),
+            ),
           const SizedBox(height: 16),
-          if (result.geminiFeedbackIsLocal) ...[
+          if (showFinalQuality && result.geminiFeedbackIsLocal) ...[
             const LocalFeedbackNotice(),
             const SizedBox(height: 10),
           ],
-          AiFeedbackCard(feedback: feedback),
+          if (showFinalQuality) AiFeedbackCard(feedback: feedback),
           const SizedBox(height: 20),
           const _ModelFooter(),
         ],
@@ -230,12 +250,24 @@ class _SummaryTab extends StatelessWidget {
 }
 
 class _TechnicalTab extends StatelessWidget {
-  const _TechnicalTab({required this.result});
+  const _TechnicalTab({required this.result, required this.showFinalQuality});
 
   final PhotoEvaluationResult result;
+  final bool showFinalQuality;
 
   @override
   Widget build(BuildContext context) {
+    if (!showFinalQuality) {
+      return ListView(
+        padding: mobileScrollPadding(context, top: 16, bottom: 28),
+        children: [
+          Text(
+            'Technical quality scores stay hidden until an administrator approves this submission.',
+            style: evalBodyStyle.copyWith(fontSize: 13, height: 1.4),
+          ),
+        ],
+      );
+    }
     final criteria = result.displayCriteria(isVideo: result.isVideo);
 
     return ListView(
@@ -373,13 +405,26 @@ class _ComparisonTab extends StatelessWidget {
   const _ComparisonTab({
     required this.result,
     required this.others,
+    required this.showFinalQuality,
   });
 
   final PhotoEvaluationResult result;
   final List<PhotoEvaluationResult> others;
+  final bool showFinalQuality;
 
   @override
   Widget build(BuildContext context) {
+    if (!showFinalQuality) {
+      return ListView(
+        padding: mobileScrollPadding(context, top: 16, bottom: 28),
+        children: [
+          Text(
+            'Comparison scores stay hidden until an administrator approves this submission.',
+            style: evalBodyStyle.copyWith(fontSize: 13, height: 1.4),
+          ),
+        ],
+      );
+    }
     final criteria = result.displayCriteria(isVideo: result.isVideo);
     final hasOthers = others.isNotEmpty;
 

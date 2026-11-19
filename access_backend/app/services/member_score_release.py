@@ -296,27 +296,46 @@ def evaluation_row_for_member(
     recommendation: str | None,
 ) -> tuple[str | None, float, str, float, float, float, float, float, str | None, str | None]:
     """Redact DB row fields for member list/detail APIs."""
-    if not criteria_json:
-        return criteria_json, overall_score, feedback, sharpness_score, brightness_score, contrast_score, blur_score, noise_score, quality_level, recommendation
-    try:
-        parsed = json.loads(criteria_json)
-    except json.JSONDecodeError:
-        return criteria_json, overall_score, feedback, sharpness_score, brightness_score, contrast_score, blur_score, noise_score, quality_level, recommendation
-    if not isinstance(parsed, dict):
-        return criteria_json, overall_score, feedback, sharpness_score, brightness_score, contrast_score, blur_score, noise_score, quality_level, recommendation
-    if member_may_view_scores(parsed, review_status):
-        return criteria_json, overall_score, feedback, sharpness_score, brightness_score, contrast_score, blur_score, noise_score, quality_level, recommendation
-    redacted = redact_criteria_json_for_member(parsed, review_status)
-    gate_msg = redacted.get("review_gate_message") or MEMBER_UNDER_REVIEW_MESSAGE
+    status = (review_status or "").strip().lower()
+    status_withholds = (
+        status in WITHHOLD_SCORES_FINAL_STATUSES or status in PENDING_REVIEW_STATUSES
+    )
+    parsed: dict[str, Any] | None = None
+    if criteria_json:
+        try:
+            loaded = json.loads(criteria_json)
+        except json.JSONDecodeError:
+            loaded = None
+        if isinstance(loaded, dict):
+            parsed = loaded
+    if status_withholds or (parsed is not None and not member_may_view_scores(parsed, review_status)):
+        gate = MEMBER_UNDER_REVIEW_MESSAGE
+        redacted_json = criteria_json
+        if parsed is not None:
+            redacted = redact_criteria_json_for_member(parsed, review_status)
+            gate = redacted.get("review_gate_message") or gate
+            redacted_json = json.dumps(redacted)
+        return (
+            redacted_json,
+            0.0,
+            gate,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            None,
+            None,
+        )
     return (
-        json.dumps(redacted),
-        0.0,
-        gate_msg,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        None,
-        None,
+        criteria_json,
+        overall_score,
+        feedback,
+        sharpness_score,
+        brightness_score,
+        contrast_score,
+        blur_score,
+        noise_score,
+        quality_level,
+        recommendation,
     )

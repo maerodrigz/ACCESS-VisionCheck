@@ -13,6 +13,7 @@ from app.services.ai_authenticity_detector import detect_ai_generated
 from app.services.camera_provenance import CameraProvenanceResult
 from app.services.integrity_evaluation_policy import apply_integrity_evaluation_policy, xp_award_points_from_payload
 from app.services.member_score_release import (
+    evaluation_row_for_member,
     member_may_view_scores,
     redact_criteria_json_for_member,
     release_member_evaluation_scores,
@@ -121,3 +122,53 @@ def test_xp_awarded_once_after_verify() -> None:
             assert _award_pending_evaluation_xp(MagicMock(), 9, 3) == 25
             assert _award_pending_evaluation_xp(MagicMock(), 9, 3) == 0
             assert award_calls == [25]
+
+
+def _member_row(status: str, *, criteria_json: str | None = None):
+    payload = {
+        "overall_score": 4.0,
+        "quality_level": "Fair",
+        "member_scores_released": True,
+        "criteria": [{"name": "Sharpness", "score": 4, "suggestion": ""}],
+    }
+    return evaluation_row_for_member(
+        criteria_json=criteria_json if criteria_json is not None else json.dumps(payload),
+        review_status=status,
+        overall_score=0.8,
+        feedback="Overall quality looks fair.",
+        sharpness_score=4,
+        brightness_score=4,
+        contrast_score=4,
+        blur_score=4,
+        noise_score=4,
+        quality_level="Fair",
+        recommendation="Accepted",
+    )
+
+
+def test_pending_verification_withholds_member_quality() -> None:
+    row = _member_row("pending_review")
+    assert row[1] == 0.0
+    assert row[8] is None
+    assert row[9] is None
+    assert "Sharpness" not in (row[0] or "")
+
+
+def test_under_review_withholds_member_quality() -> None:
+    row = _member_row("needs_further_review")
+    assert row[1] == 0.0
+    assert row[8] is None
+
+
+def test_approved_member_response_keeps_quality() -> None:
+    row = _member_row("verified_human")
+    assert row[1] == 0.8
+    assert row[8] == "Fair"
+    assert row[3] == 4
+
+
+def test_rejected_withholds_quality_even_when_criteria_json_is_invalid() -> None:
+    row = _member_row("rejected", criteria_json="not-json")
+    assert row[1] == 0.0
+    assert row[8] is None
+    assert row[3] == 0.0

@@ -7,13 +7,14 @@ import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/utils/member_supplementary_insights_display.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
-Color qualityLevelColor(String? level) => switch (level) {
+Color qualityLevelColor(String? level) => switch (qualityDisplayBucket(level)) {
       'Excellent' => kGreen,
-      'Good' => kAccent,
-      'Fair' => kYellow,
-      'Needs Improvement' || 'Poor' => kRed,
+      'Good' => kBlue,
+      'Fair' => kOrange,
+      'Poor' => kRed,
       _ => kTextSecondary,
     };
 
@@ -148,10 +149,11 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final levelColor = qualityLevelColor(result.qualityLevel);
+    final levelColor = qualityPercentBandColor(result.overallPercent);
     final showQuality = result.showQualityFeedbackEffective;
+    final storedFeedback = gemini ?? result.geminiFeedback ?? MediaEvaluationFeedback.fromLocal(result);
     final gf = showQuality
-        ? (gemini ?? result.geminiFeedback ?? MediaEvaluationFeedback.fromLocal(result))
+        ? storedFeedback.withAlignedOverallLabel(result.displayQualityLabel)
         : null;
 
     if (!showQuality) {
@@ -199,7 +201,7 @@ class MediaEvaluationResultsPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        result.qualityLevel,
+                        overallQualityHeadline(result.displayQualityLabel),
                         style: TextStyle(color: levelColor, fontSize: compact ? 17 : 20, fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 4),

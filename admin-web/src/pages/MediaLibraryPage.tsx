@@ -54,6 +54,7 @@ import {
   facebookShareUrl,
   computeMediaStats,
   filterAlbumsBySearch,
+  eventGalleryItems,
   filterMedia,
   parseEventMediaRows,
   pendingBestShots,
@@ -271,17 +272,15 @@ export function MediaLibraryPage() {
 
   const searchActive = search.trim().length > 0
 
-  const filtered = useMemo(() => {
-    const items = filterMedia(all, search, selectedAlbumId, {
-      mediaCategory: 'event_documentation',
-      facebookPublishStatus: fbFilter === 'all' ? 'all' : fbFilter,
-    })
-    // Default gallery hides published items; keep them visible when searching or filtering by status.
-    if (fbFilter === 'all' && !searchActive) {
-      return items.filter((a) => a.facebookPublishStatus !== 'published')
-    }
-    return items
-  }, [all, search, selectedAlbumId, fbFilter, searchActive])
+  const filtered = useMemo(
+    () =>
+      eventGalleryItems(all, {
+        search,
+        albumId: selectedAlbumId,
+        facebookPublishStatus: fbFilter,
+      }),
+    [all, search, selectedAlbumId, fbFilter],
+  )
 
   const galleryPool = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -1004,9 +1003,15 @@ export function MediaLibraryPage() {
             {galleryItems.length === 0 ? (
               <AdminCard dashed padding="lg" className="text-center">
                 <FolderOpen size={32} className="mx-auto text-[var(--color-text-muted)]" />
-                <p className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">No media found</p>
+                <p className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">
+                  {selectedAlbumId ? 'This album has no media in this view' : 'No media found'}
+                </p>
                 <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                  Upload event photos and videos or adjust your filters.
+                  {selectedAlbumId
+                    ? galleryKind === 'photos'
+                      ? 'This album has no photos here. Switch to Videos or clear filters.'
+                      : 'This album has no videos here. Switch to Photos or clear filters.'
+                    : 'Upload event photos and videos or adjust your filters.'}
                 </p>
                 {isAdmin && (
                   <button

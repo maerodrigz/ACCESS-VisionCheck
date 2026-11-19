@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.services.overall_quality_band import overall_quality_label_from_five_point
+
 # Member-facing narrative must not expose scores, percents, or raw measurements.
 _NARRATIVE_MEASUREMENT_RE = re.compile(
     r"""
@@ -355,15 +357,10 @@ def generate_rule_based_media_feedback(
             factors.append(sum(clarity) / len(clarity))
         overall_score = round(sum(factors) / len(factors), 2) if factors else 0.0
     overall_f = float(overall_score or 0.0)
-    level = (quality_level or "").strip() or (
-        "Excellent"
-        if overall_f >= 4.5
-        else "Good"
-        if overall_f >= 3.5
-        else "Fair"
-        if overall_f >= 2.5
-        else "Needs Improvement"
-    )
+    # Callers may still pass a stored quality_level. The opening sentence follows
+    # the displayed 0–100 band instead of that older 1–5 label.
+    _ = quality_level
+    level = overall_quality_label_from_five_point(overall_f)
 
     if all_good:
         strength_names = ", ".join(r["name"].lower() for r in strong_rows) or "technical quality"

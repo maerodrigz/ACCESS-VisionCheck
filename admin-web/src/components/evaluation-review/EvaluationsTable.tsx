@@ -6,6 +6,7 @@ import {
   formatEvaluationAiScore,
   isEvaluationFlagged,
   practicePhotoOrVideoEvaluation,
+  overallQualityLabel,
   scoreTone,
 } from '../../lib/evaluationReview'
 
@@ -87,7 +88,9 @@ export function EvaluationsTable({ items, onReview }: Props) {
                       : 'N/A'}
                   </p>
                   <p className="mt-0.5 truncate text-[10px] font-semibold text-[var(--color-text-secondary)]">
-                    {item.qualityAvailable ? (item.qualityLevel ?? 'No tier') : 'Unavailable'}
+                    {item.qualityAvailable
+                      ? (overallQualityLabel(item.overallScore) ?? 'No tier')
+                      : 'Unavailable'}
                   </p>
                 </td>
                 <td className="px-3 py-3 md:px-4 md:py-3.5">

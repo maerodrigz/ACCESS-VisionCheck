@@ -7,6 +7,7 @@ import 'package:access_mobile/mobile_app/widgets/score_ring.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 import 'package:access_mobile/mobile_app/widgets/media_evaluation_ui.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_network_image.dart';
@@ -67,8 +68,12 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
               runSpacing: 6,
               children: [
                 if (ev.mediaType != null) MediaTypeBadge(mediaType: ev.mediaType),
-                if (ev.qualityLevel != null && ev.qualityLevel!.isNotEmpty)
-                  QualityLevelBadge(level: ev.qualityLevel!),
+                if (!ev.isPending && !ev.isAnalysisInProgress)
+                  QualityLevelBadge(
+                    level: overallQualityHeadline(
+                      overallQualityLabelFromPercent(ev.displayPercent),
+                    ),
+                  ),
                 if (ev.isEfficientNetEvaluation)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -194,7 +199,9 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
                 child: Text(
                   ev.recommendation!,
                   style: TextStyle(
-                    color: qualityLevelColor(ev.qualityLevel),
+                    color: ev.isPending
+                        ? kTextSecondary
+                        : qualityPercentBandColor(ev.displayPercent),
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
@@ -235,7 +242,11 @@ void showEvaluationDetail(BuildContext context, Evaluation ev) {
 
             const SizedBox(height: 16),
             if (ev.geminiFeedback != null)
-              AiFeedbackCard(feedback: ev.geminiFeedback!)
+              AiFeedbackCard(
+                feedback: ev.geminiFeedback!.withAlignedOverallLabel(
+                  overallQualityLabelFromPercent(ev.displayPercent),
+                ),
+              )
             else ...[
               const Text('FEEDBACK', style: TextStyle(color: kTextSecondary, fontSize: 11, letterSpacing: 0.8)),
               const SizedBox(height: 8),

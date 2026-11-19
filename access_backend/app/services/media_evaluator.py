@@ -31,6 +31,7 @@ from app.services.supplementary_quality_insights import (
     build_video_supplementary_insights,
 )
 from app.services.musiq_quality_adapter import strip_adapter_metadata
+from app.services.overall_quality_band import overall_quality_label_from_five_point
 from app.services.rule_based_quality_feedback import (
     format_rule_based_ai_feedback,
     format_rule_based_improvement_suggestions,
@@ -662,9 +663,7 @@ def _build_payload(
         criteria,
         formula_version=SCORING_FORMULA_VERSION,
     )
-    quality_level = (
-        "Excellent" if overall >= 4.5 else "Good" if overall >= 3.5 else "Fair" if overall >= 2.5 else "Needs Improvement"
-    )
+    quality_level = overall_quality_label_from_five_point(overall)
     recommendation = (
         "Accepted" if overall >= 3.6 else "Accepted with Suggestions" if overall >= 2.4 else "For Officer Review"
     )

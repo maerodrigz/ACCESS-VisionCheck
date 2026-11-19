@@ -5,6 +5,7 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 
 import 'criterion_score_bar.dart';
 
@@ -42,9 +43,9 @@ class QualityBreakdownCard extends StatelessWidget {
       );
     }
     final percent = result.overallPercent;
-    final levelColor = qualityLevelColor(result.qualityLevel);
+    final levelColor = qualityPercentBandColor(percent);
     final showTrophy = percent >= 90;
-    final qualityHeadline = _qualityHeadline(result.qualityLevel);
+    final qualityHeadline = overallQualityHeadline(result.displayQualityLabel);
     final criteria = result.displayCriteria(isVideo: result.isVideo);
 
     final content = Column(
@@ -180,11 +181,6 @@ class QualityBreakdownCard extends StatelessWidget {
     );
   }
 
-  String _qualityHeadline(String level) {
-    final trimmed = level.trim();
-    if (trimmed.isEmpty) return 'Quality Result';
-    return trimmed.toLowerCase().contains('quality') ? trimmed : '$trimmed Quality';
-  }
 }
 
 class _ScoreRangeLegend extends StatelessWidget {
@@ -263,10 +259,10 @@ class _ScoreRangeLegend extends StatelessWidget {
   }
 }
 
-Color qualityLevelColor(String? level) => switch (level) {
+Color qualityLevelColor(String? level) => switch (qualityDisplayBucket(level)) {
       'Excellent' => kGreen,
-      'Good' => kAccent,
-      'Fair' => kYellow,
-      'Needs Improvement' || 'Poor' => kRed,
+      'Good' => kBlue,
+      'Fair' => kOrange,
+      'Poor' => kRed,
       _ => kTextSecondary,
     };

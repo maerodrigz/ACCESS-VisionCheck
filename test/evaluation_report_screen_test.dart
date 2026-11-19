@@ -196,7 +196,7 @@ void main() {
 
     expect(find.text('Overall Quality Score'), findsOneWidget);
     expect(find.text('84'), findsOneWidget);
-    expect(find.text('Good'), findsWidgets);
+    expect(find.text('Good Quality'), findsWidgets);
     expect(find.text('Admin Review'), findsOneWidget);
     expect(find.text('Verified'), findsWidgets);
     expect(find.textContaining('80 XP awarded'), findsOneWidget);

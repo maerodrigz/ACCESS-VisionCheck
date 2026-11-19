@@ -1,3 +1,5 @@
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
+
 /// Deterministic, metric-grounded photo quality feedback (Gemini-independent).
 /// Mirrors `access_backend/app/services/rule_based_quality_feedback.py`.
 ///
@@ -165,15 +167,9 @@ class RuleBasedQualityFeedback {
     final cappedImprovements = improvements.take(maxImprovements).toList();
     final allGood = rows.every((r) => r.score >= strengthMin);
 
-    final level = qualityLevel.trim().isNotEmpty
-        ? qualityLevel
-        : (overallScore >= 4.5
-            ? 'Excellent'
-            : overallScore >= 3.5
-                ? 'Good'
-                : overallScore >= 2.5
-                    ? 'Fair'
-                    : 'Needs Improvement');
+    // Opening sentence follows the displayed 0–100 band, even if a stored
+    // qualityLevel used an older 1–5 threshold.
+    final level = overallQualityLabelFromFivePoint(overallScore);
 
     late final String explanation;
     late final List<String> finalImprovements;

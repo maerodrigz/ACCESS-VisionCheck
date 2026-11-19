@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/services/image_quality_analyzer.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 
 /// Legacy local image-heuristic scorer (not the production server engine).
 ///
@@ -231,12 +232,7 @@ abstract final class EfficientNetScoringService {
     );
   }
 
-  static String _qualityLevel(double overall) {
-    if (overall >= 4.5) return 'Excellent';
-    if (overall >= 3.5) return 'Good';
-    if (overall >= 2.5) return 'Fair';
-    return 'Needs Improvement';
-  }
+  static String _qualityLevel(double overall) => overallQualityLabelFromFivePoint(overall);
 
   static String _recommendation(double overall) {
     if (overall >= 3.6) return 'Accepted';

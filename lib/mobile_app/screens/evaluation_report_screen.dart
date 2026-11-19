@@ -12,6 +12,7 @@ import 'package:access_mobile/shared/utils/skill_evaluation_eligibility.dart';
 import 'package:access_mobile/mobile_app/utils/practice_storage_removal.dart';
 import 'package:access_mobile/mobile_app/widgets/practice_storage_cleanup_retry.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 import 'package:access_mobile/mobile_app/widgets/admin_review_status_badge.dart';
 import 'package:access_mobile/mobile_app/widgets/eval_local_video.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_media_thumbnail.dart';
@@ -347,9 +348,11 @@ Color _reportSummaryStatusColor(MemberIntegrityColorKind kind) {
 }
 
 String _qualityClassificationLabel(Evaluation evaluation, PhotoEvaluationResult? parsed) {
-  final raw = (parsed?.qualityLevel ?? evaluation.qualityLevel ?? '').trim();
-  if (raw.isEmpty) return 'N/A';
-  return raw;
+  final percent = parsed?.evaluationAvailable == true
+      ? parsed!.overallPercent
+      : evaluation.displayPercent;
+  if (parsed != null && !parsed.evaluationAvailable) return 'N/A';
+  return overallQualityHeadline(overallQualityLabelFromPercent(percent));
 }
 
 /// Compact Phase 1 header verification chip from backend [reviewStatus].

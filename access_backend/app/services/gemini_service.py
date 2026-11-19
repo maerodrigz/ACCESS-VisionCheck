@@ -10,6 +10,10 @@ import urllib.request
 from typing import Any
 
 from app.config import settings
+from app.services.overall_quality_band import (
+    overall_percent_from_five_point,
+    overall_quality_label_from_percent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +281,13 @@ def build_media_evaluation_prompt(
         overall_f = 0.0
     overall_pct = evaluation.get("overall_percent") or evaluation.get("overallPercent")
     if overall_pct is None:
-        overall_pct = round((overall_f / 5) * 100) if overall_f > 0 else 0
+        overall_pct = overall_percent_from_five_point(overall_f) if overall_f > 0 else 0
+    try:
+        overall_pct_int = max(0, min(100, int(round(float(overall_pct)))))
+    except (TypeError, ValueError):
+        overall_pct_int = overall_percent_from_five_point(overall_f)
+    quality_label = overall_quality_label_from_percent(overall_pct_int)
+    overall_pct = overall_pct_int
 
     name_line = (
         f"Member first name: {member_first_name}"
@@ -302,7 +312,7 @@ Criteria marked N/A were not measured — skip them entirely; never treat N/A as
 {name_line}
 
 Media type: {evaluation.get("media_type") or evaluation.get("mediaType") or "photo"}
-Overall quality: {evaluation.get("quality_level") or evaluation.get("qualityLevel") or "Fair"} ({overall_f:.1f}/5, {overall_pct}/100)
+Overall quality: {quality_label} ({overall_f:.1f}/5, {overall_pct}/100)
 Recommendation: {evaluation.get("recommendation") or "Keep practicing"}
 Detected strengths (from available scores only): {_strengths(evaluation)}
 Areas to develop (from available scores only): {_weaknesses(evaluation)}

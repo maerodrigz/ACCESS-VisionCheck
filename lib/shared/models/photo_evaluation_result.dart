@@ -1,6 +1,7 @@
 import 'package:access_mobile/shared/controllers/auth_controller.dart';
 import 'package:access_mobile/shared/models/rule_based_quality_feedback.dart';
 import 'package:access_mobile/shared/utils/criterion_explanation_sanitize.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 
 /// Structured photo evaluation result (1–5 per criterion).
 class CriterionScore {
@@ -364,7 +365,7 @@ class MediaEvaluationFeedback {
       ],
       isVideo: result.isVideo,
       overallScore: result.overallScore,
-      qualityLevel: result.qualityLevel,
+      qualityLevel: result.displayQualityLabel,
       memberFirstName: firstName.isEmpty ? null : firstName,
       qualityWarnings: warnings,
     );
@@ -385,6 +386,15 @@ class MediaEvaluationFeedback {
         closingMessage: closingMessage.trim().isEmpty
             ? closingMessage
             : (closingMessage.trim().endsWith('!') ? closingMessage : '${closingMessage.trim()}!'),
+      );
+
+  /// Keep criterion tips, but make the overall sentence match [label].
+  MediaEvaluationFeedback withAlignedOverallLabel(String label) => MediaEvaluationFeedback(
+        explanation: alignOverallQualityWording(explanation, label),
+        strengths: strengths,
+        improvements: improvements,
+        tips: tips,
+        closingMessage: alignOverallQualityWording(closingMessage, label),
       );
 
   /// Strip score-like numbers from narrative fields (metric cards keep their own scores).
@@ -585,7 +595,13 @@ class PhotoEvaluationResult {
   }
 
   int get overallPercent =>
-      evaluationAvailable ? ((overallScore / 5) * 100).round().clamp(0, 100) : 0;
+      evaluationAvailable ? overallPercentFromFivePoint(overallScore) : 0;
+
+  /// Label for the final overall score. Historical stored [qualityLevel] values
+  /// are not used, so an 80/100 result displays as Good.
+  String get displayQualityLabel => evaluationAvailable
+      ? overallQualityLabelFromFivePoint(overallScore)
+      : qualityLevel;
 
   bool get hasAdditionalQualityInsights =>
       additionalQualityInsights?.hasDisplayableData ?? false;

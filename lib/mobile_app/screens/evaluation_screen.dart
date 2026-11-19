@@ -10,6 +10,7 @@ import 'package:access_mobile/mobile_app/widgets/criterion_score_bar.dart';
 import 'package:access_mobile/mobile_app/screens/ai_media_evaluation_screen.dart';
 import 'package:access_mobile/mobile_app/screens/evaluation_report_screen.dart';
 import 'package:access_mobile/mobile_app/widgets/evaluation_criterion_meta.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
@@ -1070,7 +1071,9 @@ class _RecentEvaluationsSectionState extends State<_RecentEvaluationsSection> {
     return list.where((e) {
       final title = e.title.toLowerCase();
       final date = e.date.toLowerCase();
-      final quality = qualityDisplayBucket(e.qualityLevel).toLowerCase();
+      final quality = (e.isPending || e.isAnalysisInProgress)
+          ? qualityDisplayBucket(e.qualityLevel).toLowerCase()
+          : overallQualityLabelFromPercent(e.displayPercent).toLowerCase();
       final integrity = _integrityTierFor(e).toLowerCase();
       return title.contains(q) ||
           date.contains(q) ||
@@ -1713,8 +1716,11 @@ class _RecentEvalHorizontalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = ev.displayPercent;
-    final bucket = qualityDisplayBucket(ev.qualityLevel);
-    final accent = qualityBucketColor(bucket);
+    final scored = !ev.isPending && !ev.isAnalysisInProgress;
+    final bucket = scored
+        ? overallQualityLabelFromPercent(pct)
+        : qualityDisplayBucket(ev.qualityLevel);
+    final accent = scored ? qualityPercentBandColor(pct) : qualityBucketColor(bucket);
 
     return MemberDashboardTapScale(
       onTap: onTap,
@@ -1941,15 +1947,20 @@ class _RecentEvalCard extends StatelessWidget {
 
   Color _tintFor(String bucket) => switch (bucket) {
         'Excellent' => kGreenDim,
-        'Good' => kCyanDim,
+        'Good' => kBlueDim,
+        'Fair' => kYellowDim,
+        'Poor' => kRedDim,
         _ => kYellowDim,
       };
 
   @override
   Widget build(BuildContext context) {
     final pct = ev.displayPercent;
-    final bucket = qualityDisplayBucket(ev.qualityLevel);
-    final accent = qualityBucketColor(bucket);
+    final scored = !ev.isPending && !ev.isAnalysisInProgress;
+    final bucket = scored
+        ? overallQualityLabelFromPercent(pct)
+        : qualityDisplayBucket(ev.qualityLevel);
+    final accent = scored ? qualityPercentBandColor(pct) : qualityBucketColor(bucket);
     final tint = _tintFor(bucket);
 
     return MemberDashboardTapScale(

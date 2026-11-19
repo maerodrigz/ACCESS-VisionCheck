@@ -7,6 +7,8 @@ import math
 from io import BytesIO
 from typing import Any
 
+from app.services.overall_quality_band import overall_quality_label_from_five_point
+
 try:
     from PIL import Image
 except ImportError:  # pragma: no cover
@@ -131,9 +133,7 @@ def build_evaluation_payload(m: dict[str, Any]) -> dict[str, Any]:
         _criterion("Overall Documentation Value", _soft_score(max(0, m["blur_score"] * 0.25 + min(m["brightness"], 0.75) * 0.2 + m["subject_clarity"] * 0.3 + m["resolution_score"] * 0.25), 0.32, 0.8)),
     ]
     overall = round(sum(c["score"] for c in criteria) / len(criteria), 2)
-    quality_level = (
-        "Excellent" if overall >= 4.5 else "Good" if overall >= 3.5 else "Fair" if overall >= 2.5 else "Needs Improvement"
-    )
+    quality_level = overall_quality_label_from_five_point(overall)
     recommendation = (
         "Accepted" if overall >= 3.6
         else "Accepted with Suggestions" if overall >= 2.4

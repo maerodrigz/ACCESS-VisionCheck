@@ -174,10 +174,21 @@ export function formatEvalDate(d: Date | null): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+export function overallQualityLabel(score: number | null): string | null {
+  if (score == null || Number.isNaN(score)) return null
+  const percent = Math.round(Math.min(100, Math.max(0, score)))
+  if (percent >= 90) return 'Excellent'
+  if (percent >= 75) return 'Good'
+  if (percent >= 60) return 'Fair'
+  return 'Poor'
+}
+
 export function scoreTone(score: number | null): string {
-  if (score == null) return 'text-[var(--color-text-muted)]'
-  if (score >= 75) return 'text-emerald-400'
-  if (score >= 50) return 'text-amber-400'
+  const label = overallQualityLabel(score)
+  if (label == null) return 'text-[var(--color-text-muted)]'
+  if (label === 'Excellent') return 'text-emerald-400'
+  if (label === 'Good') return 'text-blue-500'
+  if (label === 'Fair') return 'text-orange-500'
   return 'text-red-400'
 }
 

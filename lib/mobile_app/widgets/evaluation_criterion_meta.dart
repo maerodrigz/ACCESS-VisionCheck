@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 
 class CriterionMeta {
   const CriterionMeta({
@@ -77,27 +78,34 @@ CriterionMeta criterionMetaFor(CriterionScore criterion) =>
       description: 'Technical quality metric for ${criterion.name.toLowerCase()}.',
     );
 
-/// Maps backend quality labels to the three display buckets.
+/// Maps a stored overall label to the four display bands.
+///
+/// Unknown values stay "Needs Improvement" so pending rows without a score
+/// do not become Poor.
 String qualityDisplayBucket(String? level) {
   final normalized = (level ?? '').trim().toLowerCase();
   if (normalized.contains('excellent')) return 'Excellent';
-  if (normalized == 'good' || normalized == 'fair') return 'Good';
+  if (normalized.contains('good')) return 'Good';
+  if (normalized.contains('fair')) return 'Fair';
+  if (normalized.contains('poor')) return 'Poor';
   return 'Needs Improvement';
 }
 
 Color qualityBucketColor(String bucket) => switch (bucket) {
-      'Excellent' => const Color(0xFF22C55E),
-      'Good' => kAccent,
-      _ => const Color(0xFFF97316),
+      'Excellent' => kGreen,
+      'Good' => kBlue,
+      'Fair' => kOrange,
+      'Poor' => kRed,
+      _ => kOrange,
     };
 
-/// Overall 0–100 band colors aligned with backend 1–5 thresholds (2.5 / 3.5 / 4.5).
-Color qualityPercentBandColor(int percent) {
-  if (percent >= 90) return kGreen;
-  if (percent >= 70) return kBlue;
-  if (percent >= 50) return kOrange;
-  return kRed;
-}
+/// Overall 0–100 band colors: Poor red, Fair orange, Good blue, Excellent green.
+Color qualityPercentBandColor(int percent) => switch (overallQualityLabelFromPercent(percent)) {
+      'Excellent' => kGreen,
+      'Good' => kBlue,
+      'Fair' => kOrange,
+      _ => kRed,
+    };
 
 /// Color for an individual 1–5 criterion (Poor / Fair / Good / Excellent bands).
 Color criterionLevelColor(int score) {

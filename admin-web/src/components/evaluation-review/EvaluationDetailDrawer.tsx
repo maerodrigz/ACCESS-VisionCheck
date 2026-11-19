@@ -13,6 +13,7 @@ import {
   formatEvaluationAiScore,
   isEvaluationFlagged,
   practicePhotoOrVideoEvaluation,
+  overallQualityLabel,
   scoreTone,
 } from '../../lib/evaluationReview'
 
@@ -143,7 +144,9 @@ export function EvaluationDetailDrawer({
               {item.qualityAvailable && item.overallScore != null ? `${Math.round(item.overallScore)}%` : 'N/A'}
             </div>
             <div className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              {item.qualityAvailable ? (item.qualityLevel ?? 'No quality tier') : 'Quality evaluation unavailable'}
+              {item.qualityAvailable
+                ? (overallQualityLabel(item.overallScore) ?? 'No quality tier')
+                : 'Quality evaluation unavailable'}
             </div>
             {item.qualityEngine ? (
               <div className="mt-1 text-[10px] text-[var(--color-text-muted)]">

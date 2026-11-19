@@ -8,6 +8,7 @@ import 'package:access_mobile/mobile_app/widgets/member_dashboard_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/member_evaluation_theme.dart';
 import 'package:access_mobile/mobile_app/widgets/mobile_ui_kit.dart';
 import 'package:access_mobile/shared/models/photo_evaluation_result.dart';
+import 'package:access_mobile/shared/utils/overall_quality_band.dart';
 import 'package:access_mobile/shared/themes/theme.dart';
 
 const _modelFooter =
@@ -55,8 +56,12 @@ class _EvaluationDetailedAnalysisScreenState extends State<EvaluationDetailedAna
     super.dispose();
   }
 
-  MediaEvaluationFeedback get _feedback =>
-      widget.geminiFeedback ?? widget.result.geminiFeedback ?? MediaEvaluationFeedback.fromLocal(widget.result);
+  MediaEvaluationFeedback get _feedback {
+    final raw = widget.geminiFeedback ??
+        widget.result.geminiFeedback ??
+        MediaEvaluationFeedback.fromLocal(widget.result);
+    return raw.withAlignedOverallLabel(widget.result.displayQualityLabel);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -153,8 +158,8 @@ class _SummaryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final levelColor = qualityLevelColor(result.qualityLevel);
-    final bucket = qualityDisplayBucket(result.qualityLevel);
+    final levelColor = qualityPercentBandColor(result.overallPercent);
+    final qualityHeadline = overallQualityHeadline(result.displayQualityLabel);
 
     return SingleChildScrollView(
       padding: mobileScrollPadding(context, top: 16, bottom: 28),
@@ -183,13 +188,13 @@ class _SummaryTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    color: qualityBucketColor(bucket).withValues(alpha: 0.12),
+                    color: levelColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    bucket,
+                    qualityHeadline,
                     style: TextStyle(
-                      color: qualityBucketColor(bucket),
+                      color: levelColor,
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
                     ),

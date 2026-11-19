@@ -349,6 +349,33 @@ function mediaSearchText(a: MediaAsset): string {
     .toLowerCase()
 }
 
+/**
+ * Media shown in the event gallery.
+ *
+ * The unscoped gallery hides Facebook-published files because they are listed
+ * in Published history. Opening an album must still show that album's published
+ * photos and videos.
+ */
+export function eventGalleryItems(
+  items: MediaAsset[],
+  opts: {
+    search: string
+    albumId: string | null
+    facebookPublishStatus: FacebookPublishStatus | 'all'
+  },
+): MediaAsset[] {
+  const searchActive = opts.search.trim().length > 0
+  const filtered = filterMedia(items, opts.search, opts.albumId, {
+    mediaCategory: 'event_documentation',
+    facebookPublishStatus:
+      opts.facebookPublishStatus === 'all' ? 'all' : opts.facebookPublishStatus,
+  })
+  if (opts.facebookPublishStatus === 'all' && !searchActive && !opts.albumId) {
+    return filtered.filter((a) => a.facebookPublishStatus !== 'published')
+  }
+  return filtered
+}
+
 export function filterMedia(
   items: MediaAsset[],
   search: string,
